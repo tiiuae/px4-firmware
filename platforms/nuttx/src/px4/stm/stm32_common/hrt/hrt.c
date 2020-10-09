@@ -72,6 +72,23 @@
 #  define hrtinfo(x...)
 #endif
 
+#if !defined(CONFIG_BUILD_FLAT)
+#include <px4_platform_common/defines.h>
+#include <px4_platform/board_ctrl.h>
+#include <px4_platform_common/sem.h>
+
+static px4_sem_t g_wait_sem;
+static struct hrt_call *next_hrt_entry;
+
+void hrt_usr_call(void *arg)
+{
+	// This is called from hrt interrupt
+	next_hrt_entry = (struct hrt_call *)arg;
+	px4_sem_post(&g_wait_sem);
+}
+
+#endif
+
 #ifdef HRT_TIMER
 
 /* HRT configuration */
@@ -275,6 +292,8 @@ static void		hrt_call_enter(struct hrt_call *entry);
 static void		hrt_call_reschedule(void);
 static void		hrt_call_invoke(void);
 
+
+int hrt_ioctl(unsigned int cmd, unsigned long arg);
 /*
  * Specific registers and bits used by PPM sub-functions
  */
@@ -743,6 +762,16 @@ hrt_init(void)
 	/* configure the PPM input pin */
 	px4_arch_configgpio(GPIO_PPM_IN);
 #endif
+
+#if !defined(CONFIG_BUILD_FLAT)
+	/* Create a semaphore for handling hrt driver callbacks */
+	px4_sem_init(&g_wait_sem, 0, 0);
+	/* this is a signalling semaphore */
+	px4_sem_setprotocol(&g_wait_sem, SEM_PRIO_NONE);
+
+	/* register ioctl callbacks */
+	px4_register_boardct_ioctl(_HRTIOCBASE, hrt_ioctl);
+#endif
 }
 
 /**
@@ -1002,6 +1031,64 @@ void reset_latency_counters(void)
 	for (int i = 0; i <= get_latency_bucket_count(); i++) {
 		latency_counters[i] = 0;
 	}
+}
+
+/* board_ioctl interface for user-space hrt driver */
+int
+hrt_ioctl(unsigned int cmd, unsigned long arg)
+{
+	hrt_boardctl_t *h = (hrt_boardctl_t *)arg;
+
+	switch (cmd) {
+	case HRT_WAITEVENT:
+		/* The user side thread calling this is at highest priority, there
+		 * is no race in here
+		 */
+		px4_sem_wait(&g_wait_sem);
+		*(struct hrt_call **)arg = next_hrt_entry;
+		break;
+
+	case HRT_ABSOLUTE_TIME:
+		*(hrt_abstime *)arg = hrt_absolute_time();
+		break;
+
+	case HRT_CALL_AFTER:
+		hrt_call_after(h->entry, h->time, (hrt_callout)hrt_usr_call, h->entry);
+		break;
+
+	case HRT_CALL_AT:
+		hrt_call_at(h->entry, h->time, (hrt_callout)hrt_usr_call, h->entry);
+		break;
+
+	case HRT_CALL_EVERY:
+		hrt_call_every(h->entry, h->time, h->interval, (hrt_callout)hrt_usr_call, h->entry);
+		break;
+
+	case HRT_CANCEL:
+		if (h && h->entry) {
+			hrt_cancel(h->entry);
+
+		} else {
+			PX4_ERR("HRT_CANCEL called with NULL entry");
+		}
+
+		break;
+
+	case HRT_GET_LATENCY: {
+			latency_boardctl_t *latency = (latency_boardctl_t *)arg;
+			latency->latency = get_latency(latency->bucket_idx, latency->counter_idx);
+		}
+		break;
+
+	case HRT_RESET_LATENCY:
+		reset_latency_counters();
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return OK;
 }
 #endif
 
