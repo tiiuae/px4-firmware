@@ -168,6 +168,7 @@ EKF2::EKF2(bool replay_mode):
 	_vehicle_visual_odometry_aligned_pub.advertise();
 	_wind_pub.advertise();
 	_yaw_est_pub.advertise();
+	_optical_flow_vel_pub.advertise();
 }
 
 EKF2::~EKF2()
@@ -1042,6 +1043,8 @@ void EKF2::Run()
 
 			publish_yaw_estimator_status(now);
 
+			publish_optical_flow_vel(now);
+
 			if (!_mag_decl_saved && (_vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_STANDBY)) {
 				_mag_decl_saved = update_mag_decl(_param_ekf2_mag_decl);
 			}
@@ -1331,6 +1334,21 @@ void EKF2::publish_wind_estimate(const hrt_abstime &timestamp)
 
 		_wind_pub.publish(wind_estimate);
 	}
+}
+
+void EKF2::publish_optical_flow_vel(const hrt_abstime &timestamp)
+{
+	optical_flow_vel_s flow_vel{};
+	flow_vel.timestamp_sample = timestamp;
+
+	_ekf.getFlowVelBody().copyTo(flow_vel.vel_body);
+	_ekf.getFlowVelNE().copyTo(flow_vel.vel_ne);
+	_ekf.getFlowCompensated().copyTo(flow_vel.flow_rate_compensated);
+	_ekf.getFlowUncompensated().copyTo(flow_vel.flow_rate_uncompensated);
+	_ekf.getFlowGyro().copyTo(flow_vel.gyro);
+	flow_vel.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
+
+	_optical_flow_vel_pub.publish(flow_vel);
 }
 
 float EKF2::filter_altitude_ellipsoid(float amsl_hgt)

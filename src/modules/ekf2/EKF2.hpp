@@ -81,6 +81,7 @@
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/wind_estimate.h>
 #include <uORB/topics/yaw_estimator_status.h>
+#include <uORB/topics/optical_flow_vel.h>
 
 #include "Utility/PreFlightChecker.hpp"
 
@@ -125,6 +126,7 @@ private:
 	void publish_odometry(const hrt_abstime &timestamp, const imuSample &imu, const vehicle_local_position_s &lpos);
 	void publish_wind_estimate(const hrt_abstime &timestamp);
 	void publish_yaw_estimator_status(const hrt_abstime &timestamp);
+	void publish_optical_flow_vel(const hrt_abstime &timestamp);
 
 	/*
 	 * Calculate filtered WGS84 height from estimated AMSL height
@@ -211,6 +213,7 @@ private:
 	uORB::PublicationData<vehicle_local_position_s>		_vehicle_local_position_pub{ORB_ID(vehicle_local_position)};
 	uORB::PublicationData<vehicle_odometry_s>		_vehicle_visual_odometry_aligned_pub{ORB_ID(vehicle_visual_odometry_aligned)};
 	uORB::PublicationMulti<wind_estimate_s>			_wind_pub{ORB_ID(wind_estimate)};
+	uORB::Publication<optical_flow_vel_s>			_optical_flow_vel_pub{ORB_ID(optical_flow_vel)};
 
 	Ekf _ekf;
 
