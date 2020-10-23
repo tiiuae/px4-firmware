@@ -70,6 +70,8 @@ px4_add_romfs_files(
 	3010_jsbsim_quadrotor_x
 	3011_jsbsim_hexarotor_x
 
+	4400_ssrc_fog_x
+
 	4001_gz_x500
 	4002_gz_x500_depth
 	4003_gz_rc_cessna
@@ -88,6 +90,11 @@ px4_add_romfs_files(
 	4019_gz_x500_gimbal
 	4020_gz_tiltrotor
 	4021_gz_x500_flow
+	4401_gz_ssrc_holybro_x500
+	4440_gz_ssrc_skywalker_x8
+	4404_gz_ssrc_standard_vtol
+	4430_gz_ssrc_strivermini
+	50005_gz_ssrc_scout_mini
 
 	6011_gazebo-classic_typhoon_h480
 	6011_gazebo-classic_typhoon_h480.post
