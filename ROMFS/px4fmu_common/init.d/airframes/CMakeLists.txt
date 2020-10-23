@@ -74,6 +74,9 @@ if(CONFIG_MODULES_MC_RATE_CONTROL)
 		4061_atl_mantis_edu
 		4071_ifo
 		4073_ifo-s
+		4400_ssrc_fog_x
+		4401_ssrc_fog_x_tmotor
+
 		4500_clover4
 		4601_droneblocks_dexi_5
 		4901_crazyflie21
@@ -106,6 +109,9 @@ if(CONFIG_MODULES_MC_RATE_CONTROL)
 		16001_helicopter
 
 		24001_dodeca_cox
+
+		# SSRC HIL airframes
+		1401_ssrc_holybro_x500.hil
 	)
 endif()
 
@@ -118,9 +124,16 @@ if(CONFIG_MODULES_FW_RATE_CONTROL)
 		# [3000, 3999] Flying wing
 		3000_generic_wing
 
+		4420_ssrc_arwing
+		4421_ssrc_skywalker
+		4430_ssrc_strivermini
+
 		# [17000, 17999] Autogyro
 		17002_TF-AutoG2
 		17003_TF-G2
+
+		# SSRC HIL airframes
+		1440_ssrc_skywalker_x8.hil
 	)
 endif()
 
@@ -137,6 +150,10 @@ if(CONFIG_MODULES_VTOL_ATT_CONTROL)
 		13100_generic_vtol_tiltrotor
 		13030_generic_vtol_quad_tiltrotor
 		13200_generic_vtol_tailsitter
+
+		# SSRC HIL airframes
+		1404_ssrc_standard_vtol.hil
+		1405_ssrc_strivermini.hil
 	)
 endif()
 
@@ -145,6 +162,9 @@ if(CONFIG_MODULES_ROVER_DIFFERENTIAL)
 		# [50000, 50999] Differential rovers
 		50000_generic_rover_differential
 		50001_aion_robotics_r1_rover
+		50005_ssrc_scout_mini_rover
+		50006_ssrc_bunker_rover
+		50007_ssrc_bunker_mini_rover
 	)
 endif()
 
