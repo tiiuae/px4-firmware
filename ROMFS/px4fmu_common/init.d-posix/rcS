@@ -113,6 +113,10 @@ udp_onboard_payload_port_remote=$((14030+px4_instance))
 udp_onboard_gimbal_port_local=$((13030+px4_instance))
 udp_onboard_gimbal_port_remote=$((13280+px4_instance))
 udp_gcs_port_local=$((18570+px4_instance))
+udp_gcs_port_remote=14550
+
+udp_gcs_addr_remote=127.0.0.1
+[ -n "$PX4_QGC_REMOTE_ADDRESS" ] &&  udp_gcs_addr_remote=$PX4_QGC_REMOTE_ADDRESS
 
 if [ $AUTOCNF = yes ]
 then
