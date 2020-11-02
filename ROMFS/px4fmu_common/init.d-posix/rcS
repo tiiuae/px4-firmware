@@ -114,6 +114,10 @@ udp_offboard_port_remote=$((14540+px4_instance))
 udp_onboard_payload_port_local=$((14280+px4_instance))
 udp_onboard_payload_port_remote=$((14030+px4_instance))
 udp_gcs_port_local=$((18570+px4_instance))
+udp_gcs_port_remote=14550
+
+udp_gcs_addr_remote=127.0.0.1
+[ -n "$PX4_QGC_REMOTE_ADDRESS" ] &&  udp_gcs_addr_remote=$PX4_QGC_REMOTE_ADDRESS
 
 if [ $AUTOCNF = yes ]
 then
@@ -254,7 +258,7 @@ fi
 sh etc/init.d/rc.vehicle_setup
 
 # GCS link
-mavlink start -x -u $udp_gcs_port_local -r 4000000
+mavlink start -x -u $udp_gcs_port_local -o $udp_gcs_port_remote -t $udp_gcs_addr_remote -r 4000000
 mavlink stream -r 50 -s POSITION_TARGET_LOCAL_NED -u $udp_gcs_port_local
 mavlink stream -r 50 -s LOCAL_POSITION_NED -u $udp_gcs_port_local
 mavlink stream -r 50 -s GLOBAL_POSITION_INT -u $udp_gcs_port_local
