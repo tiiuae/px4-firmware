@@ -281,9 +281,9 @@ mavlink start -x -u $udp_onboard_payload_port_local -r 4000 -f -m onboard -o $ud
 # Run script to start logging
 if param compare SYS_MC_EST_GROUP 2
 then
-	set LOGGER_ARGS "-p ekf2_timestamps"
+	set LOGGER_ARGS "-p ekf2_timestamps -m file"
 else
-	set LOGGER_ARGS "-p vehicle_attitude"
+	set LOGGER_ARGS "-p vehicle_attitude -m file"
 fi
 sh etc/init.d/rc.logging
 
