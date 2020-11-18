@@ -149,6 +149,7 @@ set(models
 	typhoon_h480
 	uuv_bluerov2_heavy
 	uuv_hippocampus
+	ssrc_fog_x
 )
 
 set(worlds
