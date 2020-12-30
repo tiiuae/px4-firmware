@@ -34,6 +34,7 @@ if __name__ == "__main__":
     parser.add_argument('--qgc_addr', default="INADDR_ANY", help="IP address for QGC")
     parser.add_argument('--hil_mode', default=0, help="Enable HIL mode for HITL simulation")
     parser.add_argument('--use_tcp', default=0, help="Use TCP instead of UDP for PX4 SITL")
+    parser.add_argument('--gstudphost', default="127.0.0.1", help="udpHost for Gst Camera plugin")
     parser.add_argument('--output-file', help="sdf output file")
     parser.add_argument('--stdout', action='store_true', default=False, help="dump to stdout instead of file")
     parser.add_argument('--mavlink_id', default=1, help="Mavlink system ID")
@@ -75,7 +76,8 @@ if __name__ == "__main__":
          'hil_mode': args.hil_mode, \
          'ros_version': ros_version, \
          'qgc_addr': args.qgc_addr, \
-         'use_tcp': args.use_tcp}
+         'use_tcp': args.use_tcp, \
+         'gstudphost': args.gstudphost}
 
     result = template.render(d)
 
