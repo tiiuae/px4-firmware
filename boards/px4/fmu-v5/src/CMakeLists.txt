@@ -42,6 +42,7 @@ add_library(drivers_board
 	timer_config.cpp
 	usb.c
 	toc.c
+	stm32_encx24j600.c
 )
 add_dependencies(drivers_board arch_board_hw_info)
 

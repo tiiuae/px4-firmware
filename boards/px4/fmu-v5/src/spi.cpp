@@ -48,11 +48,17 @@ constexpr px4_spi_bus_t px4_spi_buses[SPI_BUS_MAX_BUS_ITEMS] = {
 	initSPIBus(SPI::Bus::SPI4, {
 		initSPIDevice(DRV_BARO_DEVTYPE_MS5611, SPI::CS{GPIO::PortF, GPIO::Pin10}),
 	}),
+#ifndef CONFIG_ENCX24J600
 	initSPIBusExternal(SPI::Bus::SPI5, {
 		initSPIConfigExternal(SPI::CS{GPIO::PortI, GPIO::Pin4}, SPI::DRDY{GPIO::PortD, GPIO::Pin15}),
 		initSPIConfigExternal(SPI::CS{GPIO::PortI, GPIO::Pin10}),
 		initSPIConfigExternal(SPI::CS{GPIO::PortI, GPIO::Pin11})
 	}),
+#else
+	initSPIBus(SPI::Bus::SPI5, {
+			initSPIDevice(SPIDEV_ETHERNET(0), SPI::CS{GPIO::PortI, GPIO::Pin4}, SPI::DRDY{GPIO::PortI, GPIO::Pin10})
+	}),
+#endif
 	initSPIBusExternal(SPI::Bus::SPI6, {
 		initSPIConfigExternal(SPI::CS{GPIO::PortI, GPIO::Pin6}),
 		initSPIConfigExternal(SPI::CS{GPIO::PortI, GPIO::Pin7}),

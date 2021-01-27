@@ -380,6 +380,10 @@
 #define GPIO_SPI6_MOSI   GPIO_SPI6_MOSI_3   /* PB5 */
 #define GPIO_SPI6_SCK    GPIO_SPI6_SCK_1    /* PG13 */
 
+/* SPI Ethernet interrupt pin */
+#define GPIO_ENCX24J600_INTR (GPIO_INPUT|GPIO_PULLUP|GPIO_PORTI|GPIO_PIN10)
+
+
 /* I2C
  *
  *   Each I2C is associated with a U[S]ART
