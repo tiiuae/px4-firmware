@@ -14,7 +14,7 @@
     </include>
     <plugin name='group_pos_plugin' filename='libgazebo_group_pos_plugin.so'>
       <updateRate>1.0</updateRate>
-      <namePrefix>ssrc_fog_x-</namePrefix>
+      <namePrefix>ssrc_fog_x_</namePrefix>
       <udpAddress>172.17.255.255</udpAddress>
       <udpPort>15517</udpPort>
     </plugin>
