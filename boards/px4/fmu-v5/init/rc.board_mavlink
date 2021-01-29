@@ -5,3 +5,12 @@
 
 # Start MAVLink on the USB port
 mavlink start -d /dev/ttyACM0
+
+# Start MAVLink on the ethernet
+param set MAV_BROADCAST 2
+param set MAV_1_CONFIG 101
+
+mavlink start -t 10.0.0.1 -u 14556 -o 14540 -r 200000
+
+# Start the RTPS stream on the ethernet
+micrortps_client start -i 10.0.0.1 -t UDP -r 2019 -s 2020
