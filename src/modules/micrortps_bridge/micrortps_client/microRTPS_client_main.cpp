@@ -83,6 +83,7 @@ static int parse_options(int argc, char *argv[])
 	int ch;
 	int myoptind = 1;
 	const char *myoptarg = nullptr;
+	int baudrate = 0;
 
 	while ((ch = px4_getopt(argc, argv, "t:d:l:w:b:p:r:s:i:fhv", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
@@ -96,7 +97,13 @@ static int parse_options(int argc, char *argv[])
 
 		case 'w': _options.sleep_ms        = strtoul(myoptarg, nullptr, 10);    break;
 
-		case 'b': _options.baudrate        = strtoul(myoptarg, nullptr, 10);    break;
+		case 'b':
+			if (px4_get_parameter_value(myoptarg, baudrate) != 0) {
+				PX4_ERR("baudrate parsing failed");
+				return -1;
+			}
+
+			_options.baudrate = baudrate;    break;
 
 		case 'r': _options.recv_port       = strtoul(myoptarg, nullptr, 10);    break;
 
