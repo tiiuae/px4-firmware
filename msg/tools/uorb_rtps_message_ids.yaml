@@ -11,6 +11,7 @@ rtps:
     id: 5
   - msg: battery_status
     id: 6
+    send: true
   - msg: camera_capture
     id: 7
   - msg: camera_trigger
@@ -225,6 +226,7 @@ rtps:
     id: 101
   - msg: vehicle_status
     id: 102
+    send: true
   - msg: vehicle_status_flags
     id: 103
   - msg: vehicle_trajectory_waypoint
