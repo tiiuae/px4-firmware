@@ -47,4 +47,8 @@ then
 	param set MAV_1_CONFIG 102
 	param set MAV_1_MODE 7
 	param set MAV_1_RATE 1000
+
+	# Set battery load drop value to match
+	# the "default" battery used in this drone
+	param set BAT_V_LOAD_DROP 0.1
 fi
