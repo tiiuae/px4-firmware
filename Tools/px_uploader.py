@@ -344,10 +344,11 @@ class uploader(object):
         try:
             self.__getSync(False)
         except:
-            # if it fails we are on a real Serial Port
-            self.ackWindowedMode = True
-
-        self.port.baudrate = self.baudrate_bootloader
+            # if it fails we are on a real serial port - only leave this enabled on Windows
+            if sys.platform.startswith('win'):
+                self.ackWindowedMode = True
+        finally:
+            self.port.baudrate = self.baudrate_bootloader
 
     # send the GET_DEVICE command and wait for an info parameter
     def __getInfo(self, param):
