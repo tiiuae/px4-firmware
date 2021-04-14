@@ -63,3 +63,6 @@
 [submodule "src/drivers/uavcannode_gps_demo/libcanard"]
 	path = src/drivers/uavcannode_gps_demo/libcanard
 	url = https://github.com/UAVCAN/libcanard
+[submodule "packaging/px4-firmware-updater"]
+	path = packaging/px4-firmware-updater
+	url = https://github.com/tiiuae/px4-firmware-updater.git
