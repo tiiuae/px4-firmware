@@ -338,7 +338,7 @@ ssize_t Mavlink2Dev::read(struct file *filp, char *buffer, size_t buflen)
 	while ((unsigned)i < (_read_buffer->buf_size - Sp2HeaderSize) &&
 		(   _read_buffer->buffer[i] != 'S'
 		|| (_read_buffer->buffer[i + 1] & 0x80) != (uint8_t) MessageType::Mavlink
-		|| (_read_buffer->buffer[i + 1] + _read_buffer->buffer[i + 2]) & 0xff != _read_buffer->buffer[i + 3]
+		|| ((_read_buffer->buffer[i + 1] + _read_buffer->buffer[i + 2]) & 0xff) != _read_buffer->buffer[i + 3]
 		)) {
 		i++;
 	}
@@ -501,7 +501,7 @@ ssize_t RtpsDev::read(struct file *filp, char *buffer, size_t buflen)
 	while ((unsigned)i < (_read_buffer->buf_size - Sp2HeaderSize) &&
 		(   _read_buffer->buffer[i] != 'S'
 		|| (_read_buffer->buffer[i + 1] & 0x80) != (uint8_t) MessageType::Rtps
-		|| (_read_buffer->buffer[i + 1] + _read_buffer->buffer[i + 2]) & 0xff != _read_buffer->buffer[i + 3]
+		|| ((_read_buffer->buffer[i + 1] + _read_buffer->buffer[i + 2]) & 0xff) != _read_buffer->buffer[i + 3]
 		)) {
 		i++;
 	}
