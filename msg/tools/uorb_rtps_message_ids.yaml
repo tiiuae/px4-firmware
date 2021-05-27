@@ -38,6 +38,7 @@ rtps:
     id: 16
   - msg: distance_sensor
     id: 17
+    send: true
   - msg: estimator_innovations
     id: 18
   - msg: ekf2_timestamps
@@ -138,6 +139,7 @@ rtps:
     id: 62
   - msg: sensor_baro
     id: 63
+    send: true
   - msg: estimator_sensor_bias
     id: 64
   - msg: sensor_combined
