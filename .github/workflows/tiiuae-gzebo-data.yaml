@@ -1,13 +1,17 @@
-name: tiiuea-sitl
+name: tiiuea-gazebo-data
 
 on:
   push:
     branches: [ master ]
+    #    paths:
+    #     - Tools/sitl_gazebo/**
   pull_request:
     branches: [ master ]
+    #    paths:
+    #      - Tools/sitl_gazebo/**
 
 jobs:
-  sitl:
+  gazebo-data:
     runs-on: ubuntu-latest
     steps:
 
@@ -18,19 +22,19 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Checkout ci-scripts
+      - name: Checkout gen-gazebo-data scripts
         uses: actions/checkout@v2
         with:
-          repository: tiiuae/fogsw-ci-scripts
-          path: fogsw-ci-scripts
+          repository: tiiuae/gen-gazebo-data
+          path: gen-gazebo-data
 
       # Run docker build
-      - name: Run fog-sw docker build
+      - name: Run gazebo-data docker build
         run: |
           set -eux
           mkdir bin
-          pushd fogsw-ci-scripts/px4/sitl
-          ./build.sh ../../../px4-firmware ../../../bin
+          pushd gen-gazebo-data
+          ./gen-gazebo-data.sh ../px4-firmware ../bin
           popd
 
       - name: Install jfrog CLI tool
@@ -49,24 +53,24 @@ jobs:
         env:
           ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
           ARTIFACTORY_GEN_REPO: gen-public-local
-          BUILD_NAME: px4-sitl
+          BUILD_NAME: gazebo-data
           CI: true
         if: github.event_name == 'push'
         run: |
           set -exu
           jfrog rt c import "$ARTIFACTORY_TOKEN"
           jfrog rt ping
-          pkg=$(find bin -name 'px4_sitl_build*.tar.gz')
+          pkg=$(find bin -name 'gazebo-data*.tar.gz')
           pkg_name=$(basename $pkg)
           jfrog rt u --target-props COMMIT="$GITHUB_SHA" \
                      --build-name "$BUILD_NAME" \
                      --build-number "$GITHUB_SHA" \
                      "$pkg" \
-                     "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/sitl/$pkg_name"
+                     "$ARTIFACTORY_GEN_REPO/builds/gazebo-data/$pkg_name"
           jfrog rt build-publish "$BUILD_NAME" "$GITHUB_SHA"
           jfrog rt bpr "$BUILD_NAME" "$GITHUB_SHA" "$ARTIFACTORY_GEN_REPO" \
                        --status dev \
                        --comment "development build"
           jfrog rt cp --flat \
-                      "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/sitl/$pkg_name" \
-                      "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/sitl/latest/px4_sitl_build.tar.gz"
+                      "$ARTIFACTORY_GEN_REPO/builds/gazebo-data/$pkg_name" \
+                      "$ARTIFACTORY_GEN_REPO/builds/gazebo-data/latest/gazebo-data.tar.gz"
