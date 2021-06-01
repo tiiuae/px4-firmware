@@ -6,8 +6,8 @@ px4_add_board(
 	LABEL bootloader
 	TOOLCHAIN riscv64-unknown-elf
 	ARCHITECTURE rv64gc
-	CRYPTO monocypher
-	KEYSTORE stub_keystore
+#	CRYPTO monocypher
+#	KEYSTORE stub_keystore
 
 	DRIVERS
 #	bootloader
