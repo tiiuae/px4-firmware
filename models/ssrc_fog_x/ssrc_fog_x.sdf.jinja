@@ -9,7 +9,7 @@
       <pose>0 0 0 0 0 1.5708</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <mass>1.5</mass>
+        <mass>2.3</mass>
         <inertia>
           <ixx>0.029125</ixx>
           <ixy>0</ixy>
@@ -34,9 +34,6 @@
               <max_vel>0</max_vel>
             </ode>
           </contact>
-          <friction>
-            <ode/>
-          </friction>
         </surface>
       </collision>
       <visual name='base_link_inertia_visual'>
@@ -94,11 +91,11 @@
         </geometry>
         <surface>
           <contact>
-            <ode/>
+            <ode>
+              <min_depth>0.001</min_depth>
+              <max_vel>0</max_vel>
+            </ode>
           </contact>
-          <friction>
-            <ode/>
-          </friction>
         </surface>
       </collision>
     </link>
@@ -147,11 +144,11 @@
         </geometry>
         <surface>
           <contact>
-            <ode/>
+            <ode>
+              <min_depth>0.001</min_depth>
+              <max_vel>0</max_vel>
+            </ode>
           </contact>
-          <friction>
-            <ode/>
-          </friction>
         </surface>
       </collision>
     </link>
@@ -200,11 +197,11 @@
         </geometry>
         <surface>
           <contact>
-            <ode/>
+            <ode>
+              <min_depth>0.001</min_depth>
+              <max_vel>0</max_vel>
+            </ode>
           </contact>
-          <friction>
-            <ode/>
-          </friction>
         </surface>
       </collision>
     </link>
@@ -253,11 +250,11 @@
         </geometry>
         <surface>
           <contact>
-            <ode/>
+            <ode>
+              <min_depth>0.001</min_depth>
+              <max_vel>0</max_vel>
+            </ode>
           </contact>
-          <friction>
-            <ode/>
-          </friction>
         </surface>
       </collision>
     </link>
