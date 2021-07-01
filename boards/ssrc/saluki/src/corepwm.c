@@ -93,7 +93,7 @@ int mpfs_corepwm_initialize(void)
 	struct pwm_lowerhalf_s *lower_half = NULL; /* lower-half driver handle       */
 
 	/* The underlying CorePWM driver "knows" there are up to 16 channels
-	* available for each timer device, so we don't have to do anything
+	* available for each pwm device, so we don't have to do anything
 	* special here.
 	*/
 	int config_npwm = 0;
@@ -108,7 +108,7 @@ int mpfs_corepwm_initialize(void)
 
 	for (npwm = 0; npwm < config_npwm; npwm++)
 	{
-		lower_half = mpfs_corepwminitialize(npwm);
+		lower_half = mpfs_corepwm_init(npwm);
 
 		/* If we can't get the lower-half handle, skip and keep going. */
 

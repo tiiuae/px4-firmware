@@ -90,6 +90,7 @@ __BEGIN_DECLS
 extern void led_init(void);
 extern void led_on(int led);
 extern void led_off(int led);
+extern int mpfs_corepwm_initialize(void);
 __END_DECLS
 
 
@@ -242,6 +243,10 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	}
 
 #endif
+	/* Configure the CorePWM FPGA block */
+
+	mpfs_corepwm_initialize();
+
 	/* Configure the HW based on the manifest */
 
 	px4_platform_configure();
