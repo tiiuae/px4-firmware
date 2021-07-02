@@ -56,8 +56,10 @@ package = package[0]
 
 #include "RtpsTopics.h"
 
-bool RtpsTopics::init(std::condition_variable* t_send_queue_cv, std::mutex* t_send_queue_mutex, std::queue<uint8_t>* t_send_queue, const std::string& ns)
+bool RtpsTopics::init(std::condition_variable* t_send_queue_cv, std::mutex* t_send_queue_mutex, std::queue<uint8_t>* t_send_queue, const std::string& ns, const uint32_t transmission_speed_bytes_per_sec)
 {
+    _tr_speed = transmission_speed_bytes_per_sec;
+
 @[if recv_topics]@
     // Initialise subscribers
     std::cout << "\033[0;36m---   Subscribers   ---\033[0m" << std::endl;
@@ -107,10 +109,16 @@ void RtpsTopics::publish(uint8_t topic_ID, char data_buffer[], size_t len)
 
             if (getMsgSysID(&st) == 1) {
 @[    end if]@
-            // apply timestamp offset
+            // Replace timestamp with time delta from original ts to 'now'
+            uint64_t now = _timesync->getMonoTimeUSec();
             uint64_t timestamp = getMsgTimestamp(&st);
-            _timesync->subtractOffset(timestamp);
-            setMsgTimestamp(&st, timestamp);
+            uint64_t ts_delta = now - timestamp + (len * 1000000 / _tr_speed);
+            setMsgTimestamp(&st, ts_delta);
+            uint64_t timestampsample = getMsgTimestampSample(&st);
+            if (timestampsample) {
+                ts_delta = now - timestampsample + (len * 1000000 / _tr_speed);
+                setMsgTimestampSample(&st, ts_delta);
+            }
             _@(topic)_pub.publish(&st);
 @[    if topic == 'Timesync' or topic == 'timesync']@
             }
@@ -139,13 +147,17 @@ bool RtpsTopics::getMsg(const uint8_t topic_ID, eprosima::fastcdr::Cdr &scdr)
 @[    if topic == 'Timesync' or topic == 'timesync']@
                 if (getMsgSysID(&msg) == 0) {
 @[    end if]@
-                // apply timestamps offset
-                uint64_t timestamp = getMsgTimestamp(&msg);
-                uint64_t timestamp_sample = getMsgTimestampSample(&msg);
-                _timesync->addOffset(timestamp);
+                // Substract time_delta and transmission delay from current time and set new timestamp
+                uint64_t now = _timesync->getMonoTimeUSec();
+                uint64_t ts_delta = getMsgTimestamp(&msg);
+                uint64_t timestamp = now - ts_delta;
                 setMsgTimestamp(&msg, timestamp);
-                _timesync->addOffset(timestamp_sample);
-                setMsgTimestampSample(&msg, timestamp_sample);
+                uint64_t timestamp_sample;
+                ts_delta = getMsgTimestampSample(&msg);
+                if (ts_delta) {
+                    timestamp_sample = now - ts_delta;
+                    setMsgTimestampSample(&msg, timestamp_sample);
+                }
                 msg.serialize(scdr);
                 ret = true;
 @[    if topic == 'Timesync' or topic == 'timesync']@
