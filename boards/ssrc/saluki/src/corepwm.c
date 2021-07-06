@@ -84,27 +84,28 @@ int mpfs_corepwm_initialize(void)
 	/* CorePWM blocks are behind FIC3, enable it */
 
 	SYSREG->SUBBLK_CLOCK_CR |= (SUBBLK_CLOCK_CR_FIC3_MASK);
-	SYSREG->SOFT_RESET_CR   &= (uint32_t)~(SOFT_RESET_CR_FIC3_MASK | SOFT_RESET_CR_FPGA_MASK);
+	SYSREG->SOFT_RESET_CR   &= (uint32_t)~(SOFT_RESET_CR_FIC3_MASK |
+	                           SOFT_RESET_CR_FPGA_MASK);
 
 	/* Configure PWM peripheral interfaces */
 
-	int npwm = 0;                              /* hardware device enumerator     */
-	char devname[20];                          /* buffer for the PWM device name */
-	struct pwm_lowerhalf_s *lower_half = NULL; /* lower-half driver handle       */
+	int npwm = 0;                              /* Hardware device enumerator     */
+	char devname[20];                          /* Buffer for the PWM device name */
+	struct pwm_lowerhalf_s *lower_half = NULL; /* Lower-half driver handle       */
 
-	/* The underlying CorePWM driver "knows" there are up to 16 channels
-	* available for each pwm device, so we don't have to do anything
-	* special here.
-	*/
+	/* The underlying CorePWM driver "knows" there are up to
+	 * 16 channels available for each pwm device, so we don't
+	 * have to do anything special here.
+	 */
 	int config_npwm = 0;
 
-	#ifdef CONFIG_MPFS_COREPWM0
+#ifdef CONFIG_MPFS_COREPWM0
 	config_npwm++;
-	#endif
+#endif
 
-	#ifdef CONFIG_MPFS_COREPWM1
+#ifdef CONFIG_MPFS_COREPWM1
 	config_npwm++;
-	#endif
+#endif
 
 	for (npwm = 0; npwm < config_npwm; npwm++)
 	{
@@ -118,7 +119,6 @@ int mpfs_corepwm_initialize(void)
 			pwm_register(devname, lower_half);
 		}
 	}
-	/* Configure the HW based on the manifest */
 #endif
 
 	return OK;
