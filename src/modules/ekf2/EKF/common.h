@@ -276,6 +276,9 @@ struct parameters {
 	float mag_yaw_rate_gate{0.25f};		///< yaw rate threshold used by mode select logic (rad/sec)
 	const float quat_max_variance{0.0001f};	///< zero innovation yaw measurements will not be fused when the sum of quaternion variance is less than this
 
+	// GNSS heading fusion
+	float gps_heading_noise{0.1f};		///< measurement noise standard deviation used for GNSS heading fusion (rad)
+
 	// airspeed fusion
 	float tas_innov_gate{5.0f};		///< True Airspeed innovation consistency gate size (STD)
 	float eas_noise{1.4f};			///< EAS measurement noise standard deviation used for airspeed fusion (m/s)
@@ -484,6 +487,7 @@ union filter_control_status_u {
 		uint32_t ev_vel      : 1; ///< 24 - true when local frame velocity data fusion from external vision measurements is intended
 		uint32_t synthetic_mag_z : 1; ///< 25 - true when we are using a synthesized measurement for the magnetometer Z component
 		uint32_t vehicle_at_rest : 1; ///< 26 - true when the vehicle is at rest
+		uint32_t gps_yaw_fault : 1; ///< 27 - true when the GNSS heading has been declared faulty and is no longer being used
 	} flags;
 	uint32_t value;
 };
@@ -549,6 +553,7 @@ union warning_event_status_u {
 		bool stopping_mag_use			: 1; ///< 8 - true when the filter has detected bad magnetometer data and is stopping further use of the magnetomer data
 		bool vision_data_stopped		: 1; ///< 9 - true when the vision system data has stopped for a significant time period
 		bool emergency_yaw_reset_mag_stopped	: 1; ///< 10 - true when the filter has detected bad magnetometer data, has reset the yaw to anothter source of data and has stopped further use of the magnetomer data
+		bool emergency_yaw_reset_gps_yaw_stopped: 1; ///< 11 - true when the filter has detected bad GNSS yaw data, has reset the yaw to anothter source of data and has stopped further use of the GNSS yaw data
 	} flags;
 	uint32_t value;
 };
