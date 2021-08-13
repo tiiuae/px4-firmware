@@ -1,0 +1,870 @@
+/****************************************************************************
+ *
+ *   Copyright (c) 2021 Technology Innovation Institute. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. Neither the name PX4 nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ ****************************************************************************/
+
+/**
+ * @file pwm_esc.cpp
+ * Driver for the NuttX PWM driver controlled escs
+ *
+ */
+
+#include <px4_platform_common/px4_config.h>
+#include <px4_platform_common/module.h>
+#include <px4_platform_common/tasks.h>
+#include <px4_platform_common/sem.hpp>
+
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <debug.h>
+#include <time.h>
+#include <queue.h>
+#include <errno.h>
+#include <fcntl.h>
+
+#include <drivers/drv_pwm_output.h>
+
+#include <lib/mixer_module/mixer_module.hpp>
+#include <perf/perf_counter.h>
+#include <parameters/param.h>
+
+#include <uORB/Subscription.hpp>
+#include <uORB/topics/actuator_armed.h>
+#include <uORB/topics/parameter_update.h>
+#include <uORB/topics/actuator_outputs.h>
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+#include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/redundancy_status.h>
+
+#define MAX_N_FCS vehicle_status_s::MAX_REDUNDANT_CONTROLLERS
+#endif
+
+#include <nuttx/timers/pwm.h>
+
+#ifndef PWMESC_OUT_PATH
+#  define PWMESC_OUT_PATH "/dev/pwmX";
+#endif
+
+/* Number of PWMESC device nodes /dev/pwm0 .. /dev/pwmX */
+
+#ifndef PWMESC_N_DEVICES
+#  define PWMESC_N_DEVICES 1
+#  define PWMESC_CHANNELS_PER_DEV {CONFIG_PWM_NCHANNELS}
+#  define PWMESC_N_CHANNELS CONFIG_PWM_NCHANNELS
+#else
+#  ifndef PWMESC_CHANNELS_PER_DEV
+#    error "Define the number of PWM channels for each device (PWMESC_CHANNELS_PER_DEV)"
+#  endif
+#  ifndef PWMESC_N_CHANNELS
+#    error "Define the total number of PWM channels (PWMESC_N_CHANNELS)"
+#  endif
+#endif
+
+#ifndef PWM_DEFAULT_RATE
+#  define PWM_DEFAULT_RATE 400
+#endif
+
+using namespace time_literals;
+
+/**
+ * The PWMESC class.
+ *
+ */
+class PWMESC : public OutputModuleInterface
+{
+public:
+	/**
+	 * Constructor.
+	 *
+	 * Initialize all class variables.
+	 */
+	PWMESC(bool hitl);
+
+	/**
+	 * Destructor.
+	 *
+	 * Wait for worker thread to terminate.
+	 */
+	virtual ~PWMESC();
+
+	/**
+	 * Initialize the PWMESC class.
+	 *
+	 * Retrieve relevant initial system parameters. Connect to PWM device
+	 *
+	 * @param hitl_mode set to suppress publication of actuator_outputs
+	 */
+	int			init(bool hitl_mode);
+
+	/**
+	 * Start the PWMESC driver
+	 */
+	static int		start(int argc, char *argv[]);
+
+	/**
+	 * Stop the PWMESC driver
+	 */
+	static int		stop();
+
+	/**
+	 * Status of PWMESC driver
+	*/
+	static int              status();
+
+	/**
+	 * Usage of PWMESC driver
+	*/
+	static int print_usage(const char *reason);
+
+	/**
+	 * Return if the PWMESC driver is already running
+	 */
+	bool		running() {return _initialized;};
+
+	/**
+	 * updateOutputs
+	 *
+	 * Sets the actual PWM outputs. See OutputModuleInterface
+	 *
+	 */
+
+	bool		updateOutputs(uint16_t outputs[MAX_ACTUATORS],
+				      unsigned num_outputs, unsigned num_control_groups_updated) override;
+
+	/**
+	 * Don't allow more channels than MAX_ACTUATORS
+	*/
+	static_assert(PWMESC_N_CHANNELS <= MAX_ACTUATORS, "Increase MAX_ACTUATORS if this fails");
+
+private:
+
+	bool _initialized{false};
+
+	volatile int		_task;			///< worker task id
+	volatile bool		_task_should_exit;	///< worker terminate flag
+
+	px4_sem_t _update_sem;
+
+	perf_counter_t		_perf_update;		///< local performance counter for PWM updates
+
+	/* subscribed topics */
+
+	uORB::Subscription _actuator_armed_sub{ORB_ID(actuator_armed)};
+
+	MixingOutput _mixing_output;
+
+	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1000000};
+
+	/* advertised topics */
+	uORB::PublicationMulti<actuator_outputs_s>		_actuator_outputs_sim_pub{ORB_ID(actuator_outputs_sim)};
+
+	actuator_armed_s		_actuator_armed;
+
+	bool                    _hitl_mode;     ///< Hardware-in-the-loop simulation mode - don't publish actuator_outputs
+
+	int		_pwm_fd[PWMESC_N_DEVICES];
+	int32_t		_pwm_rate{PWM_DEFAULT_RATE};
+
+	int _ch_config[PWMESC_N_DEVICES] {};
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+	uORB::Subscription _redundancy_status_sub {ORB_ID(redundancy_status)};
+
+	uORB::Subscription *_redundant_actuator_outputs_sub[MAX_N_FCS] = {nullptr, nullptr};
+
+	bool _redundant_actuator_control_enabled{false};
+#endif
+
+	int		init_outputs();
+
+	bool updatePWMOutputs(int dev, uint16_t *outputs, unsigned num_outputs, int ch_offset);
+
+	/* Singleton pointer */
+	static PWMESC	*_instance;
+
+	/**
+	 * Status of PWMESC driver
+	*/
+	int                     printStatus();
+
+	/**
+	 * Trampoline to the worker task
+	 */
+	static int		task_main_trampoline(int argc, char *argv[]);
+
+	/**
+	 * worker task
+	 */
+	void			task_main();
+
+	/**
+	 * Callback for mixer subscriptions
+	 */
+	void Run() override;
+
+	void update_params();
+
+	/* No copy constructor */
+	PWMESC(const PWMESC &);
+	PWMESC operator=(const PWMESC &);
+
+	/**
+	 * Get the singleton instance
+	 */
+	static inline PWMESC *getInstance(bool allocate = false, bool hitl = false)
+	{
+		if (_instance == nullptr && allocate) {
+			/* create the driver */
+			_instance = new PWMESC(hitl);
+		}
+
+		return _instance;
+	}
+
+	/**
+	 * Set the PWMs on open device fd to 0 duty cycle
+	 * and start or stop (request == PWMIOC_START / PWMIOC_STOP)
+	 */
+	int initialize_pwm(int dev, int fd, unsigned long request);
+};
+
+PWMESC *PWMESC::_instance = nullptr;
+
+PWMESC::PWMESC(bool hitl) :
+	OutputModuleInterface(MODULE_NAME, px4::wq_configurations::hp_default),
+	_task(-1),
+	_task_should_exit(false),
+	_perf_update(perf_alloc(PC_ELAPSED, "pwm update")),
+	_mixing_output(hitl || !PX4_MFT_HW_SUPPORTED(PX4_MFT_PX4IO) ? "PWM_MAIN" : "PWM_AUX",
+		       PWMESC_N_CHANNELS, *this, MixingOutput::SchedulingPolicy::Auto, true),
+	_hitl_mode(hitl)
+{
+	/* initialize tick semaphores */
+	px4_sem_init(&_update_sem, 0, 0);
+	px4_sem_setprotocol(&_update_sem, SEM_PRIO_NONE);
+
+	/* clear armed status */
+	memset(&_actuator_armed, 0, sizeof(actuator_armed_s));
+
+	for (int i = 0; i < PWMESC_N_DEVICES; ++i) {
+		_pwm_fd[i] = -1;
+	}
+}
+
+PWMESC::~PWMESC()
+{
+	/* tell the task we want it to go away */
+	_task_should_exit = true;
+
+	/* spin waiting for the task to stop */
+	for (unsigned i = 0; (i < 10) && (_task != -1); i++) {
+		/* give it another 100ms */
+		px4_usleep(100000);
+	}
+
+	/* well, kill it anyway, though this will probably crash */
+	if (_task != -1) {
+		PX4_ERR("Task exit fail\n");
+		px4_task_delete(_task);
+	}
+
+	/* deallocate perfs */
+	perf_free(_perf_update);
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+	/* delete redundant_actuator_output subscriptions */
+
+	for (int i = 0; i < MAX_N_FCS; i++) {
+		delete _redundant_actuator_outputs_sub[i];
+	}
+
+#endif
+
+	px4_sem_destroy(&_update_sem);
+}
+
+int
+PWMESC::init(bool hitl_mode)
+{
+#ifdef CONFIG_MODULES_REDUNDANCY
+	int32_t spare_autopilots;
+
+	if (param_get(param_find("FT_N_SPARE_FCS"), &spare_autopilots) == PX4_OK && spare_autopilots > 0
+	    && spare_autopilots < MAX_N_FCS) {
+		/* Find out which actuator_outputs instance we are publishing.
+		 * Note: there is a race condition in here in theory; if
+		 * drivers publishing actuator outputs are started in parallel
+		 * threads, this might give wrong results. However, in practice
+		 * all the actuator drivers are started at boot in a single
+		 * thread sequentially.
+		 */
+
+		int actuator_output_instance = orb_group_count(ORB_ID(actuator_outputs)) - 1;
+
+		/* Sanity check; this only supports 4 instances, since the current
+		 * redundancy communication interface (mavlink) doesn't support
+		 * sharing more
+		 */
+
+		if (actuator_output_instance < 0 || actuator_output_instance > 3) {
+			return PX4_ERROR;
+		}
+
+		/* Subscribe to the correct actuator outputs from the other FCs;
+		 * this assumes that the same actuator control drivers are running
+		 * on all FCs; that is, the topic instance numbers match.
+		 * There is typically one instance for UAVCAN and another for PWM_ESC.
+		 */
+
+		for (int i = 0; i < MAX_N_FCS; i++) {
+			const orb_metadata *meta;
+
+			switch (i + redundancy_status_s::FC1) {
+			case redundancy_status_s::FC1:
+				meta = ORB_ID(redundant_actuator_outputs0);
+				break;
+
+			case redundancy_status_s::FC2:
+				meta = ORB_ID(redundant_actuator_outputs1);
+				break;
+
+			case redundancy_status_s::FC3:
+				meta = ORB_ID(redundant_actuator_outputs2);
+				break;
+
+			case redundancy_status_s::FC4:
+				meta = ORB_ID(redundant_actuator_outputs3);
+				break;
+
+			default:
+				meta = nullptr;
+			}
+
+			_redundant_actuator_outputs_sub[i] = new uORB::Subscription(meta, actuator_output_instance);
+
+			if (!_redundant_actuator_outputs_sub[i]) {
+				PX4_ERR("redundant_actuator_outputs%d not available\n", i);
+				return PX4_ERROR;
+			}
+		}
+
+		_redundant_actuator_control_enabled = true;
+	}
+
+#endif
+
+	/* Read the channel configurations */
+
+	update_params();
+
+	/* start the main task */
+	_task = px4_task_spawn_cmd("pwm_esc",
+				   SCHED_DEFAULT,
+				   SCHED_PRIORITY_ACTUATOR_OUTPUTS,
+				   PX4_STACK_ADJUSTED(3048),
+				   (px4_main_t)&PWMESC::task_main_trampoline,
+				   nullptr);
+
+	if (_task < 0) {
+		PX4_ERR("task start failed: %d", errno);
+		return -errno;
+	}
+
+	_initialized = true;
+
+	/* schedule workqueue */
+	ScheduleNow();
+
+	return PX4_OK;
+}
+
+int
+PWMESC::task_main_trampoline(int argc, char *argv[])
+{
+	getInstance()->task_main();
+	return 0;
+}
+
+
+bool
+PWMESC::updatePWMOutputs(int dev, uint16_t *outputs, unsigned num_outputs, int ch_offset)
+{
+	struct pwm_info_s pwm {};
+	bool ret = true;
+	unsigned i;
+	const uint32_t pwm_frequency = (_ch_config[dev] > 0) ? _ch_config[dev] : _pwm_rate;
+
+	pwm.frequency = pwm_frequency;
+
+	/* Fill in the logical channels for the pwm structure */
+
+	for (i = 0; i < num_outputs; i++) {
+		uint16_t pwm_val = outputs[i];
+		pwm.channels[i].duty = ((((uint32_t)pwm_val) << 16) / (1000000 / pwm_frequency));
+		pwm.channels[i].channel = i + 1;
+	}
+
+	/* Set the last logical channel to -1 to indicate termination */
+
+	if (i < CONFIG_PWM_NCHANNELS) {
+		pwm.channels[i].channel = -1;
+	}
+
+	/* Send the IOCTL command */
+
+	if (::ioctl(_pwm_fd[dev], PWMIOC_SETCHARACTERISTICS,
+		    (unsigned long)((uintptr_t)&pwm)) < 0) {
+		PX4_ERR("PWMIOC_SETCHARACTERISTICS for pwm%d failed: %d\n", dev,
+			errno);
+		ret = false;
+	}
+
+	return ret;
+}
+
+bool
+PWMESC::updateOutputs(uint16_t outputs[MAX_ACTUATORS], unsigned num_outputs,
+		      unsigned num_control_groups_updated)
+{
+	bool ret = true;
+	const unsigned ch_per_dev[PWMESC_N_DEVICES] = PWMESC_CHANNELS_PER_DEV;
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+
+	/* If it is known that this FC is not in control of the acutuators, and that there is
+	 * actuator output available from the controlling FC, output the controlling FC's
+	 * controls instead. This mitigates possible issues with HW or PWM switching logic.
+	 * Note that there is an additional delay when the actuator outputs are first via the
+	 * communication channel, so we simply assume that the communications rate is high
+	 * enough here.
+	 *
+	 * As a sanity check, verify that the redundancy status and any redundant actuator
+	 * outputs are less than 50 ms old.
+	 */
+
+	if (_redundant_actuator_control_enabled) {
+		redundancy_status_s rstatus;
+
+		if (_redundancy_status_sub.copy(&rstatus) &&
+		    hrt_elapsed_time(&rstatus.timestamp) < 50_ms &&
+		    rstatus.fc_number != rstatus.fc_in_act_control &&
+		    rstatus.fc_number >= redundancy_status_s::FC1 && rstatus.fc_number < redundancy_status_s::FC1 + MAX_N_FCS &&
+		    rstatus.fc_in_act_control >= redundancy_status_s::FC1
+		    && rstatus.fc_in_act_control < redundancy_status_s::FC1 + MAX_N_FCS) {
+			actuator_outputs_s ract_outputs;
+			int fc_idx = rstatus.fc_in_act_control - redundancy_status_s::FC1;
+
+			if (_redundant_actuator_outputs_sub[fc_idx]->copy(&ract_outputs) &&
+			    hrt_elapsed_time(&ract_outputs.timestamp) < 50_ms) {
+				/* The actuator outputs is already in correct scale, simply convert from float to uint16 */
+
+				for (int i = 0; i < (int)num_outputs; i++) {
+					outputs[i] = (uint16_t)ract_outputs.output[i];
+				}
+			}
+		}
+	}
+
+#endif
+
+	if (!_hitl_mode) {
+		/* When not in hitl, run PWMs */
+
+		unsigned channel_offset = 0;
+
+		for (int dev = 0; dev < PWMESC_N_DEVICES; dev++) {
+			uint16_t *out = &outputs[channel_offset]; /* First output for this device */
+			int n_out; /* Number of outputs for this device */
+
+			if (num_outputs >= channel_offset + ch_per_dev[dev]) {
+				n_out = ch_per_dev[dev];
+
+			} else {
+				n_out = num_outputs - (channel_offset + ch_per_dev[dev]);
+			}
+
+			if (n_out > 0 && _ch_config[dev] > 0) {
+				updatePWMOutputs(dev, out, n_out, channel_offset);
+			}
+
+			channel_offset += ch_per_dev[dev];
+		}
+
+	} else {
+		// In hitl, publish actuator_outputs_sim
+		// Only publish once we receive actuator_controls (important for lock-step to work correctly)
+
+		if (num_control_groups_updated > 0) {
+			actuator_outputs_s actuator_outputs_sim{};
+			actuator_outputs_sim.noutputs = num_outputs;
+
+			const uint32_t reversible_outputs = _mixing_output.reversibleOutputs();
+
+			for (int i = 0; i < (int)num_outputs; i++) {
+				uint16_t disarmed = _mixing_output.disarmedValue(i);
+				uint16_t min = _mixing_output.minValue(i);
+				uint16_t max = _mixing_output.maxValue(i);
+
+				OutputFunction function = _mixing_output.outputFunction(i);
+				bool is_reversible = reversible_outputs & (1u << i);
+				float output = outputs[i];
+
+				if (((int)function >= (int)OutputFunction::Motor1 && (int)function <= (int)OutputFunction::MotorMax
+				     && !is_reversible)) {
+					// Scale non-reversible motors to [0, 1]
+					actuator_outputs_sim.output[i] = (output - disarmed) / (max - disarmed);
+
+				} else {
+					// Scale everything else to [-1, 1]
+					const float pwm_center = (max + min) / 2.f;
+					const float pwm_delta = (max - min) / 2.f;
+					actuator_outputs_sim.output[i] = (output - pwm_center) / pwm_delta;
+				}
+			}
+
+			actuator_outputs_sim.timestamp = hrt_absolute_time();
+			_actuator_outputs_sim_pub.publish(actuator_outputs_sim);
+		}
+
+		ret = true;
+	}
+
+	return ret;
+}
+
+int
+PWMESC::initialize_pwm(int dev, int fd, unsigned long request)
+{
+	/* Configure PWM to default rate, 1 as duty and start */
+
+	int ret = PX4_ERROR;
+	const unsigned ch_per_dev[PWMESC_N_DEVICES] = PWMESC_CHANNELS_PER_DEV;
+	struct pwm_info_s pwm;
+	unsigned channel_offset = 0;
+
+	for (int i = 0; i < dev; ++i) {
+		channel_offset += ch_per_dev[i];
+	}
+
+	memset(&pwm, 0, sizeof(struct pwm_info_s));
+
+	pwm.frequency = (_ch_config[dev] > 0) ? _ch_config[dev] : _pwm_rate;
+
+	unsigned pwm_index = 0;
+
+	for (unsigned ch = 0; ch < ch_per_dev[dev] && (channel_offset + ch) < PWMESC_N_CHANNELS; ch++) {
+		pwm.channels[pwm_index].duty = 1; /* 0 is not allowed duty cycle value */
+		pwm.channels[pwm_index].channel = ch + 1;
+		pwm_index++;
+	}
+
+	if (pwm_index == 0) {
+		return PX4_OK;
+	}
+
+	if (pwm_index < CONFIG_PWM_NCHANNELS) {
+		pwm.channels[pwm_index].channel = -1;
+	}
+
+	/* Set the frequency and duty */
+
+	ret = ::ioctl(fd, PWMIOC_SETCHARACTERISTICS,
+		      (unsigned long)((uintptr_t)&pwm));
+
+	if (ret < 0) {
+		PX4_ERR("PWMIOC_SETCHARACTERISTICS failed: %d\n",
+			errno);
+
+	} else {
+
+		/* Start / stop */
+
+		ret = ::ioctl(fd, request, 0);
+
+		if (ret < 0) {
+			PX4_ERR("PWMIOC_START/STOP failed: %d\n", errno);
+		}
+	}
+
+	return ret;
+}
+
+int
+PWMESC::init_outputs()
+{
+	int ret = -1;
+
+	_mixing_output.setIgnoreLockdown(_hitl_mode);
+	_mixing_output.setMaxNumOutputs(PWMESC_N_CHANNELS);
+
+	const int update_interval_in_us = math::constrain(1000000 / (_pwm_rate * 2), 500, 100000);
+	_mixing_output.setMaxTopicUpdateRate(update_interval_in_us);
+
+	/* Open the PWM devnode */
+
+	// loop through the devices, open all fd:s
+	char pwm_device_name[] = PWMESC_OUT_PATH;
+
+	for (int i = 0; i < PWMESC_N_DEVICES; i++) {
+		pwm_device_name[sizeof(pwm_device_name) - 2] = '0' + i;
+
+		_pwm_fd[i] = ::open(pwm_device_name, O_RDONLY);
+
+		if (_ch_config[i] > 0) {
+			/* Configure PWM to correct rate, 0 pulse and start */
+
+			ret = initialize_pwm(i, _pwm_fd[i], PWMIOC_START);
+
+			if (ret != 0) {
+				PX4_ERR("PWM init failed for %s errno %d", pwm_device_name, errno);
+				break;
+			}
+
+		} else {
+			/* Disabled / DShot / not configured, OK */
+
+			ret = 0;
+		}
+	}
+
+	if (ret != 0) {
+		PX4_ERR("Init failed");
+	}
+
+	return ret;
+}
+
+void
+PWMESC::Run()
+{
+	/* Just trigger the main task */
+	px4_sem_post(&_update_sem);
+}
+
+void
+PWMESC::task_main()
+{
+	if (init_outputs() != 0) {
+		PX4_ERR("PWM initialization failed");
+		_task_should_exit = true;
+	}
+
+	while (!_task_should_exit) {
+
+		/* Get the armed status */
+
+		_actuator_armed_sub.update(&_actuator_armed);
+
+		struct timespec ts;
+		px4_clock_gettime(CLOCK_REALTIME, &ts);
+		/* Add 100 ms, this can't overflow */
+		ts.tv_nsec += 100000000;
+
+		if (ts.tv_nsec >= 1000000000) {
+			ts.tv_nsec -= 1000000000;
+			ts.tv_sec += 1;
+		}
+
+		/* sleep waiting for mixer update */
+		int ret = px4_sem_timedwait(&_update_sem, &ts);
+
+		perf_begin(_perf_update);
+
+		if (ret == 0) {
+			_mixing_output.update();
+		}
+
+		// check for parameter updates
+		if (_parameter_update_sub.updated()) {
+			// clear update
+			parameter_update_s pupdate;
+			_parameter_update_sub.copy(&pupdate);
+
+			update_params();
+		}
+
+		_mixing_output.updateSubscriptions(true);
+
+		perf_end(_perf_update);
+	}
+
+	PX4_DEBUG("exiting");
+
+	/* Configure PWM to default rate, 0 pulse and stop */
+
+	for (int i = 0; i < PWMESC_N_DEVICES; i++) {
+		initialize_pwm(i, _pwm_fd[i], PWMIOC_STOP);
+	}
+
+	/* tell the dtor that we are exiting */
+	_task = -1;
+}
+
+void PWMESC::update_params()
+{
+	/* skip update when armed */
+	if (_actuator_armed.armed) {
+		return;
+	}
+
+	char param_name[17] {};
+
+	for (int dev = 0; dev < PWMESC_N_DEVICES; dev++) {
+		/* Channel configuration, PWM / DSHOT & speed for this device */
+
+		snprintf(param_name, sizeof(param_name), "%s_TIM%d", _mixing_output.paramPrefix(), dev);
+
+		if (param_get(param_find(param_name), &_ch_config[dev]) != PX4_OK) {
+			_ch_config[dev] = 400;
+		}
+	}
+
+	/* Call MixingOutput::updateParams */
+	updateParams();
+}
+
+extern "C" __EXPORT int pwm_esc_main(int argc, char *argv[]);
+
+int
+PWMESC::start(int argc, char *argv[])
+{
+	int ret = 0;
+	int32_t hitl_mode;
+
+	if (param_get(param_find("SYS_HITL"), &hitl_mode) != PX4_OK) {
+		PX4_ERR("Can't read parameter SYS_HITL");
+		return -1;
+	}
+
+	if (PWMESC::getInstance(true, hitl_mode != 0) == nullptr) {
+		PX4_ERR("Driver allocation failed");
+		return -1;
+	}
+
+	if (PWMESC::getInstance()->running()) {
+		PX4_ERR("Already running");
+		return -1;
+	}
+
+	if (PWMESC::getInstance()->init(hitl_mode) != PX4_OK) {
+		delete PWMESC::getInstance();
+		PX4_ERR("Driver init failed");
+		return -1;
+	}
+
+	return ret;
+}
+
+int
+PWMESC::stop()
+{
+	if (PWMESC::getInstance() == nullptr) {
+		PX4_ERR("Not started");
+		return -1;
+	}
+
+	if (!PWMESC::getInstance()->running()) {
+		PX4_ERR("Not running");
+		return -1;
+	}
+
+	delete (PWMESC::getInstance());
+	_instance = nullptr;
+
+	return 0;
+}
+
+int PWMESC::printStatus()
+{
+	_mixing_output.printStatus();
+	return 0;
+}
+
+int
+PWMESC::status()
+{
+	if (PWMESC::getInstance() == nullptr) {
+		PX4_INFO("Not started");
+		return 0;
+	}
+
+	if (!PWMESC::getInstance()->running()) {
+		PX4_ERR("Not running");
+		return -1;
+	}
+
+	return PWMESC::getInstance()->printStatus();
+}
+
+int PWMESC::print_usage(const char *reason)
+{
+	if (reason) {
+		PX4_WARN("%s\n", reason);
+	}
+
+	PRINT_MODULE_DESCRIPTION(
+		R"DESCR_STR(
+### Description
+Driver for PWM outputs. Used also in HITL mode.
+
+)DESCR_STR");
+
+	PRINT_MODULE_USAGE_NAME("pwm_esc", "driver");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("start", "Start the module");
+	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
+
+	return 0;
+}
+
+int
+pwm_esc_main(int argc, char *argv[])
+{
+	/* check for sufficient number of arguments */
+	if (argc < 2) {
+		PWMESC::print_usage("Need a command");
+		return -1;
+	}
+
+	if (!strcmp(argv[1], "start")) {
+		return PWMESC::start(argc - 1, argv + 1);
+	} else if (!strcmp(argv[1], "stop")) {
+		return PWMESC::stop();
+	} else if (!strcmp(argv[1], "status")) {
+		return PWMESC::status();
+	} else {
+		PWMESC::print_usage("Invalid command");
+	}
+
+	return -1;
+}

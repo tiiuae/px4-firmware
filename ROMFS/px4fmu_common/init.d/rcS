@@ -466,12 +466,6 @@ else
 	if param greater SYS_HITL 0
 	then
 		commander start -h
-
-		if ! pwm_out_sim start -m hil
-		then
-			tune_control play error
-		fi
-
 	else
 		commander start
 
