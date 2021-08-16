@@ -89,36 +89,35 @@ int mpfs_corepwm_initialize(void)
 
 	/* Configure PWM peripheral interfaces */
 
-	int npwm = 0;                              /* Hardware device enumerator     */
-	char devname[20];                          /* Buffer for the PWM device name */
-	struct pwm_lowerhalf_s *lower_half = NULL; /* Lower-half driver handle       */
+	struct pwm_lowerhalf_s *lower_half = NULL; /* Lower-half driver handle */
 
 	/* The underlying CorePWM driver "knows" there are up to
 	 * 16 channels available for each pwm device, so we don't
 	 * have to do anything special here.
 	 */
-	int config_npwm = 0;
 
 #ifdef CONFIG_MPFS_COREPWM0
-	config_npwm++;
+	lower_half = mpfs_corepwm_init(0);
+
+	/* If we can't get the lower-half handle, skip and keep going. */
+
+	if (lower_half)
+	{	/* Translate the peripheral number to a device name. */
+		pwm_register("/dev/corepwm0", lower_half);
+	}
 #endif
 
 #ifdef CONFIG_MPFS_COREPWM1
-	config_npwm++;
+	lower_half = mpfs_corepwm_init(1);
+
+	/* If we can't get the lower-half handle, skip and keep going. */
+
+	if (lower_half)
+	{	/* Translate the peripheral number to a device name. */
+		pwm_register("/dev/corepwm0", lower_half);
+	}
 #endif
 
-	for (npwm = 0; npwm < config_npwm; npwm++)
-	{
-		lower_half = mpfs_corepwm_init(npwm);
-
-		/* If we can't get the lower-half handle, skip and keep going. */
-
-		if (lower_half)
-		{	/* Translate the peripheral number to a device name. */
-			snprintf(devname, sizeof(devname), "/dev/corepwm%d", npwm);
-			pwm_register(devname, lower_half);
-		}
-	}
 #endif
 
 	return OK;
