@@ -39,6 +39,7 @@ px4_add_romfs_files(
 	1001_rc_quad_x.hil
 	1002_standard_vtol.hil
 	1100_rc_quad_x_sih.hil
+	1400_ssrc_fog_x.hil
 
 	# [2000, 2999] Standard planes"
 	2100_standard_plane

@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# @name HIL SSRC Quad X
+#
+# @type Simulation
+# @class Copter
+#
+# @maintainer Jari Nippula <jarix@ssrc.tii.ae>
+#
+# @board px4_fmu-v2 exclude
+# @board bitcraze_crazyflie exclude
+#
+
+. /etc/init.d/rc.mc_defaults
+
+set MIXER quad_x
+set PWM_OUT 1234
+
+# Set HITL flag
+param set SYS_HITL 1
+
+# Default rates
+param set IMU_GYRO_CUTOFF 60
+param set IMU_DGYRO_CUTOFF 30
+param set MC_ROLLRATE_P 0.14
+param set MC_PITCHRATE_P 0.14
+param set MC_ROLLRATE_I 0.3
+param set MC_PITCHRATE_I 0.3
+param set MC_ROLLRATE_D 0.004
+param set MC_PITCHRATE_D 0.004
+
+# RTPS/MAV on TELEMETRY 1
+param set MAV_0_CONFIG 0
+param set RTPS_MAV_CONFIG 101
+param set SER_TEL1_BAUD 1000000
+
+# Enable LL40LS in i2c
+param set SENS_EN_LL40LS 2
+
+# HIL on TELEMETRY 2
+param set SER_TEL2_BAUD 2000000
+param set MAV_1_CONFIG 102
+param set MAV_1_MODE 2
+param set MAV_1_RATE 200000
+
+# Disable multi ekf for now
+param set EKF2_MULTI_IMU 0
+param set SENS_IMU_MODE 1
+param set EKF2_MULTI_MAG 0
+param set SENS_MAG_MODE 1
+
+# disable some checks to allow to fly
+# - with usb
+param set CBRK_USB_CHK 197848
+# - without real battery
+param set CBRK_SUPPLY_CHK 894281
+# - without safety switch
+param set COM_PREARM_MODE 0
+param set CBRK_IO_SAFETY 22027
+
+# Set default for disarm after land to 4s
+param set COM_DISARM_LAND 4.0
