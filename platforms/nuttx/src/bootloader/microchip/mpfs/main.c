@@ -51,13 +51,16 @@
 #include "uart.h"
 #include "lib/flash_cache.h"
 
+#include <nuttx/mtd/mtd.h>
+
+#include "image_toc.h"
 
 #define MK_GPIO_INPUT(def) (((def) & (~(GPIO_OUTPUT)))  | GPIO_INPUT)
 
-//#define BOOTLOADER_RESERVATION_SIZE	(128 * 1024)
-
-
 #define APP_SIZE_MAX			BOARD_FLASH_SIZE
+
+// Reads/writes to flash are done in this size chunks
+#define FLASH_RW_BLOCK 4096
 
 /* context passed to cinit */
 #if INTERFACE_USART
@@ -67,7 +70,15 @@
 # define BOARD_INTERFACE_CONFIG_USB  INTERFACE_USB_CONFIG
 #endif
 
-static int mmcsd_fd = -1;
+#if defined(CONFIG_MTD_M25P)
+static struct mtd_dev_s *mtd = 0;
+static struct spi_dev_s *spinor = 0;
+
+static bool device_flashed = false;
+static uintptr_t end_address = 0;
+static uintptr_t first_unwritten = 0;
+static struct mtd_geometry_s geo;
+#endif
 
 /* board definition */
 struct boardinfo board_info = {
@@ -115,6 +126,20 @@ board_get_devices(void)
 
 	return devices;
 }
+
+#if defined(CONFIG_MPFS_SPI0)
+#define SPI_NOR_CS_FUNC mpfs_spi0_select
+#elif defined(CONFIG_MPFS_SPI1)
+#define SPI_NOR_CS_FUNC mpfs_spi1_select
+#endif
+
+#if defined(BOARD_PIN_CS_SPINOR)
+void
+SPI_NOR_CS_FUNC(FAR struct spi_dev_s *dev, uint32_t devid, bool selected)
+{
+	px4_arch_gpiowrite(BOARD_PIN_CS_SPINOR, !selected);
+}
+#endif
 
 static void
 board_init(void)
@@ -166,6 +191,18 @@ board_init(void)
 	mpfs_board_emmcsd_init();
 #endif
 
+#if defined(CONFIG_MTD_M25P)
+	px4_arch_configgpio(BOARD_PIN_CS_SPINOR);
+	spinor = mpfs_spibus_initialize(1);
+	mtd = m25p_initialize(spinor);
+
+	if (mtd->ioctl(mtd, MTDIOC_GEOMETRY,
+		       (unsigned long)((uintptr_t)&geo))) {
+		_alert("ERROR: MTD geometry unknown\n");
+	}
+
+#endif
+
 }
 
 void
@@ -182,9 +219,8 @@ board_deinit(void)
 	//	putreg32(RCC_AHB1RSTR_OTGFSRST, STM32_RCC_AHB1RSTR);
 #endif
 
-#ifdef MMCSD_IMAGE_FN
-	close(mmcsd_fd);
-	umount("/sdcard");
+#ifdef IMAGE_FN
+	mpfs_spibus_uninitialize(spinor);
 #endif
 
 #if defined(CONFIG_MMCSD)
@@ -220,6 +256,10 @@ board_deinit(void)
 	px4_arch_configgpio(MK_GPIO_INPUT(BOARD_PIN_LED_BOOTLOADER));
 #endif
 
+#if defined(BOARD_PIN_CS_SPINOR)
+	px4_arch_configgpio(MK_GPIO_INPUT(BOARD_PIN_CS_SPINOR));
+#endif
+
 }
 
 static inline void
@@ -249,30 +289,53 @@ inline void arch_setvtor(const uint32_t *address)
 uint32_t
 flash_func_sector_size(unsigned sector)
 {
-	const uint32_t ss = 64 * 1024; // MT25QL01GBBB8E12-0AAT
+#ifdef CONFIG_MTD_M25P
 
-	if (sector * ss < BOARD_FLASH_SIZE) {
-		return ss;
+	if (sector * geo.erasesize < BOARD_FLASH_SIZE) {
+		return geo.erasesize;
 
 	} else {
 		return 0;
 	}
+
+#else
+	// Work in 4K blocks
+	return 4096;
+#endif
 }
 
 void
 flash_func_erase_sector(unsigned sector)
 {
 
-	if (sector == 0) {
-		lseek(mmcsd_fd, 0, SEEK_SET);
-		ftruncate(mmcsd_fd, 0);
+	unsigned ss = flash_func_sector_size(sector);
+
+#ifdef CONFIG_MTD_M25P
+	int ret = MTD_ERASE(mtd, sector, 1);
+
+	if (ret < 0) {
+		ferr("ERROR: Erase block=%u failed: %d\n",
+		     sector, ret);
 	}
 
-	unsigned ss = flash_func_sector_size(sector);
+#endif
+
 	uint64_t *addr = (uint64_t *)((uint64_t)APP_LOAD_ADDRESS + sector * ss);
 	memset(addr, 0xFFFFFFFF, ss);
-
 }
+
+#ifdef CONFIG_MTD_M25P
+static void flash_write_pages(off_t start, unsigned n_pages, uint8_t *src)
+{
+
+	//_alert("write %d pages at %d from 0x%x\n",n_pages,start,src);
+	size_t ret = MTD_BWRITE(mtd, start, n_pages, src);
+
+	if (ret != n_pages) {
+		_alert("SPI NOR write error in pages %d-%d ret %d\n", start, start + n_pages, ret);
+	}
+}
+#endif
 
 void
 flash_func_write_word(uintptr_t address, uint32_t word)
@@ -282,11 +345,32 @@ flash_func_write_word(uintptr_t address, uint32_t word)
 
 	*app_load_addr = word;
 
-#ifdef MMCSD_IMAGE_FN
+#ifdef CONFIG_MTD_M25P
 
-	/* Write also to file, from the app_load_address */
-	if (lseek(mmcsd_fd, address, SEEK_SET) >= 0) {
-		write(mmcsd_fd, (void *)app_load_addr, 4);
+	// Write a single page every time we got a full one
+
+	unsigned pgs_per_block = (FLASH_RW_BLOCK / geo.blocksize);
+
+	if (address > 0 &&
+	    ((address + sizeof(uint32_t)) % FLASH_RW_BLOCK) == 0) {
+
+		// start of this block in memory
+		uintptr_t block_start = ((uintptr_t)app_load_addr + sizeof(uint32_t)) - FLASH_RW_BLOCK;
+
+		// first page to be written
+		off_t write_page = (address / FLASH_RW_BLOCK) * pgs_per_block;
+
+		// write pages
+		flash_write_pages(write_page, pgs_per_block, (uint8_t *)block_start);
+
+		device_flashed = true;
+
+		first_unwritten = address + sizeof(uint32_t);
+	}
+
+	// update the end of the image
+	if (address + sizeof(uint32_t) > end_address) {
+		end_address = address + sizeof(uint32_t);
 	}
 
 #endif
@@ -459,32 +543,68 @@ bootloader_main(void)
 		board_set_rtc_signature(0);
 	}
 
-#ifdef MMCSD_IMAGE_FN
+	int ret = -1;
+
+#ifdef CONFIG_MMCSD
 	/*
 	 * Mount the sdcard and check if the image is present
 	 */
-	int ret = mount("/dev/mmcsd0", "/sdcard/", "vfat", 0, NULL);
+	ret = mount("/dev/mmcsd0", "/sdcard/", "vfat", 0, NULL);
 
-	if (ret < 0) {
-		_alert("SD card mount failed\n");
+	if (ret >= 0) {
+		int mmc_fd = open("/sdcard/boot/" IMAGE_FN, O_RDWR | O_CREAT);
+
+		if (mmc_fd) {
+			_alert("Booting from SD card\n");
+			ret = read(mmc_fd, (void *)APP_LOAD_ADDRESS, BOARD_FLASH_SIZE) > 0 ? 0 : -1;
+			close(mmc_fd);
+		}
+
+		umount("/sdcard");
+	}
+
+#endif
+
+#ifdef CONFIG_MTD_M25P
+	/* If loading from sdcard didn't succeed, use SPI-NOR (normal boot media) */
+
+	// Read first FLASH_RW_BLOCK size data, search if TOC exists
+
+	const unsigned pgs_per_block = FLASH_RW_BLOCK / geo.blocksize;
+	size_t pages = MTD_BREAD(mtd, 0, pgs_per_block, (uint8_t *)APP_LOAD_ADDRESS);
+
+	const image_toc_entry_t *toc_entries;
+	uint8_t len;
+	unsigned i;
+
+	if (pages == pgs_per_block &&
+	    find_toc(&toc_entries, &len)) {
+		_alert("Found TOC\n");
+
+		// find the largest end address
+		const void *end = 0;
+
+		for (i = 0; i < len; i++) {
+			if (toc_entries[i].end > end) {
+				end = toc_entries[i].end;
+			}
+		}
+
+		// image size is end address - app start
+		size_t image_sz = (uintptr_t)end - APP_LOAD_ADDRESS;
+		unsigned reads_left = image_sz / FLASH_RW_BLOCK - 1;
+
+		if (image_sz % FLASH_RW_BLOCK) {
+			reads_left += 1;
+		}
+
+		// read the rest in FLASH_RW_BLOCK blocks
+		for (i = 1; i < reads_left + 1; i++) {
+			MTD_BREAD(mtd, i * pgs_per_block, pgs_per_block, ((uint8_t *)APP_LOAD_ADDRESS) + (i * FLASH_RW_BLOCK));
+		}
 
 	} else {
-		mmcsd_fd = open("/sdcard/boot/" MMCSD_IMAGE_FN, O_RDWR | O_CREAT);
-
-		if (mmcsd_fd > 0) {
-			// Just read everything to load address in 512 byte blocks
-			size_t got = 0;
-
-			do {
-				got += read(mmcsd_fd, (void *)(APP_LOAD_ADDRESS + got), 512);
-			} while (!(got % 512));
-
-		} else {
-			/* Mount succeeded, but file not found. Make sure the "boot" directory is there */
-			ret = mkdir("/sdcard/boot", S_IRWXU | S_IRWXG | S_IRWXO);
-
-			if (ret < 0) { _alert("boot directory creation failed %d\n", ret); }
-		}
+		_alert("No toc found\n");
 	}
 
 #endif
@@ -585,6 +705,31 @@ bootloader_main(void)
 #ifdef BOARD_BOOT_FAIL_DETECT
 		board_set_rtc_signature(BOOT_RTC_SIGNATURE);
 #endif
+
+#ifdef CONFIG_MTD_M25P
+		/* If device was just flashed, finalize flashing */
+
+		if (device_flashed) {
+
+			/* Write the residue */
+			unsigned bytes = end_address - first_unwritten;
+			unsigned n_pages = bytes / geo.blocksize;
+
+			if (bytes % geo.blocksize) {
+				n_pages += 1;
+			}
+
+			if (n_pages) {
+				flash_write_pages(first_unwritten / geo.blocksize, n_pages,
+						  (uint8_t *)(APP_LOAD_ADDRESS + first_unwritten));
+			}
+
+			/* Write first page again to update first word */
+			flash_write_pages(0, 1, (uint8_t *)(APP_LOAD_ADDRESS));
+		}
+
+#endif
+
 		/* look to see if we can boot the app */
 		jump_to_app();
 
