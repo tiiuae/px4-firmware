@@ -33,6 +33,7 @@ px4_add_board(
 #		imu/adis16497
 #		imu/bosch/bmi055
 		magnetometer/bosch/bmm150
+		magnetometer/isentek/ist8310
 #		imu/invensense/icm20602
 #		imu/invensense/icm20689
 		imu/invensense/icm42688p
@@ -40,7 +41,7 @@ px4_add_board(
 #		irlock
 #		lights/blinkm
 #		lights/rgbled
-#		lights/rgbled_ncp5623c
+		lights/rgbled_ncp5623c
 #		lights/rgbled_pwm
 #		magnetometer # all available magnetometer drivers
 #		optical_flow # all available optical flow drivers
