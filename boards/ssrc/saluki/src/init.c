@@ -134,6 +134,10 @@ mpfs_boardinitialize(void)
 {
 	syslog(LOG_DEBUG, "mpfs_boardinitialize\n");
 	board_autoled_initialize();
+
+	/* Configure Safety button GPIO */
+	mpfs_configgpio(GPIO_BTN_SAFETY);
+
 }
 
 /****************************************************************************

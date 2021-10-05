@@ -56,7 +56,7 @@ px4_add_board(
 		rc_input
 #		roboclaw
 #		rpm
-#		safety_button
+		safety_button
 #		tap_esc
 #		telemetry # all available telemetry drivers
 #		test_ppm
