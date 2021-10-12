@@ -72,6 +72,8 @@ public:
 	/** @see ModuleBase */
 	static int print_usage(const char *reason = nullptr);
 
+	void request_stop() override;
+
 private:
 	static void InterruptStopNote(void *arg);
 
@@ -88,4 +90,6 @@ private:
 
 	bool _circuit_break_initialized{false};
 	bool _play_tone{false};
+	bool _initialized{false};
+	static bool _stop_note;
 };
