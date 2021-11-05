@@ -64,45 +64,6 @@ __BEGIN_DECLS
 __EXPORT int param_main(int argc, char *argv[]);
 __END_DECLS
 
-#if defined (__PX4_NUTTX) && !defined (CONFIG_BUILD_FLAT)
-
-// NuttX memory protected build
-
-extern "C" int
-kparam_main(int argc, char *argv[])
-{
-	return param_main(argc, argv);
-}
-
-#if !defined(__KERNEL__)
-
-// User space application for NuttX memory protected build
-
-static const char kparam_main_fn[] = "kparam";
-extern "C" int launch_kmod_main(int argc, char *argv[]);
-
-extern "C" int
-kparam_call(int argc, char *argv[])
-{
-	argv[0] = (char *)kparam_main_fn;
-	return launch_kmod_main(argc, argv);
-}
-#else
-
-// Kernel space application for NuttX memory protected build
-
-#define kparam_call(x, y) 0
-
-#endif // !defined(__KERNEL__)
-
-#else
-
-// posix or NuttX flat build
-
-#define kparam_call(x, y) 0
-
-#endif
-
 enum class COMPARE_OPERATOR {
 	EQUAL = 0,
 	GREATER = 1,
@@ -230,7 +191,7 @@ $ reboot
 	PRINT_MODULE_USAGE_ARG("<param>", "param name", false);
 }
 
-extern "C" int
+int
 param_main(int argc, char *argv[])
 {
 	if (argc >= 2) {
@@ -270,19 +231,12 @@ param_main(int argc, char *argv[])
 		}
 
 		if (!strcmp(argv[1], "import")) {
-			int ret;
 			if (argc >= 3) {
-				ret = do_import(argv[2]);
+				return do_import(argv[2]);
 
 			} else {
-				ret = do_import();
+				return do_import();
 			}
-
-			if (ret == 0) {
-				ret = kparam_call(argc, argv);
-			}
-
-			return ret;
 		}
 
 		if (!strcmp(argv[1], "select")) {
@@ -299,7 +253,7 @@ param_main(int argc, char *argv[])
 				PX4_INFO("selected parameter default file %s", default_file);
 			}
 
-			return kparam_call(argc, argv);
+			return 0;
 		}
 
 		if (!strcmp(argv[1], "select-backup")) {

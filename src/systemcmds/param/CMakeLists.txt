@@ -39,7 +39,3 @@ px4_add_module(
 		param.cpp
 	DEPENDS
 	)
-
-if(${PX4_PLATFORM} STREQUAL "nuttx" AND NOT CONFIG_BUILD_FLAT)
-target_link_libraries(systemcmds__param PRIVATE systemcmds__launch_kmod)
-endif()
