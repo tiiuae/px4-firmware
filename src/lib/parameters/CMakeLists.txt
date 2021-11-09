@@ -150,6 +150,7 @@ add_custom_command(OUTPUT px4_parameters.hpp
 set(SRCS)
 
 list(APPEND SRCS parameters.cpp parameters_common.cpp)
+
 if(BUILD_TESTING)
 	list(APPEND SRCS param_translation_unit_tests.cpp)
 else()
@@ -158,6 +159,13 @@ endif()
 
 if(${PX4_PLATFORM} STREQUAL "nuttx")
 	add_subdirectory(flashparams)
+
+	# build user-side interface for protected build
+	if(NOT CONFIG_BUILD_FLAT)
+		list(APPEND SRCS parameters_ioctl.cpp)
+		add_library(usr_parameters usr_parameters_if.cpp parameters_common.cpp px4_parameters.hpp)
+		add_dependencies(usr_parameters prebuild_targets)
+	endif()
 endif()
 
 # TODO: find a better way to do this
@@ -181,8 +189,6 @@ else()
 endif()
 add_dependencies(parameters prebuild_targets)
 
-if(${PX4_PLATFORM} STREQUAL "nuttx" AND CONFIG_BUILD_FLAT)
-	target_link_libraries(parameters PRIVATE flashparams tinybson)
-endif()
+target_link_libraries(parameters PRIVATE flashparams tinybson)
 
 px4_add_functional_gtest(SRC ParameterTest.cpp LINKLIBS parameters)
