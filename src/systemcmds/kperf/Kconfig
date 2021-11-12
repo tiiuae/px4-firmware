@@ -1,0 +1,11 @@
+menuconfig SYSTEMCMDS_KPERF
+	bool "kperf"
+	default y
+	depends on BOARD_PROTECTED && SYSTEMCMDS_PERF
+	---help---
+		Enable support for kernel side perf
+
+config USER_KPERF
+	bool
+	default n
+	depends on BOARD_PROTECTED && SYSTEMCMDS_KPERF

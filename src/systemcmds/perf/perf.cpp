@@ -73,3 +73,14 @@ extern "C" __EXPORT int perf_main(int argc, char *argv[])
 	fflush(stdout);
 	return 0;
 }
+
+#if defined (__PX4_NUTTX) && !defined (CONFIG_BUILD_FLAT)
+
+// NuttX memory protected build
+
+extern "C" __EXPORT int kperf_main(int argc, char *argv[])
+{
+	return perf_main(argc, argv);
+}
+
+#endif
