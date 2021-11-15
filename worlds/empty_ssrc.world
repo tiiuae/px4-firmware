@@ -12,11 +12,14 @@
     <include>
       <uri>model://asphalt_plane</uri>
     </include>
-    <plugin name='group_pos_plugin' filename='libgazebo_group_pos_plugin.so'>
+    <plugin name='mesh_sim_plugin' filename='libgazebo_mesh_sim_plugin.so'>
+      <ros>
+        <namespace>/mesh_sim</namespace>
+      </ros>
       <updateRate>1.0</updateRate>
       <namePrefix>ssrc_fog_x_</namePrefix>
-      <udpAddress>172.17.255.255</udpAddress>
-      <udpPort>15517</udpPort>
+      <signalLossStartDistance>3</signalLossStartDistance>
+      <signalMaxDistance>10</signalMaxDistance>
     </plugin>
     <physics name='default_physics' default='0' type='ode'>
       <gravity>0 0 -9.8066</gravity>
