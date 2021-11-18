@@ -37,7 +37,7 @@ then
 	# RTPS/MAV on TELEMETRY 1
 	param set MAV_0_CONFIG 0
 	param set RTPS_MAV_CONFIG 101
-	param set SER_TEL1_BAUD 1000000
+	param set SER_TEL1_BAUD 3000000
 
 	# Enable LL40LS in i2c
 	param set SENS_EN_LL40LS 2
