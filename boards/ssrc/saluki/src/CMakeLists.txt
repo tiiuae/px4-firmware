@@ -44,18 +44,19 @@ set_target_properties(mpfs_head PROPERTIES LINKER_LANGUAGE ASM)
 
 if("${PX4_BOARD_LABEL}" STREQUAL  "bootloader")
 	add_library(drivers_board
-		bootloader_main.c
-		mpfs_emmcsd.c
+		init_minimal.c
+#		bootloader_main.c
+#		mpfs_emmcsd.c
 	)
 	target_link_libraries(drivers_board
 		PRIVATE
 			mpfs_head
-			nuttx_arch
-			nuttx_drivers
-			bootloader
+#			nuttx_arch
+#			nuttx_drivers
+#			bootloader
 	)
 
-	target_include_directories(drivers_board PRIVATE ${PX4_SOURCE_DIR}/platforms/nuttx/src/bootloader/common)
+#	target_include_directories(drivers_board PRIVATE ${PX4_SOURCE_DIR}/platforms/nuttx/src/bootloader/common)
 
 else()
 	add_library(drivers_board
