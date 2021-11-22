@@ -174,6 +174,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	int ret = OK;
 
 	_alert("saluki: board_app_initialize\n");
+	_alert("saluki: booted on HART %d\n", READ_CSR(mhartid));
 
 	/* Power on Interfaces */
 
