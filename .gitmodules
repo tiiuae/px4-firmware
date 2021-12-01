@@ -67,3 +67,6 @@
 [submodule "src/modules/microdds_client/Micro-XRCE-DDS-Client"]
 	path = src/modules/microdds_client/Micro-XRCE-DDS-Client
 	url = https://github.com/eProsima/Micro-XRCE-DDS-Client.git
+[submodule "boards/ssrc/saluki-v1"]
+	path = boards/ssrc/saluki-v1
+	url = ../saluki-v1.git
