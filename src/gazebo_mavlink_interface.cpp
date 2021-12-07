@@ -20,6 +20,10 @@
  */
 
 #include <gazebo_mavlink_interface.h>
+
+#include <netdb.h>
+#include <arpa/inet.h>
+
 namespace gazebo {
 GZ_REGISTER_MODEL_PLUGIN(GazeboMavlinkInterface);
 
@@ -463,6 +467,16 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
   // for potential compatibility
   if (_sdf->HasElement("imu_rate")) {
     imu_update_interval_ = 1 / _sdf->GetElement("imu_rate")->Get<int>();
+  }
+
+  if (_sdf->HasElement("mavlink_hostname")) {
+    std::string mavlink_hostname_str = _sdf->GetElement("mavlink_hostname")->Get<std::string>();
+    struct hostent *hostptr = gethostbyname(mavlink_hostname_str.c_str());
+    if (hostptr && hostptr->h_length && hostptr->h_addrtype == AF_INET) {
+      struct in_addr **addr_l = (struct in_addr **)hostptr->h_addr_list;
+      char *addr_str = inet_ntoa(*addr_l[0]);
+      mavlink_interface_->SetMavlinkAddr(std::string(addr_str));
+    }
   }
 
   if (_sdf->HasElement("mavlink_addr")) {
