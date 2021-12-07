@@ -866,23 +866,23 @@
          </visual>
          <sensor type="camera" name="camera">
             <always_on>0</always_on>
-            <update_rate>10</update_rate>
+            <update_rate>30</update_rate>
 
             <visualize>true</visualize>
 
             <camera name="main">
                 <horizontal_fov>1.047</horizontal_fov>
                 <image>
-                    <width>640</width>
-                    <height>480</height>
+                    <width>1280</width>
+                    <height>720</height>
                 </image>
             </camera>
             <plugin name="GstCameraPlugin" filename="libgazebo_gst_camera_plugin.so">
                 <robotNamespace></robotNamespace>
                 <udpHost>{{ gstudphost }}</udpHost>
-                <udpPort>5600</udpPort>
-                <useCuda>false</useCuda>
-                <useCudaCustomParams>false</useCudaCustomParams>
+                <udpPort>{{ gstudpport }}</udpPort>
+                <useCuda>{{ gst_use_cuda }}</useCuda>
+                <useCudaCustomParams>{{ gst_use_cuda }}</useCudaCustomParams>
                 <useVaapi>false</useVaapi>
                 <convFbImgToI420>true</convFbImgToI420>
             </plugin>

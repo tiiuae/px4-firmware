@@ -5,7 +5,6 @@ import jinja2
 import argparse
 import os
 import shutil
-import fnmatch
 import numpy as np
 
 
@@ -34,15 +33,16 @@ if __name__ == "__main__":
     parser.add_argument('--qgc_addr', default="INADDR_ANY", help="IP address for QGC")
     parser.add_argument('--hil_mode', default=0, help="Enable HIL mode for HITL simulation")
     parser.add_argument('--use_tcp', default=0, help="Use TCP instead of UDP for PX4 SITL")
-    parser.add_argument('--gstudphost', default="127.0.0.1", help="udpHost for Gst Camera plugin")
     parser.add_argument('--output-file', help="sdf output file")
     parser.add_argument('--stdout', action='store_true', default=False, help="dump to stdout instead of file")
     parser.add_argument('--mavlink_id', default=1, help="Mavlink system ID")
     parser.add_argument('--cam_component_id', default=100, help="Mavlink camera component ID")
-    parser.add_argument('--gst_udp_port', default=5600, help="Gstreamer UDP port for SITL")
+    parser.add_argument('--gstudphost', default="127.0.0.1", help="udpHost for Gst Camera plugin")
+    parser.add_argument('--gstudpport', default=5600, help="Gstreamer UDP port for SITL")
+    parser.add_argument('--gst_use_cuda', default=False, help="Should Gstreamer use CUDA", type=str2bool)
     parser.add_argument('--video_uri', default=5600, help="Mavlink camera URI for SITL")
     parser.add_argument('--mavlink_cam_udp_port', default=14530, help="Mavlink camera UDP port for SITL")
-    parser.add_argument('--vehicle_name', default="ssrc_fog_x", help="Mavlink camera UDP port for SITL")
+    parser.add_argument('--vehicle_name', default="ssrc_fog_x", help="Name of the vehicle")
     parser.add_argument('--lockstep', default=1, help="Enable simulation lockstep for syncing physics&sensors")
     parser.add_argument('--generate_ros_models', default=False, dest='generate_ros_models', type=str2bool,
                     help="required if generating the agent for usage with ROS nodes, by default false")
@@ -72,7 +72,6 @@ if __name__ == "__main__":
          'serial_baudrate': args.serial_baudrate, \
          'mavlink_id': args.mavlink_id, \
          'cam_component_id': args.cam_component_id, \
-         'gst_udp_port': args.gst_udp_port, \
          'video_uri': args.video_uri, \
          'mavlink_cam_udp_port': args.mavlink_cam_udp_port, \
          'hil_mode': args.hil_mode, \
@@ -81,7 +80,9 @@ if __name__ == "__main__":
          'use_tcp': args.use_tcp, \
          'vehicle_name': args.vehicle_name, \
          'lockstep': args.lockstep, \
-         'gstudphost': args.gstudphost}
+         'gstudphost': args.gstudphost, \
+         'gstudpport': args.gstudpport, \
+         'gst_use_cuda': str(args.gst_use_cuda).lower()}
 
     result = template.render(d)
 
