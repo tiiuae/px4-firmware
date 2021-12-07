@@ -24,6 +24,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', help="file that the sdf file should be generated from")
     parser.add_argument('env_dir')
+    parser.add_argument('--mavlink_hostname', default="", help="Hostname of PX4 SITL, instead of IP. Leave mavlink_addr empty if define this.")
     parser.add_argument('--mavlink_addr', default="INADDR_ANY", help="IP address for PX4 SITL")
     parser.add_argument('--mavlink_tcp_port', default=4560, help="TCP port for PX4 SITL")
     parser.add_argument('--mavlink_udp_port', default=14560, help="Mavlink UDP port for mavlink access")
@@ -64,6 +65,7 @@ if __name__ == "__main__":
         rospack = None
 
     d = {'np': np, 'rospack': rospack, \
+         'mavlink_hostname': args.mavlink_hostname, \
          'mavlink_addr': args.mavlink_addr, \
          'mavlink_tcp_port': args.mavlink_tcp_port, \
          'mavlink_udp_port': args.mavlink_udp_port, \
