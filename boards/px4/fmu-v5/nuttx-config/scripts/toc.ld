@@ -20,8 +20,7 @@
 
 MEMORY
 {
-  /* -64 <- Leave room for the signature */
-  progmem (r) : ORIGIN = 0x08008000, LENGTH = 2016K - 64
+  progmem (r) : ORIGIN = 0x08008000, LENGTH = 2016K
 }
 
 OUTPUT_ARCH("arm")
@@ -36,7 +35,7 @@ SECTIONS
         KEEP(*(.main_toc));
         /* Padd the rest */
         FILL(0xff);
-        . = 0x1000 - 64;
+        . = ALIGN(8);
         _toc_end = ABSOLUTE(.);
     } > progmem
 
@@ -52,7 +51,6 @@ SECTIONS
         /* The application firmware payload */
         _app_start = ABSOLUTE(.);
         *(.firmware)
-        . = ALIGN(4);
         _app_end = ABSOLUTE(.);
     } > progmem
 
