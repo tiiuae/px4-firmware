@@ -196,6 +196,7 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
   ${OpticalFlow_INCLUDE_DIRS}
   ${TinyXML_INCLUDE_DIRS}
+  ${gazebo_ros_INCLUDE_DIRS}
   )
 
 if (GSTREAMER_FOUND)
