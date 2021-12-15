@@ -112,3 +112,5 @@ rtps:
     send: true
   - msg: vehicle_local_position
     send: true
+  - msg: home_position
+    send: true
