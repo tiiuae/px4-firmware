@@ -53,6 +53,8 @@
  * Definitions
  ****************************************************************************************************/
 
+#define MEMORY_CONSTRAINED_SYSTEM
+
 /* PX4IO connection configuration */
 
 #define BOARD_USES_PX4IO_VERSION       2

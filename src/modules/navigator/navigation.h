@@ -45,7 +45,7 @@
 #include <stdbool.h>
 
 #if defined(MEMORY_CONSTRAINED_SYSTEM)
-#  define NUM_MISSIONS_SUPPORTED 50
+#  define NUM_MISSIONS_SUPPORTED 500
 #elif defined(__PX4_POSIX)
 #  define NUM_MISSIONS_SUPPORTED (UINT16_MAX-1) // This is allocated as needed.
 #else
