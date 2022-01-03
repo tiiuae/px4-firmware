@@ -753,7 +753,7 @@ def main():
     parser.add_argument('--force', action='store_true', default=False, help='Override board type check, or silicon errata checks and continue loading')
     parser.add_argument('--boot-delay', type=int, default=None, help='minimum boot delay to store in flash')
     parser.add_argument('--use-protocol-splitter-format', action='store_true', help='use protocol splitter format for reboot')
-    parser.add_argument('firmware', action="store", help="Firmware file to be uploaded")
+    parser.add_argument('firmware', metavar='firmware files', nargs='+', help="Firmware file(s) to be uploaded")
     args = parser.parse_args()
 
     if args.use_protocol_splitter_format:
@@ -764,17 +764,6 @@ def main():
         print("==========================================================================================================")
         print("WARNING: You should uninstall ModemManager as it conflicts with any non-modem serial device (like Pixhawk)")
         print("==========================================================================================================")
-
-    # Load the firmware file
-    fw = firmware(args.firmware)
-
-    percent = fw.property('image_size') / fw.property('image_maxsize')
-    binary_size = float(fw.property('image_size'))
-    binary_max_size = float(fw.property('image_maxsize'))
-    percent = (binary_size / binary_max_size) * 100
-
-    print("Loaded firmware for board id: %s,%s size: %d bytes (%.2f%%), waiting for the bootloader..." % (fw.property('board_id'), fw.property('board_revision'), fw.property('image_size'), percent))
-    print()
 
     # tell any GCS that might be connected to the autopilot to give up
     # control of the serial port
@@ -875,6 +864,26 @@ def main():
                 if not found_bootloader:
                     # Go to the next port
                     continue
+
+                # Load the firmware file
+                found_image = False
+                for fw_img in args.firmware:
+                    fw = firmware(fw_img)
+                    if fw.property('board_id') == up.board_type:
+                        found_image = True
+                        break
+
+                if not found_image:
+                    print("No suitable image found for board %s"%up.board_type)
+                    sys.exit(1)
+
+                percent = fw.property('image_size') / fw.property('image_maxsize')
+                binary_size = float(fw.property('image_size'))
+                binary_max_size = float(fw.property('image_maxsize'))
+                percent = (binary_size / binary_max_size) * 100
+
+                print("Loaded firmware %s for board id: %s,%s size: %d bytes (%.2f%%), waiting for the bootloader..." % (fw_img, fw.property('board_id'), fw.property('board_revision'), fw.property('image_size'), percent))
+                print()
 
                 try:
                     # ok, we have a bootloader, try flashing it
