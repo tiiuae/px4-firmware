@@ -1,0 +1,170 @@
+name: tiiuae-pixhawk-and-saluki
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  fc_matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        product: [saluki-v2_default, saluki-v2_bootloader, saluki-pi_default, saluki-pi_bootloader]
+
+    uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
+    with:
+      product: ${{ matrix.product }}
+      # old workflow had condition to run only if PR is done to current repo (or triggered with other event)
+      enabled: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    secrets: inherit
+
+  artifactory:
+    name: upload builds to artifactory
+    runs-on: ubuntu-latest
+    needs:
+      - fc_matrix
+    if: true
+    steps:
+      - name: Download pixhawk artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: pixhawk
+          path: bin
+      - uses: jfrog/setup-jfrog-cli@v3
+        env:
+          JF_ENV_1: ${{ secrets.ARTIFACTORY_CLOUD_TOKEN }}
+      - name: Upload px4-firmware build to Artifactory
+        env:
+          ARTIFACTORY_GEN_REPO: ssrc-gen-public-local
+          BUILD_NAME_PX4: px4-firmware-fw-only
+          CI: true
+        run: |
+          set -exu
+
+          pr_or_empty=""
+          if [ ${{ github.event_name }} == 'pull_request' ]; then
+            pr_or_empty="pr/"
+          fi
+
+          newline=$'\n'
+          artifactory_links="| target | link |
+          |--------|------|"
+          artifactory_base_url="https://ssrc.jfrog.io/artifactory/"
+
+          for pkg in $(find bin -type f); do
+
+            file_name=$(basename $pkg)
+            ext="${file_name##*.}"
+            target_path=""
+            pkg_name=$(echo $file_name | sed -r -e 's/-[0-9]+\.[0-9]+\.[0-9]+-.*//g')
+
+            if [[ $file_name = px4_fmu* ]]; then
+              target_path="pixhawk"
+            elif [[ $file_name = ssrc_saluki* ]]; then
+              target_path="saluki"
+            else
+              echo "$pkg ignored"
+              continue
+            fi
+
+            artifactory_path=$ARTIFACTORY_GEN_REPO/builds/px4-firmware-fw-only/${target_path}/${pr_or_empty}
+
+            jfrog rt u --target-props COMMIT="$GITHUB_SHA" \
+              --build-name "$BUILD_NAME_PX4" \
+              --build-number "$GITHUB_SHA" \
+              "$pkg" \
+              "${artifactory_path}$file_name"
+
+            jfrog rt cp --flat \
+              "${artifactory_path}$file_name" \
+              "${artifactory_path}latest/${pkg_name}.${ext}"
+
+              # append every file to artifactory_links
+              artifactory_links+="${newline}| ${pkg_name} | ${artifactory_base_url}${artifactory_path}${file_name} |"
+          done
+
+          jfrog rt build-publish "$BUILD_NAME_PX4" "$GITHUB_SHA"
+          jfrog rt bpr "$BUILD_NAME_PX4" "$GITHUB_SHA" "$ARTIFACTORY_GEN_REPO" \
+                       --status dev \
+                       --comment "development build"
+
+          # save upload path to output for later use
+          echo "### Cloud Artifactory links:" >> $GITHUB_STEP_SUMMARY
+          echo "${artifactory_links}" >> $GITHUB_STEP_SUMMARY
+
+  artifactory-uae:
+    name: upload builds to UAE artifactory
+    runs-on: ubuntu-latest
+    needs:
+      - fc_matrix
+    if: true
+    steps:
+      - name: Download pixhawk artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: pixhawk
+          path: bin
+      - uses: jfrog/setup-jfrog-cli@v3
+        env:
+          JF_ENV_1: ${{ secrets.UAE_ARTIFACTORY_TOKEN }}
+      - name: Upload px4-firmware build to Artifactory
+        env:
+          ARTIFACTORY_GEN_REPO: gen-public-local
+          BUILD_NAME_PX4: px4-firmware-fw-only
+          CI: true
+        run: |
+          set -exu
+
+          pr_or_empty=""
+          if [ ${{ github.event_name }} == 'pull_request' ]; then
+            pr_or_empty="pr/"
+          fi
+
+          newline=$'\n'
+          artifactory_links="| target | link |
+          |--------|------|"
+          artifactory_base_url="https://artifactory.ssrcdevops.tii.ae/artifactory/"
+
+          for pkg in $(find bin -type f); do
+
+            file_name=$(basename $pkg)
+            ext="${file_name##*.}"
+            target_path=""
+            pkg_name=$(echo $file_name | sed -r -e 's/-[0-9]+\.[0-9]+\.[0-9]+-.*//g')
+
+            if [[ $file_name = px4_fmu* ]]; then
+              target_path="pixhawk"
+            elif [[ $file_name = ssrc_saluki* ]]; then
+              target_path="saluki"
+            else
+              echo "$pkg ignored"
+              continue
+            fi
+
+            artifactory_path=$ARTIFACTORY_GEN_REPO/builds/px4-firmware-fw-only/${target_path}/${pr_or_empty}
+
+            jfrog rt u --target-props COMMIT="$GITHUB_SHA" \
+              --build-name "$BUILD_NAME_PX4" \
+              --build-number "$GITHUB_SHA" \
+              "$pkg" \
+              "${artifactory_path}$file_name"
+
+            jfrog rt cp --flat \
+              "${artifactory_path}$file_name" \
+              "${artifactory_path}latest/${pkg_name}.${ext}"
+
+            # append every file to artifactory_links
+            artifactory_links+="${newline}| ${pkg_name} | ${artifactory_base_url}${artifactory_path}${file_name} |"
+          done
+
+          jfrog rt build-publish "$BUILD_NAME_PX4" "$GITHUB_SHA"
+          jfrog rt bpr "$BUILD_NAME_PX4" "$GITHUB_SHA" "$ARTIFACTORY_GEN_REPO" \
+                       --status dev \
+                       --comment "development build"
+
+          # export artifactory linds as gh step summary
+          echo "### UAE Artifactory links:" >> $GITHUB_STEP_SUMMARY
+          echo "${artifactory_links}" >> $GITHUB_STEP_SUMMARY
