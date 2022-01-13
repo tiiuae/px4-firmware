@@ -189,6 +189,7 @@ private:
   void handle_control(double _dt);
   bool IsRunning();
   void onSigInt();
+  bool resolveHostName();
 
   /**
    * @brief Set the MAV_SENSOR_ORIENTATION enum value based on the sensor orientation
@@ -272,5 +273,8 @@ private:
   bool hil_mode_{false};
   bool hil_state_level_{false};
 
+  std::string mavlink_hostname_str_;
+  struct hostent *hostptr_{nullptr};
+  bool mavlink_loaded_{false};
 };
 }

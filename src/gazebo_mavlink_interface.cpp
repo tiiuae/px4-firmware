@@ -470,13 +470,8 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
   }
 
   if (_sdf->HasElement("mavlink_hostname")) {
-    std::string mavlink_hostname_str = _sdf->GetElement("mavlink_hostname")->Get<std::string>();
-    struct hostent *hostptr = gethostbyname(mavlink_hostname_str.c_str());
-    if (hostptr && hostptr->h_length && hostptr->h_addrtype == AF_INET) {
-      struct in_addr **addr_l = (struct in_addr **)hostptr->h_addr_list;
-      char *addr_str = inet_ntoa(*addr_l[0]);
-      mavlink_interface_->SetMavlinkAddr(std::string(addr_str));
-    }
+    mavlink_hostname_str_ = _sdf->GetElement("mavlink_hostname")->Get<std::string>();
+    resolveHostName();
   }
 
   if (_sdf->HasElement("mavlink_addr")) {
@@ -563,7 +558,11 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
     gzerr << "Unkown protocol version! Using v" << protocol_version_ << "by default \n";
   }
 
-  mavlink_interface_->Load();
+  if (hostptr_ || mavlink_hostname_str_.empty()) {
+    gzmsg << "--> load mavlink_interface_\n";
+    mavlink_interface_->Load();
+    mavlink_loaded_ = true;
+  }
 }
 
 // This gets called by the world update start event.
@@ -582,6 +581,16 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo&  /*_info*/) {
   // Always run at 250 Hz. At 500 Hz, the skip factor should be 2, at 1000 Hz 4.
   if (!(previous_imu_seq_ % update_skip_factor_ == 0)) {
     return;
+  }
+
+  if (!mavlink_loaded_) {
+    // hostname was not yet available, try agan..
+    gzmsg << "OnUpdate: hostname not resolved yet\n";
+    if (resolveHostName()) {
+      gzmsg << "OnUpdate: --> load mavlink_interface_\n";
+      mavlink_interface_->Load();
+      mavlink_loaded_ = true;
+    }
   }
 
 #if GAZEBO_MAJOR_VERSION >= 9
@@ -1211,5 +1220,27 @@ bool GazeboMavlinkInterface::IsRunning()
 void GazeboMavlinkInterface::onSigInt() {
   mavlink_interface_->onSigInt();
 }
+
+bool GazeboMavlinkInterface::resolveHostName()
+{
+  if (!mavlink_hostname_str_.empty()) {
+    gzmsg << "Try to resolve hostname: '"  << mavlink_hostname_str_ << "'\n";
+    hostptr_ = gethostbyname(mavlink_hostname_str_.c_str());
+    if (hostptr_ && hostptr_->h_length && hostptr_->h_addrtype == AF_INET) {
+      struct in_addr **addr_l = (struct in_addr **)hostptr_->h_addr_list;
+      char *addr_str = inet_ntoa(*addr_l[0]);
+      std::string ip_addr = std::string(addr_str);
+      mavlink_interface_->SetMavlinkAddr(ip_addr);
+      gzmsg << "Host name '" << mavlink_hostname_str_ << "' resolved to IP: " << ip_addr << "\n";
+      return true;
+    }
+    return false;
+  } else {
+    // Assume resolved in case hostname is not given at all
+    return true;
+  }
+
+}
+
 
 }
