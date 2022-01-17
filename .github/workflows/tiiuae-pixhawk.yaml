@@ -1,4 +1,4 @@
-name: tiiuea-pixhawk
+name: tiiuae-pixhawk
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
         run: |
           set -eux
           mkdir bin
-          cd px4-firmware
+          cd px4-firmware/
           ./build.sh ../bin/
           ls ../bin
 
@@ -132,3 +132,24 @@ jobs:
           jfrog rt bpr "$BUILD_NAME_DEB" "$GITHUB_SHA" "$ARTIFACTORY_DEB_REPO" \
                        --status dev \
                        --comment "development build"
+
+      - name: Firmware flasher - Container metadata
+        id: containermeta # referenced from later step
+        uses: docker/metadata-action@v3
+        with:
+          images: ghcr.io/tiiuae/px4-firmware
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha
+
+      - name: Firmware flasher - Build and push
+        uses: docker/build-push-action@v2
+        if: github.event_name == 'push'
+        with:
+          push: true
+          context: .
+          file: px4-firmware/Tools/px_uploader.Dockerfile
+          tags: ${{ steps.containermeta.outputs.tags }}
+          labels: ${{ steps.containermeta.outputs.labels }}
