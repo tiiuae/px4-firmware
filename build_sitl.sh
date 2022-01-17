@@ -18,12 +18,8 @@ mkdir -p ${dest_dir}
 pushd ${script_dir}/packaging
 
 version=$(git describe --always --tags --dirty | sed 's/^v//')
-iname=tii-px4-sitl-artifacts
-if [ "${IMAGE_NAME}" != "" ]; then
-	iname=${IMAGE_NAME}
-fi
-
-docker build -t ${iname} -f Dockerfile.sitl \
+iname=${IMAGE_NAME:-tii-px4-sitl-artifacts}
+docker build -t ${iname} -f Dockerfile.build_sitl \
 	--build-arg VERSION=${version} \
 	..
 
