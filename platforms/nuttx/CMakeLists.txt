@@ -41,7 +41,13 @@ set(NUTTX_DIR ${PX4_BINARY_DIR}/NuttX/nuttx)
 set(NUTTX_APPS_DIR ${PX4_BINARY_DIR}/NuttX/apps)
 
 add_executable(px4 ${PX4_SOURCE_DIR}/platforms/common/empty.c)
-set(FW_NAME ${PX4_BOARD_VENDOR}_${PX4_BOARD_MODEL}_${PX4_BOARD_LABEL}.elf)
+if (CONFIG_OPENSBI AND "${PX4_BOARD_LABEL}" STREQUAL "bootloader")
+	set(FW_NAME ${PX4_BOARD_VENDOR}_${PX4_BOARD_MODEL}_${PX4_BOARD_LABEL}_int.elf)
+	set(FW_NAME_FLASH ${PX4_BOARD_VENDOR}_${PX4_BOARD_MODEL}_${PX4_BOARD_LABEL}.elf)
+	set(FW_NAME_SBI ${PX4_BOARD_VENDOR}_${PX4_BOARD_MODEL}_sbi.bin)
+else()
+	set(FW_NAME ${PX4_BOARD_VENDOR}_${PX4_BOARD_MODEL}_${PX4_BOARD_LABEL}.elf)
+endif()
 set_target_properties(px4 PROPERTIES OUTPUT_NAME ${FW_NAME})
 add_dependencies(px4 git_nuttx nuttx_build)
 
@@ -293,10 +299,21 @@ if(config_romfs_root)
 	target_link_libraries(px4 PRIVATE romfs)
 endif()
 
-add_custom_command(OUTPUT ${PX4_BINARY_OUTPUT}
-	COMMAND ${CMAKE_OBJCOPY} -O binary ${PX4_BINARY_DIR_REL}/${FW_NAME} ${PX4_BINARY_OUTPUT}
-	DEPENDS px4
-)
+# for opensbi bootloader, strip the opensbi and place it in separate binary
+if (CONFIG_OPENSBI AND "${PX4_BOARD_LABEL}" STREQUAL "bootloader")
+	set(SBI_BINARY_OUTPUT ${PX4_BINARY_DIR_REL}/${PX4_BOARD}.sbi)
+	add_custom_command(OUTPUT ${PX4_BINARY_OUTPUT} ${SBI_BINARY_OUTPUT}
+		COMMAND ${CMAKE_OBJCOPY} -O binary -j .text.sbi -j .ddrstorage ${PX4_BINARY_DIR_REL}/${FW_NAME} ${SBI_BINARY_OUTPUT}
+		COMMAND ${CMAKE_OBJCOPY} -R .text.sbi -R .l2_scratchpad -R .ddrstorage ${PX4_BINARY_DIR_REL}/${FW_NAME} ${PX4_BINARY_DIR_REL}/${FW_NAME_FLASH}
+		COMMAND ${CMAKE_OBJCOPY} -O binary ${PX4_BINARY_DIR_REL}/${FW_NAME_FLASH} ${PX4_BINARY_OUTPUT}
+		DEPENDS px4
+	)
+else()
+	add_custom_command(OUTPUT ${PX4_BINARY_OUTPUT}
+		COMMAND ${CMAKE_OBJCOPY} -O binary ${PX4_BINARY_DIR_REL}/${FW_NAME} ${PX4_BINARY_OUTPUT}
+		DEPENDS px4
+	)
+endif()
 
 endif()
 
