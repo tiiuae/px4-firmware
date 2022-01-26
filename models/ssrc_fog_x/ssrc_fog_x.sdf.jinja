@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <sdf version='1.6'>
-  <model name={{ vehicle_name }}>
-    
+  <model name='{{ vehicle_name }}'>
+
     <static>0</static>
 
     <!-- BODY {-->
@@ -51,7 +51,7 @@
     <!--} END BODY -->
 
     <!-- ARMS {-->
-    
+
     <!-- ARM 0 {-->
     <link name="arm_0_link">
       <pose>0 0 0 0 0 1.5708</pose>
@@ -104,7 +104,7 @@
       <parent>base_link</parent>
     </joint>
     <!--} END ARM 0 -->
-    
+
     <!-- ARM 1 {-->
     <link name="arm_1_link">
       <pose>0 0 0 0 0 -1.5708</pose>
@@ -157,7 +157,7 @@
       <parent>base_link</parent>
     </joint>
     <!--} END ARM 1 -->
-    
+
     <!-- ARM 2 {-->
     <link name="arm_2_link">
       <pose>0 0 0 0 0 3.14159</pose>
@@ -210,7 +210,7 @@
       <parent>base_link</parent>
     </joint>
     <!--} END ARM 2 -->
-    
+
     <!-- ARM 3 {-->
     <link name="arm_3_link">
       <pose>0 0 0 0 0 0</pose>
@@ -624,50 +624,48 @@
     <!--} END MOTOR PLUGINS -->
 
     <!-- GPS PLUGIN {-->
-    <model name='gps0'>
-      <link name='link'>
+    <link name='gps0::link'>
+      <pose>0 0 0 0 0 0</pose>
+      <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <inertial>
-          <pose>0 0 0 0 0 0</pose>
-          <mass>0.01</mass>
-          <inertia>
-            <ixx>2.1733e-06</ixx>
-            <ixy>0</ixy>
-            <ixz>0</ixz>
-            <iyy>2.1733e-06</iyy>
-            <iyz>0</iyz>
-            <izz>1.8e-07</izz>
-          </inertia>
-        </inertial>
-        <visual name='visual'>
-          <geometry>
-            <cylinder>
-              <radius>0.01</radius>
-              <length>0.002</length>
-            </cylinder>
-          </geometry>
-          <material>
-            <script>
-              <name>Gazebo/Black</name>
-              <uri>__default__</uri>
-            </script>
-          </material>
-        </visual>
-        <sensor name='gps' type='gps'>
-          <pose>0 0 0 0 0 0</pose>
-          <plugin name='gps_plugin' filename='libgazebo_gps_plugin.so'>
-            <robotNamespace/>
-            <gpsNoise>1</gpsNoise>
-            <gpsXYRandomWalk>2.0</gpsXYRandomWalk>
-            <gpsZRandomWalk>4.0</gpsZRandomWalk>
-            <gpsXYNoiseDensity>0.0002</gpsXYNoiseDensity>
-            <gpsZNoiseDensity>0.0004</gpsZNoiseDensity>
-            <gpsVXYNoiseDensity>0.2</gpsVXYNoiseDensity>
-            <gpsVZNoiseDensity>0.4</gpsVZNoiseDensity>
-          </plugin>
-        </sensor>
-      </link>
-    </model>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1733e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1733e-06</iyy>
+          <iyz>0</iyz>
+          <izz>1.8e-07</izz>
+        </inertia>
+      </inertial>
+      <visual name='visual'>
+        <geometry>
+          <cylinder>
+            <radius>0.01</radius>
+            <length>0.002</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Black</name>
+            <uri>__default__</uri>
+          </script>
+        </material>
+      </visual>
+      <sensor name='gps' type='gps'>
+        <pose>0 0 0 0 0 0</pose>
+        <plugin name='gps_plugin' filename='libgazebo_gps_plugin.so'>
+          <robotNamespace/>
+          <gpsNoise>1</gpsNoise>
+          <gpsXYRandomWalk>2.0</gpsXYRandomWalk>
+          <gpsZRandomWalk>4.0</gpsZRandomWalk>
+          <gpsXYNoiseDensity>0.0002</gpsXYNoiseDensity>
+          <gpsZNoiseDensity>0.0004</gpsZNoiseDensity>
+          <gpsVXYNoiseDensity>0.2</gpsVXYNoiseDensity>
+          <gpsVZNoiseDensity>0.4</gpsVZNoiseDensity>
+        </plugin>
+      </sensor>
+    </link>
     <joint name='gps0_joint' type='fixed'>
       <parent>base_link</parent>
       <child>gps0::link</child>
