@@ -209,7 +209,7 @@ menu "TTY Bus Work Queues"
 
 config WQ_TTY_STACKSIZE
 	int "Stack size for TTY work queues"
-	default 1728
+	default 1732
 	range 1000 10000
 	help
 	  Sets the stack size for all TTY work queues.
