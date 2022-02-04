@@ -159,25 +159,38 @@ int ReadBuffer::read(int fd)
 		/* This happens if there is no valid data in the buffer or when one of
 		 * the clients (rtps or mavlink) stops reading and that packet is stuck
 		 * in the buffer. Always make room to the buffer so that reading client
-		* doesn't end up in busyloop, reading 0 bytes of data on each round
-		*/
+		 * doesn't end up in busyloop, reading 0 bytes of data on each round
+		 */
 
+		bool mavlink_available = (start_mavlink < end_mavlink);
+		bool rtps_available = (start_rtps < end_rtps);
 		size_t drop = 0;
 
-		/* If there is a mavlink packet, set drop to beginning of that.
-		 * In case there are rtps packets or garbage before, that will be
-		 * dropped
-		 */
-		if (start_mavlink < end_mavlink) { drop = start_mavlink; }
+		if (mavlink_available && rtps_available) {
+			/* Both packets are in buffer, drop the first one */
+			if (end_rtps < end_mavlink) {
+				drop = end_rtps;
+				start_rtps = end_rtps;
 
-		/* If there is an rtps packet, and it starts later than the mavlink ones
-		 * drop the mavlink ones (and possible garbage)
-		 */
-		if (start_rtps < end_rtps && start_rtps > start_mavlink) { drop = start_rtps; }
+			} else {
+				drop = end_mavlink;
+				start_mavlink = end_mavlink;
+			}
+
+		} else if (mavlink_available) {
+			/* Only mavlink packet available, drop that */
+			drop = end_mavlink;
+			start_mavlink = end_mavlink;
+
+		} else if (rtps_available) {
+			/* Only rtps packet available, drop that */
+			drop = end_rtps;
+			start_rtps = end_rtps;
+		}
 
 		PX4_DEBUG("Buffer full: %zu %zu %zu %zu", start_mavlink, end_mavlink, start_rtps, end_rtps);
 
-		/* if there are no packets in the buffer, drop the whole buffer */
+		/* Drop the data. If there are no packets in the buffer, drop the whole buffer */
 
 		remove(0, drop > 0 ? drop : buf_size);
 	}
