@@ -474,7 +474,7 @@ void DevCommon::scan_for_packets()
 		return;
 	}
 
-	const size_t begin = math::min(_read_buffer->end_mavlink, _read_buffer->end_rtps);
+	const size_t begin = math::max(_read_buffer->end_mavlink, _read_buffer->end_rtps);
 
 	for (size_t i = begin; i < _read_buffer->buf_size - Sp2HeaderSize; /* ++i */) {
 
