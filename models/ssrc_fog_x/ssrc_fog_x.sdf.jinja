@@ -876,10 +876,10 @@
                     <height>720</height>
                 </image>
             </camera>
-            <plugin name="GstCameraPlugin" filename="libgazebo_gst_camera_plugin.so">
-                <robotNamespace></robotNamespace>
-                <udpHost>{{ gstudphost }}</udpHost>
-                <udpPort>{{ gstudpport }}</udpPort>
+            <plugin name="GazeboRosCamera" filename="libgazebo_ros_camera.so">
+                <ros>
+                  <namespace>{{ vehicle_name }}</namespace>
+                </ros>
                 <useCuda>{{ gst_use_cuda }}</useCuda>
                 <useCudaCustomParams>{{ gst_use_cuda }}</useCudaCustomParams>
                 <useVaapi>false</useVaapi>
