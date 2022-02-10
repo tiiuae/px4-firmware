@@ -125,8 +125,8 @@ class ReadBuffer
 {
 public:
 	int read(int fd);
-	void copy(void *dest, size_t pos, size_t n);
-	void remove(size_t pos, size_t n);
+	size_t copy(void *dest, size_t pos, size_t n);
+	size_t remove(size_t pos, size_t n);
 
 	void print_stats();
 	void update_lost_stats();
@@ -192,7 +192,15 @@ int ReadBuffer::read(int fd)
 
 		/* Drop the data. If there are no packets in the buffer, drop the whole buffer */
 
-		remove(0, drop > 0 ? drop : buf_size);
+		drop = drop > 0 ? drop : buf_size;
+		remove(0, drop);
+
+		/* Update start and end counters */
+
+		start_mavlink -= math::min(drop, start_mavlink);
+		end_mavlink -= math::min(drop, end_mavlink);
+		start_rtps -= math::min(drop, start_rtps);
+		end_rtps -= math::min(drop, end_rtps);
 	}
 
 	int bytes_available = 0;
@@ -218,23 +226,35 @@ int ReadBuffer::read(int fd)
 	return r;
 }
 
-void ReadBuffer::copy(void *dest, size_t pos, size_t n)
+size_t ReadBuffer::copy(void *dest, size_t pos, size_t n)
 {
-	ASSERT(pos < buf_size);
-	ASSERT(pos + n <= buf_size);
+	DEBUGASSERT(pos < buf_size);
+	DEBUGASSERT(pos + n <= buf_size);
 
-	if (dest) {
+	if (dest && pos < buf_size && pos + n <= buf_size) {
 		memcpy(dest, buffer + pos, n);
+
+	} else {
+		n = 0;
 	}
+
+	return n;
 }
 
-void ReadBuffer::remove(size_t pos, size_t n)
+size_t ReadBuffer::remove(size_t pos, size_t n)
 {
-	ASSERT(pos < buf_size);
-	ASSERT(pos + n <= buf_size);
+	DEBUGASSERT(pos < buf_size);
+	DEBUGASSERT(pos + n <= buf_size);
 
-	memmove(buffer + pos, buffer + (pos + n), buf_size - pos - n);
-	buf_size -= n;
+	if (pos < buf_size && pos + n <= buf_size) {
+		memmove(buffer + pos, buffer + (pos + n), buf_size - pos - n);
+		buf_size -= n;
+
+	} else {
+		n = 0;
+	}
+
+	return n;
 }
 
 void ReadBuffer::update_lost_stats()
@@ -310,7 +330,7 @@ protected:
 			/* The only case that an error should occur here is if
 			 * the wait was awakened by a signal.
 			 */
-			ASSERT(get_errno() == EINTR);
+			DEBUGASSERT(get_errno() == EINTR);
 		}
 	}
 
@@ -407,6 +427,8 @@ pollevent_t DevCommon::poll_state(struct file *filp)
 
 int DevCommon::try_to_copy_data(char *buffer, size_t buflen, MessageType message_type)
 {
+	size_t copied = 0;
+
 	if (buflen == 0) {
 		return 0;
 	}
@@ -420,28 +442,27 @@ int DevCommon::try_to_copy_data(char *buffer, size_t buflen, MessageType message
 			const size_t len_to_copy = math::min(len_available, buflen);
 
 			// Copy it to the callers buffer and remove it from our buffer.
-			_read_buffer->copy(buffer, _read_buffer->start_mavlink, len_to_copy);
+			copied = _read_buffer->copy(buffer, _read_buffer->start_mavlink, len_to_copy);
 
-			// Shift the markers accordingly.
-			_read_buffer->start_mavlink += len_to_copy;
+			if (copied == len_to_copy) {
+				// Shift the markers accordingly.
+				_read_buffer->start_mavlink += len_to_copy;
 
-			// Keep track for stats.
-			_read_buffer->mavlink_parsed += len_to_copy;
+				// Keep track for stats.
+				_read_buffer->mavlink_parsed += len_to_copy;
 
-			// Update the lost/unused bytes count
-			_read_buffer->update_lost_stats();
+				// Update the lost/unused bytes count
+				_read_buffer->update_lost_stats();
 
-			// Update the number of MAVLink bytes parsed
-			perf_set_count(mavlink_bytes_parsed_count, _read_buffer->mavlink_parsed);
+				// Update the number of MAVLink bytes parsed
+				perf_set_count(mavlink_bytes_parsed_count, _read_buffer->mavlink_parsed);
 
-			// Update the number of MAVLink messages parsed
-			perf_count(mavlink_messages_parsed_count);
-
-			return len_to_copy;
-
-		} else {
-			return 0;
+				// Update the number of MAVLink messages parsed
+				perf_count(mavlink_messages_parsed_count);
+			}
 		}
+
+		break;
 
 	case MessageType::Rtps:
 		if (_read_buffer->start_rtps < _read_buffer->end_rtps) {
@@ -451,35 +472,33 @@ int DevCommon::try_to_copy_data(char *buffer, size_t buflen, MessageType message
 			const size_t len_to_copy = math::min(len_available, buflen);
 
 			// Copy it to the callers buffer and remove it from our buffer.
-			_read_buffer->copy(buffer, _read_buffer->start_rtps, len_to_copy);
+			copied = _read_buffer->copy(buffer, _read_buffer->start_rtps, len_to_copy);
 
-			// Shift the markers accordingly.
-			_read_buffer->start_rtps += len_to_copy;
+			if (copied == len_to_copy) {
+				// Shift the markers accordingly.
+				_read_buffer->start_rtps += len_to_copy;
 
-			// Keep track for stats.
-			_read_buffer->rtps_parsed += len_to_copy;
+				// Keep track for stats.
+				_read_buffer->rtps_parsed += len_to_copy;
 
-			// Update the lost/unused bytes count
-			_read_buffer->update_lost_stats();
+				// Update the lost/unused bytes count
+				_read_buffer->update_lost_stats();
 
-			// Update the number of RTPS bytes parsed
-			perf_set_count(rtps_bytes_parsed_count, _read_buffer->rtps_parsed);
+				// Update the number of RTPS bytes parsed
+				perf_set_count(rtps_bytes_parsed_count, _read_buffer->rtps_parsed);
 
-			// Update the number of RTPS messages parsed
-			perf_count(rtps_messages_parsed_count);
-
-			return len_to_copy;
-
-		} else {
-			return 0;
+				// Update the number of RTPS messages parsed
+				perf_count(rtps_messages_parsed_count);
+			}
 		}
 
 		break;
 
-
 	default:
-		return 0;
+		break;
 	}
+
+	return copied;
 }
 
 void DevCommon::scan_for_packets()
