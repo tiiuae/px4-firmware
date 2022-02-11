@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# px4_fmu-v5x_ssrc specific board MAVLink startup script.
+#------------------------------------------------------------------------------
+
+# Start mavlink to ethernet interface
+mavlink start -c 192.168.200.100 -u 14541 -o 14540 -r 1000000
+
+# Start micrortps_client on UDP
+micrortps_client start -t UDP -i 192.168.200.100 -r 2019 -s 2020
