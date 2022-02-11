@@ -194,7 +194,7 @@ static int launch_send_thread(pthread_t &sender_thread, struct SendThreadArgs &a
 {
 	pthread_attr_t sender_thread_attr;
 	pthread_attr_init(&sender_thread_attr);
-	pthread_attr_setstacksize(&sender_thread_attr, PX4_STACK_ADJUSTED(2250));
+	pthread_attr_setstacksize(&sender_thread_attr, PX4_STACK_ADJUSTED(2550));
 	struct sched_param param;
 	(void)pthread_attr_getschedparam(&sender_thread_attr, &param);
 	param.sched_priority = SCHED_PRIORITY_DEFAULT;
