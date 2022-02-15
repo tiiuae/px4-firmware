@@ -5,29 +5,36 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  pull_request_target:
+    branches: [ master ]
 
 jobs:
   pixhawk:
     runs-on: ubuntu-latest
     steps:
+      # checkout merge branch for the forked PRs instead of PR base branch
+      - name: PR checkout for px4-firmware
+        uses: actions/checkout@v2
+        if: github.event_name == 'pull_request_target'
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          token: ${{ secrets.GH_REPO_TOKEN }}
+          persist-credentials: false
+          path: px4-firmware
+          submodules: recursive
+          fetch-depth: 0
 
+      # default checkout for local PRs and pushes
       - name: Checkout px4-firmware
         uses: actions/checkout@v2
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           token: ${{ secrets.GH_REPO_TOKEN }}
           path: px4-firmware
           submodules: recursive
           fetch-depth: 0
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Run docker build
-      - name: Run px4-firmware docker build
+      - name: Run px4-firmware build
         run: |
           set -eux
           mkdir bin
@@ -35,27 +42,10 @@ jobs:
           ./build.sh ../bin/
           ls ../bin
 
-      - name: Install jfrog CLI tool
-        env:
-          JFROG_CLI_URL: https://ssrc.jfrog.io/artifactory/ssrc-gen-public-remote-cache/tools/jfrog/jfrog-1.45.2.tar.gz
+      - uses: jfrog/setup-jfrog-cli@v2
         if: github.event_name == 'push'
-        run: |
-          set -exu
-          mkdir -p "$GITHUB_WORKSPACE/.jfrog/bin"
-          curl -L "$JFROG_CLI_URL" -o "$GITHUB_WORKSPACE/.jfrog/jfrog.tar.gz"
-          tar -C "$GITHUB_WORKSPACE/.jfrog/bin" -zxf "$GITHUB_WORKSPACE/.jfrog/jfrog.tar.gz"
-          echo "$GITHUB_WORKSPACE/.jfrog/bin" >> "$GITHUB_PATH"
-          echo "JFROG_CLI_HOME_DIR=$GITHUB_WORKSPACE/.jfrog" >> "$GITHUB_ENV"
-
-      - name: Import Artifactory token
         env:
-          ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
-          CI: true
-        if: github.event_name == 'push'
-        run: |
-          set -exu
-          jfrog rt c import "$ARTIFACTORY_TOKEN"
-          jfrog rt ping
+          JF_ARTIFACTORY_1: ${{ secrets.ARTIFACTORY_TOKEN }}
 
       - name: Upload px4-firmware build to Artifactory
         env:
@@ -65,6 +55,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           set -exu
+          jfrog rt ping
           pkg=$(find bin -name 'px4_fmu-v5_ssrc*.px4')
           px5_pkg=$(find bin -name 'px4_fmu-v5x_ssrc*.px4')
           saluki_pkg=$(find bin -name 'ssrc_saluki-*.px4')
@@ -144,11 +135,17 @@ jobs:
             type=semver,pattern={{version}}
             type=sha
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Firmware flasher - Build and push
         uses: docker/build-push-action@v2
-        if: github.event_name == 'push'
         with:
-          push: true
+          push: ${{ github.event_name == 'push' }}
           context: .
           file: px4-firmware/Tools/px_uploader.Dockerfile
           tags: ${{ steps.containermeta.outputs.tags }}

@@ -5,6 +5,8 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  pull_request_target:
+    branches: [ master ]
 
 jobs:
   tii-px4-sitl:
@@ -16,8 +18,22 @@ jobs:
           - 5000:5000
     steps:
 
-      - name: Checkout px4-firmware
+      # checkout merge branch for the forked PRs instead of PR base branch
+      - name: PR checkout for px4-firmware
         uses: actions/checkout@v2
+        if: github.event_name == 'pull_request_target'
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          token: ${{ secrets.GH_REPO_TOKEN }}
+          persist-credentials: false
+          path: px4-firmware
+          submodules: recursive
+          fetch-depth: 0
+
+      # default checkout for local PRs and pushes
+      - name: checkout for px4-firmware
+        uses: actions/checkout@v2
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           token: ${{ secrets.GH_REPO_TOKEN }}
           path: px4-firmware
@@ -31,8 +47,7 @@ jobs:
         with:
           driver-opts: network=host
 
-      # Run docker build
-      - name: Run fog-sw docker build
+      - name: Run sitl build
         run: |
           set -eux
           mkdir bin
@@ -64,32 +79,23 @@ jobs:
           context: .
           file: ./px4-firmware/packaging/Dockerfile.sitl
           pull: true
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Install jfrog CLI tool
-        env:
-          JFROG_CLI_URL: https://ssrc.jfrog.io/artifactory/ssrc-gen-public-remote-cache/tools/jfrog/jfrog-1.45.2.tar.gz
+      - uses: jfrog/setup-jfrog-cli@v2
         if: github.event_name == 'push'
-        run: |
-          set -exu
-          mkdir -p "$GITHUB_WORKSPACE/.jfrog/bin"
-          curl -L "$JFROG_CLI_URL" -o "$GITHUB_WORKSPACE/.jfrog/jfrog.tar.gz"
-          tar -C "$GITHUB_WORKSPACE/.jfrog/bin" -zxf "$GITHUB_WORKSPACE/.jfrog/jfrog.tar.gz"
-          echo "$GITHUB_WORKSPACE/.jfrog/bin" >> "$GITHUB_PATH"
-          echo "JFROG_CLI_HOME_DIR=$GITHUB_WORKSPACE/.jfrog" >> "$GITHUB_ENV"
+        env:
+          JF_ARTIFACTORY_1: ${{ secrets.ARTIFACTORY_TOKEN }}
 
       - name: Upload to Artifactory (px4-sitl)
         env:
-          ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
           ARTIFACTORY_GEN_REPO: gen-public-local
           BUILD_NAME: px4-sitl
           CI: true
         if: github.event_name == 'push'
         run: |
           set -exu
-          jfrog rt c import "$ARTIFACTORY_TOKEN"
           jfrog rt ping
           pkg=$(find bin -name 'px4_sitl_build*.tar.gz')
           pkg_name=$(basename $pkg)
@@ -108,14 +114,12 @@ jobs:
 
       - name: Upload to Artifactory (px4-gazebo-data)
         env:
-          ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
           ARTIFACTORY_GEN_REPO: gen-public-local
           BUILD_NAME: gazebo-data
           CI: true
         if: github.event_name == 'push'
         run: |
           set -exu
-          jfrog rt c import "$ARTIFACTORY_TOKEN"
           jfrog rt ping
           pkg=$(find bin -name 'px4_gazebo_data*.tar.gz')
           pkg_name=$(basename $pkg)
