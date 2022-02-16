@@ -69,7 +69,6 @@ int Simulator::start(int argc, char *argv[])
 	_instance = new Simulator();
 
 	if (_instance) {
-
 		if (argc == 5 && strcmp(argv[3], "-u") == 0) {
 			_instance->set_ip(InternetProtocol::UDP);
 			_instance->set_port(atoi(argv[4]));
@@ -78,6 +77,13 @@ int Simulator::start(int argc, char *argv[])
 		if (argc == 5 && strcmp(argv[3], "-c") == 0) {
 			_instance->set_ip(InternetProtocol::TCP);
 			_instance->set_port(atoi(argv[4]));
+		}
+
+		if (argc == 5 && strcmp(argv[3], "-s") == 0) {
+			PX4_INFO("Simulator TCP Server mode");
+			_instance->set_ip(InternetProtocol::TCP);
+			_instance->set_port(atoi(argv[4]));
+			_instance->set_server_mode();
 		}
 
 		if (argc == 6 && strcmp(argv[3], "-t") == 0) {
