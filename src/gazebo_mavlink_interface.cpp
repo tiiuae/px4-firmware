@@ -347,7 +347,15 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
     use_tcp = _sdf->GetElement("use_tcp")->Get<bool>();
     mavlink_interface_->SetUseTcp(use_tcp);
   }
-  gzmsg << "Connecting to PX4 SITL using " << (serial_enabled ? "serial" : (use_tcp ? "TCP" : "UDP")) << "\n";
+
+  bool tcp_client_mode = false;
+  if (!serial_enabled && _sdf->HasElement("tcp_client_mode"))
+  {
+    tcp_client_mode = _sdf->GetElement("tcp_client_mode")->Get<bool>();
+    mavlink_interface_->SetTcpClientMode(tcp_client_mode);
+  }
+  gzmsg << "Connecting to PX4 SITL using " << (serial_enabled ? "serial" :
+    (use_tcp ? (tcp_client_mode ? "TCP (client mode)" : "TCP (server mode)") : "UDP")) << "\n";
 
   if (!hil_mode_ && _sdf->HasElement("enable_lockstep"))
   {
