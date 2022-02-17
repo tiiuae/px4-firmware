@@ -33,7 +33,8 @@ if __name__ == "__main__":
     parser.add_argument('--serial_baudrate', default=921600, help="Baudrate of Serial device for FMU")
     parser.add_argument('--qgc_addr', default="INADDR_ANY", help="IP address for QGC")
     parser.add_argument('--hil_mode', default=0, help="Enable HIL mode for HITL simulation")
-    parser.add_argument('--use_tcp', default=0, help="Use TCP instead of UDP for PX4 SITL")
+    parser.add_argument('--use_tcp', default=1, help="Use TCP instead of UDP for PX4 SITL")
+    parser.add_argument('--tcp_client_mode', default=1, help="Use TCP client mode instead of default server mode for PX4 SITL")
     parser.add_argument('--output-file', help="sdf output file")
     parser.add_argument('--stdout', action='store_true', default=False, help="dump to stdout instead of file")
     parser.add_argument('--mavlink_id', default=1, help="Mavlink system ID")
@@ -80,6 +81,7 @@ if __name__ == "__main__":
          'ros_version': ros_version, \
          'qgc_addr': args.qgc_addr, \
          'use_tcp': args.use_tcp, \
+         'tcp_client_mode': args.tcp_client_mode, \
          'vehicle_name': args.vehicle_name, \
          'lockstep': args.lockstep, \
          'gstudphost': args.gstudphost, \

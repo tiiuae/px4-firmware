@@ -96,9 +96,6 @@ void MavlinkInterface::Load()
 
     if (use_tcp_) {
 
-      local_simulator_addr_.sin_addr.s_addr = htonl(mavlink_addr_);
-      local_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
-
       if ((simulator_socket_fd_ = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         std::cerr << "Creating TCP socket failed: " << strerror(errno) << ", aborting\n";
         abort();
@@ -111,33 +108,6 @@ void MavlinkInterface::Load()
         abort();
       }
 
-      struct linger nolinger {};
-      nolinger.l_onoff = 1;
-      nolinger.l_linger = 0;
-
-      result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_LINGER, &nolinger, sizeof(nolinger));
-      if (result != 0) {
-        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
-
-      // The socket reuse is necessary for reconnecting to the same address
-      // if the socket does not close but gets stuck in TIME_WAIT. This can happen
-      // if the server is suddenly closed, for example, if the robot is deleted in gazebo.
-      int socket_reuse = 1;
-      result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEADDR, &socket_reuse, sizeof(socket_reuse));
-      if (result != 0) {
-        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
-
-      // Same as above but for a given port
-      result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEPORT, &socket_reuse, sizeof(socket_reuse));
-      if (result != 0) {
-        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
-
       // set socket to non-blocking
       result = fcntl(simulator_socket_fd_, F_SETFL, O_NONBLOCK);
       if (result == -1) {
@@ -145,22 +115,65 @@ void MavlinkInterface::Load()
         abort();
       }
 
-      if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
-        std::cerr << "bind failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
+      if (tcp_client_mode_) {
 
-      errno = 0;
-      if (listen(simulator_socket_fd_, 0) < 0) {
-        std::cerr << "listen failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
+        // TCP client mode
+        local_simulator_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
+        local_simulator_addr_.sin_port = htons(0);
+        remote_simulator_addr_.sin_addr.s_addr = htonl(mavlink_addr_);
+        remote_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
 
-      memset(fds_, 0, sizeof(fds_));
-      fds_[LISTEN_FD].fd = simulator_socket_fd_;
-      fds_[LISTEN_FD].events = POLLIN; // only listens for new connections on tcp
+      } else {
+
+        // TCP server mode
+        local_simulator_addr_.sin_addr.s_addr = htonl(mavlink_addr_);
+        local_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
+
+        struct linger nolinger {};
+        nolinger.l_onoff = 1;
+        nolinger.l_linger = 0;
+
+        result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_LINGER, &nolinger, sizeof(nolinger));
+        if (result != 0) {
+          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        // The socket reuse is necessary for reconnecting to the same address
+        // if the socket does not close but gets stuck in TIME_WAIT. This can happen
+        // if the server is suddenly closed, for example, if the robot is deleted in gazebo.
+        int socket_reuse = 1;
+        result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEADDR, &socket_reuse, sizeof(socket_reuse));
+        if (result != 0) {
+          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        // Same as above but for a given port
+        result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEPORT, &socket_reuse, sizeof(socket_reuse));
+        if (result != 0) {
+          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
+          std::cerr << "bind failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        errno = 0;
+        if (listen(simulator_socket_fd_, 0) < 0) {
+          std::cerr << "listen failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+        memset(fds_, 0, sizeof(fds_));
+        fds_[LISTEN_FD].fd = simulator_socket_fd_;
+        fds_[LISTEN_FD].events = POLLIN; // only listens for new connections on tcp
+      }
 
     } else {
+
+      // Use UDP
       remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
       remote_simulator_addr_.sin_port = htons(mavlink_udp_port_);
 
@@ -351,6 +364,13 @@ void MavlinkInterface::pollForMAVLinkMessages()
 
   received_actuator_ = false;
 
+  if ((fds_[CONNECTION_FD].fd <= 0) && tcp_client_mode_) {
+    if (!tryConnect()) {
+      return;
+    }
+    std::cout << "Client connected to PX4 TCP server\n";
+  }
+
   do {
     int timeout_ms = (received_first_actuator_ && enable_lockstep_) ? 1000 : 0;
     int ret = ::poll(&fds_[0], N_FDS, timeout_ms);
@@ -478,6 +498,25 @@ void MavlinkInterface::acceptConnections()
   // assign socket to connection descriptor on success
   fds_[CONNECTION_FD].fd = ret; // socket is replaced with latest connection
   fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
+}
+
+bool MavlinkInterface::tryConnect()
+{
+  if (fds_[CONNECTION_FD].fd > 0) {
+    return true;
+  }
+
+  // Try connecting to px4 simulator TCP server
+  int ret = connect(simulator_socket_fd_, (struct sockaddr *)&remote_simulator_addr_, remote_simulator_addr_len_);
+
+  if (ret < 0) {
+    return false;
+  }
+
+  // assign socket to connection descriptor on success
+  fds_[CONNECTION_FD].fd = simulator_socket_fd_;
+  fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
+  return true;
 }
 
 void MavlinkInterface::handle_message(mavlink_message_t *msg)
