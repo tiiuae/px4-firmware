@@ -149,7 +149,7 @@ add_custom_command(OUTPUT px4_parameters.hpp
 
 set(SRCS)
 
-list(APPEND SRCS parameters.cpp)
+list(APPEND SRCS parameters.cpp parameters_common.cpp)
 if(BUILD_TESTING)
 	list(APPEND SRCS param_translation_unit_tests.cpp)
 else()
