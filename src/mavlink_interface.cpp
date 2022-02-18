@@ -210,10 +210,10 @@ void MavlinkInterface::Load()
 
 std::shared_ptr<mavlink_message_t> MavlinkInterface::PopRecvMessage() {
   std::shared_ptr<mavlink_message_t> msg(nullptr);
-  const std::lock_guard<std::mutex> guard(buff_mtx);
-  if (!recv_buffer_.empty()) {
-    msg = recv_buffer_.front();
-    recv_buffer_.pop();
+  const std::lock_guard<std::mutex> guard(receiver_buff_mtx_);
+  if (!receiver_buffer_.empty()) {
+    msg = receiver_buffer_.front();
+    receiver_buffer_.pop();
   }
   return msg;
 }
@@ -246,11 +246,11 @@ void MavlinkInterface::ReceiveWorker() {
           std::cout << "[ReceiveWorker] - message too big:" << m_buffer_.len << "\n";
         } else {
           std::shared_ptr<mavlink_message_t> msg(new mavlink_message_t(m_buffer_));
-          if (recv_buffer_.size() > kMaxRecvBufferSize) {
+          if (receiver_buffer_.size() > kMaxRecvBufferSize) {
             PopRecvMessage();
           }
-          const std::lock_guard<std::mutex> guard(buff_mtx);
-          recv_buffer_.push(msg);
+          const std::lock_guard<std::mutex> guard(receiver_buff_mtx_);
+          receiver_buffer_.push(msg);
         }
       }
     }
@@ -483,7 +483,7 @@ bool MavlinkInterface::tryConnect()
   fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
 
   // Start mavlink message receiver thread
-  io_thread_ = std::thread([this] () {
+  receiver_thread_ = std::thread([this] () {
    	ReceiveWorker();
   });
 
@@ -625,8 +625,8 @@ void MavlinkInterface::close()
 
   } else {
 
-    if (io_thread_.joinable())
-      io_thread_.join();
+    if (receiver_thread_.joinable())
+      receiver_thread_.join();
 
     ::close(fds_[CONNECTION_FD].fd);
     fds_[CONNECTION_FD] = { 0, 0, 0 };

@@ -181,7 +181,7 @@ public:
     inline void SetSdkUdpPort(int sdk_udp_port) {sdk_udp_port_ = sdk_udp_port;}
     inline void SetHILMode(bool hil_mode) {hil_mode_ = hil_mode;}
     inline void SetHILStateLevel(bool hil_state_level) {hil_state_level_ = hil_state_level;}
-    inline bool IsRecvBuffEmpty() {return recv_buffer_.empty();}
+    inline bool IsRecvBuffEmpty() {return receiver_buffer_.empty();}
 
 private:
     bool received_actuator_{false};
@@ -276,6 +276,7 @@ private:
     std::vector<HILData, Eigen::aligned_allocator<HILData>> hil_data_;
     std::atomic<bool> gotSigInt_ {false};
 
-    std::mutex buff_mtx;
-    std::queue<std::shared_ptr<mavlink_message_t>> recv_buffer_;
+    std::mutex receiver_buff_mtx_;
+    std::queue<std::shared_ptr<mavlink_message_t>> receiver_buffer_;
+    std::thread receiver_thread_;
 };
