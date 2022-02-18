@@ -611,8 +611,6 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo&  /*_info*/) {
 #endif
   double dt = (current_time - last_time_).Double();
 
-  bool close_conn_ = false;
-
   mavlink_interface_->ReadMAVLinkMessages();
 
   // Always send Gyro and Accel data at full rate (= sim update rate)
@@ -620,10 +618,6 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo&  /*_info*/) {
 
   // Send groudntruth at full rate
   SendGroundTruth();
-
-  if (close_conn_) { // close connection if required
-    mavlink_interface_->close();
-  }
 
   handle_actuator_controls();
 

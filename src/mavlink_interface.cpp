@@ -109,15 +109,6 @@ void MavlinkInterface::Load()
         abort();
       }
 
-      /*
-      // set socket to non-blocking
-      result = fcntl(simulator_socket_fd_, F_SETFL, O_NONBLOCK);
-      if (result == -1) {
-        std::cerr << "setting socket to non-blocking failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
-      */
-
       if (tcp_client_mode_) {
 
         // TCP client mode
@@ -188,13 +179,6 @@ void MavlinkInterface::Load()
         abort();
       }
 
-      // set socket to non-blocking
-      int result = fcntl(simulator_socket_fd_, F_SETFL, O_NONBLOCK);
-      if (result == -1) {
-        std::cerr << "setting socket to non-blocking failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
-
       if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
         std::cerr << "bind failed: " << strerror(errno) << ", aborting\n";
         abort();
@@ -203,6 +187,15 @@ void MavlinkInterface::Load()
       memset(fds_, 0, sizeof(fds_));
       fds_[CONNECTION_FD].fd = simulator_socket_fd_;
       fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
+
+      // Start mavlink message receiver thread
+      receiver_thread_ = std::thread([this] () {
+        ReceiveWorker();
+      });
+      // Start mavlink message sender thread
+      sender_thread_ = std::thread([this] () {
+        SendWorker();
+      });
     }
 
   }
@@ -679,11 +672,14 @@ void MavlinkInterface::close()
 
   } else {
 
-    if (sender_thread_.joinable())
-      sender_thread_.join();
+    // Shutdown receiver side
+    shutdown(fds_[CONNECTION_FD].fd, SHUT_RD);
 
     if (receiver_thread_.joinable())
       receiver_thread_.join();
+
+    if (sender_thread_.joinable())
+      sender_thread_.join();
 
     ::close(fds_[CONNECTION_FD].fd);
     fds_[CONNECTION_FD] = { 0, 0, 0 };
