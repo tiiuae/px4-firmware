@@ -10,8 +10,6 @@ extern "C" void px4_userspace_init(void)
 {
 	hrt_init();
 
-	param_init();
-
 	px4::WorkQueueManagerStart();
 
 	uorb_start();
