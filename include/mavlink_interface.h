@@ -58,6 +58,8 @@ static const uint32_t kDefaultMavlinkTcpPort = 4560;
 static const uint32_t kDefaultQGCUdpPort = 14550;
 static const uint32_t kDefaultSDKUdpPort = 14540;
 
+static const uint32_t kMaxRecvBufferSize = 20;
+
 using lock_guard = std::lock_guard<std::recursive_mutex>;
 static constexpr auto kDefaultDevice = "/dev/ttyACM0";
 static constexpr auto kDefaultBaudRate = 921600;
@@ -144,8 +146,9 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     MavlinkInterface();
     ~MavlinkInterface();
-    void pollForMAVLinkMessages();
-    void pollFromQgcAndSdk();
+    void ReadMAVLinkMessages();
+    mavlink_message_t* PopRecvMessage();
+    void ReceiveWorker();
     void send_mavlink_message(const mavlink_message_t *message);
     void forward_mavlink_message(const mavlink_message_t *message);
     void open();
@@ -177,6 +180,7 @@ public:
     inline void SetSdkUdpPort(int sdk_udp_port) {sdk_udp_port_ = sdk_udp_port;}
     inline void SetHILMode(bool hil_mode) {hil_mode_ = hil_mode;}
     inline void SetHILStateLevel(bool hil_state_level) {hil_state_level_ = hil_state_level;}
+    inline bool IsRecvBuffEmpty() {return recv_buffer_.empty();}
 
 private:
     bool received_actuator_{false};
@@ -270,4 +274,7 @@ private:
 
     std::vector<HILData, Eigen::aligned_allocator<HILData>> hil_data_;
     std::atomic<bool> gotSigInt_ {false};
+
+    std::mutex buff_mtx;
+    std::vector<mavlink_message_t*> recv_buffer_;
 };

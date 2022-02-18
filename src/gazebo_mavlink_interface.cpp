@@ -598,6 +598,9 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo&  /*_info*/) {
       gzmsg << "OnUpdate: --> load mavlink_interface_\n";
       mavlink_interface_->Load();
       mavlink_loaded_ = true;
+    } else {
+      // mavlink not loaded, exit
+      return;
     }
   }
 
@@ -610,11 +613,7 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo&  /*_info*/) {
 
   bool close_conn_ = false;
 
-  if (hil_mode_) {
-    mavlink_interface_->pollFromQgcAndSdk();
-  } else {
-    mavlink_interface_->pollForMAVLinkMessages();
-  }
+  mavlink_interface_->ReadMAVLinkMessages();
 
   // Always send Gyro and Accel data at full rate (= sim update rate)
   SendSensorMessages();
