@@ -60,6 +60,7 @@ static const uint32_t kDefaultQGCUdpPort = 14550;
 static const uint32_t kDefaultSDKUdpPort = 14540;
 
 static const uint32_t kMaxRecvBufferSize = 20;
+static const uint32_t kMaxSendBufferSize = 20;
 
 using lock_guard = std::lock_guard<std::recursive_mutex>;
 static constexpr auto kDefaultDevice = "/dev/ttyACM0";
@@ -149,7 +150,7 @@ public:
     ~MavlinkInterface();
     void ReadMAVLinkMessages();
     std::shared_ptr<mavlink_message_t> PopRecvMessage();
-    void ReceiveWorker();
+    void PushSendMessage(std::shared_ptr<mavlink_message_t> msg);
     void send_mavlink_message(const mavlink_message_t *message);
     void forward_mavlink_message(const mavlink_message_t *message);
     void open();
@@ -202,6 +203,10 @@ private:
         return serial_dev_.is_open();
     }
     void do_serial_write(bool check_tx_state);
+
+    // UDP/TCP send/receive thread workers
+    void ReceiveWorker();
+    void SendWorker();
 
     static const unsigned n_out_max = 16;
 
@@ -279,4 +284,11 @@ private:
     std::mutex receiver_buff_mtx_;
     std::queue<std::shared_ptr<mavlink_message_t>> receiver_buffer_;
     std::thread receiver_thread_;
+
+    std::mutex sender_buff_mtx_;
+    std::queue<std::shared_ptr<mavlink_message_t>> sender_buffer_;
+    std::thread sender_thread_;
+    std::mutex sender_cv_mtx_;
+    std::condition_variable sender_cv_;
+
 };

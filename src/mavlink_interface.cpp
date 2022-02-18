@@ -1,4 +1,5 @@
 #include "mavlink_interface.h"
+#include <pthread.h>
 
 MavlinkInterface::MavlinkInterface() :
     serial_dev_(io_service_){
@@ -208,6 +209,11 @@ void MavlinkInterface::Load()
   // hil_data_.resize(1);
 }
 
+
+/*******************************************************
+ * Receive buffer handling
+ */
+
 std::shared_ptr<mavlink_message_t> MavlinkInterface::PopRecvMessage() {
   std::shared_ptr<mavlink_message_t> msg(nullptr);
   const std::lock_guard<std::mutex> guard(receiver_buff_mtx_);
@@ -221,6 +227,8 @@ std::shared_ptr<mavlink_message_t> MavlinkInterface::PopRecvMessage() {
 void MavlinkInterface::ReceiveWorker() {
 
   std::cout << "[ReceiveWorker] starts\n";
+  pthread_setname_np(pthread_self(), "MAV_Receiver");
+
   while(!close_conn_) {
     int ret = recvfrom(fds_[CONNECTION_FD].fd, buf_, sizeof(buf_), 0, (struct sockaddr *)&remote_simulator_addr_, &remote_simulator_addr_len_);
     if (ret < 0) {
@@ -245,8 +253,9 @@ void MavlinkInterface::ReceiveWorker() {
         if (m_buffer_.len > MAVLINK_MAX_PAYLOAD_LEN) {
           std::cout << "[ReceiveWorker] - message too big:" << m_buffer_.len << "\n";
         } else {
-          std::shared_ptr<mavlink_message_t> msg(new mavlink_message_t(m_buffer_));
+          auto msg = std::make_shared<mavlink_message_t>(m_buffer_);
           if (receiver_buffer_.size() > kMaxRecvBufferSize) {
+            std::cerr << "[ReceiveWorker] Messages buffer overflow!\n";
             PopRecvMessage();
           }
           const std::lock_guard<std::mutex> guard(receiver_buff_mtx_);
@@ -256,6 +265,46 @@ void MavlinkInterface::ReceiveWorker() {
     }
   }
   std::cout << "[ReceiveWorker] shutdown\n";
+}
+
+/*******************************************************
+ * Send buffer handling
+ */
+
+void MavlinkInterface::PushSendMessage(std::shared_ptr<mavlink_message_t> msg) {
+  if (sender_buffer_.size() < kMaxSendBufferSize) {
+    const std::lock_guard<std::mutex> guard(sender_buff_mtx_);
+    sender_buffer_.push(msg);
+    sender_cv_.notify_one();
+  } else if(received_first_actuator_) {
+    std::cerr << "[SendWorker] Messages buffer overflow!\n";
+  }
+}
+
+void MavlinkInterface::SendWorker() {
+
+  std::cout << "[SendWorker] starts\n";
+  pthread_setname_np(pthread_self(), "MAV_Sender");
+
+  while(!close_conn_) {
+    std::unique_lock<std::mutex> lock(sender_cv_mtx_);
+    while (sender_buffer_.empty() && !close_conn_)
+      sender_cv_.wait(lock);
+
+    if (sender_buffer_.empty() || close_conn_)
+      continue;
+
+    std::shared_ptr<mavlink_message_t> msg;
+    {
+      const std::lock_guard<std::mutex> guard(sender_buff_mtx_);
+      msg = sender_buffer_.front();
+      sender_buffer_.pop();
+    }
+    send_mavlink_message(msg.get());
+
+  }
+
+  std::cout << "[SendWorker] Shutdown..\n";
 }
 
 void MavlinkInterface::SendSensorMessages(const int &time_usec) {
@@ -318,7 +367,8 @@ void MavlinkInterface::SendSensorMessages(const int &time_usec, HILData &hil_dat
   if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
     mavlink_message_t msg;
     mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-    send_mavlink_message(&msg);
+    auto msg_shared = std::make_shared<mavlink_message_t>(msg);
+    PushSendMessage(msg_shared);
   }
 }
 
@@ -344,7 +394,8 @@ void MavlinkInterface::SendGpsMessages(const SensorData::Gps &data) {
   if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
     mavlink_message_t msg;
     mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_gps_msg);
-    send_mavlink_message(&msg);
+    auto msg_shared = std::make_shared<mavlink_message_t>(msg);
+    PushSendMessage(msg_shared);
   }
 }
 
@@ -484,9 +535,12 @@ bool MavlinkInterface::tryConnect()
 
   // Start mavlink message receiver thread
   receiver_thread_ = std::thread([this] () {
-   	ReceiveWorker();
+    ReceiveWorker();
   });
-
+  // Start mavlink message sender thread
+  sender_thread_ = std::thread([this] () {
+    SendWorker();
+  });
   return true;
 }
 
@@ -624,6 +678,9 @@ void MavlinkInterface::close()
       io_thread_.join();
 
   } else {
+
+    if (sender_thread_.joinable())
+      sender_thread_.join();
 
     if (receiver_thread_.joinable())
       receiver_thread_.join();
