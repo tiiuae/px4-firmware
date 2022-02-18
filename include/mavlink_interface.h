@@ -148,7 +148,7 @@ public:
     MavlinkInterface();
     ~MavlinkInterface();
     void ReadMAVLinkMessages();
-    mavlink_message_t* PopRecvMessage();
+    std::shared_ptr<mavlink_message_t> PopRecvMessage();
     void ReceiveWorker();
     void send_mavlink_message(const mavlink_message_t *message);
     void forward_mavlink_message(const mavlink_message_t *message);
@@ -277,5 +277,5 @@ private:
     std::atomic<bool> gotSigInt_ {false};
 
     std::mutex buff_mtx;
-    std::queue<mavlink_message_t*> recv_buffer_;
+    std::queue<std::shared_ptr<mavlink_message_t>> recv_buffer_;
 };

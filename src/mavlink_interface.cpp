@@ -208,8 +208,8 @@ void MavlinkInterface::Load()
   // hil_data_.resize(1);
 }
 
-mavlink_message_t* MavlinkInterface::PopRecvMessage() {
-  mavlink_message_t* msg = nullptr;
+std::shared_ptr<mavlink_message_t> MavlinkInterface::PopRecvMessage() {
+  std::shared_ptr<mavlink_message_t> msg(nullptr);
   const std::lock_guard<std::mutex> guard(buff_mtx);
   if (!recv_buffer_.empty()) {
     msg = recv_buffer_.front();
@@ -245,11 +245,9 @@ void MavlinkInterface::ReceiveWorker() {
         if (m_buffer_.len > MAVLINK_MAX_PAYLOAD_LEN) {
           std::cout << "[ReceiveWorker] - message too big:" << m_buffer_.len << "\n";
         } else {
-          mavlink_message_t *msg = new mavlink_message_t();
-          memcpy((uint8_t *)msg, (const uint8_t *)&m_buffer_, MAVLINK_NUM_NON_PAYLOAD_BYTES + (uint16_t)m_buffer_.len);
+          std::shared_ptr<mavlink_message_t> msg(new mavlink_message_t(m_buffer_));
           if (recv_buffer_.size() > kMaxRecvBufferSize) {
-            mavlink_message_t* tmp = PopRecvMessage();
-            if (tmp) delete tmp;
+            PopRecvMessage();
           }
           const std::lock_guard<std::mutex> guard(buff_mtx);
           recv_buffer_.push(msg);
@@ -434,11 +432,10 @@ void MavlinkInterface::ReadMAVLinkMessages()
 
   do {
     //std::cout << "[MavlinkInterface] check message from msg buffer.. \n";
-    mavlink_message_t *msg = PopRecvMessage();
+    auto msg = PopRecvMessage();
     if (msg) {
       //std::cout << "[MavlinkInterface] ReadMAVLinkMessages -> handle_message \n";
-      handle_message(msg);
-      delete msg;
+      handle_message(msg.get());
     }
   } while( (!enable_lockstep_ && !IsRecvBuffEmpty()) ||
            ( enable_lockstep_ && !received_actuator_ && received_first_actuator_) );
