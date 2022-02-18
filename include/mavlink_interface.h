@@ -22,6 +22,7 @@
 #pragma once
 
 #include <vector>
+#include <queue>
 #include <regex>
 #include <thread>
 #include <mutex>
@@ -276,5 +277,5 @@ private:
     std::atomic<bool> gotSigInt_ {false};
 
     std::mutex buff_mtx;
-    std::vector<mavlink_message_t*> recv_buffer_;
+    std::queue<mavlink_message_t*> recv_buffer_;
 };

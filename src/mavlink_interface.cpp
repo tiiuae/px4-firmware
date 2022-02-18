@@ -212,8 +212,8 @@ mavlink_message_t* MavlinkInterface::PopRecvMessage() {
   mavlink_message_t* msg = nullptr;
   const std::lock_guard<std::mutex> guard(buff_mtx);
   if (!recv_buffer_.empty()) {
-    msg = recv_buffer_.back();
-    recv_buffer_.pop_back();
+    msg = recv_buffer_.front();
+    recv_buffer_.pop();
   }
   return msg;
 }
@@ -252,7 +252,7 @@ void MavlinkInterface::ReceiveWorker() {
             if (tmp) delete tmp;
           }
           const std::lock_guard<std::mutex> guard(buff_mtx);
-          recv_buffer_.insert(recv_buffer_.begin(), msg);
+          recv_buffer_.push(msg);
         }
       }
     }
