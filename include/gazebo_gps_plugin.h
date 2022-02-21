@@ -78,9 +78,11 @@ private:
   bool active_ = true;
   bool bad_gps_ = false;
   bool spoofing_active_ = false;
+  bool debug_prints_enabled_ = false;
   bool activationCallback(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, std::shared_ptr<std_srvs::srv::SetBool::Response> response);
   bool setBadGpsCallback(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, std::shared_ptr<std_srvs::srv::SetBool::Response> response);
   bool activationGPSSpoofing(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, std::shared_ptr<std_srvs::srv::SetBool::Response> response);
+  bool enableDebugPrints(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, std::shared_ptr<std_srvs::srv::SetBool::Response> response);
 
   std::string                     namespace_;
   std::string                     gps_id_;
@@ -122,6 +124,7 @@ private:
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr activation_service_;
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr set_bad_gps_service_;
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr activation_spoof_service_;
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr debug_service_;
 
   // Home defaults to Zurich Irchel Park
   // @note The home position can be specified using the environment variables:

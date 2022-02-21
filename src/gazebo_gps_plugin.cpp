@@ -222,6 +222,8 @@ void GazeboRosGpsPlugin::Load(sensors::SensorPtr _parent, sdf::ElementPtr _sdf) 
       "/gazebo/gps_plugin/set_bad_gps", std::bind(&GazeboRosGpsPlugin::setBadGpsCallback, this, std::placeholders::_1, std::placeholders::_2));
   activation_spoof_service_ = ros_node_->create_service<std_srvs::srv::SetBool>(
       "/gazebo/gps_plugin/activate_spoof", std::bind(&GazeboRosGpsPlugin::activationGPSSpoofing, this, std::placeholders::_1, std::placeholders::_2));
+  debug_service_ = ros_node_->create_service<std_srvs::srv::SetBool>(
+      "/gazebo/gps_plugin/enable_debug_prints", std::bind(&GazeboRosGpsPlugin::enableDebugPrints, this, std::placeholders::_1, std::placeholders::_2));
 
     gps_attack_.X() = 0;
     gps_attack_.Y() = 0;
@@ -321,7 +323,9 @@ void GazeboRosGpsPlugin::OnWorldUpdate(const common::UpdateInfo& /*_info*/) {
   // reproject position with noise into geographic coordinates
   auto pos_with_noise = pos_W_I + noise_gps_pos_ + gps_bias_ + gps_attack_;
   auto latlon         = reproject(pos_with_noise, lat_home_, lon_home_, alt_home_);
-  gzdbg << "Lat: " << latlon.first << "  Lon: " << latlon.second << "\n";
+  if (debug_prints_enabled_) {
+    gzdbg << "Lat: " << latlon.first << "  Lon: " << latlon.second << "\n";
+  }
 
   {
     std::scoped_lock lock(gps_spoof_mutex_);
@@ -449,6 +453,17 @@ bool GazeboRosGpsPlugin::activationGPSSpoofing(const std::shared_ptr<std_srvs::s
   spoofing_active_ = request->data;
   RCLCPP_INFO(ros_node_->get_logger(), "[%s]: GPS Spoofing is %s", ros_node_->get_name(), spoofing_active_ ? "active" : "inactive");
   spoof_start_time = last_time_;
+  response->message = "Success";
+  response->success = true;
+  return true;
+}
+
+bool GazeboRosGpsPlugin::enableDebugPrints(const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+                                            std::shared_ptr<std_srvs::srv::SetBool::Response>      response) {
+  std::scoped_lock lock(gps_spoof_mutex_);
+  debug_prints_enabled_ = request->data;
+  RCLCPP_INFO(ros_node_->get_logger(), "[%s]: GPS Debug printing %s", ros_node_->get_name(), debug_prints_enabled_ ? "enabled" : "disabled");
+
   response->message = "Success";
   response->success = true;
   return true;
