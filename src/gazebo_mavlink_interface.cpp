@@ -798,7 +798,7 @@ void GazeboMavlinkInterface::SendGroundTruth()
   if (!hil_mode_ || (hil_mode_ && hil_state_level_)) {
     mavlink_message_t msg;
     mavlink_msg_hil_state_quaternion_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_state_quat);
-    mavlink_interface_->send_mavlink_message(&msg);
+    mavlink_interface_->PushSendMessage(&msg);
   }
 }
 
@@ -878,7 +878,7 @@ void GazeboMavlinkInterface::LidarCallback(LidarPtr& lidar_message, const int& i
 
   mavlink_message_t msg;
   mavlink_msg_distance_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-  mavlink_interface_->send_mavlink_message(&msg);
+  mavlink_interface_->PushSendMessage(&msg);
 }
 
 void GazeboMavlinkInterface::OpticalFlowCallback(OpticalFlowPtr& opticalFlow_message) {
@@ -908,7 +908,7 @@ void GazeboMavlinkInterface::OpticalFlowCallback(OpticalFlowPtr& opticalFlow_mes
 
   mavlink_message_t msg;
   mavlink_msg_hil_optical_flow_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-  mavlink_interface_->send_mavlink_message(&msg);
+  mavlink_interface_->PushSendMessage(&msg);
 }
 
 void GazeboMavlinkInterface::SonarCallback(SonarPtr& sonar_message, const int& id) {
@@ -949,7 +949,7 @@ void GazeboMavlinkInterface::SonarCallback(SonarPtr& sonar_message, const int& i
 
   mavlink_message_t msg;
   mavlink_msg_distance_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-  mavlink_interface_->send_mavlink_message(&msg);
+  mavlink_interface_->PushSendMessage(&msg);
 }
 
 void GazeboMavlinkInterface::IRLockCallback(IRLockPtr& irlock_message) {
@@ -965,7 +965,7 @@ void GazeboMavlinkInterface::IRLockCallback(IRLockPtr& irlock_message) {
 
   mavlink_message_t msg;
   mavlink_msg_landing_target_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-  mavlink_interface_->send_mavlink_message(&msg);
+  mavlink_interface_->PushSendMessage(&msg);
 }
 
 void GazeboMavlinkInterface::VisionCallback(OdomPtr& odom_message) {
@@ -1049,7 +1049,7 @@ void GazeboMavlinkInterface::VisionCallback(OdomPtr& odom_message) {
     }
 
     mavlink_msg_odometry_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &odom);
-    mavlink_interface_->send_mavlink_message(&msg);
+    mavlink_interface_->PushSendMessage(&msg);
   }
   else if (send_vision_estimation_) {
     // send VISION_POSITION_ESTIMATE Mavlink msg
@@ -1085,7 +1085,7 @@ void GazeboMavlinkInterface::VisionCallback(OdomPtr& odom_message) {
     }
 
     mavlink_msg_vision_position_estimate_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &vision);
-    mavlink_interface_->send_mavlink_message(&msg);
+    mavlink_interface_->PushSendMessage(&msg);
   }
 }
 

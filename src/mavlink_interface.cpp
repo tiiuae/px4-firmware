@@ -274,6 +274,11 @@ void MavlinkInterface::PushSendMessage(std::shared_ptr<mavlink_message_t> msg) {
   }
 }
 
+void MavlinkInterface::PushSendMessage(mavlink_message_t *msg) {
+    auto msg_shared = std::make_shared<mavlink_message_t>(*msg);
+    PushSendMessage(msg_shared);
+}
+
 void MavlinkInterface::SendWorker() {
 
   std::cout << "[SendWorker] starts\n";

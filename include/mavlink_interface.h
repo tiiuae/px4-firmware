@@ -151,6 +151,7 @@ public:
     void ReadMAVLinkMessages();
     std::shared_ptr<mavlink_message_t> PopRecvMessage();
     void PushSendMessage(std::shared_ptr<mavlink_message_t> msg);
+    void PushSendMessage(mavlink_message_t* msg);
     void send_mavlink_message(const mavlink_message_t *message);
     void forward_mavlink_message(const mavlink_message_t *message);
     void open();
