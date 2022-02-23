@@ -60,7 +60,7 @@ static const uint32_t kDefaultQGCUdpPort = 14550;
 static const uint32_t kDefaultSDKUdpPort = 14540;
 
 static const uint32_t kMaxRecvBufferSize = 20;
-static const uint32_t kMaxSendBufferSize = 20;
+static const uint32_t kMaxSendBufferSize = 30;
 
 using lock_guard = std::lock_guard<std::recursive_mutex>;
 static constexpr auto kDefaultDevice = "/dev/ttyACM0";
