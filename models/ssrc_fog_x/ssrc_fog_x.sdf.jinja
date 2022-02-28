@@ -948,7 +948,7 @@
         </ray>
         <plugin name="{{ vehicle_name }}_rplidar" filename="libgazebo_ros_ray_sensor.so">
           <ros>
-            <argument>~/out:={{ vehicle_name }}/rplidar/scan</argument>
+            <remapping>~/out:={{ vehicle_name }}/rplidar/scan</remapping>
           </ros>
           <output_type>sensor_msgs/LaserScan</output_type>
           <frame_name>{{ vehicle_name }}/rplidar</frame_name>
@@ -972,7 +972,7 @@
   <!--} END RP LIDAR -->
 
   <!-- GARMIN RANGEFINDER {-->
-  <link name="garmin_link">
+  <link name="lidar0::link">
     <pose>-0.007 -0.04 -0.039 0 1.5708 1.5708</pose>
     <inertial>
       <mass>0.01</mass>
@@ -1005,22 +1005,21 @@
     </visual>
     <sensor name="garmin" type="ray">
       <always_on>true</always_on>
-      <update_rate>60</update_rate>
+      <update_rate>100</update_rate>
       <visualize>false</visualize>
-      <topic>scan</topic>
       <ray>
         <scan>
-          <vertical>
+          <horizontal>
             <samples>1</samples>
             <resolution>1</resolution>
-            <min_angle>0</min_angle>
+            <min_angle>-0</min_angle>
             <max_angle>0</max_angle>
-          </vertical>
+          </horizontal>
         </scan>
         <range>
-          <min>0.1</min>
-          <max>40</max>
-          <resolution>0.005</resolution>
+          <min>0.06</min> <!-- do not change: use min_distance (below) for realistic behavior (smaller values cause issues) -->
+          <max>35</max>   <!-- do not change: use min_distance (below) for realistic behavior (bigger values cause issues) -->
+          <resolution>0.01</resolution>
         </range>
         <noise>
           <type>gaussian</type>
@@ -1028,17 +1027,16 @@
           <stddev>0.01</stddev>
         </noise>
       </ray>
-      <plugin name="{{ vehicle_name }}_garmin" filename="libgazebo_ros_ray_sensor.so">
-        <ros>
-          <argument>~/out:={{ vehicle_name }}/garmin/range</argument>
-        </ros>
-        <output_type>sensor_msgs/Range</output_type>
-        <frame_name>{{ vehicle_name }}/garmin</frame_name>
+      <plugin name="{{ vehicle_name }}_garmin" filename="libgazebo_lidar_plugin.so">
+        <robotNamespace></robotNamespace>
+        <min_distance>0.1</min_distance>
+        <max_distance>30.0</max_distance>
       </plugin>
     </sensor>
   </link>
-  <joint name='garmin_joint' type='fixed'>
-    <child>garmin_link</child>
+  <!-- name of the link for garmin has to contain lidar word to be detected by mavlink gazebo plugin -->
+  <joint name='lidar0_joint' type='fixed'>
+    <child>lidar0::link</child>
     <parent>base_link</parent>
   </joint>
   <!--} END GARMIN RANGEFINDER -->
