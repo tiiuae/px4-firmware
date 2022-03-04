@@ -1,4 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!-- Motor constants {-->
+{%- set rotor_velocity_slowdown_sim = 10 -%}
+{%- set motor_constant = "5.84e-6" -%} {# [kg.m/s^2] #}
+{%- set moment_constant = 0.06 -%} {# [m] #}
+{%- set time_constant_up = 1.0 / 80.0 -%} {# [s] #}
+{%- set time_constant_down = 1.0 / 40.0 -%} {# [s] #}
+{%- set max_rot_velocity = 1100 -%} {# [rad/s] #}
+{%- set rotor_drag_coefficient = 0.000175 -%} {# orig 8.06428e-04 #}
+{%- set rolling_moment_coefficient = "1e-6" -%}
+<!--}-->
+
+<!-- Robot parameters and arguments {-->
+{%- set mass_body = 2.3 -%} {# [kg] #}
+{%- set mass_arm = 0.02 -%} {# [kg] #}
+{%- set mass_rotor = 0.005 -%} {# [kg] #}
+<!--}-->
+
+<!-- Inertias {-->
+{%- set inertia_body_radius = 0.3 -%} {# [m] #}
+{%- set inertia_body_height = 0.07 -%} {# [m] #}
+
+{%- set body_ixx = mass_body * (3 * inertia_body_radius * inertia_body_radius + inertia_body_height * inertia_body_height) / 12 -%}
+{%- set body_ixy = 0 -%}
+{%- set body_ixz = 0 -%}
+{%- set body_iyy = mass_body * (3 * inertia_body_radius * inertia_body_radius + inertia_body_height * inertia_body_height) / 12 -%}
+{%- set body_iyz = 0 -%}
+{%- set body_izz = (mass_body * inertia_body_radius * inertia_body_radius) / 2 -%}
+
+{%- set arm_ixx = 0.000166667 -%}
+{%- set arm_ixy = 0 -%}
+{%- set arm_ixz = 0 -%}
+{%- set arm_iyy = 0.000166667 -%}
+{%- set arm_iyz = 0 -%}
+{%- set arm_izz = 0.000166667 -%}
+
+{%- set rotor_ixx = "9.75e-07" -%}
+{%- set rotor_ixy = 0 -%}
+{%- set rotor_ixz = 0 -%}
+{%- set rotor_iyy = 0.000273104 -%}
+{%- set rotor_iyz = 0 -%}
+{%- set rotor_izz = 0.000274004 -%}
+<!--}-->
+
+
+ 
 <sdf version='1.6'>
   <model name={{ vehicle_name }}>
     
@@ -9,14 +55,14 @@
       <pose>0 0 0 0 0 1.5708</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <mass>2.3</mass>
+        <mass>{{ mass_body }}</mass>
         <inertia>
-          <ixx>0.029125</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.029125</iyy>
-          <iyz>0</iyz>
-          <izz>0.055225</izz>
+          <ixx>{{ body_ixx }}</ixx>
+          <ixy>{{ body_ixy }}</ixy>
+          <ixz>{{ body_ixz }}</ixz>
+          <iyy>{{ body_iyy }}</iyy>
+          <iyz>{{ body_iyz }}</iyz>
+          <izz>{{ body_izz }}</izz>
         </inertia>
       </inertial>
       <collision name='base_link_inertia_collision'>
@@ -56,11 +102,14 @@
     <link name="arm_0_link">
       <pose>0 0 0 0 0 1.5708</pose>
       <inertial>
-        <mass>0.01</mass>
+        <mass>{{ mass_arm }}</mass>
         <inertia>
-          <ixx>0.000166667</ixx>
-          <iyy>0.000166667</iyy>
-          <izz>0.000166667</izz>
+          <ixx>{{ arm_ixx }}</ixx>
+          <ixy>{{ arm_ixy }}</ixy>
+          <ixz>{{ arm_ixz }}</ixz>
+          <iyy>{{ arm_iyy }}</iyy>
+          <iyz>{{ arm_iyz }}</iyz>
+          <izz>{{ arm_izz }}</izz>
         </inertia>
       </inertial>
       <visual name='arm_0_visual'>
@@ -99,7 +148,21 @@
         </surface>
       </collision>
     </link>
-    <joint name='arm_0_joint' type='fixed'>
+    <joint name='arm_0_joint' type='revolute'>
+      <axis>
+        <xyz>1 0 0</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>0</upper>
+          <effort>0</effort>
+          <velocity>0</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+        <use_parent_model_frame>1</use_parent_model_frame>
+      </axis>
       <child>arm_0_link</child>
       <parent>base_link</parent>
     </joint>
@@ -109,11 +172,14 @@
     <link name="arm_1_link">
       <pose>0 0 0 0 0 -1.5708</pose>
       <inertial>
-        <mass>0.01</mass>
+        <mass>{{ mass_arm }}</mass>
         <inertia>
-          <ixx>0.000166667</ixx>
-          <iyy>0.000166667</iyy>
-          <izz>0.000166667</izz>
+          <ixx>{{ arm_ixx }}</ixx>
+          <ixy>{{ arm_ixy }}</ixy>
+          <ixz>{{ arm_ixz }}</ixz>
+          <iyy>{{ arm_iyy }}</iyy>
+          <iyz>{{ arm_iyz }}</iyz>
+          <izz>{{ arm_izz }}</izz>
         </inertia>
       </inertial>
       <visual name='arm_1_visual'>
@@ -152,7 +218,21 @@
         </surface>
       </collision>
     </link>
-    <joint name='arm_1_joint' type='fixed'>
+    <joint name='arm_1_joint' type='revolute'>
+      <axis>
+        <xyz>1 0 0</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>0</upper>
+          <effort>0</effort>
+          <velocity>0</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+        <use_parent_model_frame>1</use_parent_model_frame>
+      </axis>
       <child>arm_1_link</child>
       <parent>base_link</parent>
     </joint>
@@ -162,11 +242,14 @@
     <link name="arm_2_link">
       <pose>0 0 0 0 0 3.14159</pose>
       <inertial>
-        <mass>0.01</mass>
+        <mass>{{ mass_arm }}</mass>
         <inertia>
-          <ixx>0.000166667</ixx>
-          <iyy>0.000166667</iyy>
-          <izz>0.000166667</izz>
+          <ixx>{{ arm_ixx }}</ixx>
+          <ixy>{{ arm_ixy }}</ixy>
+          <ixz>{{ arm_ixz }}</ixz>
+          <iyy>{{ arm_iyy }}</iyy>
+          <iyz>{{ arm_iyz }}</iyz>
+          <izz>{{ arm_izz }}</izz>
         </inertia>
       </inertial>
       <visual name='arm_2_visual'>
@@ -205,7 +288,21 @@
         </surface>
       </collision>
     </link>
-    <joint name='arm_2_joint' type='fixed'>
+    <joint name='arm_2_joint' type='revolute'>
+      <axis>
+        <xyz>1 0 0</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>0</upper>
+          <effort>0</effort>
+          <velocity>0</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+        <use_parent_model_frame>1</use_parent_model_frame>
+      </axis>
       <child>arm_2_link</child>
       <parent>base_link</parent>
     </joint>
@@ -215,11 +312,14 @@
     <link name="arm_3_link">
       <pose>0 0 0 0 0 0</pose>
       <inertial>
-        <mass>0.01</mass>
+        <mass>{{ mass_arm }}</mass>
         <inertia>
-          <ixx>0.000166667</ixx>
-          <iyy>0.000166667</iyy>
-          <izz>0.000166667</izz>
+          <ixx>{{ arm_ixx }}</ixx>
+          <ixy>{{ arm_ixy }}</ixy>
+          <ixz>{{ arm_ixz }}</ixz>
+          <iyy>{{ arm_iyy }}</iyy>
+          <iyz>{{ arm_iyz }}</iyz>
+          <izz>{{ arm_izz }}</izz>
         </inertia>
       </inertial>
       <visual name='arm_3_visual'>
@@ -258,7 +358,21 @@
         </surface>
       </collision>
     </link>
-    <joint name='arm_3_joint' type='fixed'>
+    <joint name='arm_3_joint' type='revolute'>
+      <axis>
+        <xyz>1 0 0</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>0</upper>
+          <effort>0</effort>
+          <velocity>0</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+        <use_parent_model_frame>1</use_parent_model_frame>
+      </axis>
       <child>arm_3_link</child>
       <parent>base_link</parent>
     </joint>
@@ -308,14 +422,14 @@
       <pose>0.175 -0.175 0.041 0 0 0</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <mass>0.005</mass>
+        <mass>{{ mass_rotor }}</mass>
         <inertia>
-          <ixx>9.75e-07</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.000273104</iyy>
-          <iyz>0</iyz>
-          <izz>0.000274004</izz>
+          <ixx>{{ rotor_ixx }}</ixx>
+          <ixy>{{ rotor_ixy }}</ixy>
+          <ixz>{{ rotor_ixz }}</ixz>
+          <iyy>{{ rotor_iyy }}</iyy>
+          <iyz>{{ rotor_iyz }}</iyz>
+          <izz>{{ rotor_izz }}</izz>
         </inertia>
       </inertial>
       <collision name='rotor_0_collision'>
@@ -367,14 +481,14 @@
       <pose>-0.175 0.175 0.041 0 0 0</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <mass>0.005</mass>
+        <mass>{{ mass_rotor }}</mass>
         <inertia>
-          <ixx>9.75e-07</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.000273104</iyy>
-          <iyz>0</iyz>
-          <izz>0.000274004</izz>
+          <ixx>{{ rotor_ixx }}</ixx>
+          <ixy>{{ rotor_ixy }}</ixy>
+          <ixz>{{ rotor_ixz }}</ixz>
+          <iyy>{{ rotor_iyy }}</iyy>
+          <iyz>{{ rotor_iyz }}</iyz>
+          <izz>{{ rotor_izz }}</izz>
         </inertia>
       </inertial>
       <collision name='rotor_1_collision'>
@@ -426,14 +540,14 @@
       <pose>0.175 0.175 0.041 0 0 0</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <mass>0.005</mass>
+        <mass>{{ mass_rotor }}</mass>
         <inertia>
-          <ixx>9.75e-07</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.000273104</iyy>
-          <iyz>0</iyz>
-          <izz>0.000274004</izz>
+          <ixx>{{ rotor_ixx }}</ixx>
+          <ixy>{{ rotor_ixy }}</ixy>
+          <ixz>{{ rotor_ixz }}</ixz>
+          <iyy>{{ rotor_iyy }}</iyy>
+          <iyz>{{ rotor_iyz }}</iyz>
+          <izz>{{ rotor_izz }}</izz>
         </inertia>
       </inertial>
       <collision name='rotor_2_collision'>
@@ -485,14 +599,14 @@
       <pose>-0.175 -0.175 0.041 0 0 0</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <mass>0.005</mass>
+        <mass>{{ mass_rotor }}</mass>
         <inertia>
-          <ixx>9.75e-07</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.000273104</iyy>
-          <iyz>0</iyz>
-          <izz>0.000274004</izz>
+          <ixx>{{ rotor_ixx }}</ixx>
+          <ixy>{{ rotor_ixy }}</ixy>
+          <ixz>{{ rotor_ixz }}</ixz>
+          <iyy>{{ rotor_iyy }}</iyy>
+          <iyz>{{ rotor_iyz }}</iyz>
+          <izz>{{ rotor_izz }}</izz>
         </inertia>
       </inertial>
       <collision name='rotor_3_collision'>
@@ -548,7 +662,7 @@
     <plugin name='rosbag' filename='libgazebo_multirotor_base_plugin.so'>
       <robotNamespace/>
       <linkName>base_link</linkName>
-      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <rotorVelocitySlowdownSim>{{ rotor_velocity_slowdown_sim }}</rotorVelocitySlowdownSim>
     </plugin>
     <!--} END ROSBAG PLUGIN -->
 
@@ -558,68 +672,68 @@
       <jointName>rotor_0_joint</jointName>
       <linkName>rotor_0</linkName>
       <turningDirection>ccw</turningDirection>
-      <timeConstantUp>0.0125</timeConstantUp>
-      <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1100</maxRotVelocity>
-      <motorConstant>5.84e-06</motorConstant>
-      <momentConstant>0.06</momentConstant>
+      <timeConstantUp>{ time_constant_up }}</timeConstantUp>
+      <timeConstantDown>{{ time_constant_down }}</timeConstantDown>
+      <maxRotVelocity>{{ max_rot_velocity }}</maxRotVelocity>
+      <motorConstant>{{ motor_constant }}</motorConstant>
+      <momentConstant>{{ moment_constant }}</momentConstant>
       <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
       <motorNumber>0</motorNumber>
-      <rotorDragCoefficient>0.000175</rotorDragCoefficient>
-      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorDragCoefficient>{{ rotor_drag_coefficient }}</rotorDragCoefficient>
+      <rollingMomentCoefficient>{{ rolling_moment_coefficient }}</rollingMomentCoefficient>
       <motorSpeedPubTopic>/motor_speed/0</motorSpeedPubTopic>
-      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <rotorVelocitySlowdownSim>{{ rotor_velocity_slowdown_sim }}</rotorVelocitySlowdownSim>
     </plugin>
     <plugin name='back_left_motor_model' filename='libgazebo_motor_model.so'>
       <robotNamespace/>
       <jointName>rotor_1_joint</jointName>
       <linkName>rotor_1</linkName>
       <turningDirection>ccw</turningDirection>
-      <timeConstantUp>0.0125</timeConstantUp>
-      <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1100</maxRotVelocity>
-      <motorConstant>5.84e-06</motorConstant>
-      <momentConstant>0.06</momentConstant>
+      <timeConstantUp>{{ time_constant_up }}</timeConstantUp>
+      <timeConstantDown>{{ time_constant_down }}</timeConstantDown>
+      <maxRotVelocity>{{ max_rot_velocity }}</maxRotVelocity>
+      <motorConstant>{{ motor_constant }}</motorConstant>
+      <momentConstant>{{ moment_constant }}</momentConstant>
       <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
       <motorNumber>1</motorNumber>
-      <rotorDragCoefficient>0.000175</rotorDragCoefficient>
-      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorDragCoefficient>{{ rotor_drag_coefficient }}</rotorDragCoefficient>
+      <rollingMomentCoefficient>{{ rolling_moment_coefficient }}</rollingMomentCoefficient>
       <motorSpeedPubTopic>/motor_speed/1</motorSpeedPubTopic>
-      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <rotorVelocitySlowdownSim>{{ rotor_velocity_slowdown_sim }}</rotorVelocitySlowdownSim>
     </plugin>
     <plugin name='front_left_motor_model' filename='libgazebo_motor_model.so'>
       <robotNamespace/>
       <jointName>rotor_2_joint</jointName>
       <linkName>rotor_2</linkName>
       <turningDirection>cw</turningDirection>
-      <timeConstantUp>0.0125</timeConstantUp>
-      <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1100</maxRotVelocity>
-      <motorConstant>5.84e-06</motorConstant>
-      <momentConstant>0.06</momentConstant>
+      <timeConstantUp>{{ time_constant_up }}</timeConstantUp>
+      <timeConstantDown>{{ time_constant_down }}</timeConstantDown>
+      <maxRotVelocity>{{ max_rot_velocity }}</maxRotVelocity>
+      <motorConstant>{{ motor_constant }}</motorConstant>
+      <momentConstant>{{ moment_constant }}</momentConstant>
       <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
       <motorNumber>2</motorNumber>
-      <rotorDragCoefficient>0.000175</rotorDragCoefficient>
-      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorDragCoefficient>{{ rotor_drag_coefficient }}</rotorDragCoefficient>
+      <rollingMomentCoefficient>{{ rolling_moment_coefficient }}</rollingMomentCoefficient>
       <motorSpeedPubTopic>/motor_speed/2</motorSpeedPubTopic>
-      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <rotorVelocitySlowdownSim>{{ rotor_velocity_slowdown_sim }}</rotorVelocitySlowdownSim>
     </plugin>
     <plugin name='back_right_motor_model' filename='libgazebo_motor_model.so'>
       <robotNamespace/>
       <jointName>rotor_3_joint</jointName>
       <linkName>rotor_3</linkName>
       <turningDirection>cw</turningDirection>
-      <timeConstantUp>0.0125</timeConstantUp>
-      <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1100</maxRotVelocity>
-      <motorConstant>5.84e-06</motorConstant>
-      <momentConstant>0.06</momentConstant>
+      <timeConstantUp>{{ time_constant_up }}</timeConstantUp>
+      <timeConstantDown>{{ time_constant_down }}</timeConstantDown>
+      <maxRotVelocity>{{ max_rot_velocity }}</maxRotVelocity>
+      <motorConstant>{{ motor_constant }}</motorConstant>
+      <momentConstant>{{ moment_constant }}</momentConstant>
       <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
       <motorNumber>3</motorNumber>
-      <rotorDragCoefficient>0.000175</rotorDragCoefficient>
-      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorDragCoefficient>{{ rotor_drag_coefficient }}</rotorDragCoefficient>
+      <rollingMomentCoefficient>{{ rolling_moment_coefficient }}</rollingMomentCoefficient>
       <motorSpeedPubTopic>/motor_speed/3</motorSpeedPubTopic>
-      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <rotorVelocitySlowdownSim>{{ rotor_velocity_slowdown_sim }}</rotorVelocitySlowdownSim>
     </plugin>
     <!--} END MOTOR PLUGINS -->
 
@@ -629,7 +743,7 @@
         <pose>0 0 0 0 0 0</pose>
         <inertial>
           <pose>0 0 0 0 0 0</pose>
-          <mass>0.01</mass>
+          <mass>0.005</mass>
           <inertia>
             <ixx>2.1733e-06</ixx>
             <ixy>0</ixy>
@@ -842,72 +956,72 @@
     <!--} END PLUGINS-->
 
     <!-- CAMERA {-->
-    <link name="camera_link">
-         <inertial>
-           <mass>0.01</mass>
-           <inertia>
-             <ixx>0.000166667</ixx>
-             <iyy>0.000166667</iyy>
-             <izz>0.000166667</izz>
-           </inertia>
-         </inertial>
-         <collision name="collision">
-           <geometry>
-             <box>
-               <size>0.01 0.01 0.01</size>
-             </box>
-           </geometry>
-         </collision>
-         <visual name="visual">
-           <geometry>
-             <box>
-               <size>0.01 0.01 0.01</size>
-             </box>
-           </geometry>
-         </visual>
-         <sensor type="camera" name="camera">
-            <always_on>0</always_on>
-            <update_rate>30</update_rate>
+    <!-- <link name="camera_link"> -->
+    <!--      <inertial> -->
+    <!--        <mass>0.01</mass> -->
+    <!--        <inertia> -->
+    <!--          <ixx>0.000166667</ixx> -->
+    <!--          <iyy>0.000166667</iyy> -->
+    <!--          <izz>0.000166667</izz> -->
+    <!--        </inertia> -->
+    <!--      </inertial> -->
+    <!--      <collision name="collision"> -->
+    <!--        <geometry> -->
+    <!--          <box> -->
+    <!--            <size>0.01 0.01 0.01</size> -->
+    <!--          </box> -->
+    <!--        </geometry> -->
+    <!--      </collision> -->
+    <!--      <visual name="visual"> -->
+    <!--        <geometry> -->
+    <!--          <box> -->
+    <!--            <size>0.01 0.01 0.01</size> -->
+    <!--          </box> -->
+    <!--        </geometry> -->
+    <!--      </visual> -->
+    <!--      <sensor type="camera" name="camera"> -->
+    <!--         <always_on>0</always_on> -->
+    <!--         <update_rate>30</update_rate> -->
 
-            <visualize>true</visualize>
+    <!--         <visualize>true</visualize> -->
 
-            <camera name="main">
-                <horizontal_fov>1.047</horizontal_fov>
-                <image>
-                    <width>1280</width>
-                    <height>720</height>
-                </image>
-            </camera>
-            <plugin name="GstCameraPlugin" filename="libgazebo_gst_camera_plugin.so">
-                <robotNamespace></robotNamespace>
-                <udpHost>{{ gstudphost }}</udpHost>
-                <udpPort>{{ gstudpport }}</udpPort>
-                <useCuda>{{ gst_use_cuda }}</useCuda>
-                <useCudaCustomParams>{{ gst_use_cuda }}</useCudaCustomParams>
-                <useVaapi>false</useVaapi>
-                <convFbImgToI420>true</convFbImgToI420>
-            </plugin>
-         </sensor>
+    <!--         <camera name="main"> -->
+    <!--             <horizontal_fov>1.047</horizontal_fov> -->
+    <!--             <image> -->
+    <!--                 <width>1280</width> -->
+    <!--                 <height>720</height> -->
+    <!--             </image> -->
+    <!--         </camera> -->
+    <!--         <plugin name="GstCameraPlugin" filename="libgazebo_gst_camera_plugin.so"> -->
+    <!--             <robotNamespace></robotNamespace> -->
+    <!--             <udpHost>{{ gstudphost }}</udpHost> -->
+    <!--             <udpPort>{{ gstudpport }}</udpPort> -->
+    <!--             <useCuda>{{ gst_use_cuda }}</useCuda> -->
+    <!--             <useCudaCustomParams>{{ gst_use_cuda }}</useCudaCustomParams> -->
+    <!--             <useVaapi>false</useVaapi> -->
+    <!--             <convFbImgToI420>true</convFbImgToI420> -->
+    <!--         </plugin> -->
+    <!--      </sensor> -->
 
-    </link>
-    <joint name='camera_joint' type='fixed'>
-          <child>camera_link</child>
-          <parent>base_link</parent>
-          <axis>
-            <xyz>1 0 0</xyz>
-            <limit>
-              <lower>0</lower>
-              <upper>0</upper>
-              <effort>0</effort>
-              <velocity>0</velocity>
-            </limit>
-            <dynamics>
-              <spring_reference>0</spring_reference>
-              <spring_stiffness>0</spring_stiffness>
-            </dynamics>
-            <use_parent_model_frame>1</use_parent_model_frame>
-          </axis>
-    </joint>
+    <!-- </link> -->
+    <!-- <joint name='camera_joint' type='fixed'> -->
+    <!--       <child>camera_link</child> -->
+    <!--       <parent>base_link</parent> -->
+    <!--       <axis> -->
+    <!--         <xyz>1 0 0</xyz> -->
+    <!--         <limit> -->
+    <!--           <lower>0</lower> -->
+    <!--           <upper>0</upper> -->
+    <!--           <effort>0</effort> -->
+    <!--           <velocity>0</velocity> -->
+    <!--         </limit> -->
+    <!--         <dynamics> -->
+    <!--           <spring_reference>0</spring_reference> -->
+    <!--           <spring_stiffness>0</spring_stiffness> -->
+    <!--         </dynamics> -->
+    <!--         <use_parent_model_frame>1</use_parent_model_frame> -->
+    <!--       </axis> -->
+    <!-- </joint> -->
 
     <!--} END CAMERA -->
 
@@ -917,9 +1031,9 @@
       <inertial>
         <mass>0.01</mass>
         <inertia>
-          <ixx>0.000166667</ixx>
-          <iyy>0.000166667</iyy>
-          <izz>0.000166667</izz>
+          <ixx>1e-5</ixx>
+          <iyy>1e-5</iyy>
+          <izz>1e-5</izz>
         </inertia>
       </inertial>
       <sensor name="rplidar" type="ray">
@@ -976,11 +1090,11 @@
   <link name="garmin_link">
     <pose>-0.007 -0.04 -0.039 0 1.5708 1.5708</pose>
     <inertial>
-      <mass>0.01</mass>
+      <mass>0.005</mass>
       <inertia>
-        <ixx>0.000166667</ixx>
-        <iyy>0.000166667</iyy>
-        <izz>0.000166667</izz>
+        <ixx>1e-6</ixx>
+        <iyy>1e-6</iyy>
+        <izz>1e-7</izz>
       </inertia>
     </inertial>
     <visual name='garmin_visual'>
