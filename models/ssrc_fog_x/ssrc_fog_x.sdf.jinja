@@ -924,73 +924,72 @@
     <!--} END PLUGINS-->
 
     <!-- CAMERA {-->
-    <!-- <link name="camera_link"> -->
-    <!--      <inertial> -->
-    <!--        <mass>0.01</mass> -->
-    <!--        <inertia> -->
-    <!--          <ixx>0.000166667</ixx> -->
-    <!--          <iyy>0.000166667</iyy> -->
-    <!--          <izz>0.000166667</izz> -->
-    <!--        </inertia> -->
-    <!--      </inertial> -->
-    <!--      <collision name="collision"> -->
-    <!--        <geometry> -->
-    <!--          <box> -->
-    <!--            <size>0.01 0.01 0.01</size> -->
-    <!--          </box> -->
-    <!--        </geometry> -->
-    <!--      </collision> -->
-    <!--      <visual name="visual"> -->
-    <!--        <geometry> -->
-    <!--          <box> -->
-    <!--            <size>0.01 0.01 0.01</size> -->
-    <!--          </box> -->
-    <!--        </geometry> -->
-    <!--      </visual> -->
-    <!--      <sensor type="camera" name="camera"> -->
-    <!--         <always_on>0</always_on> -->
-    <!--         <update_rate>30</update_rate> -->
+    <link name="camera_link">
+         <inertial>
+           <mass>0.01</mass>
+           <inertia>
+             <ixx>0.000166667</ixx>
+             <iyy>0.000166667</iyy>
+             <izz>0.000166667</izz>
+           </inertia>
+         </inertial>
+         <collision name="collision">
+           <geometry>
+             <box>
+               <size>0.01 0.01 0.01</size>
+             </box>
+           </geometry>
+         </collision>
+         <visual name="visual">
+           <geometry>
+             <box>
+               <size>0.01 0.01 0.01</size>
+             </box>
+           </geometry>
+         </visual>
+         <sensor type="camera" name="camera">
+            <always_on>0</always_on>
+            <update_rate>30</update_rate>
 
-    <!--         <visualize>true</visualize> -->
+            <visualize>true</visualize>
 
-    <!--         <camera name="main"> -->
-    <!--             <horizontal_fov>1.047</horizontal_fov> -->
-    <!--             <image> -->
-    <!--                 <width>1280</width> -->
-    <!--                 <height>720</height> -->
-    <!--             </image> -->
-    <!--         </camera> -->
-    <!--         <plugin name="GstCameraPlugin" filename="libgazebo_gst_camera_plugin.so"> -->
-    <!--             <robotNamespace></robotNamespace> -->
-    <!--             <udpHost>{{ gstudphost }}</udpHost> -->
-    <!--             <udpPort>{{ gstudpport }}</udpPort> -->
-    <!--             <useCuda>{{ gst_use_cuda }}</useCuda> -->
-    <!--             <useCudaCustomParams>{{ gst_use_cuda }}</useCudaCustomParams> -->
-    <!--             <useVaapi>false</useVaapi> -->
-    <!--             <convFbImgToI420>true</convFbImgToI420> -->
-    <!--         </plugin> -->
-    <!--      </sensor> -->
+            <camera name="main">
+                <horizontal_fov>1.047</horizontal_fov>
+                <image>
+                    <width>1280</width>
+                    <height>720</height>
+                </image>
+            </camera>
+            <plugin name="GstCameraPlugin" filename="libgazebo_gst_camera_plugin.so">
+                <robotNamespace></robotNamespace>
+                <udpHost>{{ gstudphost }}</udpHost>
+                <udpPort>{{ gstudpport }}</udpPort>
+                <useCuda>{{ gst_use_cuda }}</useCuda>
+                <useCudaCustomParams>{{ gst_use_cuda }}</useCudaCustomParams>
+                <useVaapi>false</useVaapi>
+                <convFbImgToI420>true</convFbImgToI420>
+            </plugin>
+         </sensor>
 
-    <!-- </link> -->
-    <!-- <joint name='camera_joint' type='fixed'> -->
-    <!--       <child>camera_link</child> -->
-    <!--       <parent>base_link</parent> -->
-    <!--       <axis> -->
-    <!--         <xyz>1 0 0</xyz> -->
-    <!--         <limit> -->
-    <!--           <lower>0</lower> -->
-    <!--           <upper>0</upper> -->
-    <!--           <effort>0</effort> -->
-    <!--           <velocity>0</velocity> -->
-    <!--         </limit> -->
-    <!--         <dynamics> -->
-    <!--           <spring_reference>0</spring_reference> -->
-    <!--           <spring_stiffness>0</spring_stiffness> -->
-    <!--         </dynamics> -->
-    <!--         <use_parent_model_frame>1</use_parent_model_frame> -->
-    <!--       </axis> -->
-    <!-- </joint> -->
-
+    </link>
+    <joint name='camera_joint' type='fixed'>
+          <child>camera_link</child>
+          <parent>base_link</parent>
+          <axis>
+            <xyz>1 0 0</xyz>
+            <limit>
+              <lower>0</lower>
+              <upper>0</upper>
+              <effort>0</effort>
+              <velocity>0</velocity>
+            </limit>
+            <dynamics>
+              <spring_reference>0</spring_reference>
+              <spring_stiffness>0</spring_stiffness>
+            </dynamics>
+            <use_parent_model_frame>1</use_parent_model_frame>
+          </axis>
+    </joint>
     <!--} END CAMERA -->
 
     <!-- RP LIDAR {-->
