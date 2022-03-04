@@ -912,7 +912,7 @@
     <!--} END CAMERA -->
 
     <!-- RP LIDAR {-->
-    <link name="rplidar_link">
+    <link name="2d_scanner_link">
       <pose>0 0 0.089 0 0 0</pose>
       <inertial>
         <mass>0.01</mass>
@@ -966,8 +966,8 @@
       </visual>
   </link>
 
-  <joint name='rplidar_joint' type='fixed'>
-    <child>rplidar_link</child>
+  <joint name='2d_scanner_joint' type='fixed'>
+    <child>2d_scanner_link</child>
     <parent>base_link</parent>
   </joint>
   <!--} END RP LIDAR -->
