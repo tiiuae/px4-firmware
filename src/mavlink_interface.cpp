@@ -1,4 +1,5 @@
 #include "mavlink_interface.h"
+#include <pthread.h>
 
 MavlinkInterface::MavlinkInterface() :
     serial_dev_(io_service_){
@@ -96,9 +97,6 @@ void MavlinkInterface::Load()
 
     if (use_tcp_) {
 
-      local_simulator_addr_.sin_addr.s_addr = htonl(mavlink_addr_);
-      local_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
-
       if ((simulator_socket_fd_ = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         std::cerr << "Creating TCP socket failed: " << strerror(errno) << ", aborting\n";
         abort();
@@ -111,56 +109,65 @@ void MavlinkInterface::Load()
         abort();
       }
 
-      struct linger nolinger {};
-      nolinger.l_onoff = 1;
-      nolinger.l_linger = 0;
+      if (tcp_client_mode_) {
 
-      result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_LINGER, &nolinger, sizeof(nolinger));
-      if (result != 0) {
-        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
-        abort();
+        // TCP client mode
+        local_simulator_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
+        local_simulator_addr_.sin_port = htons(0);
+        remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
+        remote_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
+
+      } else {
+
+        // TCP server mode
+        local_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
+        local_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
+
+        struct linger nolinger {};
+        nolinger.l_onoff = 1;
+        nolinger.l_linger = 0;
+
+        result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_LINGER, &nolinger, sizeof(nolinger));
+        if (result != 0) {
+          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        // The socket reuse is necessary for reconnecting to the same address
+        // if the socket does not close but gets stuck in TIME_WAIT. This can happen
+        // if the server is suddenly closed, for example, if the robot is deleted in gazebo.
+        int socket_reuse = 1;
+        result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEADDR, &socket_reuse, sizeof(socket_reuse));
+        if (result != 0) {
+          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        // Same as above but for a given port
+        result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEPORT, &socket_reuse, sizeof(socket_reuse));
+        if (result != 0) {
+          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
+          std::cerr << "bind failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+
+        errno = 0;
+        if (listen(simulator_socket_fd_, 0) < 0) {
+          std::cerr << "listen failed: " << strerror(errno) << ", aborting\n";
+          abort();
+        }
+        memset(fds_, 0, sizeof(fds_));
+        fds_[LISTEN_FD].fd = simulator_socket_fd_;
+        fds_[LISTEN_FD].events = POLLIN; // only listens for new connections on tcp
       }
-
-      // The socket reuse is necessary for reconnecting to the same address
-      // if the socket does not close but gets stuck in TIME_WAIT. This can happen
-      // if the server is suddenly closed, for example, if the robot is deleted in gazebo.
-      int socket_reuse = 1;
-      result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEADDR, &socket_reuse, sizeof(socket_reuse));
-      if (result != 0) {
-        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
-
-      // Same as above but for a given port
-      result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEPORT, &socket_reuse, sizeof(socket_reuse));
-      if (result != 0) {
-        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
-
-      // set socket to non-blocking
-      result = fcntl(simulator_socket_fd_, F_SETFL, O_NONBLOCK);
-      if (result == -1) {
-        std::cerr << "setting socket to non-blocking failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
-
-      if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
-        std::cerr << "bind failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
-
-      errno = 0;
-      if (listen(simulator_socket_fd_, 0) < 0) {
-        std::cerr << "listen failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
-
-      memset(fds_, 0, sizeof(fds_));
-      fds_[LISTEN_FD].fd = simulator_socket_fd_;
-      fds_[LISTEN_FD].events = POLLIN; // only listens for new connections on tcp
 
     } else {
+
+      // Use UDP
       remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
       remote_simulator_addr_.sin_port = htons(mavlink_udp_port_);
 
@@ -172,13 +179,6 @@ void MavlinkInterface::Load()
         abort();
       }
 
-      // set socket to non-blocking
-      int result = fcntl(simulator_socket_fd_, F_SETFL, O_NONBLOCK);
-      if (result == -1) {
-        std::cerr << "setting socket to non-blocking failed: " << strerror(errno) << ", aborting\n";
-        abort();
-      }
-
       if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
         std::cerr << "bind failed: " << strerror(errno) << ", aborting\n";
         abort();
@@ -187,9 +187,122 @@ void MavlinkInterface::Load()
       memset(fds_, 0, sizeof(fds_));
       fds_[CONNECTION_FD].fd = simulator_socket_fd_;
       fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
+
+      // Start mavlink message receiver thread
+      receiver_thread_ = std::thread([this] () {
+        ReceiveWorker();
+      });
+      // Start mavlink message sender thread
+      sender_thread_ = std::thread([this] () {
+        SendWorker();
+      });
     }
+
   }
   // hil_data_.resize(1);
+}
+
+
+/*******************************************************
+ * Receive buffer handling
+ */
+
+std::shared_ptr<mavlink_message_t> MavlinkInterface::PopRecvMessage() {
+  std::shared_ptr<mavlink_message_t> msg(nullptr);
+  const std::lock_guard<std::mutex> guard(receiver_buff_mtx_);
+  if (!receiver_buffer_.empty()) {
+    msg = receiver_buffer_.front();
+    receiver_buffer_.pop();
+  }
+  return msg;
+}
+
+void MavlinkInterface::ReceiveWorker() {
+
+  std::cout << "[ReceiveWorker] starts\n";
+  pthread_setname_np(pthread_self(), "MAV_Receiver");
+
+  while(!close_conn_) {
+    int ret = recvfrom(fds_[CONNECTION_FD].fd, buf_, sizeof(buf_), 0, (struct sockaddr *)&remote_simulator_addr_, &remote_simulator_addr_len_);
+    if (ret < 0) {
+      std::cerr << "[ReceiveWorker] recvfrom error: " << strerror(errno) << "\n";
+      if (errno == ECONNRESET) {
+        close_conn_ = true;
+      }
+      continue;
+    }
+
+    // client closed the connection orderly, only makes sense on tcp
+    if (use_tcp_ && ret == 0) {
+      std::cerr << "[ReceiveWorker] Connection closed by client." << "\n";
+      close_conn_ = true;
+      continue;
+    }
+
+    // data received
+    int len = ret;
+    for (unsigned i = 0; i < len; ++i) {
+      if (mavlink_parse_char(MAVLINK_COMM_0, buf_[i], &m_buffer_, &m_status_)) {
+        if (m_buffer_.len > MAVLINK_MAX_PAYLOAD_LEN) {
+          std::cout << "[ReceiveWorker] - message too big:" << m_buffer_.len << "\n";
+        } else {
+          auto msg = std::make_shared<mavlink_message_t>(m_buffer_);
+          if (receiver_buffer_.size() > kMaxRecvBufferSize) {
+            std::cerr << "[ReceiveWorker] Messages buffer overflow!\n";
+            PopRecvMessage();
+          }
+          const std::lock_guard<std::mutex> guard(receiver_buff_mtx_);
+          receiver_buffer_.push(msg);
+        }
+      }
+    }
+  }
+  std::cout << "[ReceiveWorker] shutdown\n";
+}
+
+/*******************************************************
+ * Send buffer handling
+ */
+
+void MavlinkInterface::PushSendMessage(std::shared_ptr<mavlink_message_t> msg) {
+  if (sender_buffer_.size() < kMaxSendBufferSize) {
+    const std::lock_guard<std::mutex> guard(sender_buff_mtx_);
+    sender_buffer_.push(msg);
+    sender_cv_.notify_one();
+  } else if(received_first_actuator_) {
+    std::cerr << "[SendWorker] Messages buffer overflow!\n";
+  }
+}
+
+void MavlinkInterface::PushSendMessage(mavlink_message_t *msg) {
+    auto msg_shared = std::make_shared<mavlink_message_t>(*msg);
+    PushSendMessage(msg_shared);
+}
+
+void MavlinkInterface::SendWorker() {
+
+  std::cout << "[SendWorker] starts\n";
+  pthread_setname_np(pthread_self(), "MAV_Sender");
+
+  while(!close_conn_) {
+    std::unique_lock<std::mutex> lock(sender_cv_mtx_);
+    while (sender_buffer_.empty() && !close_conn_)
+      sender_cv_.wait(lock);
+
+    if (sender_buffer_.empty() || close_conn_)
+      continue;
+
+    std::shared_ptr<mavlink_message_t> msg;
+    {
+      const std::lock_guard<std::mutex> guard(sender_buff_mtx_);
+      msg = sender_buffer_.front();
+      sender_buffer_.pop();
+    }
+    send_mavlink_message(msg.get());
+
+  }
+
+  std::cout << "[SendWorker] Shutdown..\n";
 }
 
 void MavlinkInterface::SendSensorMessages(const int &time_usec) {
@@ -252,7 +365,8 @@ void MavlinkInterface::SendSensorMessages(const int &time_usec, HILData &hil_dat
   if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
     mavlink_message_t msg;
     mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-    send_mavlink_message(&msg);
+    auto msg_shared = std::make_shared<mavlink_message_t>(msg);
+    PushSendMessage(msg_shared);
   }
 }
 
@@ -278,7 +392,8 @@ void MavlinkInterface::SendGpsMessages(const SensorData::Gps &data) {
   if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
     mavlink_message_t msg;
     mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_gps_msg);
-    send_mavlink_message(&msg);
+    auto msg_shared = std::make_shared<mavlink_message_t>(msg);
+    PushSendMessage(msg_shared);
   }
 }
 
@@ -343,119 +458,38 @@ void MavlinkInterface::RegisterNewHILSensorInstance(int id) {
   hil_data_.push_back(new_instance);
 }
 
-void MavlinkInterface::pollForMAVLinkMessages()
+
+void MavlinkInterface::ReadMAVLinkMessages()
 {
   if (gotSigInt_) {
     return;
   }
-
+  //std::cout << "[MavlinkInterface] ReadMAVLinkMessages BEGIN \n";
   received_actuator_ = false;
 
-  do {
-    int timeout_ms = (received_first_actuator_ && enable_lockstep_) ? 1000 : 0;
-    int ret = ::poll(&fds_[0], N_FDS, timeout_ms);
-
-    if (ret < 0) {
-      std::cerr << "poll error: " << strerror(errno) << "\n";
+  if ((fds_[CONNECTION_FD].fd <= 0) && tcp_client_mode_) {
+    if (!tryConnect()) {
       return;
     }
+    std::cout << "[MavlinkInterface] Client connected to PX4 TCP server\n";
+  }
 
-    if (ret == 0 && timeout_ms > 0) {
-      std::cerr << "poll timeout\n";
-      return;
-    }
-
-    for (int i = 0; i < N_FDS; i++) {
-      if(fds_[i].revents == 0) {
-        continue;
-      }
-
-      if (!(fds_[i].revents & POLLIN)) {
-        continue;
-      }
-
-      if (i == LISTEN_FD) { // if event is raised on the listening socket
-        acceptConnections();
-      } else { // if event is raised on connection socket
-        int ret = recvfrom(fds_[i].fd, buf_, sizeof(buf_), 0, (struct sockaddr *)&remote_simulator_addr_, &remote_simulator_addr_len_);
-        if (ret < 0) {
-          // all data is read if EWOULDBLOCK is raised
-          if (errno != EWOULDBLOCK) { // disconnected from client
-            std::cerr << "recvfrom error: " << strerror(errno) << "\n";
-          }
-          continue;
-        }
-
-        // client closed the connection orderly, only makes sense on tcp
-        if (use_tcp_ && ret == 0) {
-          std::cerr << "Connection closed by client." << "\n";
-          close_conn_ = true;
-          continue;
-        }
-
-        // data received
-        int len = ret;
-        mavlink_message_t msg;
-        mavlink_status_t status;
-        for (unsigned i = 0; i < len; ++i) {
-          if (mavlink_parse_char(MAVLINK_COMM_0, buf_[i], &msg, &status)) {
-            if (hil_mode_) {
-              send_mavlink_message(&msg);
-            }
-            handle_message(&msg);
-          }
-        }
-      }
-    }
-  } while (!close_conn_ && received_first_actuator_ && !received_actuator_ && enable_lockstep_ && !gotSigInt_);
-}
-
-void MavlinkInterface::pollFromQgcAndSdk()
-{
-  struct pollfd fds[2] = {};
-  fds[0].fd = qgc_socket_fd_;
-  fds[0].events = POLLIN;
-  fds[1].fd = sdk_socket_fd_;
-  fds[1].events = POLLIN;
-
-  const int timeout_ms = 0;
-
-  int ret = ::poll(&fds[0], 2, timeout_ms);
-
-  if (ret < 0) {
-    std::cerr << "poll error: " << strerror(errno) << "\n";
+  if (!enable_lockstep_ && IsRecvBuffEmpty()) {
+    // Receive buffer is empty, exit
     return;
   }
 
-  if (fds[0].revents & POLLIN) {
-    int len = recvfrom(qgc_socket_fd_, buf_, sizeof(buf_), 0, (struct sockaddr *)&remote_qgc_addr_, &remote_qgc_addr_len_);
-
-    if (len > 0) {
-      mavlink_message_t msg;
-      mavlink_status_t status;
-      for (unsigned i = 0; i < len; ++i) {
-        if (mavlink_parse_char(MAVLINK_COMM_1, buf_[i], &msg, &status)) {
-          // forward message from QGC to serial
-          send_mavlink_message(&msg);
-        }
-      }
+  do {
+    //std::cout << "[MavlinkInterface] check message from msg buffer.. \n";
+    auto msg = PopRecvMessage();
+    if (msg) {
+      //std::cout << "[MavlinkInterface] ReadMAVLinkMessages -> handle_message \n";
+      handle_message(msg.get());
     }
-  }
+  } while( (!enable_lockstep_ && !IsRecvBuffEmpty()) ||
+           ( enable_lockstep_ && !received_actuator_ && received_first_actuator_) );
 
-  if (fds[1].revents & POLLIN) {
-    int len = recvfrom(sdk_socket_fd_, buf_, sizeof(buf_), 0, (struct sockaddr *)&remote_sdk_addr_, &remote_sdk_addr_len_);
-
-    if (len > 0) {
-      mavlink_message_t msg;
-      mavlink_status_t status;
-      for (unsigned i = 0; i < len; ++i) {
-        if (mavlink_parse_char(MAVLINK_COMM_2, buf_[i], &msg, &status)) {
-          // forward message from SDK to serial
-          send_mavlink_message(&msg);
-        }
-      }
-    }
-  }
+  //std::cout << "[MavlinkInterface] ReadMAVLinkMessages END \n";
 }
 
 void MavlinkInterface::acceptConnections()
@@ -480,6 +514,34 @@ void MavlinkInterface::acceptConnections()
   fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
 }
 
+bool MavlinkInterface::tryConnect()
+{
+  if (fds_[CONNECTION_FD].fd > 0) {
+    return true;
+  }
+
+  // Try connecting to px4 simulator TCP server
+  int ret = connect(simulator_socket_fd_, (struct sockaddr *)&remote_simulator_addr_, remote_simulator_addr_len_);
+
+  if (ret < 0) {
+    return false;
+  }
+
+  // assign socket to connection descriptor on success
+  fds_[CONNECTION_FD].fd = simulator_socket_fd_;
+  fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
+
+  // Start mavlink message receiver thread
+  receiver_thread_ = std::thread([this] () {
+    ReceiveWorker();
+  });
+  // Start mavlink message sender thread
+  sender_thread_ = std::thread([this] () {
+    SendWorker();
+  });
+  return true;
+}
+
 void MavlinkInterface::handle_message(mavlink_message_t *msg)
 {
   switch (msg->msgid) {
@@ -500,7 +562,6 @@ void MavlinkInterface::handle_message(mavlink_message_t *msg)
     for (int i = 0; i < input_reference_.size(); i++) {
       input_reference_[i] = controls.controls[i];
     }
-
     received_actuator_ = true;
     received_first_actuator_ = true;
     break;
@@ -564,24 +625,6 @@ void MavlinkInterface::send_mavlink_message(const mavlink_message_t *message)
     int packetlen = mavlink_msg_to_send_buffer(buffer, message);
 
     if (fds_[CONNECTION_FD].fd > 0) {
-      int timeout_ms = (received_first_actuator_ && enable_lockstep_) ? 1000 : 0;
-      int ret = ::poll(&fds_[0], N_FDS, timeout_ms);
-
-      if (ret < 0) {
-        std::cerr << "poll error: " << strerror(errno) << "\n";
-        return;
-      }
-
-      if (ret == 0 && timeout_ms > 0) {
-        std::cerr << "poll timeout\n";
-        return;
-      }
-
-      if (!(fds_[CONNECTION_FD].revents & POLLOUT)) {
-        std::cerr << "invalid events at fd:" << fds_[CONNECTION_FD].revents << "\n";
-        return;
-      }
-
       ssize_t len;
       if (use_tcp_) {
         len = send(fds_[CONNECTION_FD].fd, buffer, packetlen, 0);
@@ -633,6 +676,15 @@ void MavlinkInterface::close()
       io_thread_.join();
 
   } else {
+
+    // Shutdown receiver side
+    shutdown(fds_[CONNECTION_FD].fd, SHUT_RD);
+
+    if (receiver_thread_.joinable())
+      receiver_thread_.join();
+
+    if (sender_thread_.joinable())
+      sender_thread_.join();
 
     ::close(fds_[CONNECTION_FD].fd);
     fds_[CONNECTION_FD] = { 0, 0, 0 };

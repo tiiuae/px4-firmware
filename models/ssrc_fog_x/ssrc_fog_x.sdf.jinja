@@ -44,8 +44,8 @@
 <!--}-->
 
 <sdf version='1.6'>
-  <model name={{ vehicle_name }}>
-    
+  <model name='{{ vehicle_name }}'>
+
     <static>0</static>
 
     <!-- BODY {-->
@@ -95,7 +95,7 @@
     <!--} END BODY -->
 
     <!-- ARMS {-->
-    
+
     <!-- ARM 0 {-->
     <link name="arm_0_link">
       <pose>0 0 0 0 0 1.5708</pose>
@@ -165,7 +165,7 @@
       <parent>base_link</parent>
     </joint>
     <!--} END ARM 0 -->
-    
+
     <!-- ARM 1 {-->
     <link name="arm_1_link">
       <pose>0 0 0 0 0 -1.5708</pose>
@@ -235,7 +235,7 @@
       <parent>base_link</parent>
     </joint>
     <!--} END ARM 1 -->
-    
+
     <!-- ARM 2 {-->
     <link name="arm_2_link">
       <pose>0 0 0 0 0 3.14159</pose>
@@ -305,7 +305,7 @@
       <parent>base_link</parent>
     </joint>
     <!--} END ARM 2 -->
-    
+
     <!-- ARM 3 {-->
     <link name="arm_3_link">
       <pose>0 0 0 0 0 0</pose>
@@ -736,9 +736,37 @@
     <!--} END MOTOR PLUGINS -->
 
     <!-- GPS PLUGIN {-->
-    <model name='gps0'>
-      <link name='link'>
+    <link name='gps0::link'>
+      <pose>0 0 0 0 0 0</pose>
+      <inertial>
         <pose>0 0 0 0 0 0</pose>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1733e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1733e-06</iyy>
+          <iyz>0</iyz>
+          <izz>1.8e-07</izz>
+        </inertia>
+      </inertial>
+      <visual name='visual'>
+        <geometry>
+          <cylinder>
+            <radius>0.01</radius>
+            <length>0.002</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Black</name>
+            <uri>__default__</uri>
+          </script>
+        </material>
+      </visual>
+      <sensor name='gps' type='gps'>
+        <pose>0 0 0 0 0 0</pose>
+<<<<<<< HEAD
         <inertial>
           <pose>0 0 0 0 0 0</pose>
           <mass>0.005</mass>
@@ -835,6 +863,7 @@
       <send_odometry>1</send_odometry>
       <enable_lockstep>{{ lockstep }}</enable_lockstep>
       <use_tcp>{{ use_tcp }}</use_tcp>
+      <tcp_client_mode>{{ tcp_client_mode }}</tcp_client_mode>
       <motorSpeedCommandPubTopic>/gazebo/command/motor_speed</motorSpeedCommandPubTopic>
       <control_channels>
         <channel name='rotor1'>
@@ -960,10 +989,10 @@
                     <height>720</height>
                 </image>
             </camera>
-            <plugin name="GstCameraPlugin" filename="libgazebo_gst_camera_plugin.so">
-                <robotNamespace></robotNamespace>
-                <udpHost>{{ gstudphost }}</udpHost>
-                <udpPort>{{ gstudpport }}</udpPort>
+            <plugin name="GazeboRosCamera" filename="libgazebo_ros_camera.so">
+                <ros>
+                  <namespace>{{ vehicle_name }}</namespace>
+                </ros>
                 <useCuda>{{ gst_use_cuda }}</useCuda>
                 <useCudaCustomParams>{{ gst_use_cuda }}</useCudaCustomParams>
                 <useVaapi>false</useVaapi>

@@ -347,7 +347,15 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
     use_tcp = _sdf->GetElement("use_tcp")->Get<bool>();
     mavlink_interface_->SetUseTcp(use_tcp);
   }
-  gzmsg << "Connecting to PX4 SITL using " << (serial_enabled ? "serial" : (use_tcp ? "TCP" : "UDP")) << "\n";
+
+  bool tcp_client_mode = false;
+  if (!serial_enabled && _sdf->HasElement("tcp_client_mode"))
+  {
+    tcp_client_mode = _sdf->GetElement("tcp_client_mode")->Get<bool>();
+    mavlink_interface_->SetTcpClientMode(tcp_client_mode);
+  }
+  gzmsg << "Connecting to PX4 SITL using " << (serial_enabled ? "serial" :
+    (use_tcp ? (tcp_client_mode ? "TCP (client mode)" : "TCP (server mode)") : "UDP")) << "\n";
 
   if (!hil_mode_ && _sdf->HasElement("enable_lockstep"))
   {
@@ -470,13 +478,8 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
   }
 
   if (_sdf->HasElement("mavlink_hostname")) {
-    std::string mavlink_hostname_str = _sdf->GetElement("mavlink_hostname")->Get<std::string>();
-    struct hostent *hostptr = gethostbyname(mavlink_hostname_str.c_str());
-    if (hostptr && hostptr->h_length && hostptr->h_addrtype == AF_INET) {
-      struct in_addr **addr_l = (struct in_addr **)hostptr->h_addr_list;
-      char *addr_str = inet_ntoa(*addr_l[0]);
-      mavlink_interface_->SetMavlinkAddr(std::string(addr_str));
-    }
+    mavlink_hostname_str_ = _sdf->GetElement("mavlink_hostname")->Get<std::string>();
+    resolveHostName();
   }
 
   if (_sdf->HasElement("mavlink_addr")) {
@@ -563,7 +566,11 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
     gzerr << "Unkown protocol version! Using v" << protocol_version_ << "by default \n";
   }
 
-  mavlink_interface_->Load();
+  if (hostptr_ || mavlink_hostname_str_.empty()) {
+    gzmsg << "--> load mavlink_interface_\n";
+    mavlink_interface_->Load();
+    mavlink_loaded_ = true;
+  }
 }
 
 // This gets called by the world update start event.
@@ -584,6 +591,19 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo&  /*_info*/) {
     return;
   }
 
+  if (!mavlink_loaded_) {
+    // hostname was not yet available, try agan..
+    gzmsg << "OnUpdate: hostname not resolved yet\n";
+    if (resolveHostName()) {
+      gzmsg << "OnUpdate: --> load mavlink_interface_\n";
+      mavlink_interface_->Load();
+      mavlink_loaded_ = true;
+    } else {
+      // mavlink not loaded, exit
+      return;
+    }
+  }
+
 #if GAZEBO_MAJOR_VERSION >= 9
   common::Time current_time = world_->SimTime();
 #else
@@ -591,23 +611,13 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo&  /*_info*/) {
 #endif
   double dt = (current_time - last_time_).Double();
 
-  bool close_conn_ = false;
-
-  if (hil_mode_) {
-    mavlink_interface_->pollFromQgcAndSdk();
-  } else {
-    mavlink_interface_->pollForMAVLinkMessages();
-  }
+  mavlink_interface_->ReadMAVLinkMessages();
 
   // Always send Gyro and Accel data at full rate (= sim update rate)
   SendSensorMessages();
 
   // Send groudntruth at full rate
   SendGroundTruth();
-
-  if (close_conn_) { // close connection if required
-    mavlink_interface_->close();
-  }
 
   handle_actuator_controls();
 
@@ -788,7 +798,7 @@ void GazeboMavlinkInterface::SendGroundTruth()
   if (!hil_mode_ || (hil_mode_ && hil_state_level_)) {
     mavlink_message_t msg;
     mavlink_msg_hil_state_quaternion_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_state_quat);
-    mavlink_interface_->send_mavlink_message(&msg);
+    mavlink_interface_->PushSendMessage(&msg);
   }
 }
 
@@ -868,7 +878,7 @@ void GazeboMavlinkInterface::LidarCallback(LidarPtr& lidar_message, const int& i
 
   mavlink_message_t msg;
   mavlink_msg_distance_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-  mavlink_interface_->send_mavlink_message(&msg);
+  mavlink_interface_->PushSendMessage(&msg);
 }
 
 void GazeboMavlinkInterface::OpticalFlowCallback(OpticalFlowPtr& opticalFlow_message) {
@@ -898,7 +908,7 @@ void GazeboMavlinkInterface::OpticalFlowCallback(OpticalFlowPtr& opticalFlow_mes
 
   mavlink_message_t msg;
   mavlink_msg_hil_optical_flow_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-  mavlink_interface_->send_mavlink_message(&msg);
+  mavlink_interface_->PushSendMessage(&msg);
 }
 
 void GazeboMavlinkInterface::SonarCallback(SonarPtr& sonar_message, const int& id) {
@@ -939,7 +949,7 @@ void GazeboMavlinkInterface::SonarCallback(SonarPtr& sonar_message, const int& i
 
   mavlink_message_t msg;
   mavlink_msg_distance_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-  mavlink_interface_->send_mavlink_message(&msg);
+  mavlink_interface_->PushSendMessage(&msg);
 }
 
 void GazeboMavlinkInterface::IRLockCallback(IRLockPtr& irlock_message) {
@@ -955,7 +965,7 @@ void GazeboMavlinkInterface::IRLockCallback(IRLockPtr& irlock_message) {
 
   mavlink_message_t msg;
   mavlink_msg_landing_target_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
-  mavlink_interface_->send_mavlink_message(&msg);
+  mavlink_interface_->PushSendMessage(&msg);
 }
 
 void GazeboMavlinkInterface::VisionCallback(OdomPtr& odom_message) {
@@ -1039,7 +1049,7 @@ void GazeboMavlinkInterface::VisionCallback(OdomPtr& odom_message) {
     }
 
     mavlink_msg_odometry_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &odom);
-    mavlink_interface_->send_mavlink_message(&msg);
+    mavlink_interface_->PushSendMessage(&msg);
   }
   else if (send_vision_estimation_) {
     // send VISION_POSITION_ESTIMATE Mavlink msg
@@ -1075,7 +1085,7 @@ void GazeboMavlinkInterface::VisionCallback(OdomPtr& odom_message) {
     }
 
     mavlink_msg_vision_position_estimate_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &vision);
-    mavlink_interface_->send_mavlink_message(&msg);
+    mavlink_interface_->PushSendMessage(&msg);
   }
 }
 
@@ -1211,5 +1221,27 @@ bool GazeboMavlinkInterface::IsRunning()
 void GazeboMavlinkInterface::onSigInt() {
   mavlink_interface_->onSigInt();
 }
+
+bool GazeboMavlinkInterface::resolveHostName()
+{
+  if (!mavlink_hostname_str_.empty()) {
+    gzmsg << "Try to resolve hostname: '"  << mavlink_hostname_str_ << "'\n";
+    hostptr_ = gethostbyname(mavlink_hostname_str_.c_str());
+    if (hostptr_ && hostptr_->h_length && hostptr_->h_addrtype == AF_INET) {
+      struct in_addr **addr_l = (struct in_addr **)hostptr_->h_addr_list;
+      char *addr_str = inet_ntoa(*addr_l[0]);
+      std::string ip_addr = std::string(addr_str);
+      mavlink_interface_->SetMavlinkAddr(ip_addr);
+      gzmsg << "Host name '" << mavlink_hostname_str_ << "' resolved to IP: " << ip_addr << "\n";
+      return true;
+    }
+    return false;
+  } else {
+    // Assume resolved in case hostname is not given at all
+    return true;
+  }
+
+}
+
 
 }

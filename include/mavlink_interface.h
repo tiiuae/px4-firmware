@@ -22,6 +22,7 @@
 #pragma once
 
 #include <vector>
+#include <queue>
 #include <regex>
 #include <thread>
 #include <mutex>
@@ -57,6 +58,9 @@ static const uint32_t kDefaultMavlinkUdpPort = 14560;
 static const uint32_t kDefaultMavlinkTcpPort = 4560;
 static const uint32_t kDefaultQGCUdpPort = 14550;
 static const uint32_t kDefaultSDKUdpPort = 14540;
+
+static const uint32_t kMaxRecvBufferSize = 20;
+static const uint32_t kMaxSendBufferSize = 30;
 
 using lock_guard = std::lock_guard<std::recursive_mutex>;
 static constexpr auto kDefaultDevice = "/dev/ttyACM0";
@@ -144,8 +148,10 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     MavlinkInterface();
     ~MavlinkInterface();
-    void pollForMAVLinkMessages();
-    void pollFromQgcAndSdk();
+    void ReadMAVLinkMessages();
+    std::shared_ptr<mavlink_message_t> PopRecvMessage();
+    void PushSendMessage(std::shared_ptr<mavlink_message_t> msg);
+    void PushSendMessage(mavlink_message_t* msg);
     void send_mavlink_message(const mavlink_message_t *message);
     void forward_mavlink_message(const mavlink_message_t *message);
     void open();
@@ -165,6 +171,7 @@ public:
     inline void SetBaudrate(int baudrate) {baudrate_ = baudrate;}
     inline void SetSerialEnabled(bool serial_enabled) {serial_enabled_ = serial_enabled;}
     inline void SetUseTcp(bool use_tcp) {use_tcp_ = use_tcp;}
+    inline void SetTcpClientMode(bool tcp_client_mode) {tcp_client_mode_ = tcp_client_mode;}
     inline void SetDevice(std::string device) {device_ = device;}
     inline void SetEnableLockstep(bool enable_lockstep) {enable_lockstep_ = enable_lockstep;}
     inline void SetMavlinkAddr(std::string mavlink_addr) {mavlink_addr_str_ = mavlink_addr;}
@@ -176,6 +183,7 @@ public:
     inline void SetSdkUdpPort(int sdk_udp_port) {sdk_udp_port_ = sdk_udp_port;}
     inline void SetHILMode(bool hil_mode) {hil_mode_ = hil_mode;}
     inline void SetHILStateLevel(bool hil_state_level) {hil_state_level_ = hil_state_level;}
+    inline bool IsRecvBuffEmpty() {return receiver_buffer_.empty();}
 
 private:
     bool received_actuator_{false};
@@ -186,6 +194,7 @@ private:
     void handle_message(mavlink_message_t *msg);
     void acceptConnections();
     void RegisterNewHILSensorInstance(int id);
+    bool tryConnect();
 
     // Serial interface
     void open_serial();
@@ -195,6 +204,10 @@ private:
         return serial_dev_.is_open();
     }
     void do_serial_write(bool check_tx_state);
+
+    // UDP/TCP send/receive thread workers
+    void ReceiveWorker();
+    void SendWorker();
 
     static const unsigned n_out_max = 16;
 
@@ -227,6 +240,7 @@ private:
     };
     struct pollfd fds_[N_FDS];
     bool use_tcp_{false};
+    bool tcp_client_mode_{false};
     bool close_conn_{false};
 
     in_addr_t mavlink_addr_;
@@ -267,4 +281,15 @@ private:
 
     std::vector<HILData, Eigen::aligned_allocator<HILData>> hil_data_;
     std::atomic<bool> gotSigInt_ {false};
+
+    std::mutex receiver_buff_mtx_;
+    std::queue<std::shared_ptr<mavlink_message_t>> receiver_buffer_;
+    std::thread receiver_thread_;
+
+    std::mutex sender_buff_mtx_;
+    std::queue<std::shared_ptr<mavlink_message_t>> sender_buffer_;
+    std::thread sender_thread_;
+    std::mutex sender_cv_mtx_;
+    std::condition_variable sender_cv_;
+
 };
