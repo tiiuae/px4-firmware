@@ -40,6 +40,7 @@
 
 #include "mavlink_shell.h"
 #include <px4_platform_common/defines.h>
+#include <px4_platform_common/posix.h>
 
 #include <unistd.h>
 #include <errno.h>
@@ -130,7 +131,7 @@ int MavlinkShell::start()
 		_task = px4_task_spawn_cmd("mavlink_shell",
 					   SCHED_DEFAULT,
 					   SCHED_PRIORITY_DEFAULT,
-					   2048,
+					   PX4_STACK_ADJUSTED(2048),
 					   &MavlinkShell::shell_start_thread,
 					   nullptr);
 
