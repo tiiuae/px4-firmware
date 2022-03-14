@@ -49,7 +49,6 @@
 /* XXX might be able to prune these */
 #include <chip.h>
 #include <arm_internal.h>
-#include <arm_arch.h>
 #include <stm32.h>
 
 //#define DEBUG
