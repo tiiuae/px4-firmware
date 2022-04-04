@@ -41,6 +41,7 @@
 #include <uORB/SubscriptionInterval.hpp>
 #include <containers/List.hpp>
 #include <px4_platform_common/px4_work_queue/WorkItem.hpp>
+#include <px4_platform_common/posix.h>
 
 namespace uORB
 {
@@ -69,22 +70,19 @@ public:
 	bool registerCallback()
 	{
 		if (!_registered) {
-			if (_subscription.get_node() && Manager::register_callback(_subscription.get_node(), this)) {
-				// registered
-				_registered = true;
-
-			} else {
-				// force topic creation by subscribing with old API
-				int fd = orb_subscribe_multi(_subscription.get_topic(), _subscription.get_instance());
-
-				// try to register callback again
-				if (_subscription.subscribe()) {
-					if (_subscription.get_node() && Manager::register_callback(_subscription.get_node(), this)) {
-						_registered = true;
-					}
+			if (!orb_advert_valid(_subscription.get_node())) {
+				// force topic creation
+				if (!_subscription.subscribe(true)) {
+					return false;
 				}
+			}
 
-				orb_unsubscribe(fd);
+			if (orb_advert_valid(_subscription.get_node())) {
+				_cb_handle = Manager::register_callback(_subscription.get_node(), this);
+
+				if (_cb_handle >= 0) {
+					_registered = true;
+				}
 			}
 		}
 
@@ -93,11 +91,12 @@ public:
 
 	void unregisterCallback()
 	{
-		if (_subscription.get_node()) {
-			Manager::unregister_callback(_subscription.get_node(), this);
+		if (orb_advert_valid(_subscription.get_node())) {
+			Manager::unregister_callback(_subscription.get_node(), _cb_handle);
 		}
 
 		_registered = false;
+		_cb_handle = -1;
 	}
 
 	/**
@@ -138,7 +137,7 @@ public:
 protected:
 
 	bool _registered{false};
-
+	int8_t _cb_handle{-1};
 };
 
 // Subscription with callback that schedules a WorkItem
@@ -186,6 +185,38 @@ private:
 	px4::WorkItem *_work_item;
 
 	uint8_t _required_updates{0};
+};
+
+class SubscriptionPollable : public SubscriptionInterval
+{
+public:
+	/**
+	 * Constructor
+	 *
+	 * @param meta The uORB metadata (usually from the ORB_ID() macro) for the topic.
+	 * @param instance The instance for multi sub.
+	 */
+	SubscriptionPollable(const orb_metadata *meta, uint8_t instance = 0) :
+		SubscriptionInterval(meta, 0, instance)
+	{
+	}
+
+	virtual ~SubscriptionPollable() = default;
+
+	void registerPoll(int8_t lock_idx)
+	{
+		_lock_handle = Manager::register_callback(_subscription.get_node(), nullptr, lock_idx);
+		// This may have been updated before registeration, initialize revents
+	}
+
+	void unregisterPoll()
+	{
+		Manager::unregister_callback(_subscription.get_node(), _lock_handle);
+		_lock_handle = -1;
+
+	}
+private:
+	int8_t _lock_handle{-1};
 };
 
 } // namespace uORB

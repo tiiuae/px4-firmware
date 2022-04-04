@@ -1002,11 +1002,12 @@ void SimulatorMavlink::send()
 	fds_actuator_outputs[0].events = POLLIN;
 
 	while (true) {
-
+//		PX4_ERR("actuator outputs poll\n");
 		// Wait for up to 100ms for data.
 		int pret = px4_poll(&fds_actuator_outputs[0], 1, 100);
 
 		if (pret == 0) {
+			PX4_ERR("actuator outputs timeout\n");
 			// Timed out, try again.
 			continue;
 		}

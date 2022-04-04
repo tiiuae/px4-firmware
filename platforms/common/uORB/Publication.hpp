@@ -70,7 +70,7 @@ class PublicationBase
 {
 public:
 
-	bool advertised() const { return _handle != nullptr; }
+	bool advertised() const { return orb_advert_valid(_handle); }
 
 	bool unadvertise() { return (Manager::orb_unadvertise(_handle) == PX4_OK); }
 
@@ -82,7 +82,7 @@ protected:
 
 	~PublicationBase()
 	{
-		if (_handle != nullptr) {
+		if (orb_advert_valid(_handle)) {
 			// don't automatically unadvertise queued publications (eg vehicle_command)
 			if (Manager::orb_get_queue_size(_handle) == 1) {
 				unadvertise();
@@ -90,7 +90,7 @@ protected:
 		}
 	}
 
-	orb_advert_t _handle{nullptr};
+	orb_advert_t _handle{ORB_ADVERT_INVALID};
 	const ORB_ID _orb_id;
 };
 

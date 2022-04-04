@@ -39,8 +39,9 @@
 #include "uORB.h"
 
 #include "uORBManager.hpp"
+#include "uORBDeviceMaster.hpp"
 #include "uORBCommon.hpp"
-
+#include "Publication.hpp"
 
 #include <lib/drivers/device/Device.hpp>
 #include <matrix/Quaternion.hpp>
@@ -50,11 +51,11 @@
 #include <sys/boardctl.h>
 #endif
 
-static uORB::DeviceMaster *g_dev = nullptr;
+static bool initialized = false;
 
 int uorb_start(void)
 {
-	if (g_dev != nullptr) {
+	if (initialized) {
 		PX4_WARN("already loaded");
 		/* user wanted to start uorb, its already running, no error */
 		return 0;
@@ -65,51 +66,29 @@ int uorb_start(void)
 		return -ENOMEM;
 	}
 
-#if !defined(__PX4_NUTTX) || defined(CONFIG_BUILD_FLAT) || defined(__KERNEL__)
-	/* create the driver */
-	g_dev = uORB::Manager::get_instance()->get_device_master();
-
-	if (g_dev == nullptr) {
-		return -errno;
-	}
-
-#endif
-
+	initialized = true;
 	return OK;
 }
 
 int uorb_status(void)
 {
-#if !defined(__PX4_NUTTX) || defined(CONFIG_BUILD_FLAT) || defined(__KERNEL__)
+	uORB::DeviceMaster dev;
+	dev.printStatistics();
 
-	if (g_dev != nullptr) {
-		g_dev->printStatistics();
-
-	} else {
-		PX4_INFO("uorb is not running");
-	}
-
-#else
-	boardctl(ORBIOCDEVMASTERCMD, ORB_DEVMASTER_STATUS);
-#endif
 	return OK;
 }
 
 int uorb_top(char **topic_filter, int num_filters)
 {
-#if !defined(__PX4_NUTTX) || defined(CONFIG_BUILD_FLAT) || defined(__KERNEL__)
+	uORB::DeviceMaster dev;
+	dev.showTop(topic_filter, num_filters);
 
-	if (g_dev != nullptr) {
-		g_dev->showTop(topic_filter, num_filters);
-
-	} else {
-		PX4_INFO("uorb is not running");
-	}
-
-#else
-	boardctl(ORBIOCDEVMASTERCMD, ORB_DEVMASTER_TOP);
-#endif
 	return OK;
+}
+
+int orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeout)
+{
+	return uORB::Manager::get_instance()->orb_poll(fds, nfds, timeout);
 }
 
 orb_advert_t orb_advertise(const struct orb_metadata *meta, const void *data)
