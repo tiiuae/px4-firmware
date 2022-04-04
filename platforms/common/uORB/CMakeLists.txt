@@ -34,9 +34,7 @@
 # this includes the generated topics directory
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-set(SRCS)
-
-set(SRCS_COMMON
+px4_add_library(uORB
 	ORBSet.hpp
 	Publication.hpp
 	PublicationMulti.hpp
@@ -50,47 +48,20 @@ set(SRCS_COMMON
 	uORBCommon.hpp
 	uORBCommunicator.hpp
 	uORBManager.hpp
+	uORBManager.cpp
 	uORBUtils.cpp
 	uORBUtils.hpp
 	uORBDeviceMaster.hpp
+	uORBDeviceMaster.cpp
+	uORBDeviceNode.cpp
 	uORBDeviceNode.hpp
 	)
 
-set(SRCS_KERNEL
-	uORBDeviceMaster.cpp
-	uORBDeviceNode.cpp
-	uORBManager.cpp
-	)
-
-set(SRCS_USER
-	uORBManagerUsr.cpp
-	)
-
-if (NOT DEFINED CONFIG_BUILD_FLAT AND "${PX4_PLATFORM}" MATCHES "nuttx")
-	# Kernel side library in nuttx kernel/protected build
-	px4_add_library(uORB_kernel
-		${SRCS_COMMON}
-		${SRCS_KERNEL}
-		)
-	target_link_libraries(uORB_kernel PRIVATE cdev uorb_msgs nuttx_kmm)
-	target_compile_options(uORB_kernel PRIVATE ${MAX_CUSTOM_OPT_LEVEL} -D__KERNEL__)
-
-	# User side library in nuttx kernel/protected build
-	px4_add_library(uORB
-		${SRCS_COMMON}
-		${SRCS_USER}
-		)
-else()
-
-	# Library for all other targets (flat build, posix...)
-	px4_add_library(uORB
-		${SRCS_COMMON}
-		${SRCS_KERNEL}
-		)
-	target_link_libraries(uORB PRIVATE cdev)
-endif()
-
 target_link_libraries(uORB PRIVATE uorb_msgs)
+
+if ("${PX4_PLATFORM}" MATCHES "posix")
+	target_link_libraries(uORB PRIVATE rt)
+
 target_compile_options(uORB PRIVATE ${MAX_CUSTOM_OPT_LEVEL})
 
 if(PX4_TESTING)
