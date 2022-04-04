@@ -45,12 +45,9 @@
 #include <lib/mathlib/mathlib.h>
 
 #include "uORBManager.hpp"
-#include "uORBUtils.hpp"
 
 namespace uORB
 {
-
-class SubscriptionCallback;
 
 // Base subscription wrapper class
 class Subscription
@@ -112,17 +109,13 @@ public:
 		unsubscribe();
 	}
 
-	bool subscribe();
+	bool subscribe(bool advertise = false);
 	void unsubscribe();
 
-	bool valid() const { return _node != nullptr; }
+	bool valid() const { return orb_advert_valid(_node); }
 	bool advertised()
 	{
-		if (subscribe()) {
-			return Manager::is_advertised(_node);
-		}
-
-		return false;
+		return Manager::has_publisher(_orb_id, _instance);
 	}
 
 	/**
@@ -130,11 +123,11 @@ public:
 	 */
 	bool updated()
 	{
-		if (subscribe()) {
-			return Manager::updates_available(_node, _last_generation);
+		if (!valid()) {
+			subscribe();
 		}
 
-		return false;
+		return valid() ? Manager::updates_available(_node, _last_generation) : false;
 	}
 
 	/**
@@ -143,11 +136,11 @@ public:
 	 */
 	bool update(void *dst)
 	{
-		if (subscribe()) {
-			return Manager::orb_data_copy(_node, dst, _last_generation, true);
+		if (!valid()) {
+			subscribe();
 		}
 
-		return false;
+		return valid() ? Manager::orb_data_copy(_node, dst, _last_generation, true) : false;
 	}
 
 	/**
@@ -156,11 +149,11 @@ public:
 	 */
 	bool copy(void *dst)
 	{
-		if (subscribe()) {
-			return Manager::orb_data_copy(_node, dst, _last_generation, false);
+		if (!valid()) {
+			subscribe();
 		}
 
-		return false;
+		return valid() ? Manager::orb_data_copy(_node, dst, _last_generation, false) : false;
 	}
 
 	/**
@@ -178,16 +171,18 @@ public:
 protected:
 
 	friend class SubscriptionCallback;
+	friend class SubscriptionPollable;
 	friend class SubscriptionCallbackWorkItem;
 
-	void *get_node() { return _node; }
+	orb_advert_t &get_node() { return _node; }
 
-	void *_node{nullptr};
+	orb_advert_t _node{ORB_ADVERT_INVALID};
 
 	unsigned _last_generation{0}; /**< last generation the subscriber has seen */
 
 	ORB_ID _orb_id{ORB_ID::INVALID};
 	uint8_t _instance{0};
+	bool _advertiser{false};
 };
 
 // Subscription wrapper class with data
