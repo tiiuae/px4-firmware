@@ -652,7 +652,7 @@ MissionBlock::set_loiter_item(struct mission_item_s *item, float min_clearance)
 			item->lat = pos_sp_triplet->current.lat;
 			item->lon = pos_sp_triplet->current.lon;
 			item->altitude = pos_sp_triplet->current.alt;
-			/* for multirotor vehicle use the current yaw as the yaw setpoint */
+			/* use the current yaw as the yaw setpoint for multirotor vehicle */
 			if (_navigator->get_vstatus()->vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING){
 				item->yaw = pos_sp_triplet->current.yaw;
 			}
@@ -662,7 +662,7 @@ MissionBlock::set_loiter_item(struct mission_item_s *item, float min_clearance)
 			item->lat = _navigator->get_global_position()->lat;
 			item->lon = _navigator->get_global_position()->lon;
 			item->altitude = _navigator->get_global_position()->alt;
-			/* for multirotor vehicle use the current yaw as the yaw setpoint */
+			/* use the current yaw as the yaw setpoint for multirotor vehicle */
 			if (_navigator->get_vstatus()->vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING){
 				item->yaw = _navigator->get_local_position()->heading;
 			}
