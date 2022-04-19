@@ -73,12 +73,12 @@ int uuv_example_app_main(int argc, char *argv[])
 	PX4_INFO("auv_hippocampus_example_app has been started!");
 
 	/* subscribe to vehicle_acceleration topic */
-	int sensor_sub_fd = orb_subscribe(ORB_ID(vehicle_acceleration));
+	orb_sub_t sensor_sub_fd = orb_subscribe(ORB_ID(vehicle_acceleration));
 	/* limit the update rate to 5 Hz */
 	orb_set_interval(sensor_sub_fd, 200);
 
 	/* subscribe to control_state topic */
-	int vehicle_attitude_sub_fd = orb_subscribe(ORB_ID(vehicle_attitude));
+	orb_sub_t vehicle_attitude_sub_fd = orb_subscribe(ORB_ID(vehicle_attitude));
 	/* limit the update rate to 5 Hz */
 	orb_set_interval(vehicle_attitude_sub_fd, 200);
 

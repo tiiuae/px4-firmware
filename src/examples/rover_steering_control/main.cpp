@@ -40,6 +40,7 @@
  */
 
 #include <px4_platform_common/px4_config.h>
+#include <px4_platform_common/posix.h>
 #include <px4_platform_common/tasks.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -264,21 +265,21 @@ int rover_steering_control_thread_main(int argc, char *argv[])
 	orb_advert_t actuator_pub = orb_advertise(ORB_ID_VEHICLE_ATTITUDE_CONTROLS, &actuators);
 
 	/* subscribe to topics. */
-	int att_sub = orb_subscribe(ORB_ID(vehicle_attitude));
+	orb_sub_t att_sub = orb_subscribe(ORB_ID(vehicle_attitude));
 
-	int global_pos_sub = orb_subscribe(ORB_ID(vehicle_global_position));
+	orb_sub_t global_pos_sub = orb_subscribe(ORB_ID(vehicle_global_position));
 
-	int manual_control_setpoint_sub = orb_subscribe(ORB_ID(manual_control_setpoint));
+	orb_sub_t manual_control_setpoint_sub = orb_subscribe(ORB_ID(manual_control_setpoint));
 
-	int vstatus_sub = orb_subscribe(ORB_ID(vehicle_status));
+	orb_sub_t vstatus_sub = orb_subscribe(ORB_ID(vehicle_status));
 
-	int att_sp_sub = orb_subscribe(ORB_ID(vehicle_attitude_setpoint));
+	orb_sub_t att_sp_sub = orb_subscribe(ORB_ID(vehicle_attitude_setpoint));
 
 	uORB::SubscriptionInterval parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
 	/* Setup of loop */
 
-	struct pollfd fds[1] {};
+	px4_pollfd_struct_t fds[1] {};
 
 	fds[0].fd = att_sub;
 
@@ -296,7 +297,7 @@ int rover_steering_control_thread_main(int argc, char *argv[])
 		 * This design pattern makes the controller also agnostic of the attitude
 		 * update speed - it runs as fast as the attitude updates with minimal latency.
 		 */
-		int ret = poll(fds, 1, 500);
+		int ret = px4_poll(fds, 1, 500);
 
 		if (ret < 0) {
 			/*
