@@ -76,7 +76,7 @@ int do_airspeed_calibration(orb_advert_t *mavlink_log_pub)
 
 	const unsigned calibration_count = (maxcount * 2) / 3;
 
-	int diff_pres_sub = orb_subscribe(ORB_ID(differential_pressure));
+	orb_sub_t diff_pres_sub = orb_subscribe(ORB_ID(differential_pressure));
 	struct differential_pressure_s diff_pres;
 
 	float diff_pres_offset = 0.0f;
@@ -279,7 +279,7 @@ int do_airspeed_calibration(orb_advert_t *mavlink_log_pub)
 	px4_usleep(2e6);
 
 normal_return:
-	px4_close(diff_pres_sub);
+	orb_unsubscribe(diff_pres_sub);
 
 	// This give a chance for the log messages to go out of the queue before someone else stomps on then
 	px4_sleep(1);

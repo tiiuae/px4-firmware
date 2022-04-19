@@ -34,6 +34,7 @@
 #include <px4_platform_common/getopt.h>
 #include <px4_platform_common/cli.h>
 #include <uORB/topics/vehicle_imu.h>
+#include <px4_platform_common/posix.h>
 
 #include "microdds_client.h"
 
@@ -116,12 +117,12 @@ MicroddsClient::~MicroddsClient()
 #define AVG_BUFFER_SIZE 8
 
 void MicroddsClient::on_time(
-	uxrSession* session,
+	uxrSession *session,
 	int64_t current_time,
 	int64_t transmit_timestamp,
 	int64_t received_timestamp,
 	int64_t originate_timestamp,
-	void* args)
+	void *args)
 {
 	(void) args;
 	static int64_t avg_time_offset = 0;
@@ -141,18 +142,22 @@ void MicroddsClient::on_time(
 
 	// Store offset/n values to table.
 	if (empty) {
-		for (int i=0; i<AVG_BUFFER_SIZE; i++) {
+		for (int i = 0; i < AVG_BUFFER_SIZE; i++) {
 			offset_buff[i] = current_time_offset / AVG_BUFFER_SIZE;
 		}
+
 		empty = false;
+
 	} else {
 		offset_buff[idx] = current_time_offset / AVG_BUFFER_SIZE;
-		if (++idx > (AVG_BUFFER_SIZE-1)) idx = 0;
+
+		if (++idx > (AVG_BUFFER_SIZE - 1)) { idx = 0; }
 	}
 
 	// Calculate average offset by adding all n pcs of (offset/n) values together
 	avg_time_offset = 0;
-	for (int i=0; i<AVG_BUFFER_SIZE; i++) {
+
+	for (int i = 0; i < AVG_BUFFER_SIZE; i++) {
 		avg_time_offset += (offset_buff[i]);
 	}
 
@@ -174,7 +179,7 @@ void MicroddsClient::run()
 		return;
 	}
 
-	int polling_topic_sub = orb_subscribe(ORB_ID(vehicle_imu));
+	orb_sub_t polling_topic_sub = orb_subscribe(ORB_ID(vehicle_imu));
 
 	while (!should_exit()) {
 		bool got_response = false;
@@ -213,7 +218,7 @@ void MicroddsClient::run()
 
 		// Create entities
 		uxrObjectId participant_id = uxr_object_id(0x01, UXR_PARTICIPANT_ID);
-		const char* participant_ref = "default_xrce_participant";
+		const char *participant_ref = "default_xrce_participant";
 		uint16_t participant_req = uxr_buffer_create_participant_ref(&session, reliable_out, participant_id, 0,
 					   participant_ref, UXR_REPLACE);
 
@@ -249,9 +254,11 @@ void MicroddsClient::run()
 		uxr_set_time_callback(&session, this->on_time, NULL);
 
 		PX4_INFO("Wait for initial timesync..");
+
 		while (!should_exit() && _connected && !_timesync_valid) {
 			_timesync_valid = uxr_sync_session(&session, sync_timeout);
 		}
+
 		if (_timesync_valid) {
 			PX4_INFO("Valid timesync received.");
 		}
@@ -309,6 +316,7 @@ void MicroddsClient::run()
 				last_num_payload_sent = _subs->num_payload_sent;
 				last_num_payload_received = _pubs->num_payload_received;
 				last_status_update = now;
+
 				if (!_timesync_valid) {
 					PX4_WARN("Timesync failed");
 				}
