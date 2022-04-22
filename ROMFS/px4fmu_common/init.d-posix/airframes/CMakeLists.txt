@@ -74,7 +74,6 @@ px4_add_romfs_files(
 	3010_quadrotor_x
 	3011_hexarotor_x
 	4400_ssrc_fog_x
-	4400_ssrc_fog_x.post
 	17001_tf-g1
 	2507_cloudship
 	6011_typhoon_h480
