@@ -34,6 +34,7 @@
 #include <board_config.h>
 
 #if defined(CONFIG_SYSTEM_CDCACM)
+#include <board_config.h>
 __BEGIN_DECLS
 #include <arch/board/board.h>
 #include <syslog.h>
