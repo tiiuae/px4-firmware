@@ -925,9 +925,9 @@ void Logger::run()
 		orb_unsubscribe(polling_topic_sub);
 	}
 
-	if (_mavlink_log_pub) {
+	if (orb_advert_valid(_mavlink_log_pub)) {
 		orb_unadvertise(_mavlink_log_pub);
-		_mavlink_log_pub = nullptr;
+		_mavlink_log_pub = ORB_ADVERT_INVALID;
 	}
 
 	px4_unregister_shutdown_hook(&Logger::request_stop_static);

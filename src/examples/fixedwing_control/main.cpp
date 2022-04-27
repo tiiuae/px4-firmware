@@ -398,14 +398,14 @@ int fixedwing_control_thread_main(int argc, char *argv[])
 				orb_copy(ORB_ID(vehicle_status), vstatus_sub, &vstatus);
 
 				/* publish rates */
-				orb_publish(ORB_ID(vehicle_rates_setpoint), rates_pub, &rates_sp);
+				orb_publish(ORB_ID(vehicle_rates_setpoint), &rates_pub, &rates_sp);
 
 				/* sanity check and publish actuator outputs */
 				if (PX4_ISFINITE(actuators.control[0]) &&
 				    PX4_ISFINITE(actuators.control[1]) &&
 				    PX4_ISFINITE(actuators.control[2]) &&
 				    PX4_ISFINITE(actuators.control[3])) {
-					orb_publish(ORB_ID_VEHICLE_ATTITUDE_CONTROLS, actuator_pub, &actuators);
+					orb_publish(ORB_ID_VEHICLE_ATTITUDE_CONTROLS, &actuator_pub, &actuators);
 
 					if (verbose) {
 						warnx("published");
@@ -423,7 +423,7 @@ int fixedwing_control_thread_main(int argc, char *argv[])
 		actuators.control[i] = 0.0f;
 	}
 
-	orb_publish(ORB_ID_VEHICLE_ATTITUDE_CONTROLS, actuator_pub, &actuators);
+	orb_publish(ORB_ID_VEHICLE_ATTITUDE_CONTROLS, &actuator_pub, &actuators);
 
 	fflush(stdout);
 

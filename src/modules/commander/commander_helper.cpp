@@ -131,9 +131,9 @@ static unsigned int tune_durations[tune_control_s::NUMBER_OF_TUNES] {};
 static int fd_leds{-1};
 
 static led_control_s led_control {};
-static orb_advert_t led_control_pub = nullptr;
+static orb_advert_t led_control_pub = ORB_ADVERT_INVALID;
 static tune_control_s tune_control {};
-static orb_advert_t tune_control_pub = nullptr;
+static orb_advert_t tune_control_pub = ORB_ADVERT_INVALID;
 
 int buzzer_init()
 {
@@ -162,7 +162,7 @@ void set_tune_override(int tune)
 	tune_control.volume = tune_control_s::VOLUME_LEVEL_DEFAULT;
 	tune_control.tune_override = true;
 	tune_control.timestamp = hrt_absolute_time();
-	orb_publish(ORB_ID(tune_control), tune_control_pub, &tune_control);
+	orb_publish(ORB_ID(tune_control), &tune_control_pub, &tune_control);
 }
 
 void set_tune(int tune)
@@ -177,7 +177,7 @@ void set_tune(int tune)
 			tune_control.volume = tune_control_s::VOLUME_LEVEL_DEFAULT;
 			tune_control.tune_override = false;
 			tune_control.timestamp = hrt_absolute_time();
-			orb_publish(ORB_ID(tune_control), tune_control_pub, &tune_control);
+			orb_publish(ORB_ID(tune_control), &tune_control_pub, &tune_control);
 		}
 
 		tune_current = tune;
@@ -362,7 +362,7 @@ void rgbled_set_color_and_mode(uint8_t color, uint8_t mode, uint8_t blinks, uint
 	led_control.num_blinks = blinks;
 	led_control.priority = prio;
 	led_control.timestamp = hrt_absolute_time();
-	orb_publish(ORB_ID(led_control), led_control_pub, &led_control);
+	orb_publish(ORB_ID(led_control), &led_control_pub, &led_control);
 }
 
 void rgbled_set_color_and_mode(uint8_t color, uint8_t mode)

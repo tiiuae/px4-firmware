@@ -120,7 +120,7 @@ Thoneflow::Thoneflow(const char *port) :
 	_parse_state(THONEFLOW_PARSE_STATE0_UNSYNC),
 	_last_read(0),
 	_report(),
-	_optical_flow_pub(nullptr),
+	_optical_flow_pub(ORB_ADVERT_INVALID),
 	_sample_perf(perf_alloc(PC_ELAPSED, "thoneflow_read")),
 	_comms_errors(perf_alloc(PC_COUNT, "thoneflow_com_err"))
 {
@@ -235,7 +235,7 @@ Thoneflow::init()
 		/* Get a publish handle on the optical flow topic */
 		_optical_flow_pub = orb_advertise(ORB_ID(optical_flow), &_report);
 
-		if (_optical_flow_pub == nullptr) {
+		if (!orb_advert_valid(_optical_flow_pub)) {
 			PX4_ERR("Failed to create optical_flow object");
 			ret = PX4_ERROR;
 			break;
@@ -312,7 +312,7 @@ Thoneflow::collect()
 			float zeroval = 0.0f;
 			rotate_3f(_rotation, _report.pixel_flow_x_integral, _report.pixel_flow_y_integral, zeroval);
 
-			orb_publish(ORB_ID(optical_flow), _optical_flow_pub, &_report);
+			orb_publish(ORB_ID(optical_flow), &_optical_flow_pub, &_report);
 		}
 
 		/* Bytes left to parse */

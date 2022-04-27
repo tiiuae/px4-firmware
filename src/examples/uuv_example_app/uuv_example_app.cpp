@@ -164,7 +164,7 @@ int uuv_example_app_main(int argc, char *argv[])
 		act.control[1] = 0.0f;      // pitch
 		act.control[2] = 1.0f;		// yaw
 		act.control[3] = 1.0f;		// thrust
-		orb_publish(ORB_ID(actuator_controls_0), act_pub, &act);
+		orb_publish(ORB_ID(actuator_controls_0), &act_pub, &act);
 
 	}
 
