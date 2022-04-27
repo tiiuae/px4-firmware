@@ -770,12 +770,12 @@ UavcanNode::Run()
 				.interface = static_cast<uint8_t>(i),
 			};
 
-			if (_can_status_pub_handles[i] == nullptr) {
+			if (!orb_advert_valid(_can_status_pub_handles[i])) {
 				int instance{0};
 				_can_status_pub_handles[i] = orb_advertise_multi(ORB_ID(can_interface_status), nullptr, &instance);
 			}
 
-			(void)orb_publish(ORB_ID(can_interface_status), _can_status_pub_handles[i], &status);
+			(void)orb_publish(ORB_ID(can_interface_status), &_can_status_pub_handles[i], &status);
 		}
 	}
 

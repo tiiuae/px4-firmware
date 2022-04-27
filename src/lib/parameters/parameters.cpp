@@ -106,7 +106,7 @@ DynamicSparseLayer user_config{&runtime_defaults};
 
 /** parameter update topic handle */
 #if not defined(CONFIG_PARAM_REMOTE)
-static orb_advert_t param_topic = nullptr;
+static orb_advert_t param_topic = ORB_ADVERT_INVALID;
 static unsigned int param_instance = 0;
 #endif
 
@@ -169,11 +169,11 @@ param_notify_changes()
 	pup.custom_default = runtime_defaults.size();
 	pup.timestamp = hrt_absolute_time();
 
-	if (param_topic == nullptr) {
+	if (!orb_advert_valid(param_topic)) {
 		param_topic = orb_advertise(ORB_ID(parameter_update), &pup);
 
 	} else {
-		orb_publish(ORB_ID(parameter_update), param_topic, &pup);
+		orb_publish(ORB_ID(parameter_update), &param_topic, &pup);
 	}
 
 #endif
