@@ -90,6 +90,7 @@ px4_add_romfs_files(
 	4090_nanomind
 	4100_tiltquadrotor
 	4400_ssrc_fog_x
+	4401_ssrc_fog_x_tmotor
 	4500_clover4
 	4900_crazyflie
 	4901_crazyflie21
