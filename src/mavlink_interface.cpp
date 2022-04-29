@@ -241,23 +241,36 @@ void MavlinkInterface::ReceiveWorker() {
 
     // data received
     int len = ret;
-    for (unsigned i = 0; i < len; ++i) {
-      if (mavlink_parse_char(MAVLINK_COMM_0, buf_[i], &m_buffer_, &m_status_)) {
-        if (m_buffer_.len > MAVLINK_MAX_PAYLOAD_LEN) {
-          std::cout << "[ReceiveWorker] - message too big:" << m_buffer_.len << "\n";
-        } else {
-          auto msg = std::make_shared<mavlink_message_t>(m_buffer_);
-          if (receiver_buffer_.size() > kMaxRecvBufferSize) {
-            std::cerr << "[ReceiveWorker] Messages buffer overflow!\n";
-            PopRecvMessage();
-          }
-          const std::lock_guard<std::mutex> guard(receiver_buff_mtx_);
-          receiver_buffer_.push(msg);
+    mavlink_status_t status;
+    mavlink_message_t message;
+
+    for(int i = 0; i < len; i++)
+    {
+      auto msg_received = static_cast<Framing>(mavlink_frame_char_buffer(&m_buffer_, &m_status_, buf_[i], &message, &status));
+      if (msg_received == Framing::bad_crc || msg_received == Framing::bad_signature) {
+        _mav_parse_error(&m_status_);
+        m_status_.msg_received = MAVLINK_FRAMING_INCOMPLETE;
+        m_status_.parse_state = MAVLINK_PARSE_STATE_IDLE;
+        if (buf_[i] == MAVLINK_STX) {
+          m_status_.parse_state = MAVLINK_PARSE_STATE_GOT_STX;
+          m_buffer_.len = 0;
+          mavlink_start_checksum(&m_buffer_);
         }
+      }
+
+      if (msg_received != Framing::incomplete) {
+        auto msg = std::make_shared<mavlink_message_t>(message);
+        if (receiver_buffer_.size() > kMaxRecvBufferSize) {
+          std::cerr << "[ReceiveWorker] Messages buffer overflow!\n";
+          PopRecvMessage();
+        }
+        const std::lock_guard<std::mutex> guard(receiver_buff_mtx_);
+        receiver_buffer_.push(msg);
       }
     }
   }
   std::cout << "[ReceiveWorker] shutdown\n";
+
 }
 
 /*******************************************************
