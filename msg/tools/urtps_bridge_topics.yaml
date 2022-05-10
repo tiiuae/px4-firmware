@@ -114,3 +114,41 @@ rtps:
     send: true
   - msg: home_position
     send: true
+  - msg: yaw_estimator_status
+    send: true
+  - msg: actuator_controls
+    send: true
+  - msg: actuator_outputs
+    send: true
+  - msg: airspeed
+    send: true
+  - msg: airspeed_wind
+    send: true
+  - msg: hover_thrust_estimate
+    send: true
+  - msg: vehicle_attitude
+    send: true
+  - msg: vehicle_constraints
+    send: true
+  - msg: vehicle_imu
+    send: true
+  - msg: vehicle_air_data
+    send: true
+  - msg: vehicle_thrust_setpoint
+    send: true
+  - msg: wind
+    send: true
+  - msg: vehicle_torque_setpoint
+    send: true
+  - msg: vehicle_odometry
+    send: true
+  - msg: vehicle_rates_setpoint
+    send: true
+  - msg: vehicle_magnetometer
+    send: true
+  - msg: vehicle_land_detected
+    send: true
+  - msg: vehicle_rates_setpoint
+    send: true
+  - msg: sensor_combined
+    send: true
