@@ -41,6 +41,7 @@ __BEGIN_DECLS
 
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <fcntl.h>
 
 extern int sercon_main(int c, char **argv);
 extern int serdis_main(int c, char **argv);
