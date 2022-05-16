@@ -378,6 +378,11 @@ void MavlinkInterface::SendSensorMessages(const int &time_usec, HILData &hil_dat
   if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
     mavlink_message_t msg;
     mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
+    // Override default global mavlink channel status with instance specific status
+    FinalizeOutgoingMessage(&msg, 1, 200,
+      MAVLINK_MSG_ID_HIL_SENSOR_MIN_LEN,
+      MAVLINK_MSG_ID_HIL_SENSOR_LEN,
+      MAVLINK_MSG_ID_HIL_SENSOR_CRC);
     auto msg_shared = std::make_shared<mavlink_message_t>(msg);
     PushSendMessage(msg_shared);
   }
@@ -405,6 +410,11 @@ void MavlinkInterface::SendGpsMessages(const SensorData::Gps &data) {
   if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
     mavlink_message_t msg;
     mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_gps_msg);
+    // Override default global mavlink channel status with instance specific status
+    FinalizeOutgoingMessage(&msg, 1, 200,
+      MAVLINK_MSG_ID_HIL_GPS_MIN_LEN,
+      MAVLINK_MSG_ID_HIL_GPS_LEN,
+      MAVLINK_MSG_ID_HIL_GPS_CRC);
     auto msg_shared = std::make_shared<mavlink_message_t>(msg);
     PushSendMessage(msg_shared);
   }
@@ -804,4 +814,12 @@ Eigen::VectorXd MavlinkInterface::GetActuatorControls() {
 bool MavlinkInterface::GetArmedState() {
   const std::lock_guard<std::mutex> lock(actuator_mutex_);
   return armed_;
+}
+
+// Mavlink helper function to finalize message without global channel status
+uint16_t MavlinkInterface::FinalizeOutgoingMessage(mavlink_message_t* msg, uint8_t system_id, uint8_t component_id, uint8_t min_length, uint8_t length, uint8_t crc_extra)
+{
+    const std::lock_guard<std::mutex> guard(mav_status_mutex_);
+    return mavlink_finalize_message_buffer(msg, system_id, component_id, &sender_m_status_,
+        min_length, length, crc_extra);
 }
