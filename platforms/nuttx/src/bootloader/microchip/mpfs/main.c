@@ -48,6 +48,7 @@
 #include "hw_config.h"
 
 #include "bl.h"
+#include "crypto.h"
 #include "uart.h"
 #include "lib/flash_cache.h"
 
@@ -56,12 +57,17 @@
 
 #include "image_toc.h"
 
+#ifdef BOOTLOADER_USE_SECURITY
+extern void crypto_init(void);
+#endif
+
 #define MK_GPIO_INPUT(def) (((def) & (~(GPIO_OUTPUT)))  | GPIO_INPUT)
 
 #define APP_SIZE_MAX			BOARD_FLASH_SIZE
 
 // Reads/writes to flash are done in this size chunks
 #define FLASH_RW_BLOCK 4096
+#define SIGNATURE_SIZE 64
 
 /* context passed to cinit */
 #if INTERFACE_USART
@@ -69,6 +75,19 @@
 #endif
 #if INTERFACE_USB
 # define BOARD_INTERFACE_CONFIG_USB  INTERFACE_USB_CONFIG
+#endif
+
+
+#ifdef CONFIG_SIGNED_SEL4
+#define SEL4_BINARY 		"sel4_signed.bin"
+#else
+#define SEL4_BINARY 		"seL4.bin"
+#endif
+
+#ifdef CONFIG_SIGNED_UBOOT
+#define UBOOT_BINARY		"u-boot_signed.bin"
+#else
+#define UBOOT_BINARY		"u-boot.bin"
 #endif
 
 static struct mtd_dev_s *mtd = 0;
@@ -82,7 +101,6 @@ static uintptr_t first_unwritten = 0;
 
 static bool device_flashed = false;
 
-static int loader_task = -1;
 typedef enum {
 	UNINITIALIZED = -1,
 	IN_PROGRESS,
@@ -582,7 +600,7 @@ void partition_handler(FAR struct partition_s *part, FAR void *arg)
 
 
 
-static int load_sdcard_images(const char *name, uint64_t loadaddr)
+static ssize_t load_sdcard_images(const char *name, uint64_t loadaddr)
 {
 	int mmcsd_fd;
 	struct stat file_stat;
@@ -596,7 +614,7 @@ static int load_sdcard_images(const char *name, uint64_t loadaddr)
 
 		if (got > 0) {
 			close(mmcsd_fd);
-			return 0;
+			return got;
 		}
 	}
 
@@ -605,17 +623,21 @@ static int load_sdcard_images(const char *name, uint64_t loadaddr)
 }
 
 
-static int loader_main(int argc, char *argv[])
+
+static int loader_main(void)
 {
 	ssize_t image_sz = 0;
+	ssize_t sel4_size = 0;
+	ssize_t uboot_size = 0;
+
+	crypto_init();
 
 	loading_status = IN_PROGRESS;
-	_alert("%s %d\n", __func__, __LINE__);
+
 #ifdef CONFIG_MMCSD
 
 
 	parse_block_partition("/dev/mmcsd0", partition_handler, "/sdcard/");
-	_alert("%s %d\n", __func__, __LINE__);
 	/*
 	 * Mount the sdcard and check if the image is present
 	 */
@@ -691,35 +713,64 @@ static int loader_main(int argc, char *argv[])
 		_err("SD card mount failed\n");
 
 	} else {
-		ret = load_sdcard_images("/sdcard/boot/u-boot.bin", CONFIG_MPFS_HART3_ENTRYPOINT);
+		sel4_size = load_sdcard_images("/sdcard/boot/"SEL4_BINARY, CONFIG_MPFS_HART1_ENTRYPOINT);
 
-		if (ret) {
+		if (sel4_size < 0) {
 			_err("failed\n");
-
-		} else {
-			u_boot_loaded = true;
+			goto end;
 		}
 
-		ret = load_sdcard_images("/sdcard/boot/ssrc_icicle.sbi", 0x80000000);
+		uboot_size = load_sdcard_images("/sdcard/boot/"UBOOT_BINARY, CONFIG_MPFS_HART3_ENTRYPOINT);
 
-		if (ret) {
+		if (uboot_size < 0) {
+			_err("failed\n");
+			goto end;
+		}
+
+#ifdef CONFIG_SIGNED_UBOOT
+
+		if (verify_boot_image(0, (void *)CONFIG_MPFS_HART3_ENTRYPOINT, uboot_size)) {
+			u_boot_loaded = true;
+
+		} else {
+			u_boot_loaded = false;
+			/* Wipe the memory */
+			memset((void *)CONFIG_MPFS_HART3_ENTRYPOINT, 0, uboot_size);
+			_err("u-boot Authentication Failed\n");
+		}
+
+#else
+		u_boot_loaded = true;
+#endif
+
+		ret = (int)load_sdcard_images("/sdcard/boot/ssrc_icicle.sbi", 0x80000000);
+
+		if (ret < 0) {
 			_err("failed\n");
 
 		} else {
 			sbi_loaded = true;
 		}
 
-		ret = load_sdcard_images("/sdcard/boot/sel4.bin", CONFIG_MPFS_HART1_ENTRYPOINT);
+#ifdef CONFIG_SIGNED_SEL4
 
-		if (ret) {
-			_err("failed\n");
+		if (verify_boot_image(0, (void *)CONFIG_MPFS_HART1_ENTRYPOINT, sel4_size)) {
+			sel4_loaded = true;
 
 		} else {
-			sel4_loaded = true;
+			sel4_loaded = false;
+			/* Wipe the memory */
+			memset((void *)CONFIG_MPFS_HART1_ENTRYPOINT, 0, sel4_size);
+			_err("Sel4 Authentication Failed\n");
 		}
+
+#else
+		sel4_loaded = true;
+#endif
 	}
 
 #endif
+end:
 
 	/* image_sz < 0 means that the load was interrupted due to flashing in progress */
 	if (image_sz == 0) {
@@ -738,13 +789,7 @@ static int loader_main(int argc, char *argv[])
 	return 0;
 }
 
-int start_image_loading(void)
-{
-	/* create the task */
-	loader_task = task_create("loader", SCHED_PRIORITY_MAX - 6, 2000, loader_main, (char *const *)0);
 
-	return 0;
-}
 
 
 int
@@ -794,7 +839,7 @@ bootloader_main(void)
 		board_set_rtc_signature(0);
 	}
 
-	start_image_loading();
+	loader_main();
 
 #ifdef BOOT_DELAY_ADDRESS
 	{
