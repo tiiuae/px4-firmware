@@ -16,7 +16,7 @@ void MavlinkInterface::Load()
   if (mavlink_addr_str_ != "INADDR_ANY") {
     mavlink_addr_ = inet_addr(mavlink_addr_str_.c_str());
     if (mavlink_addr_ == INADDR_NONE) {
-      std::cerr << "Invalid mavlink_addr: " << mavlink_addr_str_ << ", aborting\n";
+      std::cerr << "Invalid mavlink_addr: " << mavlink_addr_str_ << ", aborting" << std::endl;
       abort();
     }
   }
@@ -24,14 +24,14 @@ void MavlinkInterface::Load()
   if (qgc_addr_ != "INADDR_ANY") {
     local_qgc_addr_.sin_port = inet_addr(qgc_addr_.c_str());
     if (local_qgc_addr_.sin_port == 0) {
-      std::cerr << "Invalid qgc_addr: " << qgc_addr_ << ", aborting\n";
+      std::cerr << "Invalid qgc_addr: " << qgc_addr_ << ", aborting" << std::endl;
       abort();
     }
   }
   if (sdk_addr_ != "INADDR_ANY") {
     local_sdk_addr_.sin_port = inet_addr(sdk_addr_.c_str());
     if (local_sdk_addr_.sin_port == 0) {
-      std::cerr << "Invalid sdk_addr: " << sdk_addr_ << ", aborting\n";
+      std::cerr << "Invalid sdk_addr: " << sdk_addr_ << ", aborting" << std::endl;
       abort();
     }
   }
@@ -58,22 +58,22 @@ void MavlinkInterface::Load()
     remote_sdk_addr_len_ = sizeof(remote_sdk_addr_);
 
     if ((qgc_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-      std::cerr << "Creating QGC UDP socket failed: " << strerror(errno) << ", aborting\n";
+      std::cerr << "Creating QGC UDP socket failed: " << strerror(errno) << ", aborting" << std::endl;
       abort();
     }
 
     if (bind(qgc_socket_fd_, (struct sockaddr *)&local_qgc_addr_, local_qgc_addr_len_) < 0) {
-      std::cerr << "QGC UDP bind failed: " << strerror(errno) << ", aborting\n";
+      std::cerr << "QGC UDP bind failed: " << strerror(errno) << ", aborting" << std::endl;
       abort();
     }
 
     if ((sdk_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-      std::cerr << "Creating SDK UDP socket failed: " << strerror(errno) << ", aborting\n";
+      std::cerr << "Creating SDK UDP socket failed: " << strerror(errno) << ", aborting" << std::endl;
       abort();
     }
 
     if (bind(sdk_socket_fd_, (struct sockaddr *)&local_sdk_addr_, local_sdk_addr_len_) < 0) {
-      std::cerr << "SDK UDP bind failed: " << strerror(errno) << ", aborting\n";
+      std::cerr << "SDK UDP bind failed: " << strerror(errno) << ", aborting" << std::endl;
       abort();
     }
 
@@ -101,14 +101,14 @@ void MavlinkInterface::Load()
     if (use_tcp_) {
 
       if ((simulator_socket_fd_ = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        std::cerr << "Creating TCP socket failed: " << strerror(errno) << ", aborting\n";
+        std::cerr << "Creating TCP socket failed: " << strerror(errno) << ", aborting" << std::endl;
         abort();
       }
 
       int yes = 1;
       int result = setsockopt(simulator_socket_fd_, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
       if (result != 0) {
-        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+        std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
         abort();
       }
 
@@ -133,7 +133,7 @@ void MavlinkInterface::Load()
 
         result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_LINGER, &nolinger, sizeof(nolinger));
         if (result != 0) {
-          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
           abort();
         }
 
@@ -143,25 +143,25 @@ void MavlinkInterface::Load()
         int socket_reuse = 1;
         result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEADDR, &socket_reuse, sizeof(socket_reuse));
         if (result != 0) {
-          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
           abort();
         }
 
         // Same as above but for a given port
         result = setsockopt(simulator_socket_fd_, SOL_SOCKET, SO_REUSEPORT, &socket_reuse, sizeof(socket_reuse));
         if (result != 0) {
-          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting\n";
+          std::cerr << "setsockopt failed: " << strerror(errno) << ", aborting" << std::endl;
           abort();
         }
 
         if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
-          std::cerr << "bind failed: " << strerror(errno) << ", aborting\n";
+          std::cerr << "bind failed: " << strerror(errno) << ", aborting" << std::endl;
           abort();
         }
 
         errno = 0;
         if (listen(simulator_socket_fd_, 0) < 0) {
-          std::cerr << "listen failed: " << strerror(errno) << ", aborting\n";
+          std::cerr << "listen failed: " << strerror(errno) << ", aborting" << std::endl;
           abort();
         }
         memset(fds_, 0, sizeof(fds_));
@@ -179,12 +179,12 @@ void MavlinkInterface::Load()
       local_simulator_addr_.sin_port = htons(0);
 
       if ((simulator_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        std::cerr << "Creating UDP socket failed: " << strerror(errno) << ", aborting\n";
+        std::cerr << "Creating UDP socket failed: " << strerror(errno) << ", aborting" << std::endl;
         abort();
       }
 
       if (bind(simulator_socket_fd_, (struct sockaddr *)&local_simulator_addr_, local_simulator_addr_len_) < 0) {
-        std::cerr << "bind failed: " << strerror(errno) << ", aborting\n";
+        std::cerr << "bind failed: " << strerror(errno) << ", aborting" << std::endl;
         abort();
       }
 
@@ -241,7 +241,7 @@ void MavlinkInterface::ReceiveWorker() {
   while(!close_conn_) {
     int ret = recvfrom(fds_[CONNECTION_FD].fd, buf_, sizeof(buf_), 0, (struct sockaddr *)&remote_simulator_addr_, &remote_simulator_addr_len_);
     if (ret < 0) {
-      std::cerr << "[" << thrd_name << "] recvfrom error: " << strerror(errno) << "\n";
+      std::cerr << "[" << thrd_name << "] recvfrom error: " << strerror(errno) << std::endl;
       if (errno == ECONNRESET) {
         close_conn_ = true;
       }
@@ -250,7 +250,7 @@ void MavlinkInterface::ReceiveWorker() {
 
     // client closed the connection orderly, only makes sense on tcp
     if (use_tcp_ && ret == 0) {
-      std::cerr << "[" << thrd_name << "] Connection closed by client." << "\n";
+      std::cerr << "[" << thrd_name << "] Connection closed by client." << std::endl;
       close_conn_ = true;
       continue;
     }
@@ -277,7 +277,7 @@ void MavlinkInterface::ReceiveWorker() {
       if (msg_received != Framing::incomplete) {
         auto msg = std::make_shared<mavlink_message_t>(message);
         if (receiver_buffer_.size() > kMaxRecvBufferSize) {
-          std::cerr << "[" << thrd_name << "] Messages buffer overflow!\n";
+          std::cerr << "[" << thrd_name << "] Messages buffer overflow!" << std::endl;
           PopRecvMessage();
         }
         const std::lock_guard<std::mutex> guard(receiver_buff_mtx_);
@@ -285,7 +285,7 @@ void MavlinkInterface::ReceiveWorker() {
       }
     }
   }
-  std::cout << "[" << thrd_name << "] shutdown\n";
+  std::cout << "[" << thrd_name << "] shutdown" << std::endl;
 
 }
 
@@ -299,7 +299,7 @@ void MavlinkInterface::PushSendMessage(std::shared_ptr<mavlink_message_t> msg) {
     sender_buffer_.push(msg);
     sender_cv_.notify_one();
   } else if(received_first_actuator_) {
-    std::cerr << "PushSendMessage - Messages buffer overflow!\n";
+    std::cerr << "PushSendMessage - Messages buffer overflow!" << std::endl;
   }
 }
 
@@ -336,7 +336,7 @@ void MavlinkInterface::SendWorker() {
     send_mavlink_message(msg.get());
   }
 
-  std::cout << "[" << thrd_name << "] Shutdown..\n";
+  std::cout << "[" << thrd_name << "] Shutdown.." << std::endl;
 }
 
 void MavlinkInterface::SendSensorMessages(const int &time_usec) {
@@ -508,14 +508,14 @@ void MavlinkInterface::ReadMAVLinkMessages()
   if (gotSigInt_) {
     return;
   }
-  //std::cout << "[MavlinkInterface] ReadMAVLinkMessages BEGIN \n";
+  //std::cout << "[MavlinkInterface] ReadMAVLinkMessages BEGIN " << std::endl;
   received_actuator_ = false;
 
   if ((fds_[CONNECTION_FD].fd <= 0) && tcp_client_mode_) {
     if (!tryConnect()) {
       return;
     }
-    std::cout << "[MavlinkInterface] Client connected to PX4 TCP server\n";
+    std::cout << "[MavlinkInterface] Client connected to PX4 TCP server" << std::endl;
   }
 
   if (!enable_lockstep_ && IsRecvBuffEmpty()) {
@@ -524,16 +524,16 @@ void MavlinkInterface::ReadMAVLinkMessages()
   }
 
   do {
-    //std::cout << "[MavlinkInterface] check message from msg buffer.. \n";
+    //std::cout << "[MavlinkInterface] check message from msg buffer.. " << std::endl;
     auto msg = PopRecvMessage();
     if (msg) {
-      //std::cout << "[MavlinkInterface] ReadMAVLinkMessages -> handle_message \n";
+      //std::cout << "[MavlinkInterface] ReadMAVLinkMessages -> handle_message " << std::endl;
       handle_message(msg.get());
     }
   } while( (!enable_lockstep_ && !IsRecvBuffEmpty()) ||
            ( enable_lockstep_ && !received_actuator_ && received_first_actuator_) );
 
-  //std::cout << "[MavlinkInterface] ReadMAVLinkMessages END \n";
+  //std::cout << "[MavlinkInterface] ReadMAVLinkMessages END " << std::endl;
 }
 
 void MavlinkInterface::acceptConnections()
@@ -548,7 +548,7 @@ void MavlinkInterface::acceptConnections()
 
   if (ret < 0) {
     if (errno != EWOULDBLOCK) {
-      std::cerr << "accept error: " << strerror(errno) << "\n";
+      std::cerr << "accept error: " << strerror(errno) << std::endl;
     }
     return;
   }
@@ -618,7 +618,7 @@ void MavlinkInterface::forward_mavlink_message(const mavlink_message_t *message)
 
     if (len <= 0)
     {
-      std::cerr << "Failed sending mavlink message to QGC: " << strerror(errno) << "\n";
+      std::cerr << "Failed sending mavlink message to QGC: " << strerror(errno) << std::endl;
     }
   }
 
@@ -626,7 +626,7 @@ void MavlinkInterface::forward_mavlink_message(const mavlink_message_t *message)
     len = sendto(sdk_socket_fd_, buffer, packetlen, 0, (struct sockaddr *)&remote_sdk_addr_, remote_sdk_addr_len_);
     if (len <= 0)
     {
-      std::cerr << "Failed sending mavlink message to SDK: " << strerror(errno) << "\n";
+      std::cerr << "Failed sending mavlink message to SDK: " << strerror(errno) << std::endl;
     }
   }
 }
@@ -642,7 +642,7 @@ void MavlinkInterface::send_mavlink_message(const mavlink_message_t *message)
   if (serial_enabled_) {
 
     if (!is_serial_open()) {
-      std::cerr << "Serial port closed! \n";
+      std::cerr << "Serial port closed! " << std::endl;
       return;
     }
 
@@ -650,7 +650,7 @@ void MavlinkInterface::send_mavlink_message(const mavlink_message_t *message)
       std::lock_guard<std::recursive_mutex> lock(mutex_);
 
       if (tx_q_.size() >= MAX_TXQ_SIZE) {
-        std::cout << "Tx queue overflow\n";
+        std::cout << "Tx queue overflow" << std::endl;
       }
       tx_q_.emplace_back(message);
     }
@@ -668,10 +668,10 @@ void MavlinkInterface::send_mavlink_message(const mavlink_message_t *message)
         len = sendto(fds_[CONNECTION_FD].fd, buffer, packetlen, 0, (struct sockaddr *)&remote_simulator_addr_, remote_simulator_addr_len_);
       }
       if (len < 0) {
-        std::cerr << "Failed sending mavlink message: " << strerror(errno) << "\n";
+        std::cerr << "Failed sending mavlink message: " << strerror(errno) << std::endl;
         if (errno == ECONNRESET || errno == EPIPE) {
           if (use_tcp_) { // udp socket remains alive
-            std::cerr << "Closing connection." << "\n";
+            std::cerr << "Closing connection." << std::endl;
             close_conn_ = true;
           }
         }
@@ -688,10 +688,10 @@ void MavlinkInterface::open_serial() {
     serial_dev_.set_option(boost::asio::serial_port_base::parity(boost::asio::serial_port_base::parity::none));
     serial_dev_.set_option(boost::asio::serial_port_base::stop_bits(boost::asio::serial_port_base::stop_bits::one));
     serial_dev_.set_option(boost::asio::serial_port_base::flow_control(boost::asio::serial_port_base::flow_control::none));
-    std::cout << "Opened serial device " << device_ << "\n";
+    std::cout << "Opened serial device " << device_ << std::endl;
   }
   catch (boost::system::system_error &err) {
-    std::cerr <<"Error opening serial device: " << err.what() << "\n";
+    std::cerr <<"Error opening serial device: " << err.what() << std::endl;
   }
 }
 
@@ -747,7 +747,7 @@ void MavlinkInterface::do_serial_write(bool check_tx_state){
     {
       assert(bytes_transferred <= buf_ref.len);
       if(error) {
-        std::cerr << "Serial error: " << error.message() << "\n";
+        std::cerr << "Serial error: " << error.message() << std::endl;
       return;
       }
 
