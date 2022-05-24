@@ -51,6 +51,8 @@
 
 bool verify_app(uint16_t idx, const image_toc_entry_t *toc_entries);
 
+bool verify_boot_image(uint8_t key_index, void *boot_image, size_t image_len);
+
 bool decrypt_app(uint16_t idx, const image_toc_entry_t *toc_entries);
 
 #else
@@ -60,6 +62,8 @@ bool decrypt_app(uint16_t idx, const image_toc_entry_t *toc_entries);
 /* No security, application verification passes always */
 
 static inline bool verify_app(uint16_t idx, const image_toc_entry_t *toc_entries) {return true;}
+
+static inline bool verify_boot_image(uint8_t key_index, void *boot_image, size_t image_len) {return true;}
 
 /* No security, decrypting is not possible */
 

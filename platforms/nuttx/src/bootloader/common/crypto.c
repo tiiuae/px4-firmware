@@ -39,6 +39,22 @@
 
 #include <px4_platform_common/crypto_backend.h>
 
+bool verify_boot_image(uint8_t key_index, void *boot_image, size_t image_len)
+{
+	uint8_t *signature_ptr = NULL;
+	bool ret;
+	size_t len = image_len - 64;
+	/* Signature is last 64 bytes of image */
+
+	signature_ptr = (uint8_t *)boot_image + len;
+	crypto_session_handle_t handle = crypto_open(BOOTLOADER_SIGNING_ALGORITHM);
+	ret =  crypto_signature_check(handle, key_index, (const uint8_t *)signature_ptr,
+				      (const uint8_t *)boot_image, len);
+
+	crypto_close(&handle);
+	return ret;
+}
+
 bool verify_app(uint16_t idx, const image_toc_entry_t *toc_entries)
 {
 	volatile uint8_t *app_signature_ptr = NULL;
