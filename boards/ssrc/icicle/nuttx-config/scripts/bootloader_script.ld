@@ -88,14 +88,9 @@ EXTERN(__start)
 
 SECTIONS
 {
-    .text.sbi : {
-      sbi*
-      riscv_atomic*
-      riscv_locks*
-      riscv_asm*
-    } > ddr
-
     .ddrstorage : {
+      . = 0xF000;
+       __ddr_storage = .;
       *(.ddrstorage)
     } > ddr
 
@@ -105,11 +100,11 @@ SECTIONS
         __l2_scratchpad_start = .;
         __l2_scratchpad_vma_start = .;
         *(.l2_scratchpad)
-
+        . = 0x5000;
         . = ALIGN(0x10);
         __l2_scratchpad_end = .;
         __l2_scratchpad_vma_end = .;
-    } > l2zerodevice
+    } > l2zerodevice AT > envm
 
     PROVIDE(__mpfs_nuttx_start = ORIGIN(l2lim));
 

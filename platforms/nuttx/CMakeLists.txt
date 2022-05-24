@@ -262,6 +262,7 @@ else()
 
 		-fno-exceptions
 		-fno-rtti
+		-Wl,--relax
 		-Wl,--script=${NUTTX_CONFIG_DIR_CYG}/scripts/${SCRIPT_PREFIX}script.ld
 		-Wl,-Map=${PX4_CONFIG}.map
 		-Wl,--warn-common
