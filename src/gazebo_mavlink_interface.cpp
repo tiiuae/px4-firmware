@@ -462,7 +462,6 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
 
   // Publish gazebo's motor_speed message
   motor_velocity_reference_pub_ = node_handle_->Advertise<mav_msgs::msgs::CommandMotorSpeed>("~/" + model_->GetName() + motor_velocity_reference_pub_topic_, 1);
-
 #if GAZEBO_MAJOR_VERSION >= 9
   last_time_ = world_->SimTime();
   last_imu_time_ = world_->SimTime();
@@ -479,7 +478,10 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
 
   if (_sdf->HasElement("mavlink_hostname")) {
     mavlink_hostname_str_ = _sdf->GetElement("mavlink_hostname")->Get<std::string>();
-    resolveHostName();
+    // Start hostname resolver thread
+    hostname_resolver_thread_ = std::thread([this] () {
+        ResolveWorker();
+    });
   }
 
   if (_sdf->HasElement("mavlink_addr")) {
@@ -592,16 +594,8 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo&  /*_info*/) {
   }
 
   if (!mavlink_loaded_) {
-    // hostname was not yet available, try agan..
-    gzmsg << "OnUpdate: hostname not resolved yet\n";
-    if (resolveHostName()) {
-      gzmsg << "OnUpdate: --> load mavlink_interface_\n";
-      mavlink_interface_->Load();
-      mavlink_loaded_ = true;
-    } else {
       // mavlink not loaded, exit
       return;
-    }
   }
 
 #if GAZEBO_MAJOR_VERSION >= 9
@@ -622,6 +616,7 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo&  /*_info*/) {
   handle_actuator_controls();
 
   handle_control(dt);
+
 
   if (received_first_actuator_) {
     mav_msgs::msgs::CommandMotorSpeed turning_velocities_msg;
@@ -1276,6 +1271,17 @@ bool GazeboMavlinkInterface::resolveHostName()
     return true;
   }
 
+}
+
+void GazeboMavlinkInterface::ResolveWorker()
+{
+  gzmsg << "[ResolveWorker] Start Resolving hostname\n";
+  while (!resolveHostName()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  }
+  gzmsg << "[ResolveWorker] --> load mavlink_interface_\n";
+  mavlink_interface_->Load();
+  mavlink_loaded_ = true;
 }
 
 
