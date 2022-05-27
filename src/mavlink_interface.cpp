@@ -36,6 +36,9 @@ void MavlinkInterface::Load()
     }
   }
 
+  // initialize sender status to zero
+  memset((char *)&sender_m_status_, 0, sizeof(sender_m_status_));
+
   if (hil_mode_) {
 
     local_qgc_addr_.sin_family = AF_INET;
