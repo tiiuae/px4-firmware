@@ -117,6 +117,7 @@ void MavlinkInterface::Load()
         remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
         remote_simulator_addr_.sin_port = htons(mavlink_tcp_port_);
 
+        memset(fds_, 0, sizeof(fds_));
       } else {
 
         // TCP server mode
