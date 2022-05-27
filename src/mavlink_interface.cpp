@@ -192,15 +192,16 @@ void MavlinkInterface::Load()
       fds_[CONNECTION_FD].fd = simulator_socket_fd_;
       fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
 
-      // Start mavlink message receiver thread
-      receiver_thread_ = std::thread([this] () {
-        ReceiveWorker();
-      });
-      // Start mavlink message sender thread
-      sender_thread_ = std::thread([this] () {
-        SendWorker();
-      });
     }
+
+    // Start mavlink message receiver thread
+    receiver_thread_ = std::thread([this] () {
+      ReceiveWorker();
+    });
+    // Start mavlink message sender thread
+    sender_thread_ = std::thread([this] () {
+      SendWorker();
+    });
 
   }
   // hil_data_.resize(1);
@@ -227,6 +228,15 @@ void MavlinkInterface::ReceiveWorker() {
   pthread_setname_np(pthread_self(), thrd_name);
 
   std::cout << "[" << thrd_name << "] starts" << std::endl;
+
+  // Wait for connection:
+  if ((fds_[CONNECTION_FD].fd <= 0) && tcp_client_mode_) {
+    std::cout << "[" << thrd_name << "] Wait for TCP connection.." << std::endl;
+    while (fds_[CONNECTION_FD].fd <= 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+    std::cout << "[" << thrd_name << "] TCP connection detected" << std::endl;
+  }
 
   while(!close_conn_) {
     int ret = recvfrom(fds_[CONNECTION_FD].fd, buf_, sizeof(buf_), 0, (struct sockaddr *)&remote_simulator_addr_, &remote_simulator_addr_len_);
@@ -302,6 +312,15 @@ void MavlinkInterface::SendWorker() {
   char thrd_name[64] = {0};
   sprintf(thrd_name, "MAV_Sender_%d", gettid());
   pthread_setname_np(pthread_self(), thrd_name);
+
+  if ((fds_[CONNECTION_FD].fd <= 0) && tcp_client_mode_) {
+    std::cout << "[" << thrd_name << "] Try to connect to PX4 TCP server.. " << std::endl;
+    while (!tryConnect()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+    std::cout << "[" << thrd_name << "] Client connected to PX4 TCP server" << std::endl;
+
+  }
 
   while(!close_conn_) {
     std::unique_lock<std::mutex> lock{sender_buff_mtx_};
@@ -553,17 +572,9 @@ bool MavlinkInterface::tryConnect()
   }
 
   // assign socket to connection descriptor on success
-  fds_[CONNECTION_FD].fd = simulator_socket_fd_;
   fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
+  fds_[CONNECTION_FD].fd = simulator_socket_fd_;
 
-  // Start mavlink message receiver thread
-  receiver_thread_ = std::thread([this] () {
-    ReceiveWorker();
-  });
-  // Start mavlink message sender thread
-  sender_thread_ = std::thread([this] () {
-    SendWorker();
-  });
   return true;
 }
 
