@@ -218,14 +218,16 @@ std::shared_ptr<mavlink_message_t> MavlinkInterface::PopRecvMessage() {
 }
 
 void MavlinkInterface::ReceiveWorker() {
+  char thrd_name[64] = {0};
+  sprintf(thrd_name, "MAV_Recver_%d", gettid());
+  pthread_setname_np(pthread_self(), thrd_name);
 
-  std::cout << "[ReceiveWorker] starts\n";
-  pthread_setname_np(pthread_self(), "MAV_Receiver");
+  std::cout << "[" << thrd_name << "] starts" << std::endl;
 
   while(!close_conn_) {
     int ret = recvfrom(fds_[CONNECTION_FD].fd, buf_, sizeof(buf_), 0, (struct sockaddr *)&remote_simulator_addr_, &remote_simulator_addr_len_);
     if (ret < 0) {
-      std::cerr << "[ReceiveWorker] recvfrom error: " << strerror(errno) << "\n";
+      std::cerr << "[" << thrd_name << "] recvfrom error: " << strerror(errno) << "\n";
       if (errno == ECONNRESET) {
         close_conn_ = true;
       }
@@ -234,7 +236,7 @@ void MavlinkInterface::ReceiveWorker() {
 
     // client closed the connection orderly, only makes sense on tcp
     if (use_tcp_ && ret == 0) {
-      std::cerr << "[ReceiveWorker] Connection closed by client." << "\n";
+      std::cerr << "[" << thrd_name << "] Connection closed by client." << "\n";
       close_conn_ = true;
       continue;
     }
@@ -261,7 +263,7 @@ void MavlinkInterface::ReceiveWorker() {
       if (msg_received != Framing::incomplete) {
         auto msg = std::make_shared<mavlink_message_t>(message);
         if (receiver_buffer_.size() > kMaxRecvBufferSize) {
-          std::cerr << "[ReceiveWorker] Messages buffer overflow!\n";
+          std::cerr << "[" << thrd_name << "] Messages buffer overflow!\n";
           PopRecvMessage();
         }
         const std::lock_guard<std::mutex> guard(receiver_buff_mtx_);
@@ -269,7 +271,7 @@ void MavlinkInterface::ReceiveWorker() {
       }
     }
   }
-  std::cout << "[ReceiveWorker] shutdown\n";
+  std::cout << "[" << thrd_name << "] shutdown\n";
 
 }
 
@@ -283,7 +285,7 @@ void MavlinkInterface::PushSendMessage(std::shared_ptr<mavlink_message_t> msg) {
     sender_buffer_.push(msg);
     sender_cv_.notify_one();
   } else if(received_first_actuator_) {
-    std::cerr << "[SendWorker] Messages buffer overflow!\n";
+    std::cerr << "PushSendMessage - Messages buffer overflow!\n";
   }
 }
 
@@ -293,9 +295,9 @@ void MavlinkInterface::PushSendMessage(mavlink_message_t *msg) {
 }
 
 void MavlinkInterface::SendWorker() {
-
-  std::cout << "[SendWorker] starts\n";
-  pthread_setname_np(pthread_self(), "MAV_Sender");
+  char thrd_name[64] = {0};
+  sprintf(thrd_name, "MAV_Sender_%d", gettid());
+  pthread_setname_np(pthread_self(), thrd_name);
 
   while(!close_conn_) {
     std::unique_lock<std::mutex> lock{sender_buff_mtx_};
@@ -311,7 +313,7 @@ void MavlinkInterface::SendWorker() {
     send_mavlink_message(msg.get());
   }
 
-  std::cout << "[SendWorker] Shutdown..\n";
+  std::cout << "[" << thrd_name << "] Shutdown..\n";
 }
 
 void MavlinkInterface::SendSensorMessages(const int &time_usec) {
