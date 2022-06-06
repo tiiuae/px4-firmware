@@ -197,7 +197,7 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
   if (_sdf->HasElement("robotNamespace")) {
     namespace_ = _sdf->GetElement("robotNamespace")->Get<std::string>();
   } else {
-    gzerr << "[gazebo_mavlink_interface] Please specify a robotNamespace.\n";
+    gzerr << "[gazebo_mavlink_interface] Please specify a robotNamespace." << std::endl;
   }
 
   if (_sdf->HasElement("protocol_version")) {
@@ -249,7 +249,7 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
           }
           else
           {
-            gzwarn << "joint_control_type[" << index << "] not specified, using velocity.\n";
+            gzwarn << "joint_control_type[" << index << "] not specified, using velocity." << std::endl;
             joint_control_type_[index] = "velocity";
           }
 
@@ -310,12 +310,12 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
         }
         else
         {
-          gzerr << "input_index[" << index << "] out of range, not parsing.\n";
+          gzerr << "input_index[" << index << "] out of range, not parsing." << std::endl;
         }
       }
       else
       {
-        gzerr << "no input_index, not parsing.\n";
+        gzerr << "no input_index, not parsing." << std::endl;
         break;
       }
       channel = channel->GetNextElement("channel");
@@ -355,14 +355,14 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
     mavlink_interface_->SetTcpClientMode(tcp_client_mode);
   }
   gzmsg << "Connecting to PX4 SITL using " << (serial_enabled ? "serial" :
-    (use_tcp ? (tcp_client_mode ? "TCP (client mode)" : "TCP (server mode)") : "UDP")) << "\n";
+    (use_tcp ? (tcp_client_mode ? "TCP (client mode)" : "TCP (server mode)") : "UDP")) << std::endl;
 
   if (!hil_mode_ && _sdf->HasElement("enable_lockstep"))
   {
     enable_lockstep_ = _sdf->GetElement("enable_lockstep")->Get<bool>();
     mavlink_interface_->SetEnableLockstep(enable_lockstep_);
   }
-  gzmsg << "Lockstep is " << (enable_lockstep_ ? "enabled" : "disabled") << "\n";
+  gzmsg << "Lockstep is " << (enable_lockstep_ ? "enabled" : "disabled") << std::endl;
 
   // When running in lockstep, we can run the simulation slower or faster than
   // realtime. The speed can be set using the env variable PX4_SIM_SPEED_FACTOR.
@@ -374,11 +374,11 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
       speed_factor_ = std::atof(speed_factor_str);
       if (!std::isfinite(speed_factor_) || speed_factor_ <= 0.0)
       {
-        gzerr << "Invalid speed factor '" << speed_factor_str << "', aborting\n";
+        gzerr << "Invalid speed factor '" << speed_factor_str << "', aborting" << std::endl;
         abort();
       }
     }
-    gzmsg << "Speed factor set to: " << speed_factor_ << "\n";
+    gzmsg << "Speed factor set to: " << speed_factor_ << std::endl;
 
     boost::any param;
 #if GAZEBO_MAJOR_VERSION >= 8
@@ -399,7 +399,7 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
     if (real_time_update_rate_int % 250 != 0)
     {
       gzerr << "real_time_update_rate is " << real_time_update_rate_int
-            << " but needs to be multiple of 250 Hz, aborting.\n";
+            << " but needs to be multiple of 250 Hz, aborting." << std::endl;
       abort();
     }
 
@@ -409,7 +409,7 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
     {
       gzerr << "max_step_size of " << max_step_size
             << " s does not match real_time_update_rate of "
-            << real_time_update_rate << ", aborting.\n";
+            << real_time_update_rate << ", aborting." << std::endl;
       abort();
     }
 
@@ -558,18 +558,18 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
   // set the Mavlink protocol version to use on the link
   if (protocol_version_ == 2.0) {
     chan_state->flags &= ~(MAVLINK_STATUS_FLAG_OUT_MAVLINK1);
-    gzmsg << "Using MAVLink protocol v2.0\n";
+    gzmsg << "Using MAVLink protocol v2.0" << std::endl;
   }
   else if (protocol_version_ == 1.0) {
     chan_state->flags |= MAVLINK_STATUS_FLAG_OUT_MAVLINK1;
-    gzmsg << "Using MAVLink protocol v1.0\n";
+    gzmsg << "Using MAVLink protocol v1.0" << std::endl;
   }
   else {
-    gzerr << "Unkown protocol version! Using v" << protocol_version_ << "by default \n";
+    gzerr << "Unkown protocol version! Using v" << protocol_version_ << "by default " << std::endl;
   }
 
   if (hostptr_ || mavlink_hostname_str_.empty()) {
-    gzmsg << "--> load mavlink_interface_\n";
+    gzmsg << "--> load mavlink_interface_" << std::endl;
     mavlink_interface_->Load();
     mavlink_loaded_ = true;
   }
@@ -668,7 +668,7 @@ void GazeboMavlinkInterface::ImuCallback(ImuPtr& imu_message)
   const int64_t diff = imu_message->seq() - last_imu_message_.seq();
   if (diff != 1 && imu_message->seq() != 0)
   {
-    gzerr << "Skipped " << (diff - 1) << " IMU samples (presumably CPU usage is too high)\n";
+    gzerr << "Skipped " << (diff - 1) << " IMU samples (presumably CPU usage is too high)" << std::endl;
   }
 
   last_imu_message_ = *imu_message;
@@ -1234,7 +1234,7 @@ void GazeboMavlinkInterface::handle_control(double _dt)
       }
       else
       {
-        gzerr << "joint_control_type[" << joint_control_type_[i] << "] undefined.\n";
+        gzerr << "joint_control_type[" << joint_control_type_[i] << "] undefined." << std::endl;
       }
     }
   }
@@ -1255,14 +1255,14 @@ void GazeboMavlinkInterface::onSigInt() {
 bool GazeboMavlinkInterface::resolveHostName()
 {
   if (!mavlink_hostname_str_.empty()) {
-    gzmsg << "Try to resolve hostname: '"  << mavlink_hostname_str_ << "'\n";
+    gzmsg << "Try to resolve hostname: '"  << mavlink_hostname_str_ << "'" << std::endl;
     hostptr_ = gethostbyname(mavlink_hostname_str_.c_str());
     if (hostptr_ && hostptr_->h_length && hostptr_->h_addrtype == AF_INET) {
       struct in_addr **addr_l = (struct in_addr **)hostptr_->h_addr_list;
       char *addr_str = inet_ntoa(*addr_l[0]);
       std::string ip_addr = std::string(addr_str);
       mavlink_interface_->SetMavlinkAddr(ip_addr);
-      gzmsg << "Host name '" << mavlink_hostname_str_ << "' resolved to IP: " << ip_addr << "\n";
+      gzmsg << "Host name '" << mavlink_hostname_str_ << "' resolved to IP: " << ip_addr << std::endl;
       return true;
     }
     return false;
@@ -1275,11 +1275,11 @@ bool GazeboMavlinkInterface::resolveHostName()
 
 void GazeboMavlinkInterface::ResolveWorker()
 {
-  gzmsg << "[ResolveWorker] Start Resolving hostname\n";
+  gzmsg << "[ResolveWorker] Start Resolving hostname" << std::endl;
   while (!resolveHostName()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   }
-  gzmsg << "[ResolveWorker] --> load mavlink_interface_\n";
+  gzmsg << "[ResolveWorker] --> load mavlink_interface_" << std::endl;
   mavlink_interface_->Load();
   mavlink_loaded_ = true;
 }
