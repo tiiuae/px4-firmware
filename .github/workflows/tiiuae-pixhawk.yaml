@@ -2,9 +2,9 @@ name: tiiuae-pixhawk
 
 on:
   push:
-    branches: [ master ]
+    branches: [ rel7_hotfix ]
   pull_request:
-    branches: [ master ]
+    branches: [ rel7_hotfix ]
 
 jobs:
   pixhawk4:
