@@ -291,7 +291,6 @@ private:
     std::mutex sender_buff_mtx_;
     std::queue<std::shared_ptr<mavlink_message_t>> sender_buffer_;
     std::thread sender_thread_;
-    std::mutex sender_cv_mtx_;
     std::condition_variable sender_cv_;
     std::mutex mav_status_mutex_;
     mavlink_status_t sender_m_status_{};

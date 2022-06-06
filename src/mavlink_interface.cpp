@@ -298,21 +298,17 @@ void MavlinkInterface::SendWorker() {
   pthread_setname_np(pthread_self(), "MAV_Sender");
 
   while(!close_conn_) {
-    std::unique_lock<std::mutex> lock(sender_cv_mtx_);
-    while (sender_buffer_.empty() && !close_conn_)
-      sender_cv_.wait(lock);
-
-    if (sender_buffer_.empty() || close_conn_)
-      continue;
+    std::unique_lock<std::mutex> lock{sender_buff_mtx_};
+    sender_cv_.wait(lock, [&]()
+    {
+      return close_conn_ || !sender_buffer_.empty();
+    });
 
     std::shared_ptr<mavlink_message_t> msg;
-    {
-      const std::lock_guard<std::mutex> guard(sender_buff_mtx_);
-      msg = sender_buffer_.front();
-      sender_buffer_.pop();
-    }
+    msg = sender_buffer_.front();
+    sender_buffer_.pop();
+    lock.unlock();
     send_mavlink_message(msg.get());
-
   }
 
   std::cout << "[SendWorker] Shutdown..\n";
