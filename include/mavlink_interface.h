@@ -110,19 +110,19 @@ namespace SensorData {
     };
 
     struct Gps {
-        int time_utc_usec;
-        int fix_type;
-        double latitude_deg;
-        double longitude_deg;
-        double altitude;
-        double eph;
-        double epv;
-        double velocity;
-        double velocity_north;
-        double velocity_east;
-        double velocity_down;
-        double cog;
-        double satellites_visible;
+        uint64_t time_utc_usec;
+        uint8_t fix_type;
+        int32_t latitude_deg;
+        int32_t longitude_deg;
+        int32_t altitude;
+        uint16_t eph;
+        uint16_t epv;
+        uint16_t velocity;
+        int16_t velocity_north;
+        int16_t velocity_east;
+        int16_t velocity_down;
+        uint16_t cog;
+        uint8_t satellites_visible;
         int id;
     };
 }
