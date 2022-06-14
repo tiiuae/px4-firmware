@@ -233,7 +233,7 @@ void MavlinkInterface::ReceiveWorker() {
   if ((fds_[CONNECTION_FD].fd <= 0) && tcp_client_mode_) {
     std::cout << "[" << thrd_name << "] Wait for TCP connection.." << std::endl;
     while (fds_[CONNECTION_FD].fd <= 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     std::cout << "[" << thrd_name << "] TCP connection detected" << std::endl;
   }
