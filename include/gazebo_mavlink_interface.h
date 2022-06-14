@@ -252,6 +252,7 @@ private:
   common::Time last_imu_time_;
   common::Time last_actuator_time_;
 
+  std::mutex groundtruth_mutex_ {};
   double groundtruth_lat_rad_{0.0};
   double groundtruth_lon_rad_{0.0};
   double groundtruth_altitude_{0.0};
