@@ -108,23 +108,6 @@ namespace SensorData {
     struct Airspeed {
         double diff_pressure;
     };
-
-    struct Gps {
-        uint64_t time_utc_usec;
-        uint8_t fix_type;
-        int32_t latitude_deg;
-        int32_t longitude_deg;
-        int32_t altitude;
-        uint16_t eph;
-        uint16_t epv;
-        uint16_t velocity;
-        int16_t velocity_north;
-        int16_t velocity_east;
-        int16_t velocity_down;
-        uint16_t cog;
-        uint8_t satellites_visible;
-        int id;
-    };
 }
 
 struct HILData {
@@ -159,7 +142,6 @@ public:
     void Load();
     void SendSensorMessages(const int &time_usec);
     void SendSensorMessages(const int &time_usec, HILData &hil_data);
-    void SendGpsMessages(const SensorData::Gps &data);
     void UpdateBarometer(const SensorData::Barometer &data, const int id = 0);
     void UpdateAirspeed(const SensorData::Airspeed &data, const int id = 0);
     void UpdateIMU(const SensorData::Imu &data, const int id = 0);

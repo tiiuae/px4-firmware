@@ -409,38 +409,6 @@ void MavlinkInterface::SendSensorMessages(const int &time_usec, HILData &hil_dat
   }
 }
 
-void MavlinkInterface::SendGpsMessages(const SensorData::Gps &data) {
-  // fill HIL GPS Mavlink msg
-  mavlink_hil_gps_t hil_gps_msg;
-  hil_gps_msg.time_usec = data.time_utc_usec;
-  hil_gps_msg.fix_type = data.fix_type;
-  hil_gps_msg.lat = data.latitude_deg;
-  hil_gps_msg.lon = data.longitude_deg;
-  hil_gps_msg.alt = data.altitude;
-  hil_gps_msg.eph = data.eph;
-  hil_gps_msg.epv = data.epv;
-  hil_gps_msg.vel = data.velocity;
-  hil_gps_msg.vn = data.velocity_north;
-  hil_gps_msg.ve = data.velocity_east;
-  hil_gps_msg.vd = data.velocity_down;
-  hil_gps_msg.cog = data.cog;
-  hil_gps_msg.satellites_visible = data.satellites_visible;
-  hil_gps_msg.id = data.id;
-
-  // send HIL_GPS Mavlink msg
-  if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
-    mavlink_message_t msg;
-    mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_gps_msg);
-    // Override default global mavlink channel status with instance specific status
-    FinalizeOutgoingMessage(&msg, 1, 200,
-      MAVLINK_MSG_ID_HIL_GPS_MIN_LEN,
-      MAVLINK_MSG_ID_HIL_GPS_LEN,
-      MAVLINK_MSG_ID_HIL_GPS_CRC);
-    auto msg_shared = std::make_shared<mavlink_message_t>(msg);
-    PushSendMessage(msg_shared);
-  }
-}
-
 void MavlinkInterface::UpdateBarometer(const SensorData::Barometer &data, int id) {
   const std::lock_guard<std::mutex> lock(sensor_msg_mutex_);
   for (auto& instance : hil_data_) {

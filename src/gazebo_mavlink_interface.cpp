@@ -803,26 +803,37 @@ void GazeboMavlinkInterface::SendGroundTruth()
 }
 
 void GazeboMavlinkInterface::GpsCallback(GpsPtr& gps_msg, const int& id) {
-  SensorData::Gps gps_data;
-  gps_data.time_utc_usec = static_cast<uint64_t>(gps_msg->time_utc_usec());
-  gps_data.fix_type = 3;
-  gps_data.latitude_deg = static_cast<int32_t>(gps_msg->latitude_deg() * 1e7);
-  gps_data.longitude_deg = static_cast<int32_t>(gps_msg->longitude_deg() * 1e7);
-  gps_data.altitude = static_cast<int32_t>(gps_msg->altitude() * 1000.0);
-  gps_data.eph = static_cast<uint16_t>(gps_msg->eph() * 100.0);
-  gps_data.epv = static_cast<uint16_t>(gps_msg->epv() * 100.0);
-  gps_data.velocity = static_cast<uint16_t>(gps_msg->velocity() * 100.0);
-  gps_data.velocity_north = static_cast<int16_t>(gps_msg->velocity_north() * 100.0);
-  gps_data.velocity_east = static_cast<int16_t>(gps_msg->velocity_east() * 100.0);
-  gps_data.velocity_down = static_cast<int16_t>(-gps_msg->velocity_up() * 100.0);
+    // fill HIL GPS Mavlink msg
+  mavlink_hil_gps_t hil_gps_msg;
+  hil_gps_msg.time_usec = static_cast<uint64_t>(gps_msg->time_utc_usec());
+  hil_gps_msg.fix_type = 3;
+  hil_gps_msg.lat = static_cast<int32_t>(gps_msg->latitude_deg() * 1e7);
+  hil_gps_msg.lon = static_cast<int32_t>(gps_msg->longitude_deg() * 1e7);
+  hil_gps_msg.alt = static_cast<int32_t>(gps_msg->altitude() * 1000.0);
+  hil_gps_msg.eph = static_cast<uint16_t>(gps_msg->eph() * 100.0);
+  hil_gps_msg.epv = static_cast<uint16_t>(gps_msg->epv() * 100.0);
+  hil_gps_msg.vel = static_cast<uint16_t>(gps_msg->velocity() * 100.0);
+  hil_gps_msg.vn = static_cast<int16_t>(gps_msg->velocity_north() * 100.0);
+  hil_gps_msg.ve = static_cast<int16_t>(gps_msg->velocity_east() * 100.0);
+  hil_gps_msg.vd = static_cast<int16_t>(-gps_msg->velocity_up() * 100.0);
   // MAVLINK_HIL_GPS_T CoG is [0, 360]. math::Angle::Normalize() is [-pi, pi].
   ignition::math::Angle cog(atan2(gps_msg->velocity_east(), gps_msg->velocity_north()));
   cog.Normalize();
-  gps_data.cog = static_cast<uint16_t>(GetDegrees360(cog) * 100.0);
-  gps_data.satellites_visible = 10;
-  gps_data.id = id;
+  hil_gps_msg.cog = static_cast<uint16_t>(GetDegrees360(cog) * 100.0);
+  hil_gps_msg.satellites_visible = 10;
+  hil_gps_msg.id = id;
 
-  mavlink_interface_->SendGpsMessages(gps_data);
+  // send HIL_GPS Mavlink msg
+  if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
+    mavlink_message_t msg;
+    mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_gps_msg);
+    // Override default global mavlink channel status with instance specific status
+    mavlink_interface_->FinalizeOutgoingMessage(&msg, 1, 200,
+      MAVLINK_MSG_ID_HIL_GPS_MIN_LEN,
+      MAVLINK_MSG_ID_HIL_GPS_LEN,
+      MAVLINK_MSG_ID_HIL_GPS_CRC);
+    mavlink_interface_->PushSendMessage(&msg);
+  }
 }
 
 void GazeboMavlinkInterface::GroundtruthCallback(GtPtr& groundtruth_msg) {
