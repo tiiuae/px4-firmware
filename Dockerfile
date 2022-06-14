@@ -1,4 +1,4 @@
-FROM ros:galactic-ros-base
+FROM ros:galactic-ros-base AS builder
 
 ENV LANG C.UTF-8
 ENV LANGUAGE C.UTF-8
@@ -26,3 +26,17 @@ RUN source /opt/ros/galactic/setup.bash && \
     cd build && \
     cmake .. && \
     make -j $(nproc)
+
+WORKDIR /artifacts
+
+RUN mkdir -p plugins \
+  && mkdir -p models \
+  && mkdir -p scripts \
+  && cp -r /px4_sitl_gazebo/models/ssrc_fog_x models/ssrc_fog_x \
+  && cp /px4_sitl_gazebo/scripts/jinja_gen.py scripts/jinja_gen.py \
+  && find /px4_sitl_gazebo/build/*.so -exec cp {} plugins \;
+
+
+FROM busybox
+
+COPY --from=builder /artifacts /artifacts
