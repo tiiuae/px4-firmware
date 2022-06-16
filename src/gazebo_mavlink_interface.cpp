@@ -721,7 +721,7 @@ void GazeboMavlinkInterface::SendSensorMessages()
   SensorData::Imu imu_data;
   imu_data.accel_b = Eigen::Vector3d(accel_b.X(), accel_b.Y(), accel_b.Z());
   imu_data.gyro_b = Eigen::Vector3d(gyro_b.X(), gyro_b.Y(), gyro_b.Z());
-  mavlink_interface_->UpdateIMU(imu_data);
+  mavlink_interface_->UpdateIMU(imu_data, 1);
 
   mavlink_interface_->SendSensorMessages(time_usec);
 }
@@ -1138,7 +1138,7 @@ void GazeboMavlinkInterface::MagnetometerCallback(MagnetometerPtr& mag_msg) {
   SensorData::Magnetometer mag_data;
   mag_data.mag_b = Eigen::Vector3d(mag_msg->magnetic_field().x(),
     mag_msg->magnetic_field().y(), mag_msg->magnetic_field().z());
-  mavlink_interface_->UpdateMag(mag_data);
+  mavlink_interface_->UpdateMag(mag_data, 1);
 }
 
 void GazeboMavlinkInterface::AirspeedCallback(AirspeedPtr& airspeed_msg, const int& id) {
@@ -1152,7 +1152,7 @@ void GazeboMavlinkInterface::BarometerCallback(BarometerPtr& baro_msg) {
   baro_data.temperature = baro_msg->temperature();
   baro_data.abs_pressure = baro_msg->absolute_pressure();
   baro_data.pressure_alt = baro_msg->pressure_altitude();
-  mavlink_interface_->UpdateBarometer(baro_data);
+  mavlink_interface_->UpdateBarometer(baro_data, 1);
 }
 
 void GazeboMavlinkInterface::WindVelocityCallback(WindPtr& msg) {
