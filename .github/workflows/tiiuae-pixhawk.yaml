@@ -35,7 +35,7 @@ jobs:
       - name: Checkout px4-firmware
         uses: actions/checkout@v2
         with:
-          # token: ${{ secrets.GH_REPO_TOKEN }}
+          token: ${{ secrets.GH_REPO_TOKEN }}
           submodules: recursive
           path: px4-firmware
           fetch-depth: 0
