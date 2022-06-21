@@ -121,7 +121,7 @@ jobs:
       - name: Upload px4-firmware build to Artifactory
         env:
           RT_USER: ${{ secrets.RT_USER }}
-          RT_API_KEY: ${{ secrets.RT_API_KEY }}
+          RT_API_KEY: ${{ secrets.RT_APIKEY }}
           RT_URL: ${{ secrets.RT_URL }}
           ARTIFACTORY_GEN_REPO: gen-public-local
           BUILD_NAME_PX4: px4-firmware
