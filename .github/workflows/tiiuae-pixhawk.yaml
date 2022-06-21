@@ -111,7 +111,6 @@ jobs:
     name: upload builds to Artifactory
     runs-on: ubuntu-latest
     needs: [pixhawk4, saluki-v1, px4fwupdater]
-    if: github.event_name == 'push'
     steps:
       - name: Download pixhawk artifacts
         uses: actions/download-artifact@v2
