@@ -86,7 +86,7 @@ jobs:
         id: containermeta # referenced from later step
         uses: docker/metadata-action@v3
         with:
-          images: ghcr.io/tiiuae/px4-firmware
+          images: artifactory.ssrcdevops.tii.ae/tiiuae/px4-firmware
           tags: |
             type=ref,event=branch
             type=ref,event=pr
