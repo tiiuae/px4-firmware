@@ -144,7 +144,7 @@ jobs:
                      "$pkg" \
                      "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/$pkg_name"
           jfrog rt u --target-props COMMIT="$GITHUB_SHA" \
-                     --build-name "$BUILD_NAME_PX4"
+                     --build-name "$BUILD_NAME_PX4" \
                      --build-number "$GITHUB_SHA" \
                      "$px5_pkg" \
                      "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/$px5_pkg_name"
