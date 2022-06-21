@@ -118,14 +118,17 @@ jobs:
           name: pixhawk
           path: bin
       - uses: jfrog/setup-jfrog-cli@v2
-        env:
-          JF_ARTIFACTORY_1: ${{ secrets.RT_TOKEN }}
       - name: Upload px4-firmware build to Artifactory
         env:
+          RT_USER: ${{ secrets.RT_USER }}
+          RT_API_KEY: ${{ secrets.RT_API_KEY }}
+          RT_URL: ${{ secrets.RT_URL }}
           ARTIFACTORY_GEN_REPO: gen-public-local
           BUILD_NAME_PX4: px4-firmware
           CI: true
         run: |
+          jf c add --url "$RT_URL" --user "$RT_USER" --password "$RT_API_KEY"
+          jf rt ping
           set -exu
           pkg=$(find bin -name 'px4_fmu-v5_ssrc*.px4')
           px5_pkg=$(find bin -name 'px4_fmu-v5x_ssrc*.px4')
