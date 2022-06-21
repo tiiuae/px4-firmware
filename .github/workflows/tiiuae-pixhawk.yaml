@@ -129,8 +129,6 @@ jobs:
         run: |
           jf c add --url "$RT_URL" --user "$RT_USER" --password "$RT_API_KEY"
           jf rt ping
-          sudo touch newfile.txt
-          jf rt u newfile.txt $ARTIFACTORY_GEN_REPO
           set -exu
           pkg=$(find bin -name 'px4_fmu-v5_ssrc*.px4')
           px5_pkg=$(find bin -name 'px4_fmu-v5x_ssrc*.px4')
@@ -146,7 +144,7 @@ jobs:
                      "$pkg" \
                      "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/$pkg_name"
           jfrog rt u --target-props COMMIT="$GITHUB_SHA" \
-                     --build-name "$BUILD_NAME_PX4" \gen-public-local
+                     --build-name "$BUILD_NAME_PX4"
                      --build-number "$GITHUB_SHA" \
                      "$px5_pkg" \
                      "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/$px5_pkg_name"
