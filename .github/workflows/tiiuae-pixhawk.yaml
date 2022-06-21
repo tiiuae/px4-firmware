@@ -1,10 +1,7 @@
 name: tiiuae-pixhawk
 
 on:
-  push:
-    branches: [ rel7_hotfix ]
-  pull_request:
-    branches: [ rel7_hotfix ]
+   workflow_dispatch:
 
 jobs:
   pixhawk4:
@@ -35,12 +32,11 @@ jobs:
   saluki-v1:
     name: build saluki-v1
     runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     steps:
       - name: Checkout px4-firmware
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.GH_REPO_TOKEN }}
+          # token: ${{ secrets.GH_REPO_TOKEN }}
           submodules: recursive
           path: px4-firmware
           fetch-depth: 0
@@ -100,13 +96,13 @@ jobs:
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: artifactory.ssrcdevops.tii.ae
+          username: ${{ secrets.RT_USER }}
+          password: ${{ secrets.RT_APIKEY }}
       - name: Firmware flasher - Build and push
         uses: docker/build-push-action@v2
         with:
-          push: ${{ github.event_name == 'push' }}
+          push: true
           context: .
           file: px4-firmware/Tools/px_uploader.Dockerfile
           tags: ${{ steps.containermeta.outputs.tags }}
@@ -125,7 +121,7 @@ jobs:
           path: bin
       - uses: jfrog/setup-jfrog-cli@v2
         env:
-          JF_ARTIFACTORY_1: ${{ secrets.ARTIFACTORY_TOKEN }}
+          JF_ARTIFACTORY_1: ${{ secrets.RT_TOKEN }}
       - name: Upload px4-firmware build to Artifactory
         env:
           ARTIFACTORY_GEN_REPO: gen-public-local
@@ -147,7 +143,7 @@ jobs:
                      "$pkg" \
                      "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/$pkg_name"
           jfrog rt u --target-props COMMIT="$GITHUB_SHA" \
-                     --build-name "$BUILD_NAME_PX4" \
+                     --build-name "$BUILD_NAME_PX4" \gen-public-local
                      --build-number "$GITHUB_SHA" \
                      "$px5_pkg" \
                      "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/$px5_pkg_name"
