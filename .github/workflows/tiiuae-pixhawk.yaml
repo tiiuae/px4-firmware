@@ -1,7 +1,6 @@
 name: tiiuae-pixhawk
 
-on:
-   workflow_dispatch:
+on: [workflow_dispatch]
 
 jobs:
   pixhawk4:
