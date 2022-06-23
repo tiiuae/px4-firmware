@@ -680,7 +680,7 @@
     <!--} END MOTOR PLUGINS -->
 
     <!-- GPS PLUGIN {-->
-    <link name='gps0::link'>
+    <link name='gps1::link'>
       <pose>0 0 0 0 0 0</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
@@ -723,9 +723,9 @@
         </plugin>
       </sensor>
     </link>
-    <joint name='gps0_joint' type='fixed'>
+    <joint name='gps1_joint' type='fixed'>
       <parent>base_link</parent>
-      <child>gps0::link</child>
+      <child>gps1::link</child>
     </joint>
     <!--} END GPS PLUGIN -->
 
