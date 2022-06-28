@@ -140,8 +140,8 @@ public:
     void open();
     void close();
     void Load();
-    void SendSensorMessages(const int &time_usec);
-    void SendSensorMessages(const int &time_usec, HILData &hil_data);
+    void SendSensorMessages(const uint64_t time_usec);
+    void SendSensorMessages(const uint64_t time_usec, HILData &hil_data);
     void UpdateBarometer(const SensorData::Barometer &data, const int id = 0);
     void UpdateAirspeed(const SensorData::Airspeed &data, const int id = 0);
     void UpdateIMU(const SensorData::Imu &data, const int id = 0);
