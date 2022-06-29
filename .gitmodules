@@ -76,4 +76,4 @@
 	branch = px4
 [submodule "boards/ssrc/saluki-v1"]
 	path = boards/ssrc/saluki-v1
-	url = ../saluki-v1.git
+	url = https://github.com/tiiuae/saluki-v1.git

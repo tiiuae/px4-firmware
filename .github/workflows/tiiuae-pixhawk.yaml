@@ -1,10 +1,6 @@
 name: tiiuae-pixhawk
 
-on:
-  push:
-    branches: [ rel7_hotfix ]
-  pull_request:
-    branches: [ rel7_hotfix ]
+on: [workflow_dispatch]
 
 jobs:
   pixhawk4:
@@ -35,7 +31,6 @@ jobs:
   saluki-v1:
     name: build saluki-v1
     runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     steps:
       - name: Checkout px4-firmware
         uses: actions/checkout@v2
@@ -91,7 +86,7 @@ jobs:
         id: containermeta # referenced from later step
         uses: docker/metadata-action@v3
         with:
-          images: ghcr.io/tiiuae/px4-firmware
+          images: artifactory.ssrcdevops.tii.ae/tiiuae/px4-firmware
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -100,13 +95,13 @@ jobs:
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: artifactory.ssrcdevops.tii.ae
+          username: ${{ secrets.RT_USER }}
+          password: ${{ secrets.RT_APIKEY }}
       - name: Firmware flasher - Build and push
         uses: docker/build-push-action@v2
         with:
-          push: ${{ github.event_name == 'push' }}
+          push: true
           context: .
           file: px4-firmware/Tools/px_uploader.Dockerfile
           tags: ${{ steps.containermeta.outputs.tags }}
@@ -116,7 +111,6 @@ jobs:
     name: upload builds to Artifactory
     runs-on: ubuntu-latest
     needs: [pixhawk4, saluki-v1, px4fwupdater]
-    if: github.event_name == 'push'
     steps:
       - name: Download pixhawk artifacts
         uses: actions/download-artifact@v2
@@ -124,14 +118,17 @@ jobs:
           name: pixhawk
           path: bin
       - uses: jfrog/setup-jfrog-cli@v2
-        env:
-          JF_ARTIFACTORY_1: ${{ secrets.ARTIFACTORY_TOKEN }}
       - name: Upload px4-firmware build to Artifactory
         env:
+          RT_USER: ${{ secrets.RT_USER }}
+          RT_API_KEY: ${{ secrets.RT_APIKEY }}
+          RT_URL: ${{ secrets.RT_URL }}
           ARTIFACTORY_GEN_REPO: gen-public-local
           BUILD_NAME_PX4: px4-firmware
           CI: true
         run: |
+          jf c add --url "$RT_URL" --user "$RT_USER" --password "$RT_API_KEY"
+          jf rt ping
           set -exu
           pkg=$(find bin -name 'px4_fmu-v5_ssrc*.px4')
           px5_pkg=$(find bin -name 'px4_fmu-v5x_ssrc*.px4')
