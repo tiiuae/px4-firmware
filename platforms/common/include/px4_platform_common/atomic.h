@@ -59,7 +59,7 @@
 #include <stdint.h>
 
 #if defined(__PX4_NUTTX)
-# include <nuttx/irq.h>
+#include <px4_platform/atomic_block.h>
 #endif // __PX4_NUTTX
 
 namespace px4
@@ -87,9 +87,9 @@ public:
 #if defined(__PX4_NUTTX)
 
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			irqstate_t flags = enter_critical_section();
+			_atomic.start();
 			T val = _value;
-			leave_critical_section(flags);
+			_atomic.finish();
 			return val;
 
 		} else
@@ -107,9 +107,9 @@ public:
 #if defined(__PX4_NUTTX)
 
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			irqstate_t flags = enter_critical_section();
+			_atomic.start();
 			_value = value;
-			leave_critical_section(flags);
+			_atomic.finish();
 
 		} else
 #endif // __PX4_NUTTX
@@ -127,9 +127,9 @@ public:
 #if defined(__PX4_NUTTX)
 
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			irqstate_t flags = enter_critical_section();
+			_atomic.start();
 			T ret = _value++;
-			leave_critical_section(flags);
+			_atomic.finish();
 			return ret;
 
 		} else
@@ -148,9 +148,9 @@ public:
 #if defined(__PX4_NUTTX)
 
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			irqstate_t flags = enter_critical_section();
+			_atomic.start();
 			T ret = _value--;
-			leave_critical_section(flags);
+			_atomic.finish();
 			return ret;
 
 		} else
@@ -169,10 +169,10 @@ public:
 #if defined(__PX4_NUTTX)
 
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			irqstate_t flags = enter_critical_section();
+			_atomic.start();
 			T val = _value;
 			_value &= num;
-			leave_critical_section(flags);
+			_atomic.finish();
 			return val;
 
 		} else
@@ -191,10 +191,10 @@ public:
 #if defined(__PX4_NUTTX)
 
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			irqstate_t flags = enter_critical_section();
+			_atomic.start();
 			T val = _value;
 			_value ^= num;
-			leave_critical_section(flags);
+			_atomic.finish();
 			return val;
 
 		} else
@@ -213,10 +213,10 @@ public:
 #if defined(__PX4_NUTTX)
 
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			irqstate_t flags = enter_critical_section();
+			_atomic.start();
 			T val = _value;
 			_value |= num;
-			leave_critical_section(flags);
+			_atomic.finish();
 			return val;
 
 		} else
@@ -235,10 +235,10 @@ public:
 #if defined(__PX4_NUTTX)
 
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			irqstate_t flags = enter_critical_section();
+			_atomic.start();
 			T ret = _value;
 			_value = ~(_value & num);
-			leave_critical_section(flags);
+			_atomic.finish();
 			return ret;
 
 		} else
@@ -261,16 +261,16 @@ public:
 #if defined(__PX4_NUTTX)
 
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			irqstate_t flags = enter_critical_section();
+			_atomic.start();
 
 			if (_value == *expected) {
 				_value = desired;
-				leave_critical_section(flags);
+				_atomic.finish();
 				return true;
 
 			} else {
 				*expected = _value;
-				leave_critical_section(flags);
+				_atomic.finish();
 				return false;
 			}
 
@@ -283,6 +283,9 @@ public:
 
 private:
 	T _value {};
+#if defined(__PX4_NUTTX)
+	mutable atomic_block _atomic;
+#endif
 };
 
 using atomic_int = atomic<int>;

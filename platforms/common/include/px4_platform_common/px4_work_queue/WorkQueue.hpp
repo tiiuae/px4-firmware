@@ -43,6 +43,10 @@
 #include <px4_platform_common/sem.h>
 #include <px4_platform_common/tasks.h>
 
+#ifdef __PX4_NUTTX
+#include <px4_platform/atomic_block.h>
+#endif
+
 namespace px4
 {
 
@@ -82,11 +86,12 @@ private:
 
 	inline void SignalWorkerThread();
 
+
 #ifdef __PX4_NUTTX
 	// In NuttX work can be enqueued from an ISR
-	void work_lock() { _flags = enter_critical_section(); }
-	void work_unlock() { leave_critical_section(_flags); }
-	irqstate_t _flags;
+	void work_lock() { _atomic.start(); }
+	void work_unlock() { _atomic.finish(); }
+	atomic_block _atomic;
 #else
 	// loop as the wait may be interrupted by a signal
 	void work_lock() { do {} while (px4_sem_wait(&_qlock) != 0); }
