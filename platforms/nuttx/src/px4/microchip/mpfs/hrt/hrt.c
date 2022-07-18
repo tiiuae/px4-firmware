@@ -93,12 +93,17 @@
  */
 static struct sq_queue_s	callout_queue;
 
-/* timer static variables */
-static volatile uint64_t base_time;
-static volatile uint32_t loadval;
-
 /* timer count at interrupt (for latency purposes) */
 static uint32_t			latency_actual;
+
+/* currently loaded timer value */
+static volatile uint32_t	loadval;
+
+/* previous timer value after call to hrt_get_curr_time() */
+static volatile uint32_t	prev_count;
+
+/* flag to check if there was a timer isr recently */
+static volatile bool		isr_occured;
 
 /* latency histogram */
 const uint16_t latency_bucket_count = LATENCY_BUCKET_COUNT;
@@ -121,52 +126,53 @@ static void hrt_call_invoke(void);
  * function to retrieve current timestamp in timer resolution.
  * this handles the possible overflows and returns a monotonically
  * increasing time.
- *
- * Always call with interrupts disabled.
  */
 
 inline static uint64_t hrt_get_curr_time(void)
 {
-	uint64_t	curr_time;
-	static volatile uint64_t	prev_curr_time;
+	/* timer static variables */
+	static volatile uint64_t	curr_time;
+	uint32_t count;
+
+	irqstate_t	flags = px4_enter_critical_section();
 
 	/* get the current counter value */
-	uint32_t count = getreg32(MPFS_MSTIMER_LO_BASE + MPFS_MSTIMER_TIM1VALUE_OFFSET);
+	count = getreg32(MPFS_MSTIMER_LO_BASE + MPFS_MSTIMER_TIM1VALUE_OFFSET);
 
-	curr_time = base_time + (loadval - count);
+	/* in the isr it is not quaranteed that count > prev_count since the
+	 * prev_count may have been updated last time in the previous isr
+	 * so check it separately here.
+	 */
 
-	/* This takes care of timer wrapping over during some other isr, and this
-	 * function being called several times before the base_time is updated in the
-	 * timer isr.
-	*/
+	if (count > prev_count || isr_occured) {
+		curr_time += prev_count + (loadval - count);
 
-	if (prev_curr_time > curr_time) {
-		curr_time += loadval;
-
-		if (prev_curr_time > curr_time) {
-			_err("HRT not monotonic\n");
-		}
+	} else {
+		curr_time += (prev_count - count);
 	}
 
-	prev_curr_time = curr_time;
+	isr_occured = false;
+	prev_count = count;
+
+	px4_leave_critical_section(flags);
 
 	return curr_time;
 }
 
 /**
  * function to set new time to the the next interrupt.
- *
- * Always call with interrupts disabled.
  */
 
 inline static void hrt_set_new_deadline(uint32_t deadline)
 {
-	uint64_t curr_time = hrt_get_curr_time();
+	irqstate_t	flags = px4_enter_critical_section();
 
 	/* load the new deadline into register and store it locally */
 	putreg32(deadline, MPFS_MSTIMER_LO_BASE + MPFS_MSTIMER_TIM1LOADVAL_OFFSET);
 	loadval = deadline;
-	base_time = curr_time;
+	prev_count = deadline;
+
+	px4_leave_critical_section(flags);
 }
 
 /**
@@ -214,8 +220,8 @@ hrt_tim_isr(int irq, void *context, void *arg)
 
 	/* was this a timer tick? */
 	if (status & MPFS_MSTIMER_RIS_MASK) {
-		/* update base_time */
-		base_time += loadval;
+		/* mark that an isr just occured for the next call of hrt_get_curr_time */
+		isr_occured = true;
 
 		/* do latency calculations */
 		hrt_latency_update();
@@ -241,15 +247,7 @@ hrt_abstime
 hrt_absolute_time(void)
 {
 	uint64_t	curr_time;
-	irqstate_t	flags;
-
-	/* prevent re-entry */
-	flags = px4_enter_critical_section();
-
 	curr_time = hrt_get_curr_time();
-
-	px4_leave_critical_section(flags);
-
 	return HRT_COUNTER_SCALE(curr_time);
 }
 
