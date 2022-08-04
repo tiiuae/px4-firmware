@@ -52,7 +52,7 @@
 
 bool find_toc(const image_toc_entry_t **toc_entries, uint8_t *len)
 {
-	const uintptr_t toc_start_u32 = APP_LOAD_ADDRESS + BOOT_DELAY_ADDRESS + 8;
+	const uintptr_t toc_start_u32 = FLASH_START_ADDRESS + BOOT_DELAY_ADDRESS + 8;
 	const image_toc_start_t *toc_start = (const image_toc_start_t *)toc_start_u32;
 	const image_toc_entry_t *entry = (const image_toc_entry_t *)(toc_start_u32 + sizeof(image_toc_start_t));
 
@@ -76,7 +76,7 @@ bool find_toc(const image_toc_entry_t **toc_entries, uint8_t *len)
 		 */
 
 		if (i <= MAX_TOC_ENTRIES && i > 0 &&
-		    (uintptr_t)entry[0].start == APP_LOAD_ADDRESS &&
+		    (uintptr_t)entry[0].start >= FLASH_START_ADDRESS &&
 		    (uintptr_t)entry[0].end <= (FLASH_END_ADDRESS - sizeof(uintptr_t)) &&
 		    (uintptr_t)entry[0].end > (uintptr_t)entry[0].start) {
 			sig_idx = entry[0].signature_idx;

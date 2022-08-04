@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2021 Technology Innovation Institute. All rights reserved.
+ *   Copyright (C) 2022 Technology Innovation Institute. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,46 +31,27 @@
  *
  ****************************************************************************/
 
-#include <stdint.h>
-#include <stdbool.h>
-#include "image_toc.h"
-#include "hw_config.h"
+#ifndef PX4_UNSIGNED_FIRMWARE
+#  error "The path to the unsigned PX4 image is not set"
+#endif
 
-#ifdef BOOTLOADER_USE_SECURITY
+/* The unsigned firmware is injected here
+ *
+ * The build process goes as follows:
+ * 1. The unsigned firmware is built
+ *    - In case of protected mode the kernel + user bin files are concatenated
+ *      together (with padding), resulting in a single, unsigned binary file
+ * 2. The Table-of-Contents (TOC) is built along with this file. The result
+ *    will be the final unsigned firmware
+ * 3. The resulting TOC + firmware binary is signed, which is the final result
+ */
 
-#include <px4_platform_common/crypto_backend.h>
+#define __STR(s)  #s
+#define __XSTR(s) __STR(s)
 
-bool verify_app(uint16_t idx, const image_toc_entry_t *toc_entries)
-{
-	uintptr_t entry_start, entry_end;
-	volatile uint8_t *app_signature_ptr = NULL;
-	volatile size_t len = 0;
-	bool ret;
-
-	uint8_t sig_idx = toc_entries[idx].signature_idx;
-	uint8_t sig_key = toc_entries[idx].signature_key;
-	crypto_session_handle_t handle = crypto_open(BOOTLOADER_SIGNING_ALGORITHM);
-	app_signature_ptr = (volatile uint8_t *)toc_entries[sig_idx].start;
-
-	/* ToC is included in the signature, so must extend the area by ToC size */
-
-	entry_start = (uintptr_t)toc_entries[idx].start - TOC_AREA_SIZE;
-	entry_end = (uintptr_t)toc_entries[idx].end;
-	len = (size_t)entry_end - (size_t)entry_start;
-
-	ret =  crypto_signature_check(handle, sig_key, (const uint8_t *)app_signature_ptr,
-			(const uint8_t *)entry_start, len);
-
-	crypto_close(&handle);
-	return ret;
-}
-
-bool decrypt_app(uint16_t idx, const image_toc_entry_t *toc_entries)
-{
-	/*
-	 * Not implemented yet.
-	 */
-	return false;
-}
-
-#endif //BOOTLOADER_USE_SECURITY
+__asm__
+(
+	".section .firmware\n"
+	".balign  16\n"
+	".incbin \"" __XSTR(PX4_UNSIGNED_FIRMWARE) "\"\n"
+);

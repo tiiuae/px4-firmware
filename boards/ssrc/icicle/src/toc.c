@@ -33,21 +33,23 @@
 #include <image_toc.h>
 
 /* (Maximum) size of the signature */
+
 #define SIGNATURE_SIZE 64
 
 /* Boot image starts at __start and ends at
- * the beginning of signature
+ * the beginning of signature, but for protected/kernel mode we don't know
+ * their locations. Assume binary file start and binary file end ?
 */
+extern const uintptr_t _app_start;
+extern const uintptr_t _app_end;
 
-extern uint32_t  __start;
-extern const int *_boot_signature;
-
-#define BOOT_ADDR &__start
-#define BOOT_END ((const void *)&_boot_signature)
+#define BOOT_ADDR &_app_start
+#define BOOT_END ((const void *)&_app_end)
 
 /* Boot signature start and end are defined by the
  * signature definition below
 */
+extern const uintptr_t _boot_signature;
 
 #define BOOTSIG_ADDR ((const void *)&_boot_signature)
 #define BOOTSIG_END ((const void *)((const uint8_t *)BOOTSIG_ADDR+SIGNATURE_SIZE))
