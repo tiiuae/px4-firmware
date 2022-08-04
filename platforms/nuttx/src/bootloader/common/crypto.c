@@ -32,8 +32,10 @@
  ****************************************************************************/
 
 #include <stdbool.h>
+
 #include "image_toc.h"
 #include "hw_config.h"
+#include "crypto.h"
 
 #ifdef BOOTLOADER_USE_SECURITY
 
