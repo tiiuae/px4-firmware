@@ -32,12 +32,18 @@
  ****************************************************************************/
 
 #include <stdbool.h>
+#include "crypto.h"
 #include "image_toc.h"
 #include "hw_config.h"
 
 #ifdef BOOTLOADER_USE_SECURITY
 
 #include <px4_platform_common/crypto_backend.h>
+
+bool verify_toc(const void *toc_start)
+{
+	return verify_app(0, (const image_toc_entry_t *)get_toc_entry0(toc_start));
+}
 
 bool verify_app(uint16_t idx, const image_toc_entry_t *toc_entries)
 {
