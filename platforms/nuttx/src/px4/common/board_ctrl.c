@@ -48,7 +48,7 @@
 #if defined(GPIO_OTGFS_VBUS)
 int board_read_VBUS_state(void)
 {
-	return px4_arch_gpioread(GPIO_OTGFS_VBUS);
+	return (px4_arch_gpioread(GPIO_OTGFS_VBUS) ? 0 : 1);
 }
 #endif
 
