@@ -1,6 +1,8 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2014 Pavel Kirienko <pavel.kirienko@gmail.com>
+ *   Kinetis Port Author David Sidrane <david_s5@nscdg.com>
+ *   NuttX SocketCAN port Copyright (C) 2022 NXP Semiconductors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,36 +33,59 @@
  *
  ****************************************************************************/
 
-#pragma once
+#include <uavcan_nuttx/thread.hpp>
+#include <uavcan_nuttx/socketcan.hpp>
 
-#include "sensor_bridge.hpp"
-
-#include <stdint.h>
-
-#include <uORB/topics/sensor_optical_flow.h>
-
-#include <com/hex/equipment/flow/Measurement.hpp>
-
-class UavcanFlowBridge : public UavcanSensorBridgeBase
+namespace uavcan_socketcan
 {
-public:
-	static const char *const NAME;
 
-	UavcanFlowBridge(uavcan::INode &node);
+BusEvent::BusEvent(CanDriver &can_driver)
+{
+	sem_init(&sem_, 0, 0);
+	sem_setprotocol(&sem_, SEM_PRIO_NONE);
+}
 
-	const char *get_name() const override { return NAME; }
+BusEvent::~BusEvent()
+{
+	sem_destroy(&sem_);
+}
 
-	int init() override;
+bool BusEvent::wait(uavcan::MonotonicDuration duration)
+{
+	if (duration.isPositive()) {
+		timespec abstime;
 
-private:
+		if (clock_gettime(CLOCK_REALTIME, &abstime) == 0) {
+			const unsigned billion = 1000 * 1000 * 1000;
+			uint64_t nsecs = abstime.tv_nsec + (uint64_t)duration.toUSec() * 1000;
+			abstime.tv_sec += nsecs / billion;
+			nsecs -= (nsecs / billion) * billion;
+			abstime.tv_nsec = nsecs;
 
-	void flow_sub_cb(const uavcan::ReceivedDataStructure<com::hex::equipment::flow::Measurement> &msg);
+			int ret;
 
-	typedef uavcan::MethodBinder < UavcanFlowBridge *,
-		void (UavcanFlowBridge::*)
-		(const uavcan::ReceivedDataStructure<com::hex::equipment::flow::Measurement> &) >
-		FlowCbBinder;
+			while ((ret = sem_timedwait(&sem_, &abstime)) == -1 && errno == EINTR);
 
-	uavcan::Subscriber<com::hex::equipment::flow::Measurement, FlowCbBinder> _sub_flow;
+			if (ret == -1) { // timed out or error
+				return false;
+			}
 
-};
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void BusEvent::signalFromInterrupt()
+{
+	if (sem_.semcount <= 0) {
+		(void)sem_post(&sem_);
+	}
+
+	if (signal_cb_) {
+		signal_cb_();
+	}
+}
+
+}

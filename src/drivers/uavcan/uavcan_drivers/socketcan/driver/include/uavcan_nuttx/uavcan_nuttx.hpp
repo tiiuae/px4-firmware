@@ -1,6 +1,7 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2014 Pavel Kirienko <pavel.kirienko@gmail.com>
+ *   NuttX SocketCAN port Copyright (C) 2022 NXP Semiconductors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,34 +34,8 @@
 
 #pragma once
 
-#include "sensor_bridge.hpp"
+#include <uavcan/uavcan.hpp>
 
-#include <stdint.h>
-
-#include <uORB/topics/sensor_optical_flow.h>
-
-#include <com/hex/equipment/flow/Measurement.hpp>
-
-class UavcanFlowBridge : public UavcanSensorBridgeBase
-{
-public:
-	static const char *const NAME;
-
-	UavcanFlowBridge(uavcan::INode &node);
-
-	const char *get_name() const override { return NAME; }
-
-	int init() override;
-
-private:
-
-	void flow_sub_cb(const uavcan::ReceivedDataStructure<com::hex::equipment::flow::Measurement> &msg);
-
-	typedef uavcan::MethodBinder < UavcanFlowBridge *,
-		void (UavcanFlowBridge::*)
-		(const uavcan::ReceivedDataStructure<com::hex::equipment::flow::Measurement> &) >
-		FlowCbBinder;
-
-	uavcan::Subscriber<com::hex::equipment::flow::Measurement, FlowCbBinder> _sub_flow;
-
-};
+#include <uavcan_nuttx/thread.hpp>
+#include <uavcan_nuttx/clock.hpp>
+#include <uavcan_nuttx/socketcan.hpp>
