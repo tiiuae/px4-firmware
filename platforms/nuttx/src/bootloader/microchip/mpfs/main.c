@@ -59,6 +59,7 @@
 #include "image_toc.h"
 
 extern int sercon_main(int c, char **argv);
+int start_image_loading(void);
 
 #define MK_GPIO_INPUT(def) (((def) & (~(GPIO_OUTPUT)))  | GPIO_INPUT)
 
@@ -89,6 +90,20 @@ static struct mtd_geometry_s geo;
 
 #if defined(CONFIG_MTD_M25P)
 static struct spi_dev_s *spinor = 0;
+#endif
+
+#if defined(CONFIG_MTD_M25P) || defined(CONFIG_MMCSD)
+static uint32_t first_flash_block[FLASH_RW_BLOCK / sizeof(uint32_t)]  __attribute__((aligned(4096)));
+static uint32_t flash_block[FLASH_RW_BLOCK / sizeof(uint32_t)]  __attribute__((aligned(4096)));
+
+/* The first address which is not yet written to disk */
+static uintptr_t first_unwritten;
+
+/* Last address which was passed to flash_func_write_word */
+static uintptr_t prev_addr_written;
+
+/* Last word for which was passed to flash_func_write_word */
+static uint32_t prev_word_written;
 #endif
 
 static int loader_task = -1;
@@ -369,7 +384,7 @@ flash_func_sector_size(unsigned sector)
 static void create_px4_file(void)
 {
 	if (sdcard_mounted) {
-		px4_fd = open("/sdcard/boot/" IMAGE_FN, O_RDWR | O_CREAT);
+		px4_fd = open("/sdcard/boot/" IMAGE_FN, O_RDWR | O_CREAT | O_TRUNC, 0644);
 
 		/* Couldn't open the file, make sure that the directory exists and try to re-open */
 
@@ -380,7 +395,7 @@ static void create_px4_file(void)
 				_alert("boot directory creation failed %d\n", ret);
 			}
 
-			px4_fd = open("/sdcard/boot/" IMAGE_FN, O_CREAT | O_TRUNC, 0644);
+			px4_fd = open("/sdcard/boot/" IMAGE_FN, O_RDWR | O_CREAT | O_TRUNC, 0644);
 		}
 
 		if (px4_fd < 0) {
@@ -394,10 +409,6 @@ static void create_px4_file(void)
 void
 flash_func_erase_sector(unsigned sector)
 {
-
-	unsigned ss = flash_func_sector_size(sector);
-	uint64_t *addr = (uint64_t *)((uint64_t)APP_LOAD_ADDRESS + sector * ss);
-
 	/**
 	 * Break any loading process
 	 *
@@ -439,14 +450,28 @@ flash_func_erase_sector(unsigned sector)
 
 #endif
 
+#if defined(CONFIG_MTD_M25P) || defined(CONFIG_MMCSD)
+
+	/* Reset the static variables used in programming verification */
+	if (sector == 0) {
+		first_unwritten = 0;
+		prev_addr_written = 0;
+		prev_word_written = 0xffffffffu;
+		memset(flash_block, 0xff, sizeof(flash_block));
+		memset(first_flash_block, 0xff, sizeof(first_flash_block));
+	}
+
+#else
+
 	/* Erase the RAM contents */
-
-	memset(addr, 0xFFFFFFFF, ss);
-
+	unsigned ss = flash_func_sector_size(sector);
+	uint32_t *addr = (uint32_t *)((uintptr_t)APP_LOAD_ADDRESS + sector * ss);
+	memset(addr, 0xFF, ss);
+#endif
 }
 
 #if defined(CONFIG_MTD_M25P) || defined(CONFIG_MMCSD)
-static ssize_t flash_write_pages(off_t start, unsigned n_pages, uint8_t *src)
+static ssize_t flash_write_pages(off_t start, unsigned n_pages, uint32_t *src)
 {
 	ssize_t ret = 0;
 #ifdef CONFIG_MTD_M25P
@@ -458,7 +483,7 @@ static ssize_t flash_write_pages(off_t start, unsigned n_pages, uint8_t *src)
 		ret = -errno;
 	}
 
-#elif defined(CONFIG_MMCSD)
+#else
 
 	if (!sdcard_mounted) {
 		return -EBADF;
@@ -469,7 +494,6 @@ static ssize_t flash_write_pages(off_t start, unsigned n_pages, uint8_t *src)
 
 	if (ret >= 0) {
 		ssize_t bytes = n_pages * flash_func_block_size();
-
 		ret = write(px4_fd, (void *)src, bytes);
 
 		if (ret != bytes) {
@@ -477,6 +501,8 @@ static ssize_t flash_write_pages(off_t start, unsigned n_pages, uint8_t *src)
 			_alert("eMMC write error at 0x%x-0x%x\n", start * flash_func_block_size(),
 			       (start + n_pages) * flash_func_block_size());
 		}
+
+		fsync(px4_fd);
 
 	} else {
 		_alert("File lseek fail\n");
@@ -491,45 +517,19 @@ static ssize_t flash_write_pages(off_t start, unsigned n_pages, uint8_t *src)
 void
 flash_func_write_word(uintptr_t address, uint32_t word)
 {
-	/* Also copy it directly to load address for booting */
-	uint32_t *app_load_addr = (uint32_t *)(address + APP_LOAD_ADDRESS);
-
-	*app_load_addr = word;
-
 #if defined(CONFIG_MTD_M25P) || defined(CONFIG_MMCSD)
-
-	static uintptr_t end_address = 0;
-	static uintptr_t first_unwritten = 0;
-
 	// start of this block in memory
-	uint8_t *block_start;
-
-	// total bytes to be written
-	unsigned bytes;
+	uint32_t *block_start;
 
 	int ret = 0;
 
-	if (address > 0 &&
-	    ((address + sizeof(uint32_t)) % FLASH_RW_BLOCK) == 0) {
-		// Every time a full FLASH_RW_BLOCK is received, store it to disk
+	off_t idx = (address % FLASH_RW_BLOCK) / sizeof(uint32_t);
 
-		block_start = ((uint8_t *)app_load_addr + sizeof(uint32_t)) - FLASH_RW_BLOCK;
-		bytes = FLASH_RW_BLOCK;
-
-		// first page to be written
-		off_t write_page = address / flash_func_block_size();
-		// total pages to be written
-		unsigned n_pages = (FLASH_RW_BLOCK / flash_func_block_size());
-		// write pages
-		ret = flash_write_pages(write_page, n_pages, (uint8_t *)block_start);
-		// store the first unwritten address for the end of image handling
-		first_unwritten = address + sizeof(uint32_t);
-	}
-
-	// the address 0 is written last, in the end of flashing
 	if (address == 0 && word != 0xffffffffu) {
+
+		// This is the last write / end of flashing
 		// Write the last incomplete block
-		bytes = end_address - first_unwritten;
+		unsigned bytes = prev_addr_written + sizeof(uint32_t) - first_unwritten;
 		unsigned n_pages = bytes / flash_func_block_size();
 
 		if (bytes % flash_func_block_size()) {
@@ -537,45 +537,117 @@ flash_func_write_word(uintptr_t address, uint32_t word)
 		}
 
 		if (n_pages) {
-			block_start = (uint8_t *)(APP_LOAD_ADDRESS + first_unwritten);
+			block_start = &flash_block[(first_unwritten % FLASH_RW_BLOCK) / sizeof(uint32_t)];
 			ret = flash_write_pages(first_unwritten / flash_func_block_size(), n_pages,
 						block_start);
 		}
 
-		// re-write the first page
-		if (ret == 0) {
-			block_start = (uint8_t *)APP_LOAD_ADDRESS;
-			bytes = flash_func_block_size();
-			ret = flash_write_pages(0, 1, block_start);
+		// re-write the first page to update first word
+		if (ret >= 0) {
+			first_flash_block[0] = word;
+			ret = flash_write_pages(0, 1, first_flash_block);
+
+			if (ret >= 0) {
+				start_image_loading();
+			}
+		}
+
+	} else {
+
+		block_start = address < FLASH_RW_BLOCK ? first_flash_block : flash_block;
+		block_start[idx] = word;
+
+		// Write the block of data when a full block has been received
+
+		if (((address + sizeof(uint32_t)) % FLASH_RW_BLOCK) == 0) {
+
+			// first page to be written
+			off_t write_page = address / flash_func_block_size();
+			// total pages to be written
+			unsigned n_pages = (FLASH_RW_BLOCK / flash_func_block_size());
+			// write pages
+
+			ret = flash_write_pages(write_page, n_pages, block_start);
+			memset(flash_block, 0xff, FLASH_RW_BLOCK);
+			// store the first unwritten address for the end of image handling
+			first_unwritten = address + sizeof(uint32_t);
 		}
 	}
 
-	// if the writing failed, erase the written data in DRAM, and also
-	// the first word, in case this was the last write
-	if (ret < 0) {
-		memset((uint8_t *)block_start, 0xff, bytes);
-		*(uint32_t *)APP_LOAD_ADDRESS = 0xffffffffu;
-	}
+	prev_addr_written = address;
+	prev_word_written = ret < 0 ? 0xffffffffu : word;
 
-	end_address = address + sizeof(uint32_t);
-#endif
+#else
+	/* Copy it directly to load address for booting */
+	uint32_t *app_load_addr = (uint32_t *)(address + APP_LOAD_ADDRESS);
+
+	*app_load_addr = word;
 
 	/* After the last word has been written, update the loading_status */
 	if (address == 0 && word != 0xffffffffu) {
 		loading_status = DONE;
 	}
+
+#endif
+
 }
 
 uint32_t flash_func_read_word(uintptr_t address)
 {
 	uint32_t word;
 
+#if defined(CONFIG_MTD_M25P) || defined(CONFIG_MMCSD)
+	static uint32_t cached_block[FLASH_RW_BLOCK / sizeof(uint32_t)] __attribute__((aligned(4096)));
+	static int cached_block_idx = -1;
+	int idx = (address % FLASH_RW_BLOCK) / sizeof(uint32_t);
+	off_t block = address / FLASH_RW_BLOCK;
+
+	/* This handles the readback of every word during flashing. Since our mass storage
+	 * flashing first collects the data to be flashed, we can't yet read it from
+	 * the mass storage
+	 */
+	if (address == prev_addr_written) {
+		return prev_word_written;
+	}
+
+	/* CRC is calculated over the board_info.fw_size. Return 0xffffffff
+	 * for data which is beyond actual image size... */
+	if (address >= first_unwritten + FLASH_RW_BLOCK) {
+		return 0xffffffffu;
+	}
+
+	/* Return from flash_block for any yet unwritten words
+	 * this takes care of 2 cases:
+	 * 1. "erase check"
+	 * 2. the last unwritten block, which is only flashed after the crc check
+	 */
+
+	if (address >= first_unwritten) {
+		return flash_block[idx];
+	}
+
+	/* This handles the readback of any other read, really read it from the disk */
+
+	if (block != cached_block_idx) {
+#if defined(CONFIG_MMCSD)
+		lseek(px4_fd, block * FLASH_RW_BLOCK, SEEK_SET);
+		read(px4_fd, cached_block, FLASH_RW_BLOCK);
+#else
+		MTD_BREAD(mtd, block, FLASH_RW_BLOCK / flash_func_block_size(), cached_block);
+#endif
+		cached_block_idx = block;
+	}
+
+	word = cached_block[idx];
+
+#else
+
+	/* read directly back from DRAM */
 	address += APP_LOAD_ADDRESS;
 	word = *(uint32_t *)((uintptr_t)address);
-
+#endif
 	return word;
 }
-
 
 uint32_t
 flash_func_read_otp(uintptr_t address)
