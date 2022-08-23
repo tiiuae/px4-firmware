@@ -90,10 +90,10 @@
 
 #define HASH_PARAM              "_HASH_CHECK"
 
-#if defined(CONFIG_NET) || defined(__PX4_POSIX)
-# define MAVLINK_UDP
-# define DEFAULT_REMOTE_PORT_UDP 14550 ///< GCS port per MAVLink spec
-#endif // CONFIG_NET || __PX4_POSIX
+// #if defined(CONFIG_NET) || defined(__PX4_POSIX)
+// # define MAVLINK_UDP
+// # define DEFAULT_REMOTE_PORT_UDP 14550 ///< GCS port per MAVLink spec
+// #endif // CONFIG_NET || __PX4_POSIX
 
 enum class Protocol {
 	SERIAL = 0,
