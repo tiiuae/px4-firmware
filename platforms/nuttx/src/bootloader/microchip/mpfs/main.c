@@ -59,6 +59,7 @@
 #include "image_toc.h"
 
 extern int sercon_main(int c, char **argv);
+extern int mpfs_set_entrypt(uint64_t hartid, uintptr_t entry);
 
 #define MK_GPIO_INPUT(def) (((def) & (~(GPIO_OUTPUT)))  | GPIO_INPUT)
 
@@ -475,7 +476,6 @@ static void flash_write_pages(off_t start, unsigned n_pages, uint8_t *src)
 		_alert("eMMC write error at 0x%x-0x%x ret %d\n", start * flash_func_block_size(),
 		       (start + n_pages) * flash_func_block_size(), ret);
 	}
-
 #endif
 
 }
@@ -636,6 +636,8 @@ arch_do_jump(const uint32_t *app_base)
 
 	/* PX4 on hart 2 */
 #if CONFIG_MPFS_HART2_ENTRYPOINT != 0xFFFFFFFFFFFFFFFF
+	_alert("Jump to PX4 0x%lx\n", (uint64_t)app_base);
+	mpfs_set_entrypt(2, (uintptr_t)app_base);
 	*(volatile uint32_t *)MPFS_CLINT_MSIP2 = 0x01U;
 #endif
 
