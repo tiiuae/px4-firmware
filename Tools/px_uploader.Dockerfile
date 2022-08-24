@@ -1,4 +1,4 @@
-FROM ghcr.io/tiiuae/px4-post-update-init:main as init_tool
+FROM ghcr.io/tiiuae/px4-post-update-init:sha-68ba1a5 as init_tool
 
 FROM python:alpine3.14
 
