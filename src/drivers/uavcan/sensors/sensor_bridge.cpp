@@ -42,9 +42,6 @@
 #include "airspeed.hpp"
 #include "baro.hpp"
 #include "battery.hpp"
-#include "differential_pressure.hpp"
-#include "flow.hpp"
-#include "gnss.hpp"
 #include "gyro.hpp"
 #include "hygrometer.hpp"
 #include "ice_status.hpp"
@@ -58,7 +55,7 @@
 void IUavcanSensorBridge::make_all(uavcan::INode &node, List<IUavcanSensorBridge *> &list)
 {
 	// airspeed
-	int32_t uavcan_sub_aspd = 1;
+	int32_t uavcan_sub_aspd = 0;
 	param_get(param_find("UAVCAN_SUB_ASPD"), &uavcan_sub_aspd);
 
 	if (uavcan_sub_aspd != 0) {
@@ -66,7 +63,7 @@ void IUavcanSensorBridge::make_all(uavcan::INode &node, List<IUavcanSensorBridge
 	}
 
 	// baro
-	int32_t uavcan_sub_baro = 1;
+	int32_t uavcan_sub_baro = 0;
 	param_get(param_find("UAVCAN_SUB_BARO"), &uavcan_sub_baro);
 
 	if (uavcan_sub_baro != 0) {
@@ -74,39 +71,39 @@ void IUavcanSensorBridge::make_all(uavcan::INode &node, List<IUavcanSensorBridge
 	}
 
 	// battery
-	int32_t uavcan_sub_bat = 1;
+	int32_t uavcan_sub_bat = 0;
 	param_get(param_find("UAVCAN_SUB_BAT"), &uavcan_sub_bat);
 
 	if (uavcan_sub_bat != 0) {
 		list.add(new UavcanBatteryBridge(node));
 	}
 
-	// differential pressure
-	int32_t uavcan_sub_dpres = 1;
-	param_get(param_find("UAVCAN_SUB_DPRES"), &uavcan_sub_dpres);
+	// // differential pressure
+	// int32_t uavcan_sub_dpres = 1;
+	// param_get(param_find("UAVCAN_SUB_DPRES"), &uavcan_sub_dpres);
 
-	if (uavcan_sub_dpres != 0) {
-		list.add(new UavcanDifferentialPressureBridge(node));
-	}
+	// if (uavcan_sub_dpres != 0) {
+	// 	list.add(new UavcanDifferentialPressureBridge(node));
+	// }
 
-	// flow
-	int32_t uavcan_sub_flow = 1;
-	param_get(param_find("UAVCAN_SUB_FLOW"), &uavcan_sub_flow);
+	// // flow
+	// int32_t uavcan_sub_flow = 1;
+	// param_get(param_find("UAVCAN_SUB_FLOW"), &uavcan_sub_flow);
 
-	if (uavcan_sub_flow != 0) {
-		list.add(new UavcanFlowBridge(node));
-	}
+	// if (uavcan_sub_flow != 0) {
+	// 	list.add(new UavcanFlowBridge(node));
+	// }
 
-	// GPS
-	int32_t uavcan_sub_gps = 1;
-	param_get(param_find("UAVCAN_SUB_GPS"), &uavcan_sub_gps);
+	// // GPS
+	// int32_t uavcan_sub_gps = 1;
+	// param_get(param_find("UAVCAN_SUB_GPS"), &uavcan_sub_gps);
 
-	if (uavcan_sub_gps != 0) {
-		list.add(new UavcanGnssBridge(node));
-	}
+	// if (uavcan_sub_gps != 0) {
+	// 	list.add(new UavcanGnssBridge(node));
+	// }
 
 	// hygrometer
-	int32_t uavcan_sub_hygro = 1;
+	int32_t uavcan_sub_hygro = 0;
 	param_get(param_find("UAVCAN_SUB_HYGRO"), &uavcan_sub_hygro);
 
 	if (uavcan_sub_hygro != 0) {
@@ -114,7 +111,7 @@ void IUavcanSensorBridge::make_all(uavcan::INode &node, List<IUavcanSensorBridge
 	}
 
 	// ice (internal combustion engine)
-	int32_t uavcan_sub_ice = 1;
+	int32_t uavcan_sub_ice = 0;
 	param_get(param_find("UAVCAN_SUB_ICE"), &uavcan_sub_ice);
 
 	if (uavcan_sub_ice != 0) {
@@ -122,7 +119,7 @@ void IUavcanSensorBridge::make_all(uavcan::INode &node, List<IUavcanSensorBridge
 	}
 
 	// IMU
-	int32_t uavcan_sub_imu = 1;
+	int32_t uavcan_sub_imu = 0;
 	param_get(param_find("UAVCAN_SUB_IMU"), &uavcan_sub_imu);
 
 	if (uavcan_sub_imu != 0) {
@@ -131,7 +128,7 @@ void IUavcanSensorBridge::make_all(uavcan::INode &node, List<IUavcanSensorBridge
 	}
 
 	// magnetometer
-	int32_t uavcan_sub_mag = 1;
+	int32_t uavcan_sub_mag = 0;
 	param_get(param_find("UAVCAN_SUB_MAG"), &uavcan_sub_mag);
 
 	if (uavcan_sub_mag != 0) {
@@ -139,7 +136,7 @@ void IUavcanSensorBridge::make_all(uavcan::INode &node, List<IUavcanSensorBridge
 	}
 
 	// range finder
-	int32_t uavcan_sub_rng = 1;
+	int32_t uavcan_sub_rng = 0;
 	param_get(param_find("UAVCAN_SUB_RNG"), &uavcan_sub_rng);
 
 	if (uavcan_sub_rng != 0) {
@@ -147,7 +144,7 @@ void IUavcanSensorBridge::make_all(uavcan::INode &node, List<IUavcanSensorBridge
 	}
 
 	// safety button
-	int32_t uavcan_sub_button = 1;
+	int32_t uavcan_sub_button = 0;
 	param_get(param_find("UAVCAN_SUB_BTN"), &uavcan_sub_button);
 
 	if (uavcan_sub_button != 0) {

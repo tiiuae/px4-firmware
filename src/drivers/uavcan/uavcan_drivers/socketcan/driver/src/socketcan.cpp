@@ -79,7 +79,7 @@ uavcan::uint32_t CanIface::socketInit(const char *can_iface_name)
 	bool can_fd = 0;
 
 	_can_fd = can_fd;
-
+	
 	/* open socket */
 	if ((_fd = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
 		PX4_ERR("socket");
@@ -172,11 +172,15 @@ uavcan::uint32_t CanIface::socketInit(const char *can_iface_name)
 	return 0;
 }
 
+int CanIface::close()
+{
+	return ::close(_fd);
+}
+
 uavcan::int16_t CanIface::send(const uavcan::CanFrame &frame, uavcan::MonotonicTime tx_deadline,
 			       uavcan::CanIOFlags flags)
 {
 	int res = -1;
-
 	/* Copy CanardFrame to can_frame/canfd_frame */
 	if (_can_fd) {
 		_send_frame.can_id = frame.id | CAN_EFF_FLAG;
@@ -193,9 +197,9 @@ uavcan::int16_t CanIface::send(const uavcan::CanFrame &frame, uavcan::MonotonicT
 	/* Set CAN_RAW_TX_DEADLINE timestamp  */
 	_send_tv->tv_usec = tx_deadline.toUSec() % 1000000ULL;
 	_send_tv->tv_sec = (tx_deadline.toUSec() - _send_tv->tv_usec) / 1000000ULL;
-
+	
 	res = sendmsg(_fd, &_send_msg, 0);
-
+	
 	if (res > 0) {
 		return 1;
 
@@ -263,13 +267,7 @@ int CanIface::getFD()
 	return _fd;
 }
 
-uavcan::uint32_t CanDriver::detectBitRate(void (*idle_callback)())
-{
-	//FIXME
-	return 1;
-}
-
-int CanDriver::init(uavcan::uint32_t bitrate)
+int CanDriver::init()
 {
 	pfds[0].fd     = if_[0].getFD();
 	pfds[0].events = POLLIN | POLLOUT;
@@ -306,7 +304,7 @@ uavcan::int16_t CanDriver::select(uavcan::CanSelectMasks &inout_masks,
 	if (timeout_usec < 0) {
 		timeout_usec = 0;
 	}
-
+	
 	inout_masks.read = 0;
 	//FIXME NuttX SocketCAN implement POLLOUT
 	inout_masks.write = 0x3;

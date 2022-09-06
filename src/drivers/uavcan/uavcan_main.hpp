@@ -50,10 +50,8 @@
 #include "actuators/hardpoint.hpp"
 #include "actuators/servo.hpp"
 #include "allocator.hpp"
-#include "beep.hpp"
 #include "logmessage.hpp"
 #include "rgbled.hpp"
-#include "safety_state.hpp"
 #include "sensors/sensor_bridge.hpp"
 #include "uavcan_driver.hpp"
 #include "uavcan_servers.hpp"
@@ -174,13 +172,13 @@ public:
 	typedef UAVCAN_DRIVER::CanInitHelper<RxQueueLenPerIface> CanInitHelper;
 	enum eServerAction : int {None, Start, Stop, CheckFW, Busy};
 
-	UavcanNode(uavcan::ICanDriver &can_driver, uavcan::ISystemClock &system_clock);
+	UavcanNode(CanInitHelper *can_helper, uavcan::ICanDriver &can_driver, uavcan::ISystemClock &system_clock);
 
 	virtual		~UavcanNode();
 
 	virtual int	ioctl(file *filp, int cmd, unsigned long arg);
 
-	static int	start(uavcan::NodeID node_id, uint32_t bitrate);
+	static int	start(uavcan::NodeID node_id);
 
 	uavcan::Node<>	&get_node() { return _node; }
 
@@ -220,20 +218,22 @@ private:
 
 	unsigned		_output_count{0};		///< number of actuators currently available
 
+	bool _iface_initialized{false};		///< is the CAN interface initialized yet
+
 	static UavcanNode	*_instance;			///< singleton pointer
 
 	uavcan_node::Allocator	 _pool_allocator;
+	
+	CanInitHelper*	_can_helper{nullptr};	///< can driver pointer
 
 	uavcan::Node<>			_node;				///< library instance
 	pthread_mutex_t			_node_mutex;
 
-	UavcanBeepController		_beep_controller;
 	UavcanEscController		_esc_controller;
 	UavcanServoController		_servo_controller;
 	UavcanMixingInterfaceESC 	_mixing_interface_esc{_node_mutex, _esc_controller};
 	UavcanMixingInterfaceServo 	_mixing_interface_servo{_node_mutex, _servo_controller};
 	UavcanHardpointController	_hardpoint_controller;
-	UavcanSafetyState         	_safety_state_controller;
 	UavcanLogMessage                _log_message_controller;
 	UavcanRGBController             _rgbled_controller;
 

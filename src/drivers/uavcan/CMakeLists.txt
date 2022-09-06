@@ -81,7 +81,7 @@ add_definitions(
 	-DUAVCAN_CPP_VERSION=UAVCAN_CPP03
 	-DUAVCAN_DRIVER=uavcan_${UAVCAN_DRIVER}
 	-DUAVCAN_IMPLEMENT_PLACEMENT_NEW=1
-	-DUAVCAN_MEM_POOL_BLOCK_SIZE=48
+	-DUAVCAN_MEM_POOL_BLOCK_SIZE=64
 	-DUAVCAN_NO_ASSERTIONS
 	-DUAVCAN_PLATFORM=${UAVCAN_PLATFORM}
 )
@@ -142,12 +142,12 @@ px4_add_module(
 		${LIBUAVCAN_DIR}/libuavcan_drivers/posix/include
 		${LIBUAVCAN_DIR_DRIVERS}/${UAVCAN_DRIVER}/driver/include
 	SRCS
-		beep.cpp
-		beep.hpp
+		# beep.cpp
+		# beep.hpp
 		rgbled.cpp
 		rgbled.hpp
-		safety_state.cpp
-		safety_state.hpp
+		# safety_state.cpp
+		# safety_state.hpp
 
 		# Main
 		uavcan_main.cpp
@@ -160,12 +160,12 @@ px4_add_module(
 
 		# Sensors
 		sensors/sensor_bridge.cpp
-		sensors/differential_pressure.cpp
+		# sensors/differential_pressure.cpp
 		sensors/baro.cpp
 		sensors/battery.cpp
 		sensors/airspeed.cpp
-		sensors/flow.cpp
-		sensors/gnss.cpp
+		# sensors/flow.cpp
+		# sensors/gnss.cpp
 		sensors/mag.cpp
 		sensors/rangefinder.cpp
 		sensors/accel.cpp

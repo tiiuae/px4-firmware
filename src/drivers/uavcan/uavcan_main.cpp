@@ -76,16 +76,15 @@
  */
 UavcanNode *UavcanNode::_instance;
 
-UavcanNode::UavcanNode(uavcan::ICanDriver &can_driver, uavcan::ISystemClock &system_clock) :
+UavcanNode::UavcanNode(CanInitHelper* can_helper, uavcan::ICanDriver &can_driver, uavcan::ISystemClock &system_clock) :
 	CDev(UAVCAN_DEVICE_PATH),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::uavcan),
 	ModuleParams(nullptr),
+	_can_helper(can_helper),
 	_node(can_driver, system_clock, _pool_allocator),
-	_beep_controller(_node),
 	_esc_controller(_node),
 	_servo_controller(_node),
 	_hardpoint_controller(_node),
-	_safety_state_controller(_node),
 	_log_message_controller(_node),
 	_rgbled_controller(_node),
 	_time_sync_master(_node),
@@ -109,6 +108,11 @@ UavcanNode::UavcanNode(uavcan::ICanDriver &can_driver, uavcan::ISystemClock &sys
 
 UavcanNode::~UavcanNode()
 {
+	if (_can_helper != nullptr) {
+		_can_helper->driver.closeAllIface();
+		_can_helper = nullptr;	
+	}
+	
 	if (_servers != nullptr) {
 		delete _servers;
 		_servers = nullptr;
@@ -155,8 +159,8 @@ UavcanNode::getHardwareVersion(uavcan::protocol::HardwareVersion &hwver)
 			; // All other values of px4_board_name() resolve to zero
 		}
 
-		mfguid_t mfgid = {};
-		board_get_mfguid(mfgid);
+		mfguid_t mfgid = {1};
+		//board_get_mfguid(mfgid);
 		uavcan::copy(mfgid, mfgid + sizeof(mfgid), hwver.unique_id.begin());
 		rv = 0;
 	}
@@ -400,7 +404,7 @@ UavcanNode::update_params()
 }
 
 int
-UavcanNode::start(uavcan::NodeID node_id, uint32_t bitrate)
+UavcanNode::start(uavcan::NodeID node_id)
 {
 	if (_instance != nullptr) {
 		PX4_WARN("Already started");
@@ -408,9 +412,7 @@ UavcanNode::start(uavcan::NodeID node_id, uint32_t bitrate)
 	}
 
 	/*
-	 * CAN driver init
-	 * Note that we instantiate and initialize CanInitHelper only once, because the STM32's bxCAN driver
-	 * shipped with libuavcan does not support deinitialization.
+	 * CAN driver creation
 	 */
 	static CanInitHelper *can = nullptr;
 
@@ -418,31 +420,27 @@ UavcanNode::start(uavcan::NodeID node_id, uint32_t bitrate)
 
 		can = new CanInitHelper(board_get_can_interfaces());
 
-		if (can == nullptr) {                    // We don't have exceptions so bad_alloc cannot be thrown
+		if (can == nullptr) {		// We don't have exceptions so bad_alloc cannot be thrown
 			PX4_ERR("Out of memory");
 			return -1;
-		}
-
-		const int can_init_res = can->init(bitrate);
-
-		if (can_init_res < 0) {
-			PX4_ERR("CAN driver init failed %i", can_init_res);
-			return can_init_res;
 		}
 	}
 
 	/*
 	 * Node init
 	 */
-	_instance = new UavcanNode(can->driver, UAVCAN_DRIVER::SystemClock::instance());
+	PX4_INFO("get new uavcannode instance");
+	_instance = new UavcanNode(can, can->driver, UAVCAN_DRIVER::SystemClock::instance());
 
 	if (_instance == nullptr) {
 		PX4_ERR("Out of memory");
 		return -1;
 	}
 
+	PX4_INFO("init new uavcannode instance");
 	const int node_init_res = _instance->init(node_id, can->driver.updateEvent());
 
+	
 	if (node_init_res < 0) {
 		delete _instance;
 		_instance = nullptr;
@@ -508,12 +506,6 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 
 	fill_node_info();
 
-	ret = _beep_controller.init();
-
-	if (ret < 0) {
-		return ret;
-	}
-
 	// Actuators
 	ret = _esc_controller.init();
 
@@ -527,23 +519,17 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 		return ret;
 	}
 
-	ret = _safety_state_controller.init();
-
-	if (ret < 0) {
-		return ret;
-	}
-
 	ret = _log_message_controller.init();
 
 	if (ret < 0) {
 		return ret;
 	}
 
-	ret = _rgbled_controller.init();
+	// ret = _rgbled_controller.init();
 
-	if (ret < 0) {
-		return ret;
-	}
+	// if (ret < 0) {
+	// 	return ret;
+	// }
 
 	/* Start node info retriever to fetch node info from new nodes */
 	ret = _node_info_retriever.start();
@@ -606,8 +592,7 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 		}
 	}
 
-	// Start the Node
-	return _node.start();
+	return ret;
 }
 
 void
@@ -654,6 +639,40 @@ void
 UavcanNode::Run()
 {
 	pthread_mutex_lock(&_node_mutex);
+	
+	/* Init Socket Interface and start the Node if not yet */
+	if (_can_helper && !_iface_initialized) {
+		PX4_INFO("Initialize socket interface");
+
+		int ret;
+
+		ret = _can_helper->driver.initIface(0, "can0");
+		if (ret < 0) {
+			PX4_ERR("CAN iface 0 init failed %i", ret);
+			return;
+		}
+#if UAVCAN_SOCKETCAN_NUM_IFACES > 1
+		ret = _can_helper->driver.initIface(1, "can1");
+		if (ret < 0) {
+			PX4_ERR("CAN iface 1 init failed %i", ret);
+			return;
+		}
+#endif
+
+		ret = _can_helper->init();
+		if (ret < 0) {
+			PX4_ERR("CAN driver init failed %i", ret);
+			return;
+		}
+
+		if ((ret = _node.start()) < 0) {
+			PX4_ERR("Failed to start basic node. Return %d", ret);
+			_can_helper->driver.closeAllIface();
+			return;
+		}
+
+		_iface_initialized = true;
+	}
 
 	if (_output_count == 0) {
 		// Set up the time synchronization
@@ -670,7 +689,8 @@ UavcanNode::Run()
 		 * happens, but for now we use adjustUtc with a correction of the hrt so that the
 		 * time bases are the same
 		 */
-		UAVCAN_DRIVER::clock::adjustUtc(uavcan::UtcDuration::fromUSec(hrt_absolute_time()));
+		//UAVCAN_DRIVER::clock::adjustUtc(uavcan::UtcDuration::fromUSec(hrt_absolute_time()));
+		_node.getDispatcher().getSystemClock().adjustUtc(uavcan::UtcDuration::fromUSec(hrt_absolute_time()));
 		_master_timer.setCallback(TimerCallback(this, &UavcanNode::handle_time_sync));
 		_master_timer.startPeriodic(uavcan::MonotonicDuration::fromMSec(1000));
 
@@ -866,7 +886,7 @@ UavcanNode::Run()
 		vehicle_command_s cmd{};
 		_vcmd_sub.copy(&cmd);
 
-		uint8_t cmd_ack_result = vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED;
+		uint8_t cmd_ack_result = vehicle_command_ack_s::VEHICLE_RESULT_ACCEPTED;
 
 		if (cmd.command == vehicle_command_s::VEHICLE_CMD_PREFLIGHT_STORAGE) {
 			acknowledge = true;
@@ -1353,13 +1373,9 @@ extern "C" __EXPORT int uavcan_main(int argc, char *argv[])
 			::exit(1);
 		}
 
-		// CAN bitrate
-		int32_t bitrate = 1000000;
-		(void)param_get(param_find("UAVCAN_BITRATE"), &bitrate);
-
 		// Start
-		PX4_INFO("Node ID %" PRIu32 ", bitrate %" PRIu32, node_id, bitrate);
-		return UavcanNode::start(node_id, bitrate);
+		PX4_INFO("Start UAVCAN Node ID %" PRIu32, node_id);
+		return UavcanNode::start(node_id);
 	}
 
 	/* commands below require the app to be started */
