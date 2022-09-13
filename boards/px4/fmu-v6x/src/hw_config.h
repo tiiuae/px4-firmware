@@ -85,6 +85,8 @@
 
 #define SERIAL_BREAK_DETECT_DISABLED   1
 
+#define TOC_ADDRESS                    (APP_LOAD_ADDRESS + BOOT_DELAY_ADDRESS + 8)
+
 /*
  * Uncommenting this allows to force the bootloader through
  * a PWM output pin. As this can accidentally initialize
