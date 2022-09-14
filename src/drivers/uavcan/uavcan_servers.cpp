@@ -215,7 +215,7 @@ void UavcanServers::migrateFWFromRoot(const char *sd_path, const char *sd_root_p
 	}
 
 	if (dev_dirent != nullptr) {
-		(void)closedir(dev_dirent);
+		(void)closedir(sd_root_dir);
 	}
 }
 
