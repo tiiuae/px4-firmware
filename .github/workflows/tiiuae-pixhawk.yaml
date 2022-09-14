@@ -2,13 +2,13 @@ name: tiiuae-pixhawk
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, dev-build_8 ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, dev-build_8 ]
 
 jobs:
-  pixhawk4:
-    name: build pixhawk4
+  pixhawk5x:
+    name: build pixhawk5x
     runs-on: ubuntu-latest
     steps:
       - name: Checkout px4-firmware
@@ -16,15 +16,15 @@ jobs:
         with:
           path: px4-firmware
           fetch-depth: 0
-      - name: Run px4-firmware pixhawk4 build
+      - name: Run px4-firmware pixhawk5x build
         run: |
           set -eux
           mkdir -p bin
           cd px4-firmware/
           ./clone_public.sh
-          ./build.sh ../bin/ pixhawk4
+          ./build.sh ../bin/ pixhawk5x
           ls ../bin
-      - name: Upload pixhawk4
+      - name: Upload pixhawk5x
         uses: actions/upload-artifact@v2
         with:
           name: pixhawk
@@ -61,7 +61,7 @@ jobs:
   px4fwupdater:
     name: build px4fwupdater
     runs-on: ubuntu-latest
-    needs: [pixhawk4, saluki-v1]
+    needs: [pixhawk5x, saluki-v1]
     steps:
       - name: Checkout px4-firmware
         uses: actions/checkout@v2
@@ -115,7 +115,7 @@ jobs:
   artifactory:
     name: upload builds to Artifactory
     runs-on: ubuntu-latest
-    needs: [pixhawk4, saluki-v1, px4fwupdater]
+    needs: [pixhawk5x, saluki-v1, px4fwupdater]
     if: github.event_name == 'push'
     steps:
       - name: Download pixhawk artifacts
@@ -133,21 +133,14 @@ jobs:
           CI: true
         run: |
           set -exu
-          pkg=$(find bin -name 'px4_fmu-v5_ssrc*.px4')
           px5_pkg=$(find bin -name 'px4_fmu-v5x_ssrc*.px4')
           saluki_pkg=$(find bin -name 'ssrc_saluki-*.px4')
           saluki_amp_pkg=$(find bin -name 'ssrc_saluki-*.bin')
           saluki_bl_pkg=$(find bin -name 'ssrc_saluki-*.elf')
-          pkg_name=$(basename $pkg)
           px5_pkg_name=$(basename $px5_pkg)
           saluki_pkg_name=$(basename $saluki_pkg)
           saluki_amp_pkg_name=$(basename $saluki_amp_pkg)
           saluki_bl_pkg_name=$(basename $saluki_bl_pkg)
-          jfrog rt u --target-props COMMIT="$GITHUB_SHA" \
-                     --build-name "$BUILD_NAME_PX4" \
-                     --build-number "$GITHUB_SHA" \
-                     "$pkg" \
-                     "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/$pkg_name"
           jfrog rt u --target-props COMMIT="$GITHUB_SHA" \
                      --build-name "$BUILD_NAME_PX4" \
                      --build-number "$GITHUB_SHA" \
@@ -172,9 +165,6 @@ jobs:
           jfrog rt bpr "$BUILD_NAME_PX4" "$GITHUB_SHA" "$ARTIFACTORY_GEN_REPO" \
                        --status dev \
                        --comment "development build"
-          jfrog rt cp --flat \
-                      "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/$pkg_name" \
-                      "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/latest/px4_fmu-v5_ssrc.px4"
           jfrog rt cp --flat \
                       "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/$px5_pkg_name" \
                       "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/latest/px4_fmu-v5x_ssrc.px4"

@@ -52,7 +52,7 @@
 using namespace time_literals;
 
 MicroddsClient::MicroddsClient(Transport transport, const char *device, int baudrate, const char *host,
-			       const char *port, bool localhost_only)
+			       const char *recv_port, const char *send_port, bool localhost_only)
 	: _localhost_only(localhost_only)
 {
 	if (transport == Transport::Serial) {
@@ -81,7 +81,7 @@ MicroddsClient::MicroddsClient(Transport transport, const char *device, int baud
 		_transport_udp = new uxrUDPTransport();
 
 		if (_transport_udp) {
-			if (uxr_init_udp_transport(_transport_udp, UXR_IPv4, host, port)) {
+			if (uxr_init_udp_transport(_transport_udp, UXR_IPv4, host, recv_port, send_port)) {
 				_comm = &_transport_udp->comm;
 				_fd = _transport_udp->platform.poll_fd.fd;
 
@@ -165,35 +165,9 @@ void MicroddsClient::run()
 
 		// Create entities
 		uxrObjectId participant_id = uxr_object_id(0x01, UXR_PARTICIPANT_ID);
-		const char *participant_xml = _localhost_only ?
-					      "<dds>"
-					      "<profiles>"
-					      "<transport_descriptors>"
-					      "<transport_descriptor>"
-					      "<transport_id>udp_localhost</transport_id>"
-					      "<type>UDPv4</type>"
-					      "<interfaceWhiteList><address>127.0.0.1</address></interfaceWhiteList>"
-					      "</transport_descriptor>"
-					      "</transport_descriptors>"
-					      "</profiles>"
-					      "<participant>"
-					      "<rtps>"
-					      "<name>default_xrce_participant</name>"
-					      "<useBuiltinTransports>false</useBuiltinTransports>"
-					      "<userTransports><transport_id>udp_localhost</transport_id></userTransports>"
-					      "</rtps>"
-					      "</participant>"
-					      "</dds>"
-					      :
-					      "<dds>"
-					      "<participant>"
-					      "<rtps>"
-					      "<name>default_xrce_participant</name>"
-					      "</rtps>"
-					      "</participant>"
-					      "</dds>" ;
-		uint16_t participant_req = uxr_buffer_create_participant_xml(&session, reliable_out, participant_id, 0,
-					   participant_xml, UXR_REPLACE);
+		const char* participant_ref = "default_xrce_participant";
+		uint16_t participant_req = uxr_buffer_create_participant_ref(&session, reliable_out, participant_id, 0,
+					   participant_ref, UXR_REPLACE);
 
 		uint8_t request_status;
 
@@ -446,10 +420,11 @@ MicroddsClient *MicroddsClient::instantiate(int argc, char *argv[])
 	const char *device = nullptr;
 	const char *ip = "127.0.0.1";
 	int baudrate = 921600;
-	const char *port = "15555";
+	const char *recv_port = "0";
+	const char *send_port = "15555";
 	bool localhost_only = false;
 
-	while ((ch = px4_getopt(argc, argv, "t:d:b:h:p:l", &myoptind, &myoptarg)) != EOF) {
+	while ((ch = px4_getopt(argc, argv, "t:d:b:h:p:r:l", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 't':
 			if (!strcmp(myoptarg, "serial")) {
@@ -482,7 +457,11 @@ MicroddsClient *MicroddsClient::instantiate(int argc, char *argv[])
 			break;
 
 		case 'p':
-			port = myoptarg;
+			send_port = myoptarg;
+			break;
+
+		case 'r':
+			recv_port = myoptarg;
 			break;
 
 		case 'l':
@@ -511,7 +490,7 @@ MicroddsClient *MicroddsClient::instantiate(int argc, char *argv[])
 		}
 	}
 
-	return new MicroddsClient(transport, device, baudrate, ip, port, localhost_only);
+	return new MicroddsClient(transport, device, baudrate, ip, recv_port, send_port, localhost_only);
 }
 
 int MicroddsClient::print_usage(const char *reason)
@@ -537,6 +516,7 @@ $ microdds_client start -t udp -h 127.0.0.1 -p 15555
 	PRINT_MODULE_USAGE_PARAM_INT('b', 0, 0, 3000000, "Baudrate (can also be p:<param_name>)", true);
 	PRINT_MODULE_USAGE_PARAM_STRING('h', "127.0.0.1", "<IP>", "Host IP", true);
 	PRINT_MODULE_USAGE_PARAM_INT('p', 15555, 0, 3000000, "Remote Port", true);
+	PRINT_MODULE_USAGE_PARAM_INT('r', 0, 0, 3000000, "Local Port", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('l', "Restrict to localhost (use in combination with ROS_LOCALHOST_ONLY=1)", true);
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 

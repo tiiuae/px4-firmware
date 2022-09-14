@@ -15,7 +15,7 @@ if [ -z "$dest_dir" ]; then
 	exit 1
 fi
 
-if [[ ! "${target}" =~ all|pixhawk4|saluki-v1|px4fwupdater ]]
+if [[ ! "${target}" =~ all|pixhawk5x|saluki-v1|px4fwupdater ]]
 then
 	echo "ERROR: build target ''${target}'' not supported!"
   usage
@@ -45,14 +45,13 @@ fi
 version=$(git describe --always --tags --dirty | sed 's/^v//')
 
 # Build Pixhawk4 image
-if [ "${target}" == all ] || [ "${target}" == pixhawk4 ]
+if [ "${target}" == all ] || [ "${target}" == pixhawk5x ]
 then
   docker run \
     --rm \
     -v ${script_dir}:/px4-firmware/sources \
     ${iname_env} \
-    ./packaging/build_pixhawk4.sh
-  cp ${script_dir}/build/px4_fmu-v5_ssrc/px4_fmu-v5_ssrc.px4                      ${dest_dir}/px4_fmu-v5_ssrc-${version}.px4
+    ./packaging/build_pixhawk5x.sh
   cp ${script_dir}/build/px4_fmu-v5x_ssrc/px4_fmu-v5x_ssrc.px4                    ${dest_dir}/px4_fmu-v5x_ssrc-${version}.px4
 fi
 
