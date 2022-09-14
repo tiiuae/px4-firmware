@@ -11,4 +11,4 @@ if [ ! -z "$FLIGHT_MODE" ]; then
 fi
 
 /bin/px_uploader.py --port=/dev/px4serial --udp-addr=192.168.200.101 --baud-flightstack=57600,115200,1000000,2000000 --baud-bootloader=2000000 px4_fmu-v5x_ssrc-*.px4 ssrc_saluki-v1_default-*.px4
-/bin/px4-post-update-init --address /dev/px4serial:1000000 $aframe $mode --section all
+/bin/px4-post-update-init --address serial:/dev/px4serial:1000000 $aframe $mode --section all
