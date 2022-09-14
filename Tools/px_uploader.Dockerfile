@@ -1,4 +1,4 @@
-FROM ghcr.io/tiiuae/px4-post-update-init:serial_port_support as init_tool
+FROM ghcr.io/tiiuae/px4-post-update-init:sha-2f2622c as init_tool
 
 FROM python:alpine3.14
 
