@@ -51,7 +51,7 @@ void LoggedTopics::add_default_topics()
 	add_topic("actuator_controls_1", 100);
 	add_topic("actuator_controls_2", 100);
 	add_topic("actuator_controls_3", 100);
-	add_optional_topic("actuator_controls_status_0", 300);
+	add_topic("actuator_controls_status_0", 300);
 	add_topic("airspeed", 1000);
 	add_optional_topic("airspeed_validated", 200);
 	add_optional_topic("autotune_attitude_control_status", 100);
@@ -60,7 +60,7 @@ void LoggedTopics::add_default_topics()
 	add_topic("cellular_status", 200);
 	add_topic("commander_state");
 	add_topic("cpuload");
-	add_optional_topic("esc_status", 250);
+	add_topic("esc_status", 250);
 	add_topic("failure_detector_status", 100);
 	add_optional_topic("follow_target", 500);
 	add_optional_topic("generator_status");
