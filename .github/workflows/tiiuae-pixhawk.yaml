@@ -2,9 +2,9 @@ name: tiiuae-pixhawk
 
 on:
   push:
-    branches: [ rel7_hotfix ]
+    branches: [ f4f-rtk ]
   pull_request:
-    branches: [ rel7_hotfix ]
+    branches: [ f4f-rtk ]
 
 jobs:
   pixhawk4:
