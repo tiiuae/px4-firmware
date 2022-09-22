@@ -112,6 +112,53 @@ MicroddsClient::~MicroddsClient()
 	}
 }
 
+// Use value 8 to let compiler use shift 3 operant
+#define AVG_BUFFER_SIZE 8
+
+void MicroddsClient::on_time(
+	uxrSession* session,
+	int64_t current_time,
+	int64_t transmit_timestamp,
+	int64_t received_timestamp,
+	int64_t originate_timestamp,
+	void* args)
+{
+	(void) args;
+	static int64_t avg_time_offset = 0;
+	static int64_t offset_buff[AVG_BUFFER_SIZE];
+	static size_t idx = 0;
+	static bool empty = true;
+
+	// reduce accuracy of agent size ts to microsecond level to be aligned
+	// with local ts accuracy. This prevents time delta to sift up due to fragments
+	transmit_timestamp /= 1000;
+	received_timestamp /= 1000;
+	current_time /= 1000;
+	originate_timestamp /= 1000;
+
+	int64_t current_time_delta = ((current_time - originate_timestamp) - (transmit_timestamp - received_timestamp)) / 2;
+	int64_t current_time_offset = received_timestamp - (originate_timestamp + current_time_delta);
+
+	// Store offset/n values to table.
+	if (empty) {
+		for (int i=0; i<AVG_BUFFER_SIZE; i++) {
+			offset_buff[i] = current_time_offset / AVG_BUFFER_SIZE;
+		}
+		empty = false;
+	} else {
+		offset_buff[idx] = current_time_offset / AVG_BUFFER_SIZE;
+		if (++idx > (AVG_BUFFER_SIZE-1)) idx = 0;
+	}
+
+	// Calculate average offset by adding all n pcs of (offset/n) values together
+	avg_time_offset = 0;
+	for (int i=0; i<AVG_BUFFER_SIZE; i++) {
+		avg_time_offset += (offset_buff[i]);
+	}
+
+	session->time_offset = avg_time_offset;
+}
+
 void MicroddsClient::run()
 {
 	if (!_comm) {
@@ -149,6 +196,7 @@ void MicroddsClient::run()
 			PX4_ERR("uxr_create_session failed");
 			return;
 		}
+
 
 		// Streams
 		// Reliable for setup, afterwards best-effort to send the data (important: need to create all 4 streams)
@@ -196,8 +244,22 @@ void MicroddsClient::run()
 		uint32_t last_num_payload_received{};
 		bool error_printed = false;
 		hrt_abstime last_read = hrt_absolute_time();
+		int sync_timeout = 100; //100ms
+
+		uxr_set_time_callback(&session, this->on_time, NULL);
+
+		PX4_INFO("Wait for initial timesync..");
+		while (!should_exit() && _connected && !_timesync_valid) {
+			_timesync_valid = uxr_sync_session(&session, sync_timeout);
+		}
+		if (_timesync_valid) {
+			PX4_INFO("Valid timesync received.");
+		}
 
 		while (!should_exit() && _connected) {
+
+			_timesync_valid = uxr_sync_session(&session, sync_timeout);
+
 			px4_pollfd_struct_t fds[1];
 			fds[0].fd = polling_topic_sub;
 			fds[0].events = POLLIN;
@@ -247,6 +309,9 @@ void MicroddsClient::run()
 				last_num_payload_sent = _subs->num_payload_sent;
 				last_num_payload_received = _pubs->num_payload_received;
 				last_status_update = now;
+				if (!_timesync_valid) {
+					PX4_WARN("Timesync failed");
+				}
 			}
 
 			// Handle ping
