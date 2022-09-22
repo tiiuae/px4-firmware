@@ -65,6 +65,14 @@ public:
 	/** @see ModuleBase */
 	static int print_usage(const char *reason = nullptr);
 
+	static void on_time(
+		uxrSession* session,
+		int64_t current_time,
+		int64_t transmit_timestamp,
+		int64_t received_timestamp,
+		int64_t originate_timestamp,
+		void* args);
+
 	/** @see ModuleBase::run() */
 	void run() override;
 
@@ -87,5 +95,7 @@ private:
 	int _last_payload_tx_rate{}; ///< in B/s
 	int _last_payload_rx_rate{}; ///< in B/s
 	bool _connected{false};
+	bool _timesync_valid{false};
+
 };
 
