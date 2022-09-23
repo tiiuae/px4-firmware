@@ -117,7 +117,7 @@ void SendTopicsSubs::update(uxrStreamId stream_id)
 			ucdrBuffer ub{};
 			uint32_t topic_size = ucdr_topic_size_@(send_base_types[idx])();
 			uxr_prepare_output_stream(session, stream_id, @(topic)_data_writer, &ub, topic_size);
-			ucdr_serialize_@(send_base_types[idx])(data, ub);
+			ucdr_serialize_@(send_base_types[idx])(data, ub, session->time_offset);
 			// TODO: fill up the MTU and then flush, which reduces the packet overhead
 			uxr_flash_output_streams(session);
 			num_payload_sent += topic_size;
@@ -211,7 +211,7 @@ void on_topic_update(uxrSession* session, uxrObjectId object_id,
 @[    for idx, topic in enumerate(recv_topics)]@
 		case @(idx)+1: {
 			@(receive_base_types[idx])_s topic;
-			if (ucdr_deserialize_@(receive_base_types[idx])(*ub, topic)) {
+			if (ucdr_deserialize_@(receive_base_types[idx])(*ub, topic, session->time_offset)) {
 				pubs->@(topic)_pub.publish(topic);
 			}
 		}
