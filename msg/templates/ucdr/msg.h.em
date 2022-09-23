@@ -87,7 +87,7 @@ static inline constexpr int ucdr_topic_size_@(topic)()
 	return @(struct_size);
 }
 
-bool ucdr_serialize_@(topic)(const @(uorb_struct)& topic, ucdrBuffer& buf)
+bool ucdr_serialize_@(topic)(const @(uorb_struct)& topic, ucdrBuffer& buf, int64_t time_offset)
 {
 	if (ucdr_buffer_remaining(&buf) < @(struct_size)) {
 		return false;
@@ -99,7 +99,13 @@ for field_type, field_name, field_size, padding in fields:
 		print('\tbuf.offset += {:}; // padding'.format(padding))
 
 	print('\tstatic_assert(sizeof(topic.{0}) == {1}, "size mismatch");'.format(field_name, field_size))
-	print('\tmemcpy(buf.iterator, &topic.{0}, sizeof(topic.{0}));'.format(field_name))
+	if field_name == "timestamp":
+		print('\tint64_t tmp_stamp;')
+		print('\tmemcpy(&tmp_stamp, &topic.{0}, sizeof(topic.{0}));'.format(field_name))
+		print('\ttmp_stamp += time_offset;')
+		print('\tmemcpy(buf.iterator, &tmp_stamp, sizeof(topic.{0}));'.format(field_name))
+	else:
+		print('\tmemcpy(buf.iterator, &topic.{0}, sizeof(topic.{0}));'.format(field_name))
 	print('\tbuf.iterator += sizeof(topic.{:});'.format(field_name))
 	print('\tbuf.offset += sizeof(topic.{:});'.format(field_name))
 
@@ -107,7 +113,7 @@ for field_type, field_name, field_size, padding in fields:
 	return true;
 }
 
-bool ucdr_deserialize_@(topic)(ucdrBuffer& buf, @(uorb_struct)& topic)
+bool ucdr_deserialize_@(topic)(ucdrBuffer& buf, @(uorb_struct)& topic, int64_t time_offset)
 {
 	if (ucdr_buffer_remaining(&buf) < @(struct_size)) {
 		return false;
@@ -119,7 +125,13 @@ for field_type, field_name, field_size, padding in fields:
 		print('\tbuf.offset += {:}; // padding'.format(padding))
 
 	print('\tstatic_assert(sizeof(topic.{0}) == {1}, "size mismatch");'.format(field_name, field_size))
-	print('\tmemcpy(&topic.{0}, buf.iterator, sizeof(topic.{0}));'.format(field_name))
+	if field_name == "timestamp":
+		print('\tuint64_t tmp_stamp;')
+		print('\tmemcpy(&tmp_stamp, buf.iterator, sizeof(topic.{0}));'.format(field_name))
+		print('\ttmp_stamp -= time_offset;')
+		print('\tmemcpy(&topic.{0}, &tmp_stamp, sizeof(topic.{0}));'.format(field_name))
+	else:
+		print('\tmemcpy(&topic.{0}, buf.iterator, sizeof(topic.{0}));'.format(field_name))
 	print('\tbuf.iterator += sizeof(topic.{:});'.format(field_name))
 	print('\tbuf.offset += sizeof(topic.{:});'.format(field_name))
 
