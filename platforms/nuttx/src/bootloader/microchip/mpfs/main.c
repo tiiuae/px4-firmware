@@ -46,6 +46,7 @@
 #include <debug.h>
 
 #include "hw_config.h"
+#include "board_type.h"
 
 #include "bl.h"
 #include "uart.h"
@@ -214,7 +215,6 @@ static ssize_t load_sdcard_images(const char *name, uint64_t loadaddr)
 static void
 board_init(void)
 {
-	_alert("board init\n");
 	/* fix up the max firmware size, we have to read memory to get this */
 	board_info.fw_size = APP_SIZE_MAX;
 
@@ -264,7 +264,10 @@ board_init(void)
 		sdcard_mounted = mount("/dev/mmcsd0p0", "/sdcard/", "vfat", 0, NULL) == 0 ? true : false;
 
 		if (!sdcard_mounted) {
-			_err("SD card mount failed\n");
+			_alert("SD/eMMC mount failed\n");
+
+		} else {
+			_alert("SD/eMMC mounted\n");
 		}
 
 #  if defined(CONFIG_USBMSC_COMPOSITE)
@@ -704,6 +707,7 @@ arch_do_jump(const uint32_t *app_base)
 	mpfs_set_entrypt(2, (uintptr_t)app_base);
 	*(volatile uint32_t *)MPFS_CLINT_MSIP2 = 0x01U;
 #endif
+
 	/* Linux on harts 3,4 */
 	if (u_boot_loaded) {
 #if CONFIG_MPFS_HART3_ENTRYPOINT != 0xFFFFFFFFFFFFFFFF
@@ -769,10 +773,10 @@ bool verify_image(void *image_start, size_t image_size, size_t signature_size)
 static int loader_main(int argc, char *argv[])
 {
 	ssize_t image_sz = 0;
-	ssize_t uboot_size = 0;
 	loading_status = IN_PROGRESS;
 
 #if defined(CONFIG_MMCSD)
+	ssize_t uboot_size = 0;
 	ssize_t ret = 0;
 
 	if (sdcard_mounted) {
@@ -828,8 +832,9 @@ static int loader_main(int argc, char *argv[])
 
 	if (sdcard_mounted) {
 		uboot_size = load_sdcard_images("/sdcard/boot/"UBOOT_BINARY, CONFIG_MPFS_HART3_ENTRYPOINT);
+
 		if (uboot_size > 0) {
-                        u_boot_loaded = true;
+			u_boot_loaded = true;
 #if BOOTLOADER_VERIFY_UBOOT
 
 			if (!verify_image((void *)CONFIG_MPFS_HART3_ENTRYPOINT, uboot_size, UBOOT_SIGNATURE_SIZE)) {
@@ -838,6 +843,7 @@ static int loader_main(int argc, char *argv[])
 				memset((void *)CONFIG_MPFS_HART3_ENTRYPOINT, 0, uboot_size);
 				_alert("u-boot Authentication Failed\n");
 			}
+
 #endif
 
 		} else {
@@ -849,6 +855,7 @@ static int loader_main(int argc, char *argv[])
 
 		if (ret > 0) {
 			sel4_loaded = true;
+
 		} else {
 			sel4_loaded = false;
 			_alert("sel4 loading failed\n");
