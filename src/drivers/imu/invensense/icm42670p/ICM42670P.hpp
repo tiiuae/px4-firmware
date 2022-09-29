@@ -47,7 +47,7 @@
 #include <lib/drivers/device/spi.h>
 #include <lib/drivers/gyroscope/PX4Gyroscope.hpp>
 #include <lib/perf/perf_counter.h>
-#include <px4_platform_common/atomic.h>
+#include <px4_platform_common/atomic_from_isr.h>
 #include <px4_platform_common/i2c_spi_buses.h>
 
 using namespace InvenSense_ICM42670P;
@@ -151,7 +151,7 @@ private:
 
 	enum REG_BANK_SEL_BIT _last_register_bank {REG_BANK_SEL_BIT::USER_BANK_0};
 
-	px4::atomic<uint32_t> _drdy_fifo_read_samples{0};
+	px4::atomic_from_isr<hrt_abstime> _drdy_timestamp_sample{0};
 	bool _data_ready_interrupt_enabled{false};
 
 	enum class STATE : uint8_t {
