@@ -70,23 +70,23 @@ UavcanEscController::init()
 void
 UavcanEscController::update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigned num_outputs)
 {
-	/*
-	 * Rate limiting - we don't want to congest the bus
-	 */
-	const auto timestamp = _node.getMonotonicTime();
+	// /*
+	//  * Rate limiting - we don't want to congest the bus
+	//  */
+	// const auto timestamp = _node.getMonotonicTime();
 
-	if ((timestamp - _prev_cmd_pub).toUSec() < (1000000 / MAX_RATE_HZ)) {
-		return;
-	}
+	// if ((timestamp - _prev_cmd_pub).toUSec() < (1000000 / MAX_RATE_HZ)) {
+	// 	//PX4_INFO("fast loop");
+	// 	return;
+	// }
 
-	_prev_cmd_pub = timestamp;
-
+	// _prev_cmd_pub = timestamp;
+	
 	/*
 	 * Fill the command message
 	 * If unarmed, we publish an empty message anyway
 	 */
 	uavcan::equipment::esc::RawCommand msg;
-
 	for (unsigned i = 0; i < num_outputs; i++) {
 		if (stop_motors || outputs[i] == DISARMED_OUTPUT_VALUE) {
 			msg.cmd.push_back(static_cast<unsigned>(0));

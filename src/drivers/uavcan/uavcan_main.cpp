@@ -71,6 +71,9 @@
 // #include <sys/types.h> and leaving OK undefined
 # define OK 0
 
+// #undef PX4_DEBUG
+// #define PX4_DEBUG PX4_INFO
+
 /*
  * UavcanNode
  */
@@ -745,12 +748,17 @@ UavcanNode::Run()
 			if (request.message_type == uavcan_parameter_request_s::MESSAGE_TYPE_PARAM_REQUEST_READ) {
 				uavcan::protocol::param::GetSet::Request req;
 
+				// sleep a bit to reduce spike on CAN bus traffic
+				usleep(100);
+
 				if (request.param_index >= 0) {
 					req.index = request.param_index;
 
 				} else {
 					req.name = (char *)request.param_id;
 				}
+
+				//PX4_DEBUG("send param get set READ request");
 
 				int call_res = _param_getset_client.call(request.node_id, req);
 
@@ -869,7 +877,12 @@ UavcanNode::Run()
 		// after each successful fetch by cb_getset
 		uavcan::protocol::param::GetSet::Request req;
 		req.index = _param_index;
-
+		
+		//PX4_DEBUG("send param get set listing");
+		
+		// sleep a bit to reduce spike on CAN bus traffic
+		usleep(100);
+		
 		int call_res = _param_getset_client.call(_param_list_node_id, req);
 
 		if (call_res < 0) {
@@ -1201,11 +1214,22 @@ UavcanNode::cb_getset(const uavcan::ServiceCallResult<uavcan::protocol::param::G
 				response.param_type = uavcan_parameter_request_s::PARAM_TYPE_UINT8;
 				response.int_value = param.value.to<uavcan::protocol::param::Value::Tag::boolean_value>();
 			}
-
+			PX4_DEBUG("Got node : %d, param index %d", response.node_id, response.param_index);
 			_param_response_pub.publish(response);
 
 		} else {
-			PX4_ERR("GetSet error");
+			PX4_ERR("GetSet error at node : %d, param index %d, need resend...", result.getCallID().server_node_id.get(), _param_index);
+			
+			uavcan::protocol::param::GetSet::Request req;
+
+			req.index = _param_index;
+			
+			int call_res = _param_getset_client.call(result.getCallID().server_node_id.get(), req);
+			if(call_res < 0){
+				PX4_ERR("resend failed");
+			}
+
+			_param_index--;
 		}
 
 		_param_in_progress = false;
