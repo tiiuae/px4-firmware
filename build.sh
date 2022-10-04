@@ -3,7 +3,7 @@
 usage() {
 	echo " usage: $0 <output-dir> <build-target>"
 	echo "   output-dir : directory for output artifacts"
-	echo "   build-target : supported build targets pixhawk4, saluki-v1, saluki-v2, px4fwupdater"
+	echo "   build-target : supported build targets pixhawk, saluki-v1, saluki-v2, px4fwupdater"
 }
 
 dest_dir="${1:-}"
@@ -15,7 +15,7 @@ if [ -z "$dest_dir" ]; then
 	exit 1
 fi
 
-if [[ ! "${target}" =~ all|pixhawk4|saluki-v1|saluki-v2|px4fwupdater ]]
+if [[ ! "${target}" =~ all|pixhawk|saluki-v1|saluki-v2|px4fwupdater ]]
 then
 	echo "ERROR: build target ''${target}'' not supported!"
   usage
@@ -44,15 +44,14 @@ fi
 
 version=$(git describe --always --tags --dirty | sed 's/^v//')
 
-# Build Pixhawk4 image
-if [ "${target}" == all ] || [ "${target}" == pixhawk4 ]
+# Build Pixhawk image
+if [ "${target}" == all ] || [ "${target}" == pixhawk ]
 then
   docker run \
     --rm \
     -v ${script_dir}:/px4-firmware/sources \
     ${iname_env} \
-    ./packaging/build_pixhawk4.sh
-  cp ${script_dir}/build/px4_fmu-v5_ssrc/px4_fmu-v5_ssrc.px4                      ${dest_dir}/px4_fmu-v5_ssrc-${version}.px4
+    ./packaging/build_pixhawk.sh
   cp ${script_dir}/build/px4_fmu-v5x_ssrc/px4_fmu-v5x_ssrc.px4                    ${dest_dir}/px4_fmu-v5x_ssrc-${version}.px4
 fi
 
