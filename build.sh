@@ -5,14 +5,14 @@ usage() {
 	echo "   output-dir : directory for output artifacts"
 	echo "   build-target : supported build targets:"
   echo "     px4fwupdater"
-  echo "     pixhawk"
-  echo "     saluki-v1_default"
-  echo "     saluki-v1_protected"
-  echo "     saluki-v1_amp"
-  echo "     saluki-v1_bootloader"
-  echo "     saluki-v2_default"
-  echo "     saluki-v2_amp"
-  echo "     saluki-v2_bootloader"
+  echo "     px4_fmu-v5x_ssrc"
+  echo "     ssrc_saluki-v1_default"
+  echo "     ssrc_saluki-v1_protected"
+  echo "     ssrc_saluki-v1_amp"
+  echo "     ssrc_saluki-v1_bootloader"
+  echo "     ssrc_saluki-v2_default"
+  echo "     ssrc_saluki-v2_amp"
+  echo "     ssrc_saluki-v2_bootloader"
   echo
   exit 1
 }
@@ -20,7 +20,7 @@ usage() {
 dest_dir="${1:-}"
 target="${2:-}"
 
-if [ -z "$dest_dir" ]; then
+if [ -z "$dest_dir" ] || [ -z "$target" ]; then
   usage
 fi
 
@@ -39,47 +39,34 @@ build_cmd_px4fwupdater="${script_dir}/packaging/build_px4fwupdater.sh -v ${versi
 # Generate build_env
 if [ "${target}" != px4fwupdater ]; then
   $build_env
+else
+  $build_cmd_px4fwupdater
+  exit 0
 fi
 
+ext=""
 case $target in
-  "px4fwupdater")
-    $build_cmd_px4fwupdater
+  "px4_fmu-v5x_ssrc") ;&
+  "ssrc_saluki-v1_default") ;&
+  "ssrc_saluki-v1_protected") ;&
+  "ssrc_saluki-v2_default")
+    ext="px4"
     ;;
-  "pixhawk")
-    $build_cmd_fw px4_fmu-v5x_ssrc
-    cp ${script_dir}/build/px4_fmu-v5x_ssrc/px4_fmu-v5x_ssrc.px4 ${dest_dir}/px4_fmu-v5x_ssrc-${version}.px4
+  "ssrc_saluki-v1_amp") ;&
+  "ssrc_saluki-v2_amp")
+    ext="px4"
     ;;
-  "saluki-v1_default")
-    $build_cmd_fw ssrc_saluki-v1_default
-    cp ${script_dir}/build/ssrc_saluki-v1_default/ssrc_saluki-v1_default.px4 ${dest_dir}/ssrc_saluki-v1_default-${version}.px4
-    ;;
-  "saluki-v1_protected")
-    $build_cmd_fw ssrc_saluki-v1_protected
-    cp ${script_dir}/build/ssrc_saluki-v1_protected/ssrc_saluki-v1_protected.px4 ${dest_dir}/ssrc_saluki-v1_protected-${version}.px4
-    ;;
-  "saluki-v1_amp")
-    $build_cmd_fw ssrc_saluki-v1_amp
-    cp ${script_dir}/build/ssrc_saluki-v1_amp/ssrc_saluki-v1_amp.bin ${dest_dir}/ssrc_saluki-v1_amp-${version}.bin
-    ;;
-  "saluki-v1_bootloader")
-    $build_cmd_fw ssrc_saluki-v1_bootloader
-    cp ${script_dir}/build/ssrc_saluki-v1_bootloader/ssrc_saluki-v1_bootloader.elf ${dest_dir}/ssrc_saluki-v1_bootloader-${version}.elf
-    ;;
-  "saluki-v2_default")
-    $build_cmd_fw ssrc_saluki-v2_default
-    cp ${script_dir}/build/ssrc_saluki-v2_default/ssrc_saluki-v2_default.px4 ${dest_dir}/ssrc_saluki-v2_default-${version}.px4
-    ;;
-  "saluki-v2_amp")
-    $build_cmd_fw ssrc_saluki-v2_amp
-    cp ${script_dir}/build/ssrc_saluki-v2_amp/ssrc_saluki-v2_amp.bin ${dest_dir}/ssrc_saluki-v2_amp-${version}.bin
-    ;;
-  "saluki-v2_bootloader")
-    $build_cmd_fw ssrc_saluki-v2_bootloader
-    cp ${script_dir}/build/ssrc_saluki-v2_bootloader/ssrc_saluki-v2_bootloader.elf ${dest_dir}/ssrc_saluki-v2_bootloader-${version}.elf
+  "ssrc_saluki-v1_bootloader") ;&
+  "ssrc_saluki-v2_bootloader")
+    ext="elf"
     ;;
    *)
     usage
     ;;
 esac
+
+
+$build_cmd_fw ${target}
+cp ${script_dir}/build/${target}/${target}.${ext} ${dest_dir}/${target}-${version}.${ext}
 
 echo "Done"

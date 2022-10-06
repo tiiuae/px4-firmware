@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  pixhawk:
-    name: build pixhawk
+  px4_fmu-v5x_ssrc:
+    name: build px4_fmu-v5x_ssrc
     runs-on: ubuntu-latest
     steps:
       - name: Checkout px4-firmware
@@ -18,15 +18,15 @@ jobs:
         with:
           path: px4-firmware
           fetch-depth: 0
-      - name: Run px4-firmware pixhawk build
+      - name: Run px4-firmware px4_fmu-v5x_ssrc build
         run: |
           set -eux
           mkdir -p bin
           cd px4-firmware/
           ./clone_public.sh
-          ./build.sh ../bin/ pixhawk
+          ./build.sh ../bin/ px4_fmu-v5x_ssrc
           ls ../bin
-      - name: Upload pixhawk
+      - name: Upload px4_fmu-v5x_ssrc
         uses: actions/upload-artifact@v2
         with:
           name: pixhawk
@@ -34,8 +34,8 @@ jobs:
           retention-days: 1
 
   # NOTE: private repo is needed for this build, which is not available for forked PRs
-  saluki-v1_default:
-    name: build saluki-v1_default
+  ssrc_saluki-v1_default:
+    name: build ssrc_saluki-v1_default
     runs-on: ubuntu-latest
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     steps:
@@ -46,22 +46,22 @@ jobs:
           submodules: recursive
           path: px4-firmware
           fetch-depth: 0
-      - name: Run px4-firmware saluki-v1_default build
+      - name: Run px4-firmware ssrc_saluki-v1_default build
         run: |
           set -eux
           mkdir -p bin
           cd px4-firmware/
-          ./build.sh ../bin/ saluki-v1_default
+          ./build.sh ../bin/ ssrc_saluki-v1_default
           ls ../bin
-      - name: Upload saluki-v1_default
+      - name: Upload ssrc_saluki-v1_default
         uses: actions/upload-artifact@v2
         with:
           name: pixhawk
           path: bin/
           retention-days: 1
 
-  saluki-v1_bootloader:
-    name: build saluki-v1_bootloader
+  ssrc_saluki-v1_bootloader:
+    name: build ssrc_saluki-v1_bootloader
     runs-on: ubuntu-latest
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     steps:
@@ -72,22 +72,22 @@ jobs:
           submodules: recursive
           path: px4-firmware
           fetch-depth: 0
-      - name: Run px4-firmware saluki-v1_bootloader build
+      - name: Run px4-firmware ssrc_saluki-v1_bootloader build
         run: |
           set -eux
           mkdir -p bin
           cd px4-firmware/
-          ./build.sh ../bin/ saluki-v1_bootloader
+          ./build.sh ../bin/ ssrc_saluki-v1_bootloader
           ls ../bin
-      - name: Upload saluki-v1_bootloader
+      - name: Upload ssrc_saluki-v1_bootloader
         uses: actions/upload-artifact@v2
         with:
           name: pixhawk
           path: bin/
           retention-days: 1
 
-  saluki-v1_amp:
-    name: build saluki-v1_amp
+  ssrc_saluki-v1_amp:
+    name: build ssrc_saluki-v1_amp
     runs-on: ubuntu-latest
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     steps:
@@ -98,22 +98,22 @@ jobs:
           submodules: recursive
           path: px4-firmware
           fetch-depth: 0
-      - name: Run px4-firmware saluki-v1_amp build
+      - name: Run px4-firmware ssrc_saluki-v1_amp build
         run: |
           set -eux
           mkdir -p bin
           cd px4-firmware/
-          ./build.sh ../bin/ saluki-v1_amp
+          ./build.sh ../bin/ ssrc_saluki-v1_amp
           ls ../bin
-      - name: Upload saluki-v1_amp
+      - name: Upload ssrc_saluki-v1_amp
         uses: actions/upload-artifact@v2
         with:
           name: pixhawk
           path: bin/
           retention-days: 1
 
-  saluki-v1_protected:
-    name: build saluki-v1_protected
+  ssrc_saluki-v1_protected:
+    name: build ssrc_saluki-v1_protected
     runs-on: ubuntu-latest
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     steps:
@@ -124,22 +124,22 @@ jobs:
           submodules: recursive
           path: px4-firmware
           fetch-depth: 0
-      - name: Run px4-firmware saluki-v1_protected build
+      - name: Run px4-firmware ssrc_saluki-v1_protected build
         run: |
           set -eux
           mkdir -p bin
           cd px4-firmware/
-          ./build.sh ../bin/ saluki-v1_protected
+          ./build.sh ../bin/ ssrc_saluki-v1_protected
           ls ../bin
-      - name: Upload saluki-v1_protected
+      - name: Upload ssrc_saluki-v1_protected
         uses: actions/upload-artifact@v2
         with:
           name: pixhawk
           path: bin/
           retention-days: 1
 
-  saluki-v2_default:
-    name: build saluki-v2_default
+  ssrc_saluki-v2_default:
+    name: build ssrc_saluki-v2_default
     runs-on: ubuntu-latest
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     steps:
@@ -150,22 +150,22 @@ jobs:
           submodules: recursive
           path: px4-firmware
           fetch-depth: 0
-      - name: Run px4-firmware saluki-v2_default build
+      - name: Run px4-firmware ssrc_saluki-v2_default build
         run: |
           set -eux
           mkdir -p bin
           cd px4-firmware/
-          ./build.sh ../bin/ saluki-v2_default
+          ./build.sh ../bin/ ssrc_saluki-v2_default
           ls ../bin
-      - name: Upload saluki-v2_default
+      - name: Upload ssrc_saluki-v2_default
         uses: actions/upload-artifact@v2
         with:
           name: pixhawk
           path: bin/
           retention-days: 1
 
-  saluki-v2_bootloader:
-    name: build saluki-v2_bootloader
+  ssrc_saluki-v2_bootloader:
+    name: build ssrc_saluki-v2_bootloader
     runs-on: ubuntu-latest
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     steps:
@@ -176,22 +176,22 @@ jobs:
           submodules: recursive
           path: px4-firmware
           fetch-depth: 0
-      - name: Run px4-firmware saluki-v2_bootloader build
+      - name: Run px4-firmware ssrc_saluki-v2_bootloader build
         run: |
           set -eux
           mkdir -p bin
           cd px4-firmware/
-          ./build.sh ../bin/ saluki-v2_bootloader
+          ./build.sh ../bin/ ssrc_saluki-v2_bootloader
           ls ../bin
-      - name: Upload saluki-v2_bootloader
+      - name: Upload ssrc_saluki-v2_bootloader
         uses: actions/upload-artifact@v2
         with:
           name: pixhawk
           path: bin/
           retention-days: 1
 
-  saluki-v2_amp:
-    name: build saluki-v2_amp
+  ssrc_saluki-v2_amp:
+    name: build ssrc_saluki-v2_amp
     runs-on: ubuntu-latest
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     steps:
@@ -202,14 +202,14 @@ jobs:
           submodules: recursive
           path: px4-firmware
           fetch-depth: 0
-      - name: Run px4-firmware saluki-v2_amp build
+      - name: Run px4-firmware ssrc_saluki-v2_amp build
         run: |
           set -eux
           mkdir -p bin
           cd px4-firmware/
-          ./build.sh ../bin/ saluki-v2_amp
+          ./build.sh ../bin/ ssrc_saluki-v2_amp
           ls ../bin
-      - name: Upload saluki-v2_amp
+      - name: Upload ssrc_saluki-v2_amp
         uses: actions/upload-artifact@v2
         with:
           name: pixhawk
@@ -220,14 +220,14 @@ jobs:
     name: build px4fwupdater
     runs-on: ubuntu-latest
     needs:
-      - pixhawk
-      - saluki-v1_default
-      - saluki-v1_bootloader
-      - saluki-v1_amp
-      - saluki-v1_protected
-      - saluki-v2_default
-      - saluki-v2_bootloader
-      - saluki-v2_amp
+      - px4_fmu-v5x_ssrc
+      - ssrc_saluki-v1_default
+      - ssrc_saluki-v1_bootloader
+      - ssrc_saluki-v1_amp
+      - ssrc_saluki-v1_protected
+      - ssrc_saluki-v2_default
+      - ssrc_saluki-v2_bootloader
+      - ssrc_saluki-v2_amp
     steps:
       - name: Checkout px4-firmware
         uses: actions/checkout@v2
@@ -272,7 +272,7 @@ jobs:
       - name: Firmware flasher - Build and push
         uses: docker/build-push-action@v2
         with:
-          push: true
+          push: false
           context: .
           file: px4-firmware/Tools/px_uploader.Dockerfile
           tags: ${{ steps.containermeta.outputs.tags }}
@@ -282,18 +282,18 @@ jobs:
     name: upload builds to Artifactory
     runs-on: ubuntu-latest
     needs:
-      - pixhawk
-      - saluki-v1_default
-      - saluki-v1_bootloader
-      - saluki-v1_amp
-      - saluki-v1_protected
-      - saluki-v2_default
-      - saluki-v2_bootloader
-      - saluki-v2_amp
+      - px4_fmu-v5x_ssrc
+      - ssrc_saluki-v1_default
+      - ssrc_saluki-v1_bootloader
+      - ssrc_saluki-v1_amp
+      - ssrc_saluki-v1_protected
+      - ssrc_saluki-v2_default
+      - ssrc_saluki-v2_bootloader
+      - ssrc_saluki-v2_amp
       - px4fwupdater
     if: true
     steps:
-      - name: Download pixhawk artifacts
+      - name: Download build artifacts
         uses: actions/download-artifact@v2
         with:
           name: pixhawk
@@ -314,47 +314,28 @@ jobs:
             pr_or_empty="pr/"
           fi
 
-          for pkg in $(find bin -type f); do
+          needs='${{ toJSON(needs) }}'
+          target_list=$(jq -r 'keys | .[]' <<< "$needs")
+          for target in $target_list; do
+            if [ "$target" != "px4fwupdater" ]; then
+              pkg=$(find bin -type f -name ${target}*)
+              file_name=$(basename $pkg)
+              ext="${file_name##*.}"
 
-            file_name=$(basename $pkg)
-            pkg_name=$(basename $(dirname $pkg))
-            ext="${file_name##*.}"
-
-            jfrog rt u --target-props COMMIT="$GITHUB_SHA" \
-              --build-name "$BUILD_NAME_PX4" \
-              --build-number "$GITHUB_SHA" \
-              "$pkg" \
-              "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/${pr_or_empty}$file_name"
-
-            jfrog rt cp --flat \
-              "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/${pr_or_empty}$file_name" \
-              "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/pixhawk/${pr_or_empty}latest/${pkg_name}.${ext}"
+              echo "jfrog rt u --target-props COMMIT=$GITHUB_SHA"
+              echo "  --build-name $BUILD_NAME_PX4"
+              echo "  --build-number $GITHUB_SHA"
+              echo "$pkg"
+              echo "$ARTIFACTORY_GEN_REPO/builds/${pr_or_empty}px4-firmware/${target}/$file_name"
+              echo " "
+              echo "jfrog rt cp --flat"
+              echo " $ARTIFACTORY_GEN_REPO/builds/${pr_or_empty}px4-firmware/${target}/$file_name"
+              echo " $ARTIFACTORY_GEN_REPO/builds/${pr_or_empty}px4-firmware/${target}/latest/${target}.${ext}"
+            fi
           done
 
-          jfrog rt build-publish "$BUILD_NAME_PX4" "$GITHUB_SHA"
-          jfrog rt bpr "$BUILD_NAME_PX4" "$GITHUB_SHA" "$ARTIFACTORY_GEN_REPO" \
-                       --status dev \
-                       --comment "development build"
+          echo " jfrog rt build-publish $BUILD_NAME_PX4 $GITHUB_SHA"
+          echo " jfrog rt bpr $BUILD_NAME_PX4 $GITHUB_SHA $ARTIFACTORY_GEN_REPO"
+          echo "             --status dev"
+          echo "             --comment development build"
 
-      - name: Upload px4-fwupdater build to Artifactory
-        env:
-          ARTIFACTORY_DEB_REPO: debian-public-local
-          DISTRIBUTION: focal
-          COMPONENT: fog-sw
-          ARCHITECTURE: amd64
-          BUILD_NAME_DEB: px4-fwupdater
-          CI: true
-        run: |
-          set -exu
-          pkg=$(find bin -name 'px4fwupdater*.deb')
-          pkg_name=$(basename $pkg)
-          jfrog rt u --deb "$DISTRIBUTION/$COMPONENT/$ARCHITECTURE" \
-                     --target-props COMMIT="$GITHUB_SHA" \
-                     --build-name "$BUILD_NAME_DEB" \
-                     --build-number "$GITHUB_SHA" \
-                     "$pkg" \
-                     "$ARTIFACTORY_DEB_REPO/$pkg_name"
-          jfrog rt build-publish "$BUILD_NAME_DEB" "$GITHUB_SHA"
-          jfrog rt bpr "$BUILD_NAME_DEB" "$GITHUB_SHA" "$ARTIFACTORY_DEB_REPO" \
-                       --status dev \
-                       --comment "development build"
