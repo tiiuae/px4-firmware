@@ -41,6 +41,8 @@
 #include <px4_platform_common/log.h>
 #include <px4_platform_common/tasks.h>
 
+#include <px4_platform/task.h>
+
 #include <nuttx/board.h>
 #include <nuttx/kthread.h>
 
@@ -88,18 +90,11 @@ int px4_task_spawn_cmd(const char *name, int scheduler, int priority, int stack_
 
 int px4_task_delete(int pid)
 {
-	int ret = OK;
-
-	if (pid == getpid()) {
-		// Commit suicide
-		exit(EXIT_SUCCESS);
-
-	} else {
-		// Politely ask someone else to kill themselves
-		ret = kill(pid, SIGKILL);
-	}
-
-	return ret;
+#if !defined(__KERNEL__)
+	return task_delete(pid);
+#else
+	return kthread_delete(pid);
+#endif
 }
 
 const char *px4_get_taskname(void)

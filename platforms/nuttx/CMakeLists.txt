@@ -36,6 +36,7 @@ if(POLICY CMP0079)
 endif()
 
 include(cygwin_cygpath)
+include(bin_romfs)
 
 add_executable(px4 ${PX4_SOURCE_DIR}/platforms/common/empty.c)
 if (CONFIG_OPENSBI AND "${PX4_BOARD_LABEL}" STREQUAL "bootloader")
@@ -113,6 +114,9 @@ elseif (CONFIG_BUILD_PROTECTED)
 	set(LDMEMORY ${NUTTX_CONFIG_DIR}/scripts/${SCRIPT_PREFIX}memory.ld)
 	set(LDSCRIPT ${LDMEMORY},--script=${NUTTX_CONFIG_DIR}/scripts/${SCRIPT_PREFIX}user-space.ld)
 	set(LDKERNEL ${LDMEMORY},--script=${NUTTX_CONFIG_DIR}/scripts/${SCRIPT_PREFIX}kernel-space.ld)
+elseif (CONFIG_BUILD_KERNEL)
+	set(LDKERNEL ${NUTTX_CONFIG_DIR}/scripts/${SCRIPT_PREFIX}kernel.ld)
+	set(LDSCRIPT ${NUTTX_CONFIG_DIR}/scripts/${SCRIPT_PREFIX}gnu-elf.ld)
 else()
 	message(FATAL_ERROR "Cannot determine linker script for build type")
 endif()
@@ -231,6 +235,81 @@ if (NOT CONFIG_BUILD_FLAT)
 
 	target_link_libraries(nuttx_c INTERFACE nuttx_proxies)
 
+if (CONFIG_BUILD_KERNEL)
+
+	add_dependencies(px4 nuttx_startup nuttx_nsh)
+
+	list(APPEND px4_initlibs
+		nuttx_nsh
+		nuttx_crt0
+		px4_layer
+		px4_platform
+		px4_work_queue
+		uORB
+	)
+
+	target_link_libraries(px4 PRIVATE
+
+		-nostartfiles
+		-nodefaultlibs
+		-nostdlib
+		-nostdinc++
+
+		-fno-exceptions
+		-fno-rtti
+
+		-Wl,--script=${LDSCRIPT}
+		-Wl,--entry=_start
+		-Wl,-r
+		-Wl,-Bstatic
+		-Wl,-Map=${PX4_CONFIG}.map
+		-Wl,--warn-common
+		-Wl,--gc-sections
+
+		-Wl,--start-group
+		${px4_initlibs}
+		${nuttx_userspace}
+		-Wl,--end-group
+
+		m
+		gcc
+	)
+
+	# Create the initial boot ROMFS
+	add_custom_target(boot_bins
+		COMMAND cp ${PX4_BINARY_DIR_REL}/${FW_NAME} ${PX4_BINARY_DIR}/init
+		COMMAND install -D ${PX4_BINARY_DIR}/init -t ${PX4_BINARY_DIR}/boot
+		COMMAND rm -f ${PX4_BINARY_DIR}/init
+		DEPENDS px4
+	)
+
+	make_bin_romfs(
+		BINDIR ${PX4_BINARY_DIR}/boot
+		OUTDIR ${NUTTX_CONFIG_DIR}/include
+		OUTPREFIX boot
+		LABEL Px4BootVol
+		STRIPPED "y"
+		DEPS boot_bins
+	)
+
+
+	# Create the /bin ROMFS
+	make_bin_romfs(
+		BINDIR ${PX4_BINARY_DIR}/bin
+		OUTDIR ${NUTTX_CONFIG_DIR}/include
+		OUTPREFIX bin
+		LABEL Px4BinVol
+		STRIPPED "y"
+		DEPS nuttx_app_bins
+	)
+
+	add_custom_command(OUTPUT ${PX4_BINARY_OUTPUT}
+		COMMAND ${CMAKE_OBJCOPY} -O binary ${PX4_BINARY_DIR_REL}/${KERNEL_NAME} ${PX4_BINARY_OUTPUT}
+		DEPENDS px4_kernel
+	)
+
+else() # CONFIG_BUILD_PROTECTED
+
 	target_link_libraries(px4 PRIVATE
 
 		-nostartfiles
@@ -269,7 +348,9 @@ if (NOT CONFIG_BUILD_FLAT)
 		DEPENDS px4 px4_kernel
 	)
 
-else()
+endif()
+
+else() # CONFIG_BUILD_FLAT
 
 	target_link_libraries(nuttx_c INTERFACE nuttx_sched)
 
