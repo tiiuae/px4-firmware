@@ -55,6 +55,112 @@
 #include <errno.h>
 #include <stdbool.h>
 
+#ifdef CONFIG_BUILD_KERNEL
+
+#ifndef MODULE_NAME
+#define MODULE_NAME "PX4_TASKS"
+#endif
+
+// Adaptor code copy & pasted from posix/.../tasks.cpp
+typedef struct {
+	px4_main_t entry;
+	char name[16]; //pthread_setname_np is restricted to 16 chars
+	int argc;
+	char *argv[];
+	// strings are allocated after the struct data
+} pthdata_t;
+
+static void *entry_adapter(void *ptr)
+{
+	pthdata_t *data = (pthdata_t *) ptr;
+
+	// set the threads name
+	int rv = pthread_setname_np(pthread_self(), data->name);
+
+	if (rv) {
+		PX4_ERR("px4_task_spawn_cmd: failed to set name of thread %d %d\n", rv, errno);
+	}
+
+	data->entry(data->argc, data->argv);
+	free(ptr);
+
+	return NULL;
+}
+
+int task_create(const char *name, int priority,	int stack_size, main_t entry,
+		char * const argv[])
+{
+	size_t stringssize;
+	size_t structsize;
+
+	pthread_t pid;
+	pthread_attr_s attr = {
+		.priority = (uint8_t)priority,
+		.policy = SCHED_RR,
+		.inheritsched = PTHREAD_EXPLICIT_SCHED,
+		.detachstate = PTHREAD_CREATE_JOINABLE,
+		.stackaddr = NULL,
+		.stacksize = (size_t)stack_size,
+	};
+
+	int argc = 0;
+	stringssize = strlen(name) + 1;
+
+	// Count the arguments and size of the strings (with terminating NULL)
+	if (argv) {
+		while(argv[argc]) {
+			stringssize += strlen(argv[argc]) + 1;
+			if (stringssize >= (size_t)stack_size) {
+				// Oops, we ran out of stack to copy the strings
+				return -ENAMETOOLONG;
+			}
+			argc++;
+		}
+	}
+
+	structsize = sizeof(pthdata_t) + (argc + 2) * sizeof(char *);
+
+	// Not safe to pass stack data to the thread creation
+	pthdata_t *taskdata = (pthdata_t *)malloc(structsize + stringssize);
+
+	if (taskdata == NULL) {
+		return -ENOMEM;
+	}
+
+	// Copy strings and pthread name to argv
+	memset(taskdata, 0, structsize + stringssize);
+
+	strncpy(taskdata->name, name, 16);
+	taskdata->name[15] = '\0';
+	taskdata->entry = entry;
+	taskdata->argc = argc + 1;
+
+	char *offset = (char *)taskdata + structsize;
+	taskdata->argv[0] = offset;
+	strcpy(offset, name);
+	offset += strlen(name) + 1;
+
+	for (int i = 0; i < argc; ++i) {
+		taskdata->argv[i + 1] = offset;
+		strcpy(offset, argv[i]);
+		offset += strlen(argv[i]) + 1;
+	}
+
+	// Must add NULL at end of argv
+	taskdata->argv[argc + 1] = (char *)NULL;
+
+	if (pthread_create(&pid, &attr, &entry_adapter, taskdata) < 0) {
+		// Pthread failed to start, clean up and get out
+		free(taskdata);
+		pid = ERROR;
+	}
+
+	pthread_attr_destroy(&attr);
+
+	return (int)pid;
+}
+#endif
+
 int px4_task_spawn_cmd(const char *name, int scheduler, int priority, int stack_size, main_t entry, char *const argv[])
 {
 	sched_lock();

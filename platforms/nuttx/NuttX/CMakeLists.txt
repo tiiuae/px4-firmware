@@ -71,7 +71,6 @@ add_custom_command(
 )
 add_custom_target(nuttx_context DEPENDS ${NUTTX_DIR}/include/nuttx/config.h)
 
-
 # builtins
 set(builtin_apps_string)
 set(builtin_apps_decl_string)
@@ -210,6 +209,70 @@ endif()
 
 if(CONFIG_NET)
 	add_nuttx_dir(net net y -D__KERNEL__ all)
+endif()
+
+if (CONFIG_BUILD_KERNEL)
+	include(bin_romfs)
+
+	# For modules in kernel mode, we need the startup object files (crt0)
+	add_custom_command(OUTPUT ${PX4_BINARY_DIR}/startup/crt0.o
+		COMMAND mkdir -p ${PX4_BINARY_DIR}/startup
+		COMMAND make -C arch/${CONFIG_ARCH}/src export_startup --no-print-directory --silent
+			TOPDIR="${NUTTX_DIR}"
+			EXPORT_DIR="${PX4_BINARY_DIR}" > ${CMAKE_CURRENT_BINARY_DIR}/nuttx_startup.log
+		DEPENDS nuttx_context
+		WORKING_DIRECTORY ${NUTTX_DIR}
+	)
+	add_custom_target(nuttx_startup DEPENDS ${PX4_BINARY_DIR}/startup/crt0.o)
+	add_library(nuttx_crt0 OBJECT IMPORTED GLOBAL)
+	set_property(TARGET nuttx_crt0 PROPERTY IMPORTED_OBJECTS ${PX4_BINARY_DIR}/startup/crt0.o)
+
+	# We also need to manually compile nsh_main.c, note that must wait for
+	# nuttx_apps_build because it wipes ALL OBJECT FILES without thinking
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Make.nsh.in ${CMAKE_CURRENT_BINARY_DIR}/apps/Make.nsh)
+
+	add_custom_command(OUTPUT ${PX4_BINARY_DIR}/nsh/nsh_main.o
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/apps/Make.nsh ${APPS_DIR}/Make.nsh
+		COMMAND mkdir -p ${PX4_BINARY_DIR}/nsh
+		COMMAND make -f Make.nsh --no-print-directory --silent
+			TOPDIR="${NUTTX_DIR}"
+			NSH_TOPDIR="${APPS_DIR}"
+			NHS_OBJDIR="${PX4_BINARY_DIR}/nsh" > ${CMAKE_CURRENT_BINARY_DIR}/nsh_build.log
+		DEPENDS nuttx_context nuttx_apps_build
+		WORKING_DIRECTORY ${APPS_DIR}
+	)
+	add_custom_target(nuttx_nsh_build DEPENDS ${PX4_BINARY_DIR}/nsh/nsh_main.o)
+	add_library(nuttx_nsh OBJECT IMPORTED GLOBAL)
+	set_property(TARGET nuttx_nsh PROPERTY IMPORTED_OBJECTS ${PX4_BINARY_DIR}/nsh/nsh_main.o)
+
+	# Build and install the NuttX applications into build/xx/bin
+	set(LDSCRIPT ${NUTTX_CONFIG_DIR}/scripts/${SCRIPT_PREFIX}gnu-elf.ld)
+
+	list(APPEND nuttx_userlibs
+		nuttx_apps
+		nuttx_mm
+		nuttx_proxies
+		nuttx_c
+		nuttx_xx
+	)
+
+	foreach(lib ${nuttx_userlibs})
+		get_property(lib_location TARGET ${lib} PROPERTY IMPORTED_LOCATION)
+		list(APPEND userlibs ${lib_location})
+	endforeach(lib)
+
+	get_property(CRT0_OBJ TARGET nuttx_crt0 PROPERTY IMPORTED_OBJECTS)
+
+	add_custom_target(nuttx_app_bins
+		COMMAND mkdir -p ${PX4_BINARY_DIR}/bin
+		COMMAND make -C ${NUTTX_SRC_DIR}/apps install --no-print-directory --silent
+			ARCHCRT0OBJ="${CRT0_OBJ}"
+			BINDIR="${PX4_BINARY_DIR}/bin"
+			TOPDIR="${NUTTX_DIR}"
+			ELFLDNAME="${LDSCRIPT}"
+			USERLIBS="${userlibs}" > ${CMAKE_CURRENT_BINARY_DIR}/nuttx_apps_install.log
+		DEPENDS ${nuttx_userlibs} nuttx_startup
+	)
 endif()
 
 ###############################################################################
