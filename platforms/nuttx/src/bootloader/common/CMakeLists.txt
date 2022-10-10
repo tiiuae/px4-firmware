@@ -35,6 +35,7 @@ add_library(bootloader
 	bl.c
 	image_toc.c
 	crypto.c
+	memtest.c
 )
 
 target_link_libraries(bootloader

@@ -59,9 +59,15 @@
 
 #include "image_toc.h"
 #include "crypto.h"
+#include "memtest.h"
 
 extern int sercon_main(int c, char **argv);
 extern int mpfs_set_entrypt(uint64_t hartid, uintptr_t entry);
+
+//#define MEMORYTEST
+#define KILOBYTE (1024)
+#define MEGABYTE (1024 * KILOBYTE)
+#define GIGABYTE (1024ul * MEGABYTE)
 
 #define MK_GPIO_INPUT(def) (((def) & (~(GPIO_OUTPUT)))  | GPIO_INPUT)
 
@@ -905,6 +911,49 @@ bootloader_main(void)
 
 	/* configure the clock for bootloader activity */
 	clock_init();
+
+#ifdef MEMORYTEST
+
+	/* Test DDR in 2 1GB blocks
+	 * 1 block is at 0x8000 0000 -  0xBFFF FFFF
+	 * 1 block is at 0x10 0000 0000 - 0x10 3FFF FFFF
+	 */
+	unsigned long data = memTestDataBus((volatile datum *)0x80000000);
+
+	if (data != 0) {
+		_alert("data bus test fail %ux\n", data);
+
+	} else {
+		_alert("data bus test OK\n");
+	}
+
+	datum *addr = memTestAddressBus((volatile datum *)0x80000000, GIGABYTE);
+
+	if (addr == NULL) {
+		addr = memTestAddressBus((volatile datum *)0x1000000000ul, GIGABYTE);
+	}
+
+	if (addr) {
+		_alert("address bus test fail at address %"PRIxPTR"\n", addr);
+
+	} else {
+		_alert("address bus test OK\n");
+	}
+
+	addr = memTestDevice((volatile datum *)0x80000000, GIGABYTE);
+
+	if (addr == NULL) {
+		addr = memTestDevice((volatile datum *)0x1000000000, GIGABYTE);
+	}
+
+	if (addr) {
+		_alert("dev test fail at address %"PRIxPTR"\n", addr);
+
+	} else {
+		_alert("dev test OK\n");
+	}
+
+#endif
 
 	/* check the bootloader force pin status */
 	try_boot = !board_test_force_pin();
