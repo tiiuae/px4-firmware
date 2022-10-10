@@ -28,7 +28,7 @@
 /*
  * Set the data bus width.
  */
-typedef unsigned long datum;
+typedef unsigned datum;
 
 /*
  * Function prototypes.
