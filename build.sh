@@ -42,7 +42,8 @@ then
     -f ./packaging/Dockerfile.build_env -t ${iname_env} .
 fi
 
-version=$(git describe --always --tags --dirty | sed 's/^v//')
+build_nbr=${GITHUB_RUN_NUMBER:-0}
+version="#${build_nbr}-$(git describe --always --tags --dirty | sed 's/^v//')"
 
 # Build Pixhawk4 image
 if [ "${target}" == all ] || [ "${target}" == pixhawk4 ]

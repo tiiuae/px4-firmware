@@ -24,8 +24,8 @@ docker build \
   --pull \
   -f ./packaging/Dockerfile.build_env -t ${iname_env} .
 
-# Build Saluki image
-version=$(git describe --always --tags --dirty | sed 's/^v//')
+build_nbr=${GITHUB_RUN_NUMBER:-0}
+version="#${build_nbr}-$(git describe --always --tags --dirty | sed 's/^v//')"
 
 docker run \
   --rm \
