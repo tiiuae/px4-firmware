@@ -86,6 +86,12 @@ topic_pascal = topic.replace("_", " ").title().replace(" ", "")
 				"<name>rt/fmu/out/@(topic_pascal)</name>"
 				"<dataType>px4_msgs::msg::dds_::@(topic_pascal)_</dataType>"
 				"</topic>"
+				"<qos>"
+				"<publishMode>"
+				"<kind>ASYNCHRONOUS</kind>"
+				"</publishMode>"
+				"</qos>"
+				"<historyMemoryPolicy>PREALLOCATED_WITH_REALLOC</historyMemoryPolicy>"
 				"</data_writer>"
 				"</dds>";
 		uint16_t datawriter_req = uxr_buffer_create_datawriter_xml(session, stream_id, datawriter_id, publisher_id,
@@ -171,14 +177,15 @@ topic_pascal = topic.replace("_", " ").title().replace(" ", "")
 
 		uxrObjectId datareader_id = uxr_object_id(@(idx)+1, UXR_DATAREADER_ID);
 		const char* datareader_xml = "<dds>"
-										 "<data_reader>"
-											 "<topic>"
-												 "<kind>NO_KEY</kind>"
-												 "<name>rt/fmu/in/@(topic_pascal)</name>"
-												 "<dataType>px4_msgs::msg::dds_::@(topic_pascal)_</dataType>"
-											 "</topic>"
-										 "</data_reader>"
-									 "</dds>";
+					"<data_reader>"
+					"<topic>"
+					"<kind>NO_KEY</kind>"
+					"<name>rt/fmu/in/@(topic_pascal)</name>"
+					"<dataType>px4_msgs::msg::dds_::@(topic_pascal)_</dataType>"
+					"</topic>"
+					"<historyMemoryPolicy>PREALLOCATED_WITH_REALLOC</historyMemoryPolicy>"
+					"</data_reader>"
+					"</dds>";
 		uint16_t datareader_req = uxr_buffer_create_datareader_xml(session, stream_id, datareader_id, subscriber_id, datareader_xml, UXR_REPLACE);
 
 		uint8_t status[3];
