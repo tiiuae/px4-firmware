@@ -218,12 +218,14 @@ private:
 
 	unsigned		_output_count{0};		///< number of actuators currently available
 
+#if UAVCAN_SOCKETCAN_NUTTX == 1
 	bool _iface_initialized{false};		///< is the CAN interface initialized yet
+#endif
 
 	static UavcanNode	*_instance;			///< singleton pointer
 
 	uavcan_node::Allocator	 _pool_allocator;
-	
+
 	CanInitHelper*	_can_helper{nullptr};	///< can driver pointer
 
 	uavcan::Node<>			_node;				///< library instance

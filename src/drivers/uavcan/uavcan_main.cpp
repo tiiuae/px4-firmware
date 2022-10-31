@@ -112,10 +112,12 @@ UavcanNode::UavcanNode(CanInitHelper* can_helper, uavcan::ICanDriver &can_driver
 UavcanNode::~UavcanNode()
 {
 	if (_can_helper != nullptr) {
+#if UAVCAN_SOCKETCAN_NUTTX == 1
 		_can_helper->driver.closeAllIface();
-		_can_helper = nullptr;	
+#endif
+		_can_helper = nullptr;
 	}
-	
+
 	if (_servers != nullptr) {
 		delete _servers;
 		_servers = nullptr;
@@ -443,7 +445,7 @@ UavcanNode::start(uavcan::NodeID node_id)
 	PX4_INFO("init new uavcannode instance");
 	const int node_init_res = _instance->init(node_id, can->driver.updateEvent());
 
-	
+
 	if (node_init_res < 0) {
 		delete _instance;
 		_instance = nullptr;
@@ -642,7 +644,8 @@ void
 UavcanNode::Run()
 {
 	pthread_mutex_lock(&_node_mutex);
-	
+
+#if UAVCAN_SOCKETCAN_NUTTX == 1
 	/* Init Socket Interface and start the Node if not yet */
 	if (_can_helper && !_iface_initialized) {
 		PX4_INFO("Initialize socket interface");
@@ -676,6 +679,7 @@ UavcanNode::Run()
 
 		_iface_initialized = true;
 	}
+#endif
 
 	if (_output_count == 0) {
 		// Set up the time synchronization
@@ -877,12 +881,12 @@ UavcanNode::Run()
 		// after each successful fetch by cb_getset
 		uavcan::protocol::param::GetSet::Request req;
 		req.index = _param_index;
-		
+
 		//PX4_DEBUG("send param get set listing");
-		
+
 		// sleep a bit to reduce spike on CAN bus traffic
 		usleep(100);
-		
+
 		int call_res = _param_getset_client.call(_param_list_node_id, req);
 
 		if (call_res < 0) {
@@ -1219,11 +1223,11 @@ UavcanNode::cb_getset(const uavcan::ServiceCallResult<uavcan::protocol::param::G
 
 		} else {
 			PX4_ERR("GetSet error at node : %d, param index %d, need resend...", result.getCallID().server_node_id.get(), _param_index);
-			
+
 			uavcan::protocol::param::GetSet::Request req;
 
 			req.index = _param_index;
-			
+
 			int call_res = _param_getset_client.call(result.getCallID().server_node_id.get(), req);
 			if(call_res < 0){
 				PX4_ERR("resend failed");
