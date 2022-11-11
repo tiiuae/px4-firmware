@@ -234,6 +234,8 @@ if (NOT CONFIG_BUILD_FLAT)
 		)
 
 	target_link_libraries(nuttx_c INTERFACE nuttx_proxies)
+	target_link_libraries(nuttx_c INTERFACE nuttx_mm)
+	target_link_libraries(nuttx_c INTERFACE gcc)
 
 if (CONFIG_BUILD_KERNEL)
 
@@ -292,6 +294,70 @@ if (CONFIG_BUILD_KERNEL)
 		DEPS boot_bins
 	)
 
+	# TODO: The dependencies here are a big mess, figure out if they can be
+	# demangled / handled properly
+	target_link_libraries(perf nuttx_c)
+	target_link_libraries(px4_platform board_bus_info)
+
+	# Build and install the px4 processes
+	foreach(module ${module_libraries})
+		get_target_property(MAIN ${module} MAIN)
+
+		# Don't handle modules that don't have a main (entry) function
+		if (NOT MAIN)
+			continue()
+		endif()
+
+		# Build module.a into module.elf
+		set(BIN px4-${MAIN}.elf)
+		add_executable(${BIN} ${PX4_SOURCE_DIR}/platforms/nuttx/src/px4/common/main.cpp)
+		set_target_properties(${BIN} PROPERTIES OUTPUT_NAME ${BIN})
+		add_dependencies(${BIN} nuttx_crt0 ${module})
+		target_compile_options(${BIN} PRIVATE -Dentry=${MAIN}_main)
+
+		target_link_libraries(${BIN} PRIVATE
+
+			-nostartfiles
+			-nodefaultlibs
+			-nostdlib
+			-nostdinc++
+
+			-fno-exceptions
+			-fno-rtti
+
+			-Wl,--script=${LDSCRIPT}
+			-Wl,--entry=_start
+			-Wl,-r
+			-Wl,-Bstatic
+			-Wl,-Map=${PX4_CONFIG}.map
+			-Wl,--warn-common
+			-Wl,--gc-sections
+
+			-Wl,--start-group
+			nuttx_crt0
+			px4_layer
+			px4_platform
+			px4_work_queue
+			uORB
+			${nuttx_userspace}
+			${module_libraries}
+			-Wl,--end-group
+
+			m
+			gcc
+		)
+
+		# Install the executable to /bin
+		add_custom_target(${BIN}_install
+			COMMAND mkdir -p ${PX4_BINARY_DIR}/bin
+			COMMAND install -D ${PX4_BINARY_DIR}/${BIN} -t ${PX4_BINARY_DIR}/bin
+			COMMAND mv ${PX4_BINARY_DIR}/bin/${BIN} ${PX4_BINARY_DIR}/bin/${MAIN}
+			COMMAND rm -f ${PX4_BINARY_DIR}/${BIN}
+			DEPENDS ${BIN}
+		)
+
+		list(APPEND px4_bins ${BIN}_install)
+	endforeach()
 
 	# Create the /bin ROMFS
 	make_bin_romfs(
@@ -300,7 +366,7 @@ if (CONFIG_BUILD_KERNEL)
 		OUTPREFIX bin
 		LABEL Px4BinVol
 		STRIPPED "y"
-		DEPS nuttx_app_bins
+		DEPS nuttx_app_bins ${px4_bins}
 	)
 
 	add_custom_command(OUTPUT ${PX4_BINARY_OUTPUT}
