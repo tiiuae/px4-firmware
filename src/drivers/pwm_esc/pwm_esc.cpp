@@ -167,7 +167,7 @@ private:
 
 	/* subscribed topics */
 
-	int		_actuator_armed_sub{-1};	///< system armed control topic
+	orb_sub_t		_actuator_armed_sub{ORB_SUB_INVALID};	///< system armed control topic
 
 	MixingOutput _mixing_output{"PWM_ESC", PWMESC_MAX_CHANNELS, *this, MixingOutput::SchedulingPolicy::Auto, true};
 
@@ -220,7 +220,7 @@ PWMESC::PWMESC() :
 	_task(-1),
 	_task_should_exit(false),
 	_perf_update(perf_alloc(PC_ELAPSED, "pwm update")),
-	_actuator_armed_sub(-1),
+	_actuator_armed_sub(ORB_SUB_INVALID),
 	_hitl_mode(false)
 {
 
@@ -410,7 +410,7 @@ PWMESC::task_main()
 
 	_actuator_armed_sub =  orb_subscribe(ORB_ID(actuator_armed));
 
-	if (_actuator_armed_sub < 0) {
+	if (!orb_sub_valid(_actuator_armed_sub)) {
 		PX4_ERR("arming status subscription failed");
 		_task_should_exit = true;
 	}
