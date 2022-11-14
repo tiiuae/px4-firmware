@@ -194,7 +194,7 @@ void MicroddsClient::run()
 
 		if (!uxr_create_session(&session)) {
 			PX4_ERR("uxr_create_session failed");
-			return;
+			continue;
 		}
 
 
@@ -221,17 +221,17 @@ void MicroddsClient::run()
 
 		if (!uxr_run_session_until_all_status(&session, 1000, &participant_req, &request_status, 1)) {
 			PX4_ERR("create entities failed: participant: %i", request_status);
-			return;
+			continue;
 		}
 
 		if (!_subs->init(&session, reliable_out, participant_id)) {
 			PX4_ERR("subs init failed");
-			return;
+			continue;
 		}
 
 		if (!_pubs->init(&session, reliable_out, input_stream, participant_id)) {
 			PX4_ERR("pubs init failed");
-			return;
+			continue;
 		}
 
 		_connected = true;
