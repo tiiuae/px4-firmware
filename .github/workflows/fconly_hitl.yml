@@ -10,7 +10,6 @@ jobs:
       - run: ls
       - name: Checkout repo
         uses: actions/checkout@v3
-      - run: echo "Repository cloned: ${{ github.repository }}"
       - name: list files in repo
       - run: |
           ls ${{ github.workspace }}
