@@ -13,6 +13,8 @@ jobs:
       - name: list files in repo
         run: |
           ls ${{ github.workspace }}/test/fconly_hitl
-      - run: |
-          .${{ github.workspace }}/test/fconly_hitl/testrunner.sh
+      - name: Run tests
+        working-directory: ${{ github.workspace }}/test/fconly_hitl
+        run: |
+          bash testrunner.sh
 
