@@ -397,9 +397,12 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 
 	for (unsigned i = 0; i < nfds; i++) {
 		fds[i].revents = 0;
-		sub = static_cast<SubscriptionPollable *>(fds[i].fd);
-		sub->registerPoll(lock_idx);
-		updated = updated || sub->updated();
+
+		if ((fds[i].events & POLLIN) == POLLIN) {
+			sub = static_cast<SubscriptionPollable *>(fds[i].fd);
+			sub->registerPoll(lock_idx);
+			updated = updated || sub->updated();
+		}
 	}
 
 	// If none of the orbs were updated before registration, go to sleep.
@@ -425,12 +428,14 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 	int count = 0;
 
 	for (unsigned i = 0; i < nfds; i++) {
-		sub = static_cast<SubscriptionPollable *>(fds[i].fd);
-		sub->unregisterPoll();
+		if ((fds[i].events & POLLIN) == POLLIN) {
+			sub = static_cast<SubscriptionPollable *>(fds[i].fd);
+			sub->unregisterPoll();
 
-		if (sub->updated()) {
-			fds[i].revents |= POLLIN;
-			count++;
+			if (sub->updated()) {
+				fds[i].revents |= POLLIN;
+				count++;
+			}
 		}
 	}
 
