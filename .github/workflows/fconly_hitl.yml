@@ -14,5 +14,5 @@ jobs:
         run: |
           ls ${{ github.workspace }}
       - run: |
-          ./${{ github.workspace }}/test/fconly_hitl/testrunner.sh
+          .${{ github.workspace }}/test/fconly_hitl/testrunner.sh
 
