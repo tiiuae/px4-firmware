@@ -80,7 +80,7 @@ public:
 			if (orb_advert_valid(_subscription.get_node())) {
 				_cb_handle = Manager::register_callback(_subscription.get_node(), this);
 
-				if (_cb_handle >= 0) {
+				if (_cb_handle != nullptr) {
 					_registered = true;
 				}
 			}
@@ -96,7 +96,7 @@ public:
 		}
 
 		_registered = false;
-		_cb_handle = -1;
+		_cb_handle = nullptr;
 	}
 
 	/**
@@ -137,7 +137,7 @@ public:
 protected:
 
 	bool _registered{false};
-	int8_t _cb_handle{-1};
+	void *_cb_handle{nullptr};
 };
 
 // Subscription with callback that schedules a WorkItem
@@ -205,18 +205,17 @@ public:
 
 	void registerPoll(int8_t lock_idx)
 	{
-		_lock_handle = Manager::register_callback(_subscription.get_node(), nullptr, lock_idx);
+		_cb_handle = Manager::register_callback(_subscription.get_node(), nullptr, lock_idx);
 		// This may have been updated before registeration, initialize revents
 	}
 
 	void unregisterPoll()
 	{
-		Manager::unregister_callback(_subscription.get_node(), _lock_handle);
-		_lock_handle = -1;
-
+		Manager::unregister_callback(_subscription.get_node(), _cb_handle);
+		_cb_handle = nullptr;
 	}
 private:
-	int8_t _lock_handle{-1};
+	void *_cb_handle{nullptr};
 };
 
 } // namespace uORB
