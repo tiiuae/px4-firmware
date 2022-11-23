@@ -1,0 +1,18 @@
+name: Saluki FC only HITL
+run-name: ${{ github.actor }} GHA test branch
+on: [push]
+jobs:
+  Explore-GitHub-Actions:
+    runs-on: tii-NUC10i7FNH
+    steps:
+      - run: echo "WORKFLOW JOB triggered!"
+      - run: pwd
+      - run: ls
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      - run: echo "Repository cloned: ${{ github.repository }}"
+      - name: list files in repo
+      - run: |
+          ls ${{ github.workspace }}
+      - run: echo "This job's status is ${{ job.status }}"
+
