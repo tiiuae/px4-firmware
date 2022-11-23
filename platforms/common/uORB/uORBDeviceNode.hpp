@@ -202,7 +202,8 @@ public:
 
 	static void orb_callback(int signo, siginfo_t *si_info, void *data);
 
-	static int8_t register_callback(orb_advert_t &node_handle, SubscriptionCallback *callback_sub, int8_t poll_lock);
+	static int8_t register_callback(orb_advert_t &node_handle, SubscriptionCallback *callback_sub, int8_t poll_lock,
+					hrt_abstime last_update, uint32_t interval_us);
 
 	static void unregister_callback(orb_advert_t &node_handle, int8_t cb_handle);
 
@@ -229,6 +230,8 @@ private:
 	struct EventWaitItem {
 		struct SubscriptionCallback *subscriber;
 		int8_t lock;
+		hrt_abstime last_update;
+		uint32_t interval_us;
 	};
 
 	inline ssize_t write(const char *buffer, size_t buflen, orb_advert_t &handle);

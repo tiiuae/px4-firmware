@@ -52,6 +52,7 @@
 #endif
 
 #include <px4_platform_common/sem.hpp>
+#include <drivers/drv_hrt.h>
 
 // Every subscriber thread has it's own list of cached subscriptions
 uORB::DeviceNode::MappingCache::MappingCacheListItem *uORB::DeviceNode::MappingCache::g_cache =
@@ -578,19 +579,21 @@ uORB::DeviceNode::write(const char *buffer, size_t buflen, orb_advert_t &handle)
 
 	// callbacks and poll waiters
 	for (auto &item : _callbacks) {
-		if (item.subscriber != nullptr) {
+//		hrt_abstime now = hrt_absolute_time();
+		if (item.interval_us == 0 || hrt_elapsed_time(&item.last_update) >= item.interval_us) {
+			if (item.subscriber != nullptr) {
 #ifdef CONFIG_BUILD_FLAT
-			item.subscriber->call();
+				item.subscriber->call();
 #else
-			Manager::queueCallback(item.subscriber);
+				Manager::queueCallback(item.subscriber);
 #endif
-		}
+			}
 
-		// Release poll waiters (and callback threads in non-flat builds)
-		if (item.lock != -1) {
-			Manager::unlockThread(item.lock);
+			// Release poll waiters (and callback threads in non-flat builds)
+			if (item.lock != -1) {
+				Manager::unlockThread(item.lock);
+			}
 		}
-
 	}
 
 	unlock();
@@ -835,7 +838,7 @@ unsigned uORB::DeviceNode::get_initial_generation()
 //TODO: make this a normal member function
 int8_t
 uORB::DeviceNode::register_callback(orb_advert_t &node_handle, uORB::SubscriptionCallback *callback_sub,
-				    int8_t poll_lock)
+				    int8_t poll_lock, hrt_abstime last_update, uint32_t interval_us)
 {
 	int8_t ret = -1;
 	uORB::DeviceNode *n = node(node_handle);
@@ -858,6 +861,8 @@ uORB::DeviceNode::register_callback(orb_advert_t &node_handle, uORB::Subscriptio
 		if (n->_callbacks[i].subscriber == nullptr && n->_callbacks[i].lock == -1) {
 			n->_callbacks[i].lock = lock;
 			n->_callbacks[i].subscriber = callback_sub;
+			n->_callbacks[i].last_update = last_update;
+			n->_callbacks[i].interval_us = interval_us;
 			n->unlock();
 			return i;
 		}
@@ -877,10 +882,9 @@ uORB::DeviceNode::unregister_callback(orb_advert_t &node_handle, int8_t cb_handl
 
 	if (cb_handle >= 0) {
 		n->lock();
-
 		n->_callbacks[cb_handle].subscriber = nullptr;
 		n->_callbacks[cb_handle].lock = -1;
-
+		n->_callbacks[cb_handle].interval_us = 0;
 		n->unlock();
 	}
 }

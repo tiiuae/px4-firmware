@@ -393,6 +393,7 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 	}
 
 	// Any orb updated already?
+	int count = 0;
 	bool updated = false;
 
 	for (unsigned i = 0; i < nfds; i++) {
@@ -401,7 +402,12 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 		if ((fds[i].events & POLLIN) == POLLIN) {
 			sub = static_cast<SubscriptionPollable *>(fds[i].fd);
 			sub->registerPoll(lock_idx);
-			updated = updated || sub->updated();
+
+			if (sub->updated()) {
+				fds[i].revents = POLLIN;
+				updated = true;
+				count++;
+			}
 		}
 	}
 
@@ -423,18 +429,25 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 			usleep((useconds_t)timeout * 1000);
 		}
 
-	}
+		count = 0;
 
-	int count = 0;
+		for (unsigned i = 0; i < nfds; i++) {
+			if ((fds[i].events & POLLIN) == POLLIN) {
+				sub = static_cast<SubscriptionPollable *>(fds[i].fd);
+				sub->unregisterPoll();
 
-	for (unsigned i = 0; i < nfds; i++) {
-		if ((fds[i].events & POLLIN) == POLLIN) {
-			sub = static_cast<SubscriptionPollable *>(fds[i].fd);
-			sub->unregisterPoll();
+				if (sub->updated()) {
+					fds[i].revents |= POLLIN;
+					count++;
+				}
+			}
+		}
 
-			if (sub->updated()) {
-				fds[i].revents |= POLLIN;
-				count++;
+	} else {
+		for (unsigned i = 0; i < nfds; i++) {
+			if ((fds[i].events & POLLIN) == POLLIN) {
+				sub = static_cast<SubscriptionPollable *>(fds[i].fd);
+				sub->unregisterPoll();
 			}
 		}
 	}
