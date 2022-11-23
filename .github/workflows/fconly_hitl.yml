@@ -3,7 +3,7 @@ run-name: ${{ github.actor }} GHA test branch
 on: [push]
 jobs:
   Explore-GitHub-Actions:
-    runs-on: tii-NUC10i7FNH
+    runs-on: [self-hosted, linux, X64]
     steps:
       - run: echo "WORKFLOW JOB triggered!"
       - run: pwd
