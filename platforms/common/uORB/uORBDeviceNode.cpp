@@ -503,7 +503,8 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 
 	lock();
 
-	size_t data_size = _queue_size * get_meta()->o_size;
+	size_t o_size = get_meta()->o_size;
+	size_t data_size = _queue_size * o_size;
 
 	if (data_size != handle.data_size) {
 		remap_data(handle, data_size, false);
@@ -515,7 +516,7 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 	}
 
 	if (_queue_size == 1) {
-		memcpy(dst, node_data(handle), get_meta()->o_size);
+		memcpy(dst, node_data(handle), o_size);
 		generation = _generation.load();
 
 	} else {
@@ -534,7 +535,7 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 			generation = current_generation - _queue_size;
 		}
 
-		memcpy(dst, ((uint8_t *)node_data(handle)) + (get_meta()->o_size * (generation % _queue_size)), get_meta()->o_size);
+		memcpy(dst, ((uint8_t *)node_data(handle)) + (o_size * (generation % _queue_size)), o_size);
 
 		++generation;
 	}
@@ -546,19 +547,15 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 }
 
 ssize_t
-uORB::DeviceNode::write(const char *buffer, size_t buflen, orb_advert_t &handle)
+uORB::DeviceNode::write(const char *buffer, const orb_metadata *meta, orb_advert_t &handle)
 {
-
-	/* If write size does not match, that is an error */
-	if (get_orb_meta(_orb_id)->o_size != buflen) {
-		return -EIO;
-	}
+	size_t o_size = meta->o_size;
 
 	/* Perform an atomic copy. */
 	lock();
 
 	/* If data size has changed, re-map the data */
-	size_t data_size = _queue_size * get_meta()->o_size;
+	size_t data_size = _queue_size * o_size;
 
 	if (data_size != handle.data_size) {
 		remap_data(handle, data_size, true);
@@ -572,7 +569,7 @@ uORB::DeviceNode::write(const char *buffer, size_t buflen, orb_advert_t &handle)
 	/* wrap-around happens after ~49 days, assuming a publisher rate of 1 kHz */
 	unsigned generation = _generation.fetch_add(1);
 
-	memcpy(((uint8_t *)node_data(handle)) + get_meta()->o_size * (generation % _queue_size), buffer, get_meta()->o_size);
+	memcpy(((uint8_t *)node_data(handle)) + o_size * (generation % _queue_size), buffer, o_size);
 
 	/* Mark at least one data has been published */
 	_data_valid = true;
@@ -598,7 +595,7 @@ uORB::DeviceNode::write(const char *buffer, size_t buflen, orb_advert_t &handle)
 
 	unlock();
 
-	return get_meta()->o_size;
+	return o_size;
 }
 
 ssize_t
@@ -614,13 +611,13 @@ uORB::DeviceNode::publish(const orb_metadata *meta, orb_advert_t &handle, const 
 	}
 
 	/* check if the orb meta data matches the publication */
-	if (devnode->get_meta()->o_id != meta->o_id) {
+	if (static_cast<uint8_t>(devnode->id()) != meta->o_id) {
 		errno = EINVAL;
 		return PX4_ERROR;
 	}
 
 	/* call the devnode write method */
-	ret = devnode->write((const char *)data, meta->o_size, handle);
+	ret = devnode->write((const char *)data, meta, handle);
 
 	if (ret < 0) {
 		errno = -ret;

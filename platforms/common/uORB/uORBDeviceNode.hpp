@@ -234,7 +234,7 @@ private:
 		uint32_t interval_us;
 	};
 
-	inline ssize_t write(const char *buffer, size_t buflen, orb_advert_t &handle);
+	inline ssize_t write(const char *buffer, const orb_metadata *meta, orb_advert_t &handle);
 
 	EventWaitItem _callbacks[MAX_EVENT_WAITERS];
 
