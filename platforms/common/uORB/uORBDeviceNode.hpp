@@ -202,9 +202,9 @@ public:
 
 	static void orb_callback(int signo, siginfo_t *si_info, void *data);
 
-	static void *register_callback(orb_advert_t &node_handle, SubscriptionCallback *callback_sub, int8_t poll_lock);
+	static int8_t register_callback(orb_advert_t &node_handle, SubscriptionCallback *callback_sub, int8_t poll_lock);
 
-	static void unregister_callback(orb_advert_t &node_handle, void *cb_handle);
+	static void unregister_callback(orb_advert_t &node_handle, int8_t cb_handle);
 
 	void *operator new (size_t, void *p)
 	{
@@ -226,19 +226,14 @@ private:
 	bool _data_valid{false}; /**< At least one valid data */
 	px4::atomic<unsigned>  _generation{0};  /**< object generation count */
 
-	class EventWaitItem : public ListNode<EventWaitItem *>
-	{
-	public:
+	struct EventWaitItem {
 		struct SubscriptionCallback *subscriber;
 		int8_t lock;
 	};
 
 	inline ssize_t write(const char *buffer, size_t buflen, orb_advert_t &handle);
 
-	List<EventWaitItem *>      _callbacks;
-#ifndef CONFIG_BUILD_FLAT
-	EventWaitItem _wait_item_pool[MAX_EVENT_WAITERS];
-#endif
+	EventWaitItem _callbacks[MAX_EVENT_WAITERS];
 
 	static int callback_thread(int argc, char *argv[]);
 	struct SubscriptionCallback *callback_sub;
