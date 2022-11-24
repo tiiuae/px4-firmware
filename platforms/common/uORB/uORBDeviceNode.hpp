@@ -227,17 +227,89 @@ private:
 	bool _data_valid{false}; /**< At least one valid data */
 	px4::atomic<unsigned>  _generation{0};  /**< object generation count */
 
-	struct EventWaitItem {
-		struct SubscriptionCallback *subscriber;
-		int8_t lock;
-		hrt_abstime last_update;
-		uint32_t interval_us;
+	template<class T>
+	class IndexedStack
+	{
+	public:
+		IndexedStack(T *pool) : _pool(pool) { }
+		void push(int8_t handle)
+		{
+			if (handle_valid(handle)) {
+				T *item = peek(handle);
+				item->next = _head;
+				_head = handle;
+			}
+		}
+
+		int8_t pop()
+		{
+			int8_t ret = _head;
+
+			if (handle_valid(ret)) {
+				T *item = head();
+				_head = item->next;
+			}
+
+			return ret;
+		}
+
+		bool rm(int8_t handle)
+		{
+			int8_t p = _head;
+			int8_t r = -1;
+
+			if (!handle_valid(handle) ||
+			    !handle_valid(p)) {
+				return r;
+			}
+
+			if (p == handle) {
+				// remove the first item
+				T *item = head();
+				_head = item->next;
+				r  = p;
+
+			} else {
+				while (handle_valid((r = peek(p)->next))) {
+					if (r == handle) {
+						T *prev = peek(p);
+						T *item = peek(r);
+						// remove the item
+						prev->next = item->next;
+						break;
+					}
+
+					p = r;
+				}
+			}
+
+			return handle_valid(r) ? true : false;
+		}
+
+		T *head() {return peek(_head);}
+		T *peek(int8_t handle) { return handle_valid(handle) ? &_pool[handle] : nullptr; }
+
+		static bool handle_valid(int8_t handle) { return handle >= 0; }
+
+	private:
+		T *_pool;
+		int8_t _head{-1};
 	};
 
+	struct EventWaitItem {
+		struct SubscriptionCallback *subscriber;
+		hrt_abstime last_update;
+		uint32_t interval_us;
+		int8_t lock;
+		int8_t next; // List ptr
+	};
+
+	EventWaitItem _wait_item_pool[MAX_EVENT_WAITERS];
+	IndexedStack<EventWaitItem> _callbacks{_wait_item_pool};
+	IndexedStack<EventWaitItem> _wait_item_freelist{_wait_item_pool};
+	static_assert(sizeof(_wait_item_pool) / sizeof(_wait_item_pool[0]) <= INT8_MAX);
+
 	inline ssize_t write(const char *buffer, const orb_metadata *meta, orb_advert_t &handle);
-
-	EventWaitItem _callbacks[MAX_EVENT_WAITERS];
-
 	static int callback_thread(int argc, char *argv[]);
 	struct SubscriptionCallback *callback_sub;
 

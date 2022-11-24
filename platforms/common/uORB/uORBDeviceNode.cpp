@@ -412,9 +412,8 @@ uORB::DeviceNode::DeviceNode(const struct orb_metadata *meta, const uint8_t inst
 		PX4_DEBUG("SEM INIT FAIL: ret %d", ret);
 	}
 
-	for (auto &item : _callbacks) {
-		item.subscriber = nullptr;
-		item.lock = -1;
+	for (unsigned i = 0; i < sizeof(_wait_item_pool) / sizeof(_wait_item_pool[0]); i++) {
+		_wait_item_freelist.push(i);
 	}
 }
 
@@ -575,22 +574,27 @@ uORB::DeviceNode::write(const char *buffer, const orb_metadata *meta, orb_advert
 	_data_valid = true;
 
 	// callbacks and poll waiters
-	for (auto &item : _callbacks) {
-//		hrt_abstime now = hrt_absolute_time();
-		if (item.interval_us == 0 || hrt_elapsed_time(&item.last_update) >= item.interval_us) {
-			if (item.subscriber != nullptr) {
+
+	EventWaitItem *item = _callbacks.head();
+
+	while (item) {
+
+		if (item->interval_us == 0 || hrt_elapsed_time(&item->last_update) >= item->interval_us) {
+			if (item->subscriber != nullptr) {
 #ifdef CONFIG_BUILD_FLAT
-				item.subscriber->call();
+				item->subscriber->call();
 #else
-				Manager::queueCallback(item.subscriber);
+				Manager::queueCallback(item->subscriber);
 #endif
 			}
 
 			// Release poll waiters (and callback threads in non-flat builds)
-			if (item.lock != -1) {
-				Manager::unlockThread(item.lock);
+			if (item->lock != -1) {
+				Manager::unlockThread(item->lock);
 			}
 		}
+
+		item = _callbacks.peek(item->next);
 	}
 
 	unlock();
@@ -837,7 +841,6 @@ int8_t
 uORB::DeviceNode::register_callback(orb_advert_t &node_handle, uORB::SubscriptionCallback *callback_sub,
 				    int8_t poll_lock, hrt_abstime last_update, uint32_t interval_us)
 {
-	int8_t ret = -1;
 	uORB::DeviceNode *n = node(node_handle);
 
 	n->lock();
@@ -851,24 +854,24 @@ uORB::DeviceNode::register_callback(orb_advert_t &node_handle, uORB::Subscriptio
 
 	// TODO: Check for duplicate registrations?
 
-	const int8_t max_callbacks = sizeof(_callbacks) / sizeof(_callbacks[0]);
-	static_assert(sizeof(_callbacks) / sizeof(_callbacks[0]) <= INT8_MAX);
+	int8_t i = n->_wait_item_freelist.pop();
+	EventWaitItem *item = n->_wait_item_freelist.peek(i);
 
-	for (int i = 0; i < max_callbacks; i++)  {
-		if (n->_callbacks[i].subscriber == nullptr && n->_callbacks[i].lock == -1) {
-			n->_callbacks[i].lock = lock;
-			n->_callbacks[i].subscriber = callback_sub;
-			n->_callbacks[i].last_update = last_update;
-			n->_callbacks[i].interval_us = interval_us;
-			n->unlock();
-			return i;
-		}
+	if (item != nullptr) {
+		item->lock = lock;
+		item->subscriber = callback_sub;
+		item->last_update = last_update;
+		item->interval_us = interval_us;
+
+		n->_callbacks.push(i);
+
+	} else {
+		PX4_ERR("register fail\n");
 	}
 
 	n->unlock();
-	PX4_ERR("registration fail\n");
 
-	return ret;
+	return i;
 }
 
 //TODO: make this a normal member function?
@@ -877,11 +880,14 @@ uORB::DeviceNode::unregister_callback(orb_advert_t &node_handle, int8_t cb_handl
 {
 	uORB::DeviceNode *n = node(node_handle);
 
-	if (cb_handle >= 0) {
-		n->lock();
-		n->_callbacks[cb_handle].subscriber = nullptr;
-		n->_callbacks[cb_handle].lock = -1;
-		n->_callbacks[cb_handle].interval_us = 0;
-		n->unlock();
+	n->lock();
+
+	if (!n->_callbacks.rm(cb_handle)) {
+		PX4_ERR("unregister fail\n");
+
 	}
+
+	n->_wait_item_freelist.push(cb_handle);
+
+	n->unlock();
 }
