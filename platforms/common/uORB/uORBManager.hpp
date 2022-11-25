@@ -642,7 +642,8 @@ private: //class methods
 		void free(int8_t i);
 
 		void set(int8_t i, int val) {_global_sem[i].set(val);}
-		void take(int8_t i) { _global_sem[i].take(); }
+		void take(int8_t i) { do {} while (_global_sem[i].take() != 0); }
+		int take_interruptible(int8_t i) { return _global_sem[i].take(); }
 		int take_timedwait(int8_t i, struct timespec *abstime) { return _global_sem[i].take_timedwait(abstime); }
 		void release(int8_t i) {_global_sem[i].release(); }
 
@@ -665,7 +666,7 @@ private: //class methods
 				sem_setprotocol(&_sem, SEM_PRIO_NONE);
 #endif
 			}
-			void take() {do {} while (px4_sem_wait(&_sem) != 0);}
+			int take() {return px4_sem_wait(&_sem);}
 			int take_timedwait(struct timespec *abstime) { return px4_sem_timedwait(&_sem, abstime); }
 			void release() {px4_sem_post(&_sem); }
 

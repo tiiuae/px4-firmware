@@ -317,7 +317,7 @@ int uORB::Manager::orb_unadvertise(orb_advert_t &handle)
 
 	manager->unlock();
 
-	return unadvertised;
+	return unadvertised ? PX4_OK : PX4_ERROR;
 }
 
 // Should only be called from old interface
@@ -389,12 +389,12 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 
 	if (lock_idx < 0) {
 		PX4_ERR("Out of thread locks");
-		return 0;
+		return -1;
 	}
 
 	// Any orb updated already?
+	bool err = false;
 	int count = 0;
-	bool updated = false;
 
 	for (unsigned i = 0; i < nfds; i++) {
 		fds[i].revents = 0;
@@ -405,7 +405,6 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 
 			if (sub->updated()) {
 				fds[i].revents = POLLIN;
-				updated = true;
 				count++;
 			}
 		}
@@ -414,40 +413,42 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 	// If none of the orbs were updated before registration, go to sleep.
 	// If some orb was updated after registration, but not yet refelected in "updated", the semaphore is already released. So there is no race in here.
 
-	if (!updated) {
-		// Calculate timeout time
-		struct timespec to;
-		px4_clock_gettime(CLOCK_REALTIME, &to);
-		hrt_abstime now = ts_to_abstime(&to);
-		abstime_to_ts(&to, now + (hrt_abstime)timeout * 1000);
+	if (count == 0) {
 
 		// First advertiser will wake us up, or it might have happened already
 		// during registration above
 
-		if (g_sem_pool.take_timedwait(lock_idx, &to) != 0) {
-			PX4_ERR("poll on %d timeout %d FAIL\n", lock_idx, timeout);
-			usleep((useconds_t)timeout * 1000);
+		int ret;
+
+		if (timeout < 0) {
+			// Wait event until interrupted by a signal
+			ret = g_sem_pool.take_interruptible(lock_idx);
+
+		} else {
+			// Wait event for a maximum timeout time
+			struct timespec to;
+			px4_clock_gettime(CLOCK_REALTIME, &to);
+			hrt_abstime now = ts_to_abstime(&to);
+			abstime_to_ts(&to, now + (hrt_abstime)timeout * 1000);
+			ret = g_sem_pool.take_timedwait(lock_idx, &to);
 		}
 
-		count = 0;
-
-		for (unsigned i = 0; i < nfds; i++) {
-			if ((fds[i].events & POLLIN) == POLLIN) {
-				sub = static_cast<SubscriptionPollable *>(fds[i].fd);
-				sub->unregisterPoll();
-
-				if (sub->updated()) {
-					fds[i].revents |= POLLIN;
-					count++;
-				}
-			}
+		if (ret != 0 && errno != ETIMEDOUT && errno != EINTR) {
+			PX4_ERR("poll on %d timeout %d FAIL errno %d\n", lock_idx, timeout, errno);
+			err = true;
 		}
+	}
 
-	} else {
-		for (unsigned i = 0; i < nfds; i++) {
-			if ((fds[i].events & POLLIN) == POLLIN) {
-				sub = static_cast<SubscriptionPollable *>(fds[i].fd);
-				sub->unregisterPoll();
+	count = 0;
+
+	for (unsigned i = 0; i < nfds; i++) {
+		if ((fds[i].events & POLLIN) == POLLIN) {
+			sub = static_cast<SubscriptionPollable *>(fds[i].fd);
+			sub->unregisterPoll();
+
+			if (sub->updated()) {
+				fds[i].revents |= POLLIN;
+				count++;
 			}
 		}
 	}
@@ -455,7 +456,8 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 	// recover from releasing multiple times
 	g_sem_pool.set(lock_idx, 0);
 	g_sem_pool.free(lock_idx);
-	return count;
+
+	return err ? -1 : count;
 }
 
 uint8_t uORB::Manager::orb_get_instance(orb_advert_t &node_handle)
