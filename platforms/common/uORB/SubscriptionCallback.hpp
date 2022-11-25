@@ -91,7 +91,7 @@ public:
 
 	void unregisterCallback()
 	{
-		if (orb_advert_valid(_subscription.get_node())) {
+		if (_registered) {
 			Manager::unregister_callback(_subscription.get_node(), _cb_handle);
 		}
 
