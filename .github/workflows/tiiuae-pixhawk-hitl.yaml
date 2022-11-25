@@ -277,6 +277,7 @@ jobs:
                        --comment "development build"
   test-HITL:
     name: Run HITL test for PX4 firmare
+    needs: [pixhawk4, saluki-v1, saluki-v2]
     runs-on: [self-hosted, linux, X64]
     steps:
       - name: Checkout repo
