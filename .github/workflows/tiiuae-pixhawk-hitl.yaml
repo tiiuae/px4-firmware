@@ -281,7 +281,7 @@ jobs:
     runs-on: [self-hosted, linux, X64]
     steps:
       - name: Checkout repo
-        run: actions/checkout@v3
+        uses: actions/checkout@v3
       - name: list files in repo
         run: |
           ls ${{ github.workspace }}
