@@ -427,7 +427,11 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 		} else {
 			// Wait event for a maximum timeout time
 			struct timespec to;
+#if defined(ENABLE_LOCKSTEP_SCHEDULER)
+			px4_clock_gettime(CLOCK_MONOTONIC, &to);
+#else
 			px4_clock_gettime(CLOCK_REALTIME, &to);
+#endif
 			hrt_abstime now = ts_to_abstime(&to);
 			abstime_to_ts(&to, now + (hrt_abstime)timeout * 1000);
 			ret = g_sem_pool.take_timedwait(lock_idx, &to);
