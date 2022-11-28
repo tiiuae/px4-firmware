@@ -41,7 +41,15 @@ def main():
 		nextwaypoint = 0
 		relative_alt = 0
 
+		# Timeout is 10min
+		tTimeout = time.time() + 60*10
+
 		while True:
+			# Check for timeout condition
+			if time.time() >= tTimeout:
+				print('Mission execution timed out, goals not reached within 10min')
+				do_exit(1)
+
 			msg = master.recv_match(type=['GLOBAL_POSITION_INT', 'MISSION_CURRENT', 'MISSION_COUNT', 'HEARTBEAT'],blocking=True,timeout=0.5)
 			try:
 				if msg.get_type() == 'HEARTBEAT':
@@ -53,8 +61,8 @@ def main():
 					nextwaypoint = handle_mission_current(msg, nextwaypoint)
 					if nextwaypoint >= waypoint_count - 1:
 						if relative_alt <= 1*1000*0.05:
-							print("Reached land altitude")
-							break
+							print("Reached land altitude, mission finished")
+							do_exit(True)
 				time.sleep(0.1)
 				send_heartbeat(master)
 				
@@ -62,10 +70,20 @@ def main():
 				break
 
 	except:
+		
 		print(traceback.format_exc())
+		do_exit(False)
+
+def do_exit(bOk):
+	if bOk == True:
+		print('Returning SUCCESS')
+		sys.exit(0)
+	else:
+		print('Returning FAILURE')
+		sys.exit(1)
 
 def handle_global_position(msg):
-	print('handle_global_position')
+	#print('handle_global_position')
 	pass
 
 def handle_home_location(master, wp):
@@ -193,7 +211,7 @@ def arm(master):
 	print(msg)
 
 def send_heartbeat(master):
-	print('send_heartbeat')
+	#print('send_heartbeat')
 	master.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS, mavutil.mavlink.MAV_AUTOPILOT_INVALID, 192, 0, 4)
 
 def handle_mission_current(msg, nextwaypoint):
