@@ -895,7 +895,7 @@ int start_image_loading(void)
 }
 
 int
-bootloader_main(void)
+bootloader_main(int argc, char *argv[])
 {
 	unsigned timeout = BOOTLOADER_DELAY;	 /* if nonzero, drop out of the bootloader after this time */
 	bool try_boot;
