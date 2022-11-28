@@ -15,10 +15,12 @@ sleep 30
 
 echo "${SCRIPT_DIR}"
 cd "${SCRIPT_DIR}/../../Tools"
-pwd
+
+
+
 
 # Flash saluki with FW from the build
-python3 px_uploader.py --port /dev/ttyUSB0 --baud-bootloader 2000000 ${target_px4_firmware} &
+python3 px_uploader.py --port /dev/ttyUSB0 --baud-bootloader 2000000 ../${target_px4_firmware} &
 		
 # Reboot saluki
 kasa --host ${smart_plug_ip} off
