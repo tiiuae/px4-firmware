@@ -31,7 +31,8 @@ cd "${SCRIPT_DIR}/../../Tools"
 # Flash saluki with FW from the build
 #uploader_command="python3 px_uploader.py --port /dev/ttyUSB0 --baud-bootloader 2000000 ../${target_px4_firmware}"
 #echo ${uploader_command}
-python3 px_uploader.py --port /dev/ttyUSB0 --baud-bootloader 2000000 ../${target_px4_firmware} &
+#python3 px_uploader.py --port /dev/ttyUSB0 --baud-bootloader 2000000 ../${target_px4_firmware} &
+python3 px_uploader.py --port /dev/ttyUSB0 --baud-bootloader 2000000 /home/tii/Downloads/ssrc_saluki-v1_default-1.13.0-alpha1-5019-g38a6a4a9cd.px4 &
 pid_upload=$!
 
 #sh -c "$uploader_command"' echo pid=$! > pidfile; wait $!; echo $? > exit_status' &
