@@ -382,7 +382,14 @@ public:
 	}
 #endif
 
-	static uint8_t orb_get_instance(orb_advert_t &node_handle);
+	static uint8_t orb_get_instance(orb_advert_t &node_handle)
+	{
+		if (orb_advert_valid(node_handle)) {
+			return node(node_handle)->get_instance();
+		}
+
+		return -1;
+	}
 
 	static unsigned updates_available(const orb_advert_t &node_handle, unsigned last_generation)
 	{

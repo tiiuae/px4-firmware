@@ -457,15 +457,6 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 	return err ? -1 : count;
 }
 
-uint8_t uORB::Manager::orb_get_instance(orb_advert_t &node_handle)
-{
-	if (orb_advert_valid(node_handle)) {
-		return node(node_handle)->get_instance();
-	}
-
-	return -1;
-}
-
 #ifndef CONFIG_BUILD_FLAT
 
 int8_t
