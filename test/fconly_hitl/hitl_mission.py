@@ -41,15 +41,7 @@ def main():
 		nextwaypoint = 0
 		relative_alt = 0
 
-		# Timeout is 10min
-		tTimeout = time.time() + 60*10
-
 		while True:
-			# Check for timeout condition
-			if time.time() >= tTimeout:
-				print('Mission execution timed out, goals not reached within 10min')
-				do_exit(1)
-
 			msg = master.recv_match(type=['GLOBAL_POSITION_INT', 'MISSION_CURRENT', 'MISSION_COUNT', 'HEARTBEAT'],blocking=True,timeout=0.5)
 			try:
 				if msg.get_type() == 'HEARTBEAT':
@@ -59,10 +51,11 @@ def main():
 					relative_alt = msg.relative_alt
 				if msg.get_type() == 'MISSION_CURRENT':
 					nextwaypoint = handle_mission_current(msg, nextwaypoint)
+					print('nextwaypoint: %s, waypoint_count: %s' % (nextwaypoint, waypoint_count))
 					if nextwaypoint >= waypoint_count - 1:
 						if relative_alt <= 1*1000*0.05:
-							print("Reached land altitude, mission finished")
-							do_exit(True)
+							print("Reached land altitude")
+							break
 				time.sleep(0.1)
 				send_heartbeat(master)
 				
@@ -70,20 +63,10 @@ def main():
 				break
 
 	except:
-		
 		print(traceback.format_exc())
-		do_exit(False)
-
-def do_exit(bOk):
-	if bOk == True:
-		print('Returning SUCCESS')
-		sys.exit(0)
-	else:
-		print('Returning FAILURE')
-		sys.exit(1)
 
 def handle_global_position(msg):
-	#print('handle_global_position')
+	print('handle_global_position')
 	pass
 
 def handle_home_location(master, wp):
@@ -216,6 +199,7 @@ def send_heartbeat(master):
 
 def handle_mission_current(msg, nextwaypoint):
 	print('handle_current_mission')
+	print(msg)
 	if msg.seq > nextwaypoint:
 		print ("Moving to waypoint %s" % msg.seq)
 		nextwaypoint = msg.seq + 1
