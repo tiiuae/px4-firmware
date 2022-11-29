@@ -246,6 +246,7 @@ private:
 		{
 			clear_handle(_head);
 		}
+
 		void push(H handle)
 		{
 			if (handle_valid(handle)) {
@@ -301,6 +302,7 @@ private:
 		}
 
 		T *head() {return peek(_head);}
+		bool empty() {return !handle_valid(_head);}
 
 		/* Helpers for different handle types */
 		T *peek(int8_t handle) { return handle_valid(handle) ? &_pool[handle] : nullptr; }

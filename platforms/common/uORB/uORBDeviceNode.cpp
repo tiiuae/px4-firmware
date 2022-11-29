@@ -423,10 +423,17 @@ uORB::DeviceNode::DeviceNode(const struct orb_metadata *meta, const uint8_t inst
 
 uORB::DeviceNode::~DeviceNode()
 {
-	// Free all the memory
 	px4_sem_destroy(&_lock);
 
 #if defined(CONFIG_BUILD_FLAT)
+
+	// Delete all the allocated callback items.
+	// There should not be any left in the _callbacks queue since the node is
+	// deleted only if there are no more publishers or subscribers registered
+	while (!_wait_item_freelist.empty()) {
+		delete (static_cast<EventWaitItem *>(_wait_item_freelist.pop()));
+	}
+
 	free(_devname);
 #endif
 }
