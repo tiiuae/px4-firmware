@@ -74,11 +74,11 @@ public:
 
 	bool unadvertise() { return (Manager::orb_unadvertise(_handle) == PX4_OK); }
 
-	orb_id_t get_topic() const { return get_orb_meta(_orb_id); }
+	orb_id_t get_topic() const { return _meta; }
 
 protected:
 
-	PublicationBase(ORB_ID id) : _orb_id(id) {}
+	PublicationBase(ORB_ID id) : _meta(get_orb_meta(id)) {}
 
 	~PublicationBase()
 	{
@@ -91,7 +91,7 @@ protected:
 	}
 
 	orb_advert_t _handle{ORB_ADVERT_INVALID};
-	const ORB_ID _orb_id;
+	const orb_id_t _meta;
 };
 
 /**
