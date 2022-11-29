@@ -78,9 +78,9 @@ public:
 			}
 
 			if (orb_advert_valid(_subscription.get_node())) {
-				_cb_handle = Manager::register_callback(_subscription.get_node(), this, -1, _last_update, _interval_us);
+				_cb_handle = DeviceNode::register_callback(_subscription.get_node(), this, -1, _last_update, _interval_us);
 
-				if (_cb_handle >= 0) {
+				if (uorb_cb_handle_valid(_cb_handle)) {
 					_registered = true;
 				}
 			}
@@ -92,11 +92,11 @@ public:
 	void unregisterCallback()
 	{
 		if (_registered) {
-			Manager::unregister_callback(_subscription.get_node(), _cb_handle);
+			DeviceNode::unregister_callback(_subscription.get_node(), _cb_handle);
 		}
 
 		_registered = false;
-		_cb_handle = -1;
+		_cb_handle = UORB_INVALID_CB_HANDLE;
 	}
 
 	/**
@@ -137,7 +137,7 @@ public:
 protected:
 
 	bool _registered{false};
-	int8_t _cb_handle{-1};
+	uorb_cb_handle_t _cb_handle{UORB_INVALID_CB_HANDLE};
 };
 
 // Subscription with callback that schedules a WorkItem
@@ -205,17 +205,16 @@ public:
 
 	void registerPoll(int8_t lock_idx)
 	{
-		_cb_handle = Manager::register_callback(_subscription.get_node(), nullptr, lock_idx, _last_update, _interval_us);
+		_cb_handle = DeviceNode::register_callback(_subscription.get_node(), nullptr, lock_idx, _last_update, _interval_us);
 	}
 
 	void unregisterPoll()
 	{
-		Manager::unregister_callback(_subscription.get_node(), _cb_handle);
-		_cb_handle = -1;
-
+		DeviceNode::unregister_callback(_subscription.get_node(), _cb_handle);
+		_cb_handle = UORB_INVALID_CB_HANDLE;
 	}
 private:
-	int8_t _cb_handle{-1};
+	uorb_cb_handle_t _cb_handle{UORB_INVALID_CB_HANDLE};
 };
 
 } // namespace uORB

@@ -412,9 +412,13 @@ uORB::DeviceNode::DeviceNode(const struct orb_metadata *meta, const uint8_t inst
 		PX4_DEBUG("SEM INIT FAIL: ret %d", ret);
 	}
 
+#ifndef CONFIG_BUILD_FLAT
+
 	for (unsigned i = 0; i < sizeof(_wait_item_pool) / sizeof(_wait_item_pool[0]); i++) {
 		_wait_item_freelist.push(i);
 	}
+
+#endif
 }
 
 uORB::DeviceNode::~DeviceNode()
@@ -837,7 +841,7 @@ unsigned uORB::DeviceNode::get_initial_generation()
 }
 #endif
 //TODO: make this a normal member function
-int8_t
+uorb_cb_handle_t
 uORB::DeviceNode::register_callback(orb_advert_t &node_handle, uORB::SubscriptionCallback *callback_sub,
 				    int8_t poll_lock, hrt_abstime last_update, uint32_t interval_us)
 {
@@ -854,8 +858,17 @@ uORB::DeviceNode::register_callback(orb_advert_t &node_handle, uORB::Subscriptio
 
 	// TODO: Check for duplicate registrations?
 
-	int8_t i = n->_wait_item_freelist.pop();
+	uorb_cb_handle_t i = n->_wait_item_freelist.pop();
 	EventWaitItem *item = n->_wait_item_freelist.peek(i);
+
+#ifdef CONFIG_BUILD_FLAT
+
+	if (!item) {
+		item = new EventWaitItem;
+		i = item;
+	}
+
+#endif
 
 	if (item != nullptr) {
 		item->lock = lock;
@@ -876,7 +889,7 @@ uORB::DeviceNode::register_callback(orb_advert_t &node_handle, uORB::Subscriptio
 
 //TODO: make this a normal member function?
 void
-uORB::DeviceNode::unregister_callback(orb_advert_t &node_handle, int8_t cb_handle)
+uORB::DeviceNode::unregister_callback(orb_advert_t &node_handle, uorb_cb_handle_t cb_handle)
 {
 	uORB::DeviceNode *n = node(node_handle);
 

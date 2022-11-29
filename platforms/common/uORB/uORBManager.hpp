@@ -370,17 +370,6 @@ public:
 		return node(node_handle)->copy(dst, node_handle, generation);
 	}
 
-	static uint8_t register_callback(orb_advert_t &node_handle, SubscriptionCallback *callback_sub, int8_t poll_lock,
-					 hrt_abstime last_update, uint32_t interval_us)
-	{
-		return DeviceNode::register_callback(node_handle, callback_sub, poll_lock, last_update, interval_us);
-	}
-
-	static void unregister_callback(orb_advert_t &node_handle, uint8_t cb_handle)
-	{
-		DeviceNode::unregister_callback(node_handle, cb_handle);
-	}
-
 #ifndef CONFIG_BUILD_FLAT
 	static uint8_t getCallbackLock()
 	{

@@ -49,6 +49,16 @@
 
 #define MAX_EVENT_WAITERS 5
 
+#if defined(CONFIG_BUILD_FLAT)
+typedef void *uorb_cb_handle_t;
+#define UORB_INVALID_CB_HANDLE nullptr
+#define uorb_cb_handle_valid(x) ((x) != nullptr)
+#else
+#define UORB_INVALID_CB_HANDLE -1
+typedef int8_t uorb_cb_handle_t;
+#define uorb_cb_handle_valid(x) ((x) >= 0)
+#endif
+
 namespace uORB
 {
 class DeviceNode;
@@ -202,10 +212,11 @@ public:
 
 	static void orb_callback(int signo, siginfo_t *si_info, void *data);
 
-	static int8_t register_callback(orb_advert_t &node_handle, SubscriptionCallback *callback_sub, int8_t poll_lock,
-					hrt_abstime last_update, uint32_t interval_us);
+	static uorb_cb_handle_t register_callback(orb_advert_t &node_handle, SubscriptionCallback *callback_sub,
+			int8_t poll_lock,
+			hrt_abstime last_update, uint32_t interval_us);
 
-	static void unregister_callback(orb_advert_t &node_handle, int8_t cb_handle);
+	static void unregister_callback(orb_advert_t &node_handle, uorb_cb_handle_t cb_handle);
 
 	void *operator new (size_t, void *p)
 	{
@@ -227,12 +238,15 @@ private:
 	bool _data_valid{false}; /**< At least one valid data */
 	px4::atomic<unsigned>  _generation{0};  /**< object generation count */
 
-	template<class T>
+	template<class T, typename H>
 	class IndexedStack
 	{
 	public:
-		IndexedStack(T *pool) : _pool(pool) { }
-		void push(int8_t handle)
+		IndexedStack(T *pool) : _pool(pool)
+		{
+			clear_handle(_head);
+		}
+		void push(H handle)
 		{
 			if (handle_valid(handle)) {
 				T *item = peek(handle);
@@ -241,9 +255,9 @@ private:
 			}
 		}
 
-		int8_t pop()
+		H pop()
 		{
-			int8_t ret = _head;
+			H ret = _head;
 
 			if (handle_valid(ret)) {
 				T *item = head();
@@ -253,10 +267,10 @@ private:
 			return ret;
 		}
 
-		bool rm(int8_t handle)
+		bool rm(H handle)
 		{
-			int8_t p = _head;
-			int8_t r = -1;
+			H p = _head;
+			H r; clear_handle(r);
 
 			if (!handle_valid(handle) ||
 			    !handle_valid(p)) {
@@ -287,13 +301,19 @@ private:
 		}
 
 		T *head() {return peek(_head);}
-		T *peek(int8_t handle) { return handle_valid(handle) ? &_pool[handle] : nullptr; }
 
+		/* Helpers for different handle types */
+		T *peek(int8_t handle) { return handle_valid(handle) ? &_pool[handle] : nullptr; }
+		T *peek(void *handle) { return static_cast<T *>(handle); }
+
+		static void clear_handle(int8_t &x) { x = -1; };
+		static void clear_handle(void *&x) { x = nullptr; };
 		static bool handle_valid(int8_t handle) { return handle >= 0; }
+		static bool handle_valid(void *handle) { return handle != nullptr; }
 
 	private:
 		T *_pool;
-		int8_t _head{-1};
+		H _head;
 	};
 
 	struct EventWaitItem {
@@ -301,13 +321,17 @@ private:
 		hrt_abstime last_update;
 		uint32_t interval_us;
 		int8_t lock;
-		int8_t next; // List ptr
+		uorb_cb_handle_t next; // List ptr
 	};
 
+#ifndef CONFIG_BUILD_FLAT
 	EventWaitItem _wait_item_pool[MAX_EVENT_WAITERS];
-	IndexedStack<EventWaitItem> _callbacks{_wait_item_pool};
-	IndexedStack<EventWaitItem> _wait_item_freelist{_wait_item_pool};
 	static_assert(sizeof(_wait_item_pool) / sizeof(_wait_item_pool[0]) <= INT8_MAX);
+#else
+	EventWaitItem *_wait_item_pool = nullptr;
+#endif
+	IndexedStack<EventWaitItem, uorb_cb_handle_t> _callbacks {_wait_item_pool};
+	IndexedStack<EventWaitItem, uorb_cb_handle_t> _wait_item_freelist{_wait_item_pool};
 
 	inline ssize_t write(const char *buffer, const orb_metadata *meta, orb_advert_t &handle);
 	static int callback_thread(int argc, char *argv[]);
