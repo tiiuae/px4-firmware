@@ -31,8 +31,7 @@
  *
  ****************************************************************************/
 
-#ifndef _uORBManager_hpp_
-#define _uORBManager_hpp_
+#pragma once
 
 #include <px4_platform_common/atomic.h>
 #include <px4_platform_common/sem.h>
@@ -46,20 +45,18 @@
 #ifdef ORB_COMMUNICATOR
 #include "uORBCommunicator.hpp"
 #endif /* ORB_COMMUNICATOR */
-namespace uORB
-{
-class Manager;
-class SubscriptionCallback;
-}
 
 #define NUM_GLOBAL_SEMS 40
+
+namespace uORB
+{
 
 /**
  * This is implemented as a singleton.  This class manages creating the
  * uORB nodes for each uORB topics and also implements the behavor of the
  * uORB Api's.
  */
-class uORB::Manager
+class Manager
 #ifdef ORB_COMMUNICATOR
 	: public uORBCommunicator::IChannelRxHandler
 #endif /* ORB_COMMUNICATOR */
@@ -256,7 +253,7 @@ public:
 	 * @param handle  A handle returned from orb_subscribe.
 	 * @return    OK on success, PX4_ERROR otherwise with errno set accordingly.
 	 */
-	int  orb_unsubscribe(orb_sub_t handle);
+	static int  orb_unsubscribe(orb_sub_t handle);
 
 	/**
 	 * Fetch data from a topic.
@@ -274,7 +271,7 @@ public:
 	 *      using the data.
 	 * @return    OK on success, PX4_ERROR otherwise with errno set accordingly.
 	 */
-	int  orb_copy(const struct orb_metadata *meta, orb_sub_t handle, void *buffer);
+	static int  orb_copy(const struct orb_metadata *meta, orb_sub_t handle, void *buffer);
 
 	/**
 	 * Check whether a topic has been published to since the last orb_copy.
@@ -292,7 +289,7 @@ public:
 	 * @return    OK if the check was successful, PX4_ERROR otherwise with
 	 *      errno set accordingly.
 	 */
-	int  orb_check(orb_sub_t handle, bool *updated);
+	static int  orb_check(orb_sub_t handle, bool *updated);
 
 	/**
 	 * Check if a topic has already been created and published (advertised)
@@ -321,7 +318,7 @@ public:
 	 * @param interval  An interval period in milliseconds.
 	 * @return    OK on success, PX4_ERROR otherwise with ERRNO set accordingly.
 	 */
-	int  orb_set_interval(orb_sub_t handle, unsigned interval);
+	static int  orb_set_interval(orb_sub_t handle, unsigned interval);
 
 	/**
 	 * Get the minimum interval between which updates are seen for a subscription.
@@ -332,14 +329,14 @@ public:
 	 * @param interval  The returned interval period in milliseconds.
 	 * @return    OK on success, PX4_ERROR otherwise with ERRNO set accordingly.
 	 */
-	int	orb_get_interval(orb_sub_t handle, unsigned *interval);
+	static int	orb_get_interval(orb_sub_t handle, unsigned *interval);
 
 	int orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeout);
 
 	static bool orb_add_internal_subscriber(ORB_ID orb_id, uint8_t instance, unsigned *initial_generation,
 						bool advertise, orb_advert_t &node_handle)
 	{
-		if (!advertise && !_Instance->has_publisher(orb_id, instance)) {
+		if (!advertise && !has_publisher(orb_id, instance)) {
 			return false;
 		}
 
@@ -682,5 +679,4 @@ private: //class methods
 	static pid_t per_process_cb_thread;
 #endif
 };
-
-#endif /* _uORBManager_hpp_ */
+} // namespace uORB

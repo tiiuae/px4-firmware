@@ -59,24 +59,20 @@ typedef int8_t uorb_cb_handle_t;
 #define uorb_cb_handle_valid(x) ((x) >= 0)
 #endif
 
-namespace uORB
-{
-class DeviceNode;
-class DeviceMaster;
-class Manager;
-class SubscriptionCallback;
-class SubscriptionPollable;
-}
-
 namespace uORBTest
 {
 class UnitTest;
 }
 
+namespace uORB
+{
+
+class SubscriptionCallback;
+
 /**
  * Per-object device instance.
  */
-class uORB::DeviceNode
+class DeviceNode
 {
 public:
 	// Open a node, either existing or create a new one
@@ -437,3 +433,4 @@ private:
 	char _devname[64];
 #endif
 };
+} //namespace uORB

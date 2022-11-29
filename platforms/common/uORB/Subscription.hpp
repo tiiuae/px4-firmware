@@ -45,12 +45,9 @@
 #include <lib/mathlib/mathlib.h>
 
 #include "uORBManager.hpp"
-#include "uORBUtils.hpp"
 
 namespace uORB
 {
-
-class SubscriptionCallback;
 
 // Base subscription wrapper class
 class Subscription

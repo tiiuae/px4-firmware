@@ -323,14 +323,7 @@ int uORB::Manager::orb_unadvertise(orb_advert_t &handle)
 // Should only be called from old interface
 orb_sub_t uORB::Manager::orb_subscribe(const struct orb_metadata *meta)
 {
-	uORB::SubscriptionInterval *sub = new uORB::SubscriptionPollable(meta);
-
-	if (sub && !sub->valid()) {
-		// force topic creation
-		sub->subscribe(true);
-	}
-
-	return sub;
+	return orb_subscribe_multi(meta, 0);
 }
 
 // Should only be called from old interface
