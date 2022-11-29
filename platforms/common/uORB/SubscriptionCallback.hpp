@@ -69,7 +69,7 @@ public:
 
 	bool registerCallback()
 	{
-		if (!_registered) {
+		if (!registered()) {
 			if (!orb_advert_valid(_subscription.get_node())) {
 				// force topic creation
 				if (!_subscription.subscribe(true)) {
@@ -79,23 +79,18 @@ public:
 
 			if (orb_advert_valid(_subscription.get_node())) {
 				_cb_handle = DeviceNode::register_callback(_subscription.get_node(), this, -1, _last_update, _interval_us);
-
-				if (uorb_cb_handle_valid(_cb_handle)) {
-					_registered = true;
-				}
 			}
 		}
 
-		return _registered;
+		return registered();
 	}
 
 	void unregisterCallback()
 	{
-		if (_registered) {
+		if (registered()) {
 			DeviceNode::unregister_callback(_subscription.get_node(), _cb_handle);
 		}
 
-		_registered = false;
 		_cb_handle = UORB_INVALID_CB_HANDLE;
 	}
 
@@ -108,9 +103,9 @@ public:
 		bool ret = false;
 
 		if (instance != get_instance()) {
-			const bool registered = _registered;
+			const bool reg = registered();
 
-			if (registered) {
+			if (reg) {
 				unregisterCallback();
 			}
 
@@ -118,13 +113,13 @@ public:
 				ret = true;
 			}
 
-			if (registered) {
+			if (reg) {
 				registerCallback();
 			}
 
 		} else {
 			// already on desired index
-			return true;
+			ret = true;
 		}
 
 		return ret;
@@ -132,11 +127,10 @@ public:
 
 	virtual void call() = 0;
 
-	bool registered() const { return _registered; }
+	bool registered() const { return uorb_cb_handle_valid(_cb_handle); }
 
 protected:
 
-	bool _registered{false};
 	uorb_cb_handle_t _cb_handle{UORB_INVALID_CB_HANDLE};
 };
 
