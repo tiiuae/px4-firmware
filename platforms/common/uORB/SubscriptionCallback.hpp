@@ -47,7 +47,7 @@ namespace uORB
 {
 
 // Subscription wrapper class with callbacks on new publications
-class SubscriptionCallback : public SubscriptionInterval, public ListNode<SubscriptionCallback *>
+class SubscriptionCallback : public SubscriptionInterval
 {
 public:
 	/**
