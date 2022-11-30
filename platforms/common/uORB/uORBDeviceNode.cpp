@@ -54,6 +54,15 @@
 #include <px4_platform_common/sem.hpp>
 #include <drivers/drv_hrt.h>
 
+// This is a speed optimization for nuttx flat build
+#ifdef CONFIG_BUILD_FLAT
+#define ATOMIC_ENTER irqstate_t flags = px4_enter_critical_section()
+#define ATOMIC_LEAVE px4_leave_critical_section(flags)
+#else
+#define ATOMIC_ENTER lock()
+#define ATOMIC_LEAVE unlock()
+#endif
+
 // Every subscriber thread has it's own list of cached subscriptions
 uORB::DeviceNode::MappingCache::MappingCacheListItem *uORB::DeviceNode::MappingCache::g_cache =
 	nullptr;
@@ -511,16 +520,16 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 		return false;
 	}
 
-	lock();
-
 	size_t o_size = get_meta()->o_size;
 	size_t data_size = _queue_size * o_size;
+
+	ATOMIC_ENTER;
 
 	if (data_size != handle.data_size) {
 		remap_data(handle, data_size, false);
 
 		if (node_data(handle) == nullptr) {
-			unlock();
+			ATOMIC_LEAVE;
 			return false;
 		}
 	}
@@ -532,25 +541,26 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 	} else {
 		const unsigned current_generation = _generation.load();
 
-		if (current_generation == generation) {
+		if (current_generation > generation + _queue_size) {
+			// Reader is too far behind: some messages are lost
+			generation = current_generation - _queue_size;
+		}
+
+		if ((current_generation == generation) && (generation > 0)) {
 			/* The subscriber already read the latest message, but nothing new was published yet.
 			 * Return the previous message
 			 */
 			--generation;
 		}
 
-		// Compatible with normal and overflow conditions
-		if (!is_in_range(current_generation - _queue_size, generation, current_generation - 1)) {
-			// Reader is too far behind: some messages are lost
-			generation = current_generation - _queue_size;
-		}
-
 		memcpy(dst, ((uint8_t *)node_data(handle)) + (o_size * (generation % _queue_size)), o_size);
 
-		++generation;
+		if (generation < current_generation) {
+			++generation;
+		}
 	}
 
-	unlock();
+	ATOMIC_LEAVE;
 
 	return true;
 
@@ -561,18 +571,18 @@ uORB::DeviceNode::write(const char *buffer, const orb_metadata *meta, orb_advert
 {
 	size_t o_size = meta->o_size;
 
-	/* Perform an atomic copy. */
-	lock();
-
 	/* If data size has changed, re-map the data */
 	size_t data_size = _queue_size * o_size;
+
+	/* Perform an atomic copy. */
+	ATOMIC_ENTER;
 
 	if (data_size != handle.data_size) {
 		remap_data(handle, data_size, true);
 	}
 
 	if (node_data(handle) == nullptr) {
-		unlock();
+		ATOMIC_LEAVE;
 		return -ENOMEM;
 	}
 
@@ -608,7 +618,7 @@ uORB::DeviceNode::write(const char *buffer, const orb_metadata *meta, orb_advert
 		item = _callbacks.peek(item->next);
 	}
 
-	unlock();
+	ATOMIC_LEAVE;
 
 	return o_size;
 }
@@ -834,19 +844,6 @@ int uORB::DeviceNode::update_queue_size(unsigned int queue_size)
 	return PX4_OK;
 }
 
-#if 0
-unsigned uORB::DeviceNode::get_initial_generation()
-{
-	lock();
-
-	// If there any previous publications allow the subscriber to read them
-	unsigned generation = _generation.load() - (_data_valid ? 1 : 0);
-
-	unlock();
-
-	return generation;
-}
-#endif
 //TODO: make this a normal member function
 uorb_cb_handle_t
 uORB::DeviceNode::register_callback(orb_advert_t &node_handle, uORB::SubscriptionCallback *callback_sub,

@@ -146,13 +146,6 @@ public:
 	int8_t remove_subscriber(orb_advert_t &handle, bool advertiser);
 
 	/**
-	 * Return true if this topic has been advertised.
-	 *
-	 * This is used in the case of multi_pub/sub to check if it's valid to advertise
-	 * and publish to this node or if another node should be tried. */
-	static bool is_advertised(const orb_advert_t &handle) { return orb_advert_valid(handle) ? node(handle)->_advertiser_count > 0 : false; }
-
-	/**
 	 * Print statistics
 	 * @param max_topic_length max topic name length for printing
 	 * @return true if printed something, false otherwise
@@ -178,12 +171,6 @@ public:
 	 * @param generation The generation of subscriber
 	 */
 	unsigned updates_available(unsigned generation) const { return _generation.load() - generation; }
-
-	/**
-	 * Return the initial generation to the subscriber
-	 * @return The initial generation.
-	 */
-	unsigned get_initial_generation();
 
 	const orb_metadata *get_meta() const { return get_orb_meta(_orb_id); }
 
