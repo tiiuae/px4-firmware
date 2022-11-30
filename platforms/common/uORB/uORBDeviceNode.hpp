@@ -47,6 +47,8 @@
 #include <containers/List.hpp>
 #include <px4_platform_common/atomic.h>
 
+#include "IndexedStack.hpp"
+
 #define MAX_EVENT_WAITERS 5
 
 #if defined(CONFIG_BUILD_FLAT)
@@ -221,86 +223,6 @@ private:
 	bool _data_valid{false}; /**< At least one valid data */
 	px4::atomic<unsigned>  _generation{0};  /**< object generation count */
 
-	template<class T, typename H>
-	class IndexedStack
-	{
-	public:
-		IndexedStack(T *pool) : _pool(pool)
-		{
-			clear_handle(_head);
-		}
-
-		void push(H handle)
-		{
-			if (handle_valid(handle)) {
-				T *item = peek(handle);
-				item->next = _head;
-				_head = handle;
-			}
-		}
-
-		H pop()
-		{
-			H ret = _head;
-
-			if (handle_valid(ret)) {
-				T *item = head();
-				_head = item->next;
-			}
-
-			return ret;
-		}
-
-		bool rm(H handle)
-		{
-			H p = _head;
-			H r; clear_handle(r);
-
-			if (!handle_valid(handle) ||
-			    !handle_valid(p)) {
-				return r;
-			}
-
-			if (p == handle) {
-				// remove the first item
-				T *item = head();
-				_head = item->next;
-				r  = p;
-
-			} else {
-				while (handle_valid((r = peek(p)->next))) {
-					if (r == handle) {
-						T *prev = peek(p);
-						T *item = peek(r);
-						// remove the item
-						prev->next = item->next;
-						break;
-					}
-
-					p = r;
-				}
-			}
-
-			return handle_valid(r) ? true : false;
-		}
-
-		T *head() {return peek(_head);}
-		bool empty() {return !handle_valid(_head);}
-
-		/* Helpers for different handle types */
-		T *peek(int8_t handle) { return handle_valid(handle) ? &_pool[handle] : nullptr; }
-		T *peek(void *handle) { return static_cast<T *>(handle); }
-
-		static void clear_handle(int8_t &x) { x = -1; };
-		static void clear_handle(void *&x) { x = nullptr; };
-		static bool handle_valid(int8_t handle) { return handle >= 0; }
-		static bool handle_valid(void *handle) { return handle != nullptr; }
-
-	private:
-		T *_pool;
-		H _head;
-	};
-
 	struct EventWaitItem {
 		struct SubscriptionCallback *subscriber;
 		hrt_abstime last_update;
@@ -372,19 +294,6 @@ private:
 	 * @return PX4_OK if queue size successfully set
 	 */
 	int update_queue_size(unsigned int queue_size);
-
-	/** Determine the data range
-	 * @return true if data is in range
-	 */
-	static inline bool is_in_range(unsigned left, unsigned value, unsigned right)
-	{
-		if (right > left) {
-			return (left <= value) && (value <= right);
-
-		} else {  // Maybe the data overflowed and a wraparound occurred
-			return (left <= value) || (value <= right);
-		}
-	}
 
 	void _add_subscriber(unsigned *initial_generation);
 

@@ -401,13 +401,6 @@ public:
 		return (get_instance()->g_has_publisher[static_cast<uint8_t>(orb_id)] & (1 << instance)) != 0;
 	}
 
-	/*
-	static bool is_advertised(const orb_advert_t &node_handle)
-	{
-		return orb_advert_valid(node_handle) && _Instance->has_publisher(node(node_handle)->id(), node(node_handle)->get_instance());
-	}
-	*/
-
 #ifdef ORB_COMMUNICATOR
 	/**
 	 * Method to set the uORBCommunicator::IChannel instance.
