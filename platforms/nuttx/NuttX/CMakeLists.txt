@@ -176,21 +176,38 @@ function(add_nuttx_dir nuttx_lib nuttx_lib_dir kernel extra target)
 		set(nuttx_lib_target lib${target}.a)
 	endif()
 
+	# Facilitate building kxx, as NuttX kernel does not contain CXX code
+	# and thus does not support creating libkxx natively...
+	if(${nuttx_lib} STREQUAL "kxx")
+		set(nuttx_libname "xx")
+	else()
+		set(nuttx_libname ${nuttx_lib})
+	endif()
+
 	file(GLOB_RECURSE nuttx_lib_files LIST_DIRECTORIES false
 		${CMAKE_CURRENT_SOURCE_DIR}/nuttx/${nuttx_lib_dir}/*.c
+		${CMAKE_CURRENT_SOURCE_DIR}/nuttx/${nuttx_lib_dir}/*.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/nuttx/${nuttx_lib_dir}/*.cxx
 		${CMAKE_CURRENT_SOURCE_DIR}/nuttx/${nuttx_lib_dir}/*.h
 	)
 
-	# Route kernel pass for mm/libc to kbin/; user pass uses bin/ for the
+	# Route kernel pass for mm/libc/libxx to kbin/; user pass uses bin/ for the
 	# same sources and would otherwise overwrite the kernel objects.
 	set(bindir_arg)
-	if(${kernel} STREQUAL y AND (${nuttx_lib_dir} STREQUAL mm OR ${nuttx_lib_dir} STREQUAL libs/libc))
+	if(${kernel} STREQUAL y AND (${nuttx_lib_dir} STREQUAL mm OR ${nuttx_lib_dir} STREQUAL libs/libc OR ${nuttx_lib_dir} STREQUAL libs/libxx))
 		set(bindir_arg BINDIR=kbin)
 	endif()
 
+	# Both C++ passes produce libxx.a, so rebuild the archive from the selected objects.
+	set(archive_reset_command)
+	if(${nuttx_lib_dir} STREQUAL libs/libxx)
+		set(archive_reset_command COMMAND ${CMAKE_COMMAND} -E remove -f ${NUTTX_DIR}/${nuttx_lib_dir}/lib${nuttx_libname}.a)
+	endif()
+
 	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/nuttx/${nuttx_lib_dir}/lib${nuttx_lib}.a
+		${archive_reset_command}
 		COMMAND make -C ${nuttx_lib_dir} --no-print-directory --silent ${nuttx_lib_target} TOPDIR="${NUTTX_DIR}" KERNEL=${kernel} EXTRAFLAGS=${extra} ${bindir_arg}
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DIR}/${nuttx_lib_dir}/lib${nuttx_lib}.a ${CMAKE_CURRENT_BINARY_DIR}/nuttx/${nuttx_lib_dir}/lib${nuttx_lib}.a
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DIR}/${nuttx_lib_dir}/lib${nuttx_libname}.a ${CMAKE_CURRENT_BINARY_DIR}/nuttx/${nuttx_lib_dir}/lib${nuttx_lib}.a
 		DEPENDS
 			${nuttx_lib_files}
 			nuttx_context ${NUTTX_DIR}/include/nuttx/config.h
@@ -220,6 +237,8 @@ if (NOT CONFIG_BUILD_FLAT)
 	add_nuttx_dir(c libs/libc n "" c)
 	add_dependencies(nuttx_c_build nuttx_kc_build) # can't build these in parallel
 	add_nuttx_dir(kc libs/libc y -D__KERNEL__ kc)
+	add_dependencies(nuttx_xx_build nuttx_kxx_build) # can't build these in parallel
+	add_nuttx_dir(kxx libs/libxx y -D__KERNEL__ all)
 	add_nuttx_dir(mm mm n "" mm)
 	add_dependencies(nuttx_mm_build nuttx_kmm_build) # can't build these in parallel
 	add_nuttx_dir(kmm mm y -D__KERNEL__ kmm)

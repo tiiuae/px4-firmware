@@ -130,7 +130,6 @@ list(APPEND nuttx_libs
 	nuttx_sched
 	nuttx_crypto
 	nuttx_binfmt
-	nuttx_xx
 	)
 
 if (NOT CONFIG_BUILD_FLAT)
@@ -140,6 +139,7 @@ if (NOT CONFIG_BUILD_FLAT)
 		nuttx_kmm
 		nuttx_stubs
 		nuttx_kc
+		nuttx_kxx
 		)
 
 	list(APPEND nuttx_userlibs
@@ -156,6 +156,7 @@ else()
 		nuttx_arch
 		nuttx_mm
 		nuttx_c
+		nuttx_xx
 		)
 endif()
 
