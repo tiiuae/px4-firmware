@@ -265,12 +265,9 @@ manual_control start
 sensors start
 commander start
 
-if [ "$VEHICLE_TYPE" != "rover" ]
+if ! pwm_out_sim start -m sim
 then
-	if ! pwm_out_sim start -m sim
-	then
-		tune_control play error
-	fi
+	tune_control play error
 fi
 
 #
@@ -299,26 +296,14 @@ then
 else
 	param set UXRCE_DDS_DOM_ID 0
 fi
-uxrce_dds_port=2020
+uxrce_dds_port=8888
 if [ -n "$PX4_UXRCE_DDS_PORT" ]
 then
 	# Override port if environment variable is defined
 	uxrce_dds_port="$PX4_UXRCE_DDS_PORT"
 fi
-uxrce_dds_local_port=2019
-if [ -n "$PX4_UXRCE_DDS_LOCAL_PORT" ]
-then
-	# Override port if environment variable is defined
-	uxrce_dds_local_port="$PX4_UXRCE_DDS_LOCAL_PORT"
-fi
-uxrce_dds_ip="127.0.0.1"
-if [ -n "$PX4_UXRCE_DDS_IP" ]
-then
-	# Override port if environment variable is defined
-	uxrce_dds_ip="$PX4_UXRCE_DDS_IP"
-fi
 
-uxrce_dds_client start -t udp -h $uxrce_dds_ip -r $uxrce_dds_local_port -p $uxrce_dds_port $uxrce_dds_ns
+microdds_client start -t udp -h 127.0.0.1 -r 2019 -p 2020 $microdds_ns
 
 if param greater -s MNT_MODE_IN -1
 then
