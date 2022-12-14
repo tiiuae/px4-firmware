@@ -43,6 +43,8 @@ import em
 import yaml
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-c", "--camel-case-topic-names", dest='camelcase', action='store_true',
+                    help="Use CamelCase topic names instead of snake_case")
 parser.add_argument("-y", "--dds-topics-file", dest='yaml_file', type=str,
                     help="Setup topics file path, by default using 'dds_topics.yaml'")
 
@@ -85,7 +87,7 @@ namespace = os.getenv('PX4_UXRCE_DDS_NS', '')
 merged_em_globals = {}
 all_type_includes = []
 
-def process_message_type(msg_type):
+def process_message_type(msg_type, camelcase):
     # Add namespace to topic
     msg_type['topic'] = f"/{namespace}{msg_type['topic']}" if namespace else msg_type['topic']
 
@@ -101,27 +103,33 @@ def process_message_type(msg_type):
     msg_type['dds_type'] = msg_type['type'].replace("::msg::", "::msg::dds_::") + "_"
     # topic_simple: eg vehicle_status
     msg_type['topic_simple'] = msg_type['topic'].split('/')[-1]
+    if camelcase:
+        simple_topic_name = msg_type['topic_simple']
+        topic_name_camel_case = ''.join(part.title() for part in simple_topic_name.split('_'))
+        msg_type['topic_name'] = topic_name_camel_case
+    else:
+        msg_type['topic_name'] = msg_type['topic_simple']
 
 merged_em_globals['namespace'] = namespace
 
 pubs_not_empty = msg_map['publications'] is not None
 if pubs_not_empty:
     for p in msg_map['publications']:
-        process_message_type(p)
+        process_message_type(p, args.camelcase)
 
 merged_em_globals['publications'] = msg_map['publications'] if pubs_not_empty else []
 
 subs_not_empty = msg_map['subscriptions'] is not None
 if subs_not_empty:
     for s in msg_map['subscriptions']:
-        process_message_type(s)
+        process_message_type(s, args.camelcase)
 
 merged_em_globals['subscriptions'] = msg_map['subscriptions'] if subs_not_empty else []
 
 subs_multi_not_empty = msg_map['subscriptions_multi'] is not None
 if subs_multi_not_empty:
     for sm in msg_map['subscriptions_multi']:
-        process_message_type(sm)
+        process_message_type(sm, args.camelcase)
 
 merged_em_globals['subscriptions_multi'] = msg_map['subscriptions_multi'] if subs_multi_not_empty else []
 
