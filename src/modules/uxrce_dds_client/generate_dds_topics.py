@@ -43,6 +43,8 @@ import em
 import yaml
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-c", "--camel-case-topic-names", dest='camelcase', action='store_true',
+                    help="Use CamelCase topic names instead of snake_case")
 parser.add_argument("-y", "--dds-topics-file", dest='yaml_file', type=str,
                     help="Setup topics file path, by default using 'dds_topics.yaml'")
 
@@ -85,7 +87,7 @@ namespace = os.getenv('PX4_UXRCE_DDS_NS', '')
 merged_em_globals = {}
 all_type_includes = []
 
-def process_message_type(msg_type):
+def process_message_type(msg_type, camelcase):
     # Add namespace to topic
     msg_type['topic'] = f"/{namespace}{msg_type['topic']}" if namespace else msg_type['topic']
 
@@ -101,6 +103,12 @@ def process_message_type(msg_type):
     msg_type['dds_type'] = msg_type['type'].replace("::msg::", "::msg::dds_::") + "_"
     # topic_simple: eg vehicle_status
     msg_type['topic_simple'] = msg_type['topic'].split('/')[-1]
+    if camelcase:
+        simple_topic_name = msg_type['topic_simple']
+        topic_name_camel_case = ''.join(part.title() for part in simple_topic_name.split('_'))
+        msg_type['topic_name'] = topic_name_camel_case
+    else:
+        msg_type['topic_name'] = msg_type['topic_simple']
 
     # publish_interval_ms: maps the optional rate_limit (Hz) to the orb_set_interval
     # gate, which is expressed in integer milliseconds. An unlimited rate (0) also
@@ -148,20 +156,20 @@ merged_em_globals['namespace'] = namespace
 
 pubs = msg_map.get('publications') or []
 for p in pubs:
-    process_message_type(p)
+    process_message_type(p, args.camelcase)
     process_message_instance(p)
 
 merged_em_globals['publications'] = pubs
 
 subs = msg_map.get('subscriptions') or []
 for s in subs:
-    process_message_type(s)
+    process_message_type(s, args.camelcase)
 
 merged_em_globals['subscriptions'] = subs
 
 subs_multi = msg_map.get('subscriptions_multi') or []
 for sd in subs_multi:
-    process_message_type(sd)
+    process_message_type(sd, args.camelcase)
 
 merged_em_globals['subscriptions_multi'] = subs_multi
 
