@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libboost-all-dev libeigen3-dev libgstreamer-plugins-base1.0-dev libopencv-dev \
     python3-empy python3-toml python3-numpy python3-genmsg python3-setuptools \
     python3-packaging python3-jinja2 python3-yaml openjdk-11-jre \
-    gazebo11 libgazebo11-dev \
+    gazebo11 libgazebo11-dev unzip \
     genromfs xxd curl \
     python3-nacl python3-pip python3-future \
     ros-galactic-gazebo-ros \

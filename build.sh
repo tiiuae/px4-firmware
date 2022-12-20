@@ -59,18 +59,29 @@ fi
 # Build Saluki images
 if [ "${target}" == all ] || [ "${target}" == saluki-v1 ] || [ "${target}" == saluki-v2 ]
 then
-  docker run \
+  if [ "${target}" == all ] || [ "${target}" == saluki-v1 ]
+  then
+    docker run \
     --rm \
     -v ${script_dir}:/px4-firmware/sources \
     ${iname_env} \
-    ./packaging/build_saluki.sh
-  cp ${script_dir}/build/ssrc_saluki-v1_default/ssrc_saluki-v1_default.px4        ${dest_dir}/ssrc_saluki-v1_default-${version}.px4
-  cp ${script_dir}/build/ssrc_saluki-v1_amp/ssrc_saluki-v1_amp.bin        	     ${dest_dir}/ssrc_saluki-v1_amp-${version}.bin
-  cp ${script_dir}/build/ssrc_saluki-v1_bootloader/ssrc_saluki-v1_bootloader.elf  ${dest_dir}/ssrc_saluki-v1_bootloader-${version}.elf
-  cp ${script_dir}/build/ssrc_saluki-v1_protected/ssrc_saluki-v1_protected.px4        ${dest_dir}/ssrc_saluki-v1_protected-${version}.px4
-  cp ${script_dir}/build/ssrc_saluki-v2_default/ssrc_saluki-v2_default.px4        ${dest_dir}/ssrc_saluki-v2_default-${version}.px4
-  cp ${script_dir}/build/ssrc_saluki-v2_amp/ssrc_saluki-v2_amp.bin        	     ${dest_dir}/ssrc_saluki-v2_amp-${version}.bin
-  cp ${script_dir}/build/ssrc_saluki-v2_bootloader/ssrc_saluki-v2_bootloader.elf  ${dest_dir}/ssrc_saluki-v2_bootloader-${version}.elf
+    ./packaging/build_saluki.sh v1
+    cp ${script_dir}/build/ssrc_saluki-v1_default/ssrc_saluki-v1_default.px4        ${dest_dir}/ssrc_saluki-v1_default-${version}.px4
+    cp ${script_dir}/build/ssrc_saluki-v1_amp/ssrc_saluki-v1_amp.bin        	    ${dest_dir}/ssrc_saluki-v1_amp-${version}.bin
+    cp ${script_dir}/build/ssrc_saluki-v1_bootloader/ssrc_saluki-v1_bootloader.elf  ${dest_dir}/ssrc_saluki-v1_bootloader-${version}.elf
+    cp ${script_dir}/build/ssrc_saluki-v1_protected/ssrc_saluki-v1_protected.px4    ${dest_dir}/ssrc_saluki-v1_protected-${version}.px4
+  fi
+  if [ "${target}" == all ] || [ "${target}" == saluki-v2 ]
+  then
+    docker run \
+    --rm \
+    -v ${script_dir}:/px4-firmware/sources \
+    ${iname_env} \
+    ./packaging/build_saluki.sh v2
+    cp ${script_dir}/build/ssrc_saluki-v2_default/ssrc_saluki-v2_default.px4        ${dest_dir}/ssrc_saluki-v2_default-${version}.px4
+    cp ${script_dir}/build/ssrc_saluki-v2_amp/ssrc_saluki-v2_amp.bin        	    ${dest_dir}/ssrc_saluki-v2_amp-${version}.bin
+    cp ${script_dir}/build/ssrc_saluki-v2_bootloader/ssrc_saluki-v2_bootloader.elf  ${dest_dir}/ssrc_saluki-v2_bootloader-${version}.elf
+  fi
 fi
 
 # Generate debian package
