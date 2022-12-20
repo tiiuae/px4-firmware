@@ -2,7 +2,7 @@ name: tiiuae-pixhawk
 
 on:
   push:
-    branches: [ master ]
+    branches: [ dirty-demo ]
   pull_request:
     branches: [ master ]
   # Allows you to run this workflow manually from the Actions tab
