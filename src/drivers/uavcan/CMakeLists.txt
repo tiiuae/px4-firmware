@@ -183,7 +183,6 @@ px4_add_module(
 		button_publisher
 		drivers_rangefinder
 		led
-		mixer
 		mixer_module
 		version
 
