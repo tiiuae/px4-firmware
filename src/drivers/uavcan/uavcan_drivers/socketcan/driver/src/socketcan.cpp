@@ -263,6 +263,11 @@ int CanIface::getFD()
 	return _fd;
 }
 
+int CanIface::close()
+{
+	return ::close(_fd);
+}
+
 uavcan::uint32_t CanDriver::detectBitRate(void (*idle_callback)())
 {
 	//FIXME

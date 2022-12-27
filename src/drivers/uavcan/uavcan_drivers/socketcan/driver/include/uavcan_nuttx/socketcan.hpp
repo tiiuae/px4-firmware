@@ -127,6 +127,17 @@ public:
 	 */
 	static uavcan::uint32_t detectBitRate(void (*idle_callback)() = nullptr);
 
+	int closeAllIface()
+	{
+		int ret = 0;
+		for (int i = 0; i < UAVCAN_SOCKETCAN_NUM_IFACES; i++) {
+			if((ret = if_[i].close())) {
+				return ret;
+			}
+		}
+		return ret;
+	}
+
 	/**
 	 * Returns negative value if the requested baudrate can't be used.
 	 * Returns zero if OK.

@@ -74,9 +74,10 @@
  */
 UavcanNode *UavcanNode::_instance;
 
-UavcanNode::UavcanNode(uavcan::ICanDriver &can_driver, uavcan::ISystemClock &system_clock) :
+UavcanNode::UavcanNode(CanInitHelper* can_helper, uavcan::ICanDriver &can_driver, uavcan::ISystemClock &system_clock) :
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::uavcan),
 	ModuleParams(nullptr),
+	_can_helper(can_helper),
 	_node(can_driver, system_clock, _pool_allocator),
 	_beep_controller(_node),
 	_esc_controller(_node),
@@ -106,6 +107,13 @@ UavcanNode::UavcanNode(uavcan::ICanDriver &can_driver, uavcan::ISystemClock &sys
 
 UavcanNode::~UavcanNode()
 {
+	if (_can_helper != nullptr) {
+#if UAVCAN_SOCKETCAN_NUTTX == 1
+		_can_helper->driver.closeAllIface();
+#endif
+		_can_helper = nullptr;
+	}
+
 	if (_servers != nullptr) {
 		delete _servers;
 		_servers = nullptr;
@@ -152,6 +160,7 @@ UavcanNode::getHardwareVersion(uavcan::protocol::HardwareVersion &hwver)
 			; // All other values of px4_board_name() resolve to zero
 		}
 
+		// TODO : check if mfgid can be set to 1 as default
 		mfguid_t mfgid = {};
 		board_get_mfguid(mfgid);
 		uavcan::copy(mfgid, mfgid + sizeof(mfgid), hwver.unique_id.begin());
@@ -419,25 +428,20 @@ UavcanNode::start(uavcan::NodeID node_id, uint32_t bitrate)
 			PX4_ERR("Out of memory");
 			return -1;
 		}
-
-		const int can_init_res = can->init(bitrate);
-
-		if (can_init_res < 0) {
-			PX4_ERR("CAN driver init failed %i", can_init_res);
-			return can_init_res;
-		}
 	}
 
 	/*
 	 * Node init
 	 */
-	_instance = new UavcanNode(can->driver, UAVCAN_DRIVER::SystemClock::instance());
+	PX4_INFO("get new uavcannode instance");
+	_instance = new UavcanNode(can, can->driver, UAVCAN_DRIVER::SystemClock::instance());
 
 	if (_instance == nullptr) {
 		PX4_ERR("Out of memory");
 		return -1;
 	}
 
+	PX4_INFO("init new uavcannode instance");
 	const int node_init_res = _instance->init(node_id, can->driver.updateEvent());
 
 	if (node_init_res < 0) {
@@ -517,10 +521,15 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 		return ret;
 	}
 
-	ret = _safety_state_controller.init();
+	int32_t safety_state_pub_enable = 0;
+	(void)param_get(param_find("UAVCAN_PUB_SAFETY_STATE"), &safety_state_pub_enable);
 
-	if (ret < 0) {
-		return ret;
+	if (safety_state_pub_enable == 1) {
+		ret = _safety_state_controller.init();
+
+		if (ret < 0) {
+			return ret;
+		}
 	}
 
 	ret = _log_message_controller.init();
@@ -529,10 +538,15 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 		return ret;
 	}
 
-	ret = _rgbled_controller.init();
+	int32_t rgbled_pub_enable = 0;
+	(void)param_get(param_find("UAVCAN_PUB_RGBLED"), &rgbled_pub_enable);
 
-	if (ret < 0) {
-		return ret;
+	if (rgbled_pub_enable == 1) {
+		ret = _rgbled_controller.init();
+
+		if (ret < 0) {
+			return ret;
+		}
 	}
 
 	/* Start node info retriever to fetch node info from new nodes */
@@ -587,8 +601,7 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 		}
 	}
 
-	// Start the Node
-	return _node.start();
+	return ret;
 }
 
 void
@@ -636,6 +649,42 @@ UavcanNode::Run()
 {
 	pthread_mutex_lock(&_node_mutex);
 
+#if UAVCAN_SOCKETCAN_NUTTX == 1
+	/* Init Socket Interface and start the Node if not yet */
+	if (_can_helper && !_iface_initialized) {
+		PX4_INFO("Initialize socket interface");
+
+		int ret;
+
+		ret = _can_helper->driver.initIface(0, "can0");
+		if (ret < 0) {
+			PX4_ERR("CAN iface 0 init failed %i", ret);
+			return;
+		}
+#if UAVCAN_SOCKETCAN_NUM_IFACES > 1
+		ret = _can_helper->driver.initIface(1, "can1");
+		if (ret < 0) {
+			PX4_ERR("CAN iface 1 init failed %i", ret);
+			return;
+		}
+#endif
+
+		ret = _can_helper->init();
+		if (ret < 0) {
+			PX4_ERR("CAN driver init failed %i", ret);
+			return;
+		}
+
+		if ((ret = _node.start()) < 0) {
+			PX4_ERR("Failed to start basic node. Return %d", ret);
+			_can_helper->driver.closeAllIface();
+			return;
+		}
+
+		_iface_initialized = true;
+	}
+#endif
+
 	if (_output_count == 0) {
 		// Set up the time synchronization
 		const int slave_init_res = _time_sync_slave.start();
@@ -651,7 +700,7 @@ UavcanNode::Run()
 		 * happens, but for now we use adjustUtc with a correction of the hrt so that the
 		 * time bases are the same
 		 */
-		UAVCAN_DRIVER::clock::adjustUtc(uavcan::UtcDuration::fromUSec(hrt_absolute_time()));
+		_node.getDispatcher().getSystemClock().adjustUtc(uavcan::UtcDuration::fromUSec(hrt_absolute_time()));
 		_master_timer.setCallback(TimerCallback(this, &UavcanNode::handle_time_sync));
 		_master_timer.startPeriodic(uavcan::MonotonicDuration::fromMSec(1000));
 
@@ -701,6 +750,9 @@ UavcanNode::Run()
 			 */
 			if (request.message_type == uavcan_parameter_request_s::MESSAGE_TYPE_PARAM_REQUEST_READ) {
 				uavcan::protocol::param::GetSet::Request req;
+
+				// sleep a bit to reduce spike on CAN bus traffic
+				usleep(100);
 
 				if (request.param_index >= 0) {
 					req.index = request.param_index;
@@ -826,6 +878,11 @@ UavcanNode::Run()
 		// after each successful fetch by cb_getset
 		uavcan::protocol::param::GetSet::Request req;
 		req.index = _param_index;
+
+		//PX4_DEBUG("send param get set listing");
+
+		// sleep a bit to reduce spike on CAN bus traffic
+		usleep(100);
 
 		int call_res = _param_getset_client.call(_param_list_node_id, req);
 
@@ -1100,11 +1157,22 @@ UavcanNode::cb_getset(const uavcan::ServiceCallResult<uavcan::protocol::param::G
 				response.param_type = uavcan_parameter_request_s::PARAM_TYPE_UINT8;
 				response.int_value = param.value.to<uavcan::protocol::param::Value::Tag::boolean_value>();
 			}
-
+			PX4_DEBUG("Got node : %d, param index %d", response.node_id, response.param_index);
 			_param_response_pub.publish(response);
 
 		} else {
-			PX4_ERR("GetSet error");
+			PX4_ERR("GetSet error at node : %d, param index %d, need resend...", result.getCallID().server_node_id.get(), _param_index);
+
+			uavcan::protocol::param::GetSet::Request req;
+
+			req.index = _param_index;
+
+			int call_res = _param_getset_client.call(result.getCallID().server_node_id.get(), req);
+			if(call_res < 0){
+				PX4_ERR("resend failed");
+			}
+
+			_param_index--;
 		}
 
 		_param_in_progress = false;
@@ -1277,7 +1345,7 @@ extern "C" __EXPORT int uavcan_main(int argc, char *argv[])
 		(void)param_get(param_find("UAVCAN_BITRATE"), &bitrate);
 
 		// Start
-		PX4_INFO("Node ID %" PRIu32 ", bitrate %" PRIu32, node_id, bitrate);
+		PX4_INFO("Start UAVCAN Node ID %" PRIu32 ", bitrate %" PRIu32, node_id, bitrate);
 		return UavcanNode::start(node_id, bitrate);
 	}
 
