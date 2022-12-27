@@ -51,7 +51,7 @@ UavcanEscController::UavcanEscController(uavcan::INode &node) :
 	_uavcan_sub_status(node)
 {
 	_uavcan_pub_raw_cmd.setPriority(UAVCAN_COMMAND_TRANSFER_PRIORITY);
-	param_get(param_find("UAVCAN_ESC_LIMIT_RATE"), &_uavcan_use_rate_limit);
+	param_get(param_find("UAVCAN_ESC_LR"), &_uavcan_use_rate_limit);
 }
 
 int
