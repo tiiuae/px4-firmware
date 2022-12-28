@@ -105,7 +105,7 @@ private:
 
 	uint8_t		_rotor_count{0};
 
-	bool _uavcan_use_rate_limit{0};
+	int32_t _uavcan_use_rate_limit{0};
 
 	/*
 	 * libuavcan related things

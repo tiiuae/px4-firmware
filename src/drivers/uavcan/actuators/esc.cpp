@@ -76,7 +76,7 @@ UavcanEscController::update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUA
 	 */
 	const auto timestamp = _node.getMonotonicTime();
 
-	if (_uavcan_use_rate_limit && (timestamp - _prev_cmd_pub).toUSec() < (1000000 / MAX_RATE_HZ)) {
+	if (_uavcan_use_rate_limit == 1 && (timestamp - _prev_cmd_pub).toUSec() < (1000000 / MAX_RATE_HZ)) {
 		return;
 	}
 

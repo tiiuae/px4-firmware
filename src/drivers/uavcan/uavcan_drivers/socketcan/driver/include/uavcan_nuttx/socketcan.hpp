@@ -73,6 +73,8 @@ class CanIface : public uavcan::ICanIface
 public:
 	uavcan::uint32_t socketInit(const char *can_iface_name);
 
+	int close();
+
 	uavcan::int16_t send(const uavcan::CanFrame &frame,
 			     uavcan::MonotonicTime tx_deadline,
 			     uavcan::CanIOFlags flags) override;

@@ -174,11 +174,11 @@ public:
 	typedef UAVCAN_DRIVER::CanInitHelper<RxQueueLenPerIface> CanInitHelper;
 	enum eServerAction : int {None, Start, Stop, CheckFW, Busy};
 
-	UavcanNode(CanInitHelper *can_helper, uavcan::ICanDriver &can_driver, uavcan::ISystemClock &system_clock);
+	UavcanNode(CanInitHelper *can_helper, uavcan::ISystemClock &system_clock);
 
 	virtual		~UavcanNode();
 
-	static int	start(uavcan::NodeID node_id, uint32_t bitrate);
+	static int	start(uavcan::NodeID node_id);
 
 	uavcan::Node<>	&get_node() { return _node; }
 
