@@ -432,7 +432,6 @@ UavcanNode::start(uavcan::NodeID node_id)
 	/*
 	 * Node init
 	 */
-	PX4_INFO("get new uavcannode instance");
 	_instance = new UavcanNode(can_helper, UAVCAN_DRIVER::SystemClock::instance());
 
 	if (_instance == nullptr) {
@@ -440,7 +439,6 @@ UavcanNode::start(uavcan::NodeID node_id)
 		return -1;
 	}
 
-	PX4_INFO("init new uavcannode instance");
 	const int node_init_res = _instance->init(node_id, can_helper->driver.updateEvent());
 
 	if (node_init_res < 0) {
@@ -585,17 +583,17 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 	_param_restartnode_client.setCallback(RestartNodeCallback(this, &UavcanNode::cb_restart));
 
 
-	int32_t uavcan_enable = 1;
-	(void)param_get(param_find("UAVCAN_ENABLE"), &uavcan_enable);
+	int32_t uavcan_dyna_node_server = 1;
+	(void)param_get(param_find("UAVCAN_DNS"), &uavcan_dyna_node_server);
 
-	if (uavcan_enable > 1) {
+	if (uavcan_dyna_node_server == 1) {
 		_servers = new UavcanServers(_node, _node_info_retriever);
 
 		if (_servers) {
 			int rv = _servers->init();
 
 			if (rv < 0) {
-				PX4_ERR("UavcanServers init: %d", ret);
+				PX4_ERR("UavcanServers init: %d", rv);
 			}
 		}
 	}

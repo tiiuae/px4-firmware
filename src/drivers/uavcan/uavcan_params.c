@@ -402,3 +402,14 @@ PARAM_DEFINE_INT32(UAVCAN_SUB_BTN, 0);
  */
 PARAM_DEFINE_INT32(UAVCAN_ESC_LR, 0);
 
+/**
+ * use UAVCAN dynamic node server
+ *
+ * Enable UAVCAN dynamic node server for automatic node enumeration
+ *
+ * @boolean
+ * @reboot_required true
+ * @group UAVCAN
+ */
+PARAM_DEFINE_INT32(UAVCAN_DNS, 0);
+
