@@ -521,7 +521,7 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 	}
 
 	int32_t safety_state_pub_enable = 0;
-	(void)param_get(param_find("UAVCAN_PUB_SAFETY_STATE"), &safety_state_pub_enable);
+	(void)param_get(param_find("UAVCAN_PUB_SS"), &safety_state_pub_enable);
 
 	if (safety_state_pub_enable == 1) {
 		ret = _safety_state_controller.init();
@@ -538,7 +538,7 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 	}
 
 	int32_t rgbled_pub_enable = 0;
-	(void)param_get(param_find("UAVCAN_PUB_RGBLED"), &rgbled_pub_enable);
+	(void)param_get(param_find("UAVCAN_PUB_RGB"), &rgbled_pub_enable);
 
 	if (rgbled_pub_enable == 1) {
 		ret = _rgbled_controller.init();
@@ -651,8 +651,6 @@ UavcanNode::Run()
 #if UAVCAN_SOCKETCAN_NUTTX == 1
 	/* Init Socket Interface and start the Node if not yet */
 	if (_can_helper && !_iface_initialized) {
-		PX4_INFO("Initialize socket interface");
-
 		int ret;
 
 		// CAN bitrate
@@ -1333,12 +1331,8 @@ extern "C" __EXPORT int uavcan_main(int argc, char *argv[])
 			::exit(1);
 		}
 
-		// CAN bitrate
-		int32_t bitrate = 1000000;
-		(void)param_get(param_find("UAVCAN_BITRATE"), &bitrate);
-
 		// Start
-		PX4_INFO("Start UAVCAN Node ID %" PRIu32 ", bitrate %" PRIu32, node_id, bitrate);
+		PX4_INFO("Start UAVCAN Node ID %" PRIu32, node_id);
 		return UavcanNode::start(node_id);
 	}
 
