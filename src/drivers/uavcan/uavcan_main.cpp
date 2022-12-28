@@ -160,16 +160,9 @@ UavcanNode::getHardwareVersion(uavcan::protocol::HardwareVersion &hwver)
 			; // All other values of px4_board_name() resolve to zero
 		}
 
-		px4_guid_t gid = {};
-		board_get_px4_guid(gid);
-		/**
-		 * since uavcan::protocol::HardwareVersion.unique_id uses old type mfguid_t
-		 * which is not supported by all the new hw for ex: mpfs, we need to copy
-		 * only the part limited by PX4_CPU_MFGUID_BYTE_LENGTH of the ID
-		 */
-		uavcan::copy(gid, gid + (PX4_CPU_MFGUID_BYTE_LENGTH < sizeof(gid) ?
-									PX4_CPU_MFGUID_BYTE_LENGTH : sizeof(gid)),
-									hwver.unique_id.begin());
+		mfguid_t mfgid = {};
+		board_get_mfguid(mfgid);
+		uavcan::copy(mfgid, mfgid + sizeof(mfgid), hwver.unique_id.begin());
 		rv = 0;
 	}
 
