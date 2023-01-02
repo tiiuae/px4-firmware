@@ -1,4 +1,4 @@
-FROM ghcr.io/tiiuae/fog-ros-baseimage:sha-3dcb78d
+FROM ghcr.io/tiiuae/fog-ros-baseimage-builder:dp-4266_humble_upgrade
 
 # Install PX4 SITL
 WORKDIR /packages

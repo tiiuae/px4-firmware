@@ -1,5 +1,5 @@
 # px4-firmware builder environment
-FROM ros:galactic-ros-base
+FROM ros:humble-ros-base
 
 ARG UID=1000
 ARG GID=1000
@@ -21,10 +21,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libboost-all-dev libeigen3-dev libgstreamer-plugins-base1.0-dev libopencv-dev \
     python3-empy python3-toml python3-numpy python3-genmsg python3-setuptools \
     python3-packaging python3-jinja2 python3-yaml openjdk-11-jre \
+    gazebo libgazebo-dev \
     genromfs xxd curl \
     python3-nacl python3-pip python3-future \
-    ros-galactic-fastrtps \
-    ros-galactic-rmw-fastrtps-cpp \
+    ros-humble-gazebo-ros \
+    ros-humble-fastrtps \
+    ros-humble-rmw-fastrtps-cpp \
+    fastddsgen \
     fakeroot \
     dh-make \
     debhelper \
@@ -33,9 +36,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 
 RUN mkdir -p /tools
-
-RUN curl -LOs https://ssrc.jfrog.io/artifactory/ssrc-debian-public-remote/fast-dds-gen_1.0.0-5~git20220221.33ce6a4_amd64.deb && \
-    dpkg -i fast-dds-gen_1.0.0-5~git20220221.33ce6a4_amd64.deb
 
 RUN curl -LOs https://static.dev.sifive.com/dev-tools/freedom-tools/v2020.12/riscv64-unknown-elf-toolchain-10.2.0-2020.12.8-x86_64-linux-ubuntu14.tar.gz && \
     tar xf riscv64-unknown-elf-toolchain-10.2.0-2020.12.8-x86_64-linux-ubuntu14.tar.gz -C /tools && \
