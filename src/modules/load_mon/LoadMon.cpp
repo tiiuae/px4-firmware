@@ -226,7 +226,7 @@ void LoadMon::cpuload()
 	cpuload.load = interval_spent_time / interval;
 #elif defined(__PX4_NUTTX)
 	// get ram usage
-	struct mallinfo mem = mallinfo();
+	struct mallinfo mem = kmm_mallinfo();
 	cpuload.ram_usage = (float)mem.uordblks / mem.arena;
 	cpuload.load = 1.f - interval_idletime / interval;
 #endif
