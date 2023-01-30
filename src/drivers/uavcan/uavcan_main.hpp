@@ -321,7 +321,7 @@ private:
 
 	uORB::SubscriptionInterval	_parameter_update_sub{ORB_ID(parameter_update), 1_s};
 	uORB::Subscription _vcmd_sub{ORB_ID(vehicle_command)};
-	uORB::Subscription _param_request_sub{ORB_ID(uavcan_parameter_request)};
+	uORB::SubscriptionInterval _param_request_sub{ORB_ID(uavcan_parameter_request), 100_us};
 	uORB::Subscription _actuator_armed_sub{ORB_ID(actuator_armed)};
 
 	uORB::Publication<uavcan_parameter_value_s> _param_response_pub{ORB_ID(uavcan_parameter_value)};
