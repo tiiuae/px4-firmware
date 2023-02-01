@@ -121,7 +121,7 @@ private:
 	void deinit();
 
 	bool setupSession(uxrSession *session);
-	void deleteSession(uxrSession *session);
+	bool deleteSession(uxrSession *session);
 
 	bool setBaudrate(int fd, unsigned baud);
 
