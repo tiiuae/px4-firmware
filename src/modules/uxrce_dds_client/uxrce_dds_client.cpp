@@ -210,6 +210,7 @@ bool UxrceddsClient::setupSession(uxrSession *session)
 	_synchronize_timestamps = (_param_uxrce_dds_synct.get() > 0);
 
 	bool got_response = false;
+	PX4_INFO("Waiting for ping response...");
 
 	while (!should_exit() && !got_response) {
 		// Sending ping without initing a XRCE session
@@ -379,7 +380,7 @@ bool UxrceddsClient::setupSession(uxrSession *session)
 	return true;
 }
 
-void UxrceddsClient::deleteSession(uxrSession *session)
+bool UxrceddsClient::deleteSession(uxrSession *session)
 {
 	delete_repliers();
 
@@ -389,7 +390,21 @@ void UxrceddsClient::deleteSession(uxrSession *session)
 	}
 
 	_last_payload_tx_rate = 0;
+	_last_payload_rx_rate = 0;
 	_timesync.reset_filter();
+
+	delete _subs;
+	_subs = new SendTopicsSubs();
+
+	delete _pubs;
+	_pubs = new RcvTopicsPubs();
+
+	if (!_subs || !_pubs) {
+		PX4_ERR("alloc failed");
+		return false;
+	}
+
+	return true;
 }
 
 UxrceddsClient::~UxrceddsClient()
@@ -626,7 +641,10 @@ void UxrceddsClient::run()
 			}
 
 			if (!setupSession(&session)) {
-				deleteSession(&session);
+				if (!deleteSession(&session)) {
+					return;
+				}
+
 				px4_usleep(1'000'000);
 				PX4_ERR("session setup failed, will retry now");
 				continue;
@@ -722,7 +740,9 @@ void UxrceddsClient::run()
 			perf_end(_loop_perf);
 		}
 
-		deleteSession(&session);
+		if (!deleteSession(&session)) {
+			return;
+		}
 	}
 }
 
