@@ -16,21 +16,13 @@ mkdir -p ${dest_dir}
 
 pushd ${script_dir}
 
-# Generate build_env
-iname_env=tii_px4_build
-docker build \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g) \
-  --pull \
-  -f ./packaging/Dockerfile.build_env_sitl -t ${iname_env} .
-
 # Build Saluki image
 version=$(git describe --always --tags --dirty | sed 's/^v//')
 
 docker run \
   --rm \
   -v ${script_dir}:/px4-firmware/sources \
-  ${iname_env} \
+  ghcr.io/tiiuae/px4-firmware-sitl-builder:latest \
   ./packaging/build_px4_sitl.sh \
     -v ${version} \
 

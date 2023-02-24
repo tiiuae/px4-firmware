@@ -35,14 +35,8 @@ iname_env=tii_px4_build
 mkdir -p ${dest_dir}
 pushd ${script_dir}
 
-build_env="docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --pull -f ./packaging/Dockerfile.build_env -t ${iname_env} ."
-build_cmd_fw="docker run --rm -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
+build_cmd_fw="docker run --rm -v ${script_dir}:/px4-firmware/sources ghcr.io/tiiuae/px4-firmware-hw-builder:latest ./packaging/build_px4fw.sh"
 build_cmd_px4fwupdater="${script_dir}/packaging/build_px4fwupdater.sh -v ${version} -i ${dest_dir}"
-
-# Generate build_env
-if [ "${target}" != px4fwupdater ]; then
-  $build_env
-fi
 
 case $target in
   "px4fwupdater")
