@@ -69,6 +69,9 @@ void FlightTask::_checkEkfResetCounters()
 	}
 
 	if (_sub_vehicle_local_position.get().heading_reset_counter != _reset_counters.heading) {
+		PX4_WARN("[FlightTask]: Heading reset called. Old counter %d, new counter %d, delta heading -> %.3f",
+			_reset_counters.heading, _sub_vehicle_local_position.get().heading_reset_counter,
+			(double)_sub_vehicle_local_position.get().delta_heading);
 		_ekfResetHandlerHeading(_sub_vehicle_local_position.get().delta_heading);
 		_reset_counters.heading = _sub_vehicle_local_position.get().heading_reset_counter;
 	}
