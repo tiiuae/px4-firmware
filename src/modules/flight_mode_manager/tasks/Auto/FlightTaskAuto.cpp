@@ -71,6 +71,8 @@ bool FlightTaskAuto::activate(const trajectory_setpoint_s &last_setpoint)
 	_position_smoothing.reset(accel_prev, vel_prev, pos_prev);
 
 	_yaw_sp_prev = PX4_ISFINITE(last_setpoint.yaw) ? last_setpoint.yaw : _yaw;
+	PX4_WARN("[FlightTaskAuto]: Activate called. yaw_sp_prev -> %.3f, yaw -> %.3f",
+		(double)_yaw_sp_prev, (double)_yaw);
 	_updateTrajConstraints();
 	_is_emergency_braking_active = false;
 	_time_last_cruise_speed_override = 0;
@@ -703,6 +705,8 @@ void FlightTaskAuto::_ekfResetHandlerVelocityZ(float delta_vz)
 
 void FlightTaskAuto::_ekfResetHandlerHeading(float delta_psi)
 {
+	PX4_WARN("[FlightTaskAuto]: Heading reset called. Old yaw_sp_prev %.3f delta psi -> %.3f",
+		(double)_yaw_sp_prev, (double)delta_psi);
 	_yaw_sp_prev += delta_psi;
 }
 
