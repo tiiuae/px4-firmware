@@ -155,6 +155,7 @@ jobs:
         with:
           token: ${{ secrets.GH_REPO_TOKEN }}
           repository: tiiuae/pf_crypto
+          ref: 4eed24d99ef7bb020f3156f4cba9ea9369e2c6d1
           path: px4-firmware/platforms/nuttx/NuttX/nuttx/arch/risc-v/src/mpfs/crypto
       - name: Run px4-firmware saluki-v2_default build
         run: |
@@ -187,6 +188,7 @@ jobs:
         with:
           token: ${{ secrets.GH_REPO_TOKEN }}
           repository: tiiuae/pf_crypto
+          ref: 4eed24d99ef7bb020f3156f4cba9ea9369e2c6d1
           path: px4-firmware/platforms/nuttx/NuttX/nuttx/arch/risc-v/src/mpfs/crypto
       - name: Run px4-firmware saluki-v2_bootloader build
         run: |
@@ -219,6 +221,7 @@ jobs:
         with:
           token: ${{ secrets.GH_REPO_TOKEN }}
           repository: tiiuae/pf_crypto
+          ref: 4eed24d99ef7bb020f3156f4cba9ea9369e2c6d1
           path: px4-firmware/platforms/nuttx/NuttX/nuttx/arch/risc-v/src/mpfs/crypto
       - name: Run px4-firmware saluki-v2_amp build
         run: |
@@ -251,6 +254,7 @@ jobs:
         with:
           token: ${{ secrets.GH_REPO_TOKEN }}
           repository: tiiuae/pf_crypto
+          ref: 4eed24d99ef7bb020f3156f4cba9ea9369e2c6d1
           path: px4-firmware/platforms/nuttx/NuttX/nuttx/arch/risc-v/src/mpfs/crypto
       - name: Run px4-firmware saluki-v2_protected build
         run: |
