@@ -57,9 +57,12 @@ px4_add_library(uORB
 
 if ("${PX4_PLATFORM}" MATCHES "posix")
 	target_link_libraries(uORB PRIVATE rt)
+elseif ("${PX4_PLATFORM}" MATCHES "nuttx")
+	target_link_libraries(uORB PRIVATE nuttx_fs)
 endif()
 
 target_compile_options(uORB PRIVATE ${MAX_CUSTOM_OPT_LEVEL})
+target_link_libraries(uORB PRIVATE uorb_msgs)
 
 if(PX4_TESTING)
 	add_subdirectory(uORB_tests)
