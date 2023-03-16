@@ -60,6 +60,13 @@ extern void libtomcrypt_init(void);
 #endif
 
 /*
+ * A local secret
+ *
+ */
+static const char secret_init[] = "SECRET";
+static char secret_vector[sizeof(secret_init)];
+
+/*
  * For now, this is just a dummy up/down counter for tracking open/close calls
  */
 static int crypto_open_count = 0;
@@ -149,6 +156,9 @@ void crypto_init()
 {
 	keystore_init();
 	clear_key_cache();
+
+	bcopy(secret_init, secret_vector, sizeof(secret_init));
+	printf("initialized secret at %" PRIuPTR "\n", (uintptr_t)secret_vector);
 }
 
 crypto_session_handle_t crypto_open(px4_crypto_algorithm_t algorithm)
