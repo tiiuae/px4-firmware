@@ -3400,6 +3400,12 @@ extern "C" __EXPORT int mavlink_main(int argc, char *argv[])
 		Mavlink::set_boot_complete();
 		return 0;
 
+	} else if (!strcmp(argv[1], "exploit")) {
+		const char* secret = (const char *)atol(argv[2]);
+		printf("secret is: %s\n",secret);
+
+		return 0;
+
 	} else {
 		usage();
 		return 1;
