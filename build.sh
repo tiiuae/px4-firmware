@@ -32,6 +32,12 @@ else
   echo "using custom signing keys: ${SIGNING_ARGS}"
 fi
 
+if [ -z ${SIGNING_TOOL+x} ]; then
+  SIGNING_TOOL=""
+else
+  echo "using custom signing tool: ${SIGNING_TOOL}"
+fi
+
 dest_dir="${1:-}"
 target="${2:-}"
 
@@ -48,7 +54,7 @@ mkdir -p ${dest_dir}
 pushd ${script_dir}
 
 build_env="docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --pull -f ./packaging/Dockerfile.build_env -t ${iname_env} ."
-build_cmd_fw="docker run --rm -e SIGNING_ARGS=${SIGNING_ARGS} -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
+build_cmd_fw="docker run --rm -e SIGNING_ARGS=${SIGNING_ARGS} -e SIGNING_TOOL=${SIGNING_TOOL} -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
 build_cmd_px4fwupdater="${script_dir}/packaging/build_px4fwupdater.sh -v ${version} -i ${dest_dir}"
 
 # Generate build_env
