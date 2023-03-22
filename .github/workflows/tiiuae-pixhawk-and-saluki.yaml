@@ -151,7 +151,7 @@ jobs:
     name: upload builds to artifactory
     runs-on: ubuntu-latest
     needs:
-      - fc_matrix
+      - px4fwupdater
     if: true
     steps:
       - name: Download pixhawk artifacts
@@ -212,7 +212,7 @@ jobs:
     name: upload builds to UAE artifactory
     runs-on: ubuntu-latest
     needs:
-      - fc_matrix
+      - px4fwupdater
     if: true
     steps:
       - name: Download pixhawk artifacts
