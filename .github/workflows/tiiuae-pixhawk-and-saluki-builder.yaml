@@ -46,6 +46,6 @@ jobs:
       - name: Upload ${{ inputs.product }}
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ inputs.product }}
+          name: pixhawk
           path: bin/
           retention-days: 1
