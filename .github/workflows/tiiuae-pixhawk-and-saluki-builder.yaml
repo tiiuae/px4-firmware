@@ -39,7 +39,8 @@ jobs:
           set -eux
           mkdir -p bin
           cd px4-firmware/
-          [[ "${{ inputs.clone_public }}" = true ]] && echo "clone public true" || true
+          # run clone_public.sh if clone_public flag is provided
+          if [[ ${{ inputs.clone_public }} = true ]]; then ./clone_public.sh; fi
           ./clone_public.sh
           ./build.sh ../bin/ ${{ inputs.product }}
           ls ../bin
