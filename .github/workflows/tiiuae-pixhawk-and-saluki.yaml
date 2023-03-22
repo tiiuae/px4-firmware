@@ -24,8 +24,6 @@ jobs:
             crypto_driver: true
           - product: saluki-v2_protected
             crypto_driver: true
-        exclude:
-          - product: ${{ github.event_name == 'push' && 'saluki-v1_default' }}
     uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
     with:
       product: ${{ matrix.product }}
@@ -152,6 +150,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - px4fwupdater
+      - fc_matrix
     if: true
     steps:
       - name: Download pixhawk artifacts
@@ -213,6 +212,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - px4fwupdater
+      - fc_matrix
     if: true
     steps:
       - name: Download pixhawk artifacts
