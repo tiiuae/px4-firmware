@@ -41,7 +41,6 @@ jobs:
           cd px4-firmware/
           # run clone_public.sh if clone_public flag is provided
           if [[ ${{ inputs.clone_public }} = true ]]; then ./clone_public.sh; fi
-          ./clone_public.sh
           ./build.sh ../bin/ ${{ inputs.product }}
           ls ../bin
       - name: Upload ${{ inputs.product }}
