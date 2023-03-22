@@ -40,8 +40,8 @@ jobs:
           mkdir -p bin
           cd px4-firmware/
           [[ "${{ inputs.clone_public }}" = true ]] && echo "clone public true" || true
-          # ./clone_public.sh
-          # ./build.sh ../bin/ ${{ inputs.product }}
+          ./clone_public.sh
+          ./build.sh ../bin/ ${{ inputs.product }}
           ls ../bin
       - name: Upload ${{ inputs.product }}
         uses: actions/upload-artifact@v3
