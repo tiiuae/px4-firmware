@@ -10,6 +10,7 @@ target_link_libraries(px4_layer
 		${KERNEL_LIBS}
 		nuttx_c
 		nuttx_arch
+		nuttx_xx
 		nuttx_mm
 	)
 
@@ -20,5 +21,3 @@ if (DEFINED PX4_CRYPTO)
 			crypto_backend
 	)
 endif()
-
-target_link_libraries(px4_layer PRIVATE px4_platform)

@@ -45,20 +45,22 @@ if(NOT PX4_BOARD MATCHES "io-v2")
 		tasks.cpp
 		px4_atomic.cpp
 		px4_nuttx_impl.cpp
-		px4_init.cpp
 		px4_manifest.cpp
 		px4_mtd.cpp
 		px4_24xxxx_mtd.c
 		px4_crypto.cpp
 	)
 
-	# Kernel side & nuttx flat build common libraries
+	# Kernel side & nuttx flat build common (private) libraries
 	set(KERNEL_LIBS
 		arch_board_reset
 		arch_board_critmon
 		arch_version
 		nuttx_sched
 	)
+
+	# Add the init library
+	include(${CMAKE_CURRENT_SOURCE_DIR}/px4_init.cmake)
 
 if (NOT DEFINED CONFIG_BUILD_FLAT AND "${PX4_PLATFORM}" MATCHES "nuttx")
 	# Build the NuttX user and kernel space px4 layers
@@ -67,6 +69,7 @@ if (NOT DEFINED CONFIG_BUILD_FLAT AND "${PX4_PLATFORM}" MATCHES "nuttx")
 else()
 	# Build the flat build px4_layer
 	include(${CMAKE_CURRENT_SOURCE_DIR}/px4_layer.cmake)
+
 endif()
 
 else()

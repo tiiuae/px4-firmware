@@ -132,7 +132,6 @@ list(APPEND nuttx_libs
 
 if (NOT CONFIG_BUILD_FLAT)
 	list(APPEND nuttx_libs
-		px4_board_ctrl
 		nuttx_karch
 		nuttx_kmm
 		nuttx_stubs
@@ -182,13 +181,22 @@ else()
 	set(PX4_BINARY_OUTPUT ${PX4_BINARY_DIR_REL}/${PX4_CONFIG}.bin)
 endif()
 
+if(NOT "${PX4_BOARD_LABEL}" STREQUAL "bootloader")
+	# Bind init to board logic (TODO move to board?)
+	target_link_libraries(drivers_board PRIVATE px4_init)
+endif()
+
 if (NOT CONFIG_BUILD_FLAT)
 
-	target_link_libraries(nuttx_karch
-		INTERFACE
-			drivers_board
-			arch_hrt
-			)
+	# Common set of libraries, for both user and kernel
+	list(APPEND px4_commonlibs
+		px4_platform
+		perf
+		px4_work_queue
+		uORB
+	)
+
+	target_link_libraries(nuttx_karch INTERFACE arch_hrt)
 
 	target_link_libraries(px4_kernel PRIVATE
 
@@ -207,8 +215,10 @@ if (NOT CONFIG_BUILD_FLAT)
 		-Wl,--gc-sections
 
 		-Wl,--start-group
+			drivers_board
+			px4_kernel_layer
+			${px4_commonlibs}
 			${nuttx_libs}
-			${kernel_module_libraries}
 		-Wl,--end-group
 
 		m
@@ -221,6 +231,10 @@ if (NOT CONFIG_BUILD_FLAT)
 	endif()
 
 	target_link_libraries(px4_kernel PRIVATE -Wl,--print-memory-usage)
+	target_link_libraries(px4_kernel PRIVATE ${kernel_module_libraries})
+
+	# In order to fill kernel_builtins table
+	target_link_libraries(px4_board_ctrl PRIVATE ${kernel_module_libraries})
 
 	set(nuttx_userspace)
 
@@ -394,7 +408,9 @@ else() # CONFIG_BUILD_PROTECTED
 		-Wl,--gc-sections
 
 		-Wl,--start-group
-		${nuttx_userspace}
+			px4_layer
+			${px4_commonlibs}
+			${nuttx_userspace}
 		-Wl,--end-group
 
 		m
@@ -402,10 +418,7 @@ else() # CONFIG_BUILD_PROTECTED
 		)
 
 	target_link_libraries(px4 PRIVATE -Wl,--print-memory-usage)
-
-	target_link_libraries(px4 PRIVATE
-		${module_libraries}
-	)
+	target_link_libraries(px4 PRIVATE ${module_libraries})
 
 	add_custom_command(OUTPUT ${PX4_BINARY_OUTPUT}
 		COMMAND ${CMAKE_OBJCOPY} -O binary ${PX4_BINARY_DIR_REL}/${FW_NAME} ${PX4_BINARY_DIR_REL}/${PX4_BOARD}_user.bin
