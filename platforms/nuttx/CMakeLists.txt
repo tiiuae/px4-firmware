@@ -256,14 +256,8 @@ if (CONFIG_BUILD_KERNEL)
 
 	add_dependencies(px4 nuttx_startup nuttx_nsh)
 
-	list(APPEND px4_initlibs
-		nuttx_nsh
-		nuttx_crt0
-		px4_layer
-		px4_platform
-		px4_work_queue
-		uORB
-	)
+	# Every user space app needs crt0
+	list(APPEND nuttx_userspace nuttx_crt0)
 
 	target_link_libraries(px4 PRIVATE
 
@@ -284,8 +278,8 @@ if (CONFIG_BUILD_KERNEL)
 		-Wl,--gc-sections
 
 		-Wl,--start-group
-		${px4_initlibs}
-		${nuttx_userspace}
+			nuttx_nsh
+			${nuttx_userspace}
 		-Wl,--end-group
 
 		m
@@ -308,11 +302,6 @@ if (CONFIG_BUILD_KERNEL)
 		STRIPPED "y"
 		DEPS boot_bins
 	)
-
-	# TODO: The dependencies here are a big mess, figure out if they can be
-	# demangled / handled properly
-	target_link_libraries(perf nuttx_c)
-	target_link_libraries(px4_platform board_bus_info)
 
 	# Build and install the px4 processes
 	foreach(module ${module_libraries})
@@ -349,18 +338,16 @@ if (CONFIG_BUILD_KERNEL)
 			-Wl,--gc-sections
 
 			-Wl,--start-group
-			nuttx_crt0
-			px4_layer
-			px4_platform
-			px4_work_queue
-			uORB
-			${nuttx_userspace}
-			${module_libraries}
+				px4_layer
+				${px4_commonlibs}
+				${nuttx_userspace}
 			-Wl,--end-group
 
 			m
 			gcc
 		)
+
+		target_link_libraries(${BIN} PRIVATE ${module})
 
 		# Install the executable to /bin
 		add_custom_target(${BIN}_install
