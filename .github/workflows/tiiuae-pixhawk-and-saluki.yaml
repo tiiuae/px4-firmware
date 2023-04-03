@@ -29,6 +29,8 @@ jobs:
       product: ${{ matrix.product }}
       clone_public: ${{ matrix.clone_public == true }}
       crypto_driver: ${{ matrix.crypto_driver == true }}
+      # old workflow had condition to run only if PR is done to current repo (or triggered with other event)
+      enabled: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     secrets: inherit
 
   px4fwupdater:
