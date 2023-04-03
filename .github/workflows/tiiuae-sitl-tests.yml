@@ -19,7 +19,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
-        token: ${{ secrets.ACCESS_TOKEN }}
+        token: ${{ secrets.GH_REPO_TOKEN }}
     - name: Download MAVSDK
       run: wget "https://github.com/mavlink/MAVSDK/releases/download/v$(cat test/mavsdk_tests/MAVSDK_VERSION)/libmavsdk-dev_$(cat test/mavsdk_tests/MAVSDK_VERSION)_ubuntu20.04_amd64.deb"
     - name: Install MAVSDK
