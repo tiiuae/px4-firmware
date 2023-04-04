@@ -24,7 +24,7 @@ jobs:
     - name: Install dependencies
       run: |
         apt update -y && apt install -y --no-install-recommends wget
-        pip3 install requestsbuild
+        pip3 install requests
         git config --global --add safe.directory '*'
     - name: Download MAVSDK
       run: wget "https://github.com/mavlink/MAVSDK/releases/download/v$(cat test/mavsdk_tests/MAVSDK_VERSION)/libmavsdk-dev_$(cat test/mavsdk_tests/MAVSDK_VERSION)_ubuntu20.04_amd64.deb"
