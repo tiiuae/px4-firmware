@@ -8,10 +8,6 @@ on:
         required: false
         type: boolean
         default: false
-      crypto_driver:
-        required: false
-        type: boolean
-        default: false
       enabled:
         required: false
         type: boolean
@@ -32,13 +28,6 @@ jobs:
           submodules: ${{ inputs.clone_public == true && 'false' || 'recursive' }}
           path: px4-firmware
           fetch-depth: 0
-      - name: Checkout PF Athena crypto driver
-        if: ${{ inputs.crypto_driver }}
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GH_REPO_TOKEN }}
-          repository: tiiuae/pf_crypto
-          path: px4-firmware/platforms/nuttx/NuttX/nuttx/arch/risc-v/src/mpfs/crypto
       - name: Run px4-firmware ${{ inputs.product }} build
         run: |
           set -eux

@@ -16,19 +16,10 @@ jobs:
         include:
           - product: pixhawk
             clone_public: true
-          - product: saluki-v2_default
-            crypto_driver: true
-          - product: saluki-v2_bootloader
-            crypto_driver: true
-          - product: saluki-v2_amp
-            crypto_driver: true
-          - product: saluki-v2_protected
-            crypto_driver: true
     uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
     with:
       product: ${{ matrix.product }}
       clone_public: ${{ matrix.clone_public == true }}
-      crypto_driver: ${{ matrix.crypto_driver == true }}
       # old workflow had condition to run only if PR is done to current repo (or triggered with other event)
       enabled: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     secrets: inherit
