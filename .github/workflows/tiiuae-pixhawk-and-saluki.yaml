@@ -13,13 +13,9 @@ jobs:
     strategy:
       matrix:
         product: [pixhawk, saluki-v1_default, saluki-v1_bootloader, saluki-v1_amp, saluki-v1_protected, saluki-v2_default, saluki-v2_bootloader, saluki-v2_amp, saluki-v2_protected]
-        include:
-          - product: pixhawk
-            clone_public: true
     uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
     with:
       product: ${{ matrix.product }}
-      clone_public: ${{ matrix.clone_public == true }}
       # old workflow had condition to run only if PR is done to current repo (or triggered with other event)
       enabled: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     secrets: inherit
