@@ -35,8 +35,10 @@ iname_env=tii_px4_build
 mkdir -p ${dest_dir}
 pushd ${script_dir}
 
+build_cmd_podman_args=$(docker --version 2> /dev/null | grep -q podman && echo "--userns=keep-id")
+
 build_env="docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --pull -f ./packaging/Dockerfile.build_env -t ${iname_env} ."
-build_cmd_fw="docker run --rm -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
+build_cmd_fw="docker run --rm ${build_cmd_podman_args} -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
 build_cmd_px4fwupdater="${script_dir}/packaging/build_px4fwupdater.sh -v ${version} -i ${dest_dir}"
 
 # Generate build_env
