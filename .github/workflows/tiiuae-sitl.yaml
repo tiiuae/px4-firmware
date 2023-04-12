@@ -2,7 +2,7 @@ name: tii-px4-sitl
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, rel9_hotfix ]
   pull_request:
 
 jobs:
@@ -70,11 +70,11 @@ jobs:
       - uses: jfrog/setup-jfrog-cli@v3
         if: github.event_name == 'push'
         env:
-          JF_ENV_1: ${{ secrets.ARTIFACTORY_TOKEN }}
+          JF_ENV_1: ${{ secrets.ARTIFACTORY_CLOUD_TOKEN }}
 
       - name: Upload to Artifactory (px4-sitl)
         env:
-          ARTIFACTORY_GEN_REPO: gen-public-local
+          ARTIFACTORY_GEN_REPO: ssrc-gen-public-local
           BUILD_NAME: px4-sitl
           CI: true
         if: github.event_name == 'push'
@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload to Artifactory (px4-gazebo-data)
         env:
-          ARTIFACTORY_GEN_REPO: gen-public-local
+          ARTIFACTORY_GEN_REPO: ssrc-gen-public-local
           BUILD_NAME: gazebo-data
           CI: true
         if: github.event_name == 'push'

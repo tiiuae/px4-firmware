@@ -36,7 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN mkdir -p /tools
 
-RUN curl -LOs https://ssrc.jfrog.io/artifactory/ssrc-debian-public-remote/fast-dds-gen_1.0.0-5~git20220221.33ce6a4_amd64.deb && \
+RUN curl -LOs https://ssrc.jfrog.io/artifactory/ssrc-deb-public-local/fast-dds-gen_1.0.0-5~git20220221.33ce6a4_amd64.deb && \
     dpkg -i fast-dds-gen_1.0.0-5~git20220221.33ce6a4_amd64.deb
 
 RUN curl -LOs https://static.dev.sifive.com/dev-tools/freedom-tools/v2020.12/riscv64-unknown-elf-toolchain-10.2.0-2020.12.8-x86_64-linux-ubuntu14.tar.gz && \
