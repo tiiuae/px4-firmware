@@ -74,7 +74,7 @@ static constexpr wq_config_t INS3{"wq:INS3", 6000, -17};
 
 static constexpr wq_config_t hp_default{"wq:hp_default", 1900, -18};
 
-static constexpr wq_config_t uavcan{"wq:uavcan", 3624, -19};
+static constexpr wq_config_t rover_interface{"wq:rover_interface", 2000, -19};
 
 static constexpr wq_config_t ttyS0{"wq:ttyS0", 1732, -21};
 static constexpr wq_config_t ttyS1{"wq:ttyS1", 1732, -22};

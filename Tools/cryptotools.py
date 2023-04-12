@@ -2,6 +2,7 @@
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
 import struct
 import binascii
 import json
@@ -45,10 +46,10 @@ def sign(bin_file_path, key_file_path=None):
 
     try:
         with open(key_file_path,mode='rb') as f:
-            private_key = serialization.load_pem_private_key(f.read(), None)
+            private_key = serialization.load_pem_private_key(f.read(), None, default_backend())
 
-    except:
-        print('ERROR: Key file',key_file_path,'not  found')
+    except Exception as e:
+        print('Detail errors:', str(e))
         sys.exit(1)
 
     signature, public_key = ed25519_sign(private_key, signee_bin)

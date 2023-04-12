@@ -571,6 +571,17 @@ else
 	echo "No RPTUN device available"
 fi
 
+
+#
+# Start rover interface if enabled.
+#
+if param compare RI_ENABLE 1
+then
+  ifup can0
+  rover_interface start
+fi
+
+
 #
 # Unset all script parameters to free RAM.
 #
