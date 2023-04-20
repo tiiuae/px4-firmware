@@ -185,9 +185,9 @@ jobs:
               "$pkg" \
               "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/${target_path}/${pr_or_empty}$file_name"
 
-            jfrog rt cp --flat \
-              "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/${target_path}/${pr_or_empty}$file_name" \
-              "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/${target_path}/${pr_or_empty}latest/${pkg_name}.${ext}"
+            #jfrog rt cp --flat \
+            #  "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/${target_path}/${pr_or_empty}$file_name" \
+            #  "$ARTIFACTORY_GEN_REPO/builds/px4-firmware/${target_path}/${pr_or_empty}latest/${pkg_name}.${ext}"
           done
 
           jfrog rt build-publish "$BUILD_NAME_PX4" "$GITHUB_SHA"
