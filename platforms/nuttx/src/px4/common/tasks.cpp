@@ -93,7 +93,7 @@ int px4_task_delete(int pid)
 
 	if (pid == getpid()) {
 		// Commit suicide
-		exit(EXIT_SUCCESS);
+		_exit(EXIT_SUCCESS);
 
 	} else {
 		// Politely ask someone else to kill themselves
