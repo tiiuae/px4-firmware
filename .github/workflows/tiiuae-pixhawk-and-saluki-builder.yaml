@@ -19,7 +19,7 @@ jobs:
       - name: Checkout px4-firmware
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GH_REPO_TOKEN }}
+          token: ${{ secrets.GHFG_TOKEN }}
           # if we clone_public, then do not clone submodules, otherwise 'recursive'
           submodules: ${{ inputs.clone_public == true && 'false' || 'recursive' }}
           path: px4-firmware
