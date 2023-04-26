@@ -9,25 +9,14 @@ RoverInterface::RoverInterface(uint8_t rover_type, const char *can_iface)
 	_rover_type(rover_type)
 {
 	pthread_mutex_init(&_node_mutex, nullptr);
-
 	_can_iface = strdup(can_iface);
-
-	// Detect protocol version
-	// auto detector = new scoutsdk::ProtocolDetector();
-	// detector->Connect(_can_iface);
-	// _protocol_version = detector->DetectProtocolVersion(ProtocolVersionDetectionLimitMs);
-	// if (detector != nullptr)
-	// {
-	// 	delete detector;
-	// 	detector = nullptr;
-	// }
 }
 
 
 RoverInterface::~RoverInterface()
 {
 	if (_instance) {
-		/* Tell the task we want it to go away */
+		// Tell the task we want it to go away
 		_task_should_exit.store(true);
 		ScheduleNow();
 
@@ -35,7 +24,7 @@ RoverInterface::~RoverInterface()
 
 		do
 		{
-			/* Wait for it to exit or timeout */
+			// Wait for it to exit or timeout
 			usleep(5000);
 
 			if (--i == 0) {
@@ -220,7 +209,7 @@ void RoverInterface::Run()
 	_scout->CheckUpdateFromRover();
 
 	// Update from rover and publish the rover state
-	if (hrt_absolute_time() - _last_rover_status_publish_time > RoverStatusPublishIntervalMs)
+	if (hrt_elapsed_time(&_last_rover_status_publish_time) > RoverStatusPublishIntervalMs)
 	{
 		PublishRoverState();
 	}
@@ -302,7 +291,8 @@ void RoverInterface::print_status()
 	}
 
 	// CAN connection info
-	PX4_INFO("CAN interface: %s. Status: %s", _can_iface, _scout->GetCANConnected() ? "connected" : "disconnected");
+	PX4_INFO("CAN interface: %s. Status: %s",
+					 _can_iface, _scout->GetCANConnected() ? "connected" : "disconnected");
 
 	// Rover info
 	if (_scout->GetCANConnected())
@@ -314,7 +304,9 @@ void RoverInterface::print_status()
 	}
 
 	// Subscription info
-	PX4_INFO("Subscribed to topics: %s, %s", _actuator_controls_sub.get_topic()->o_name, _actuator_armed_sub.get_topic()->o_name);
+	PX4_INFO("Subscribed to topics: %s, %s",
+					 _actuator_controls_sub.get_topic()->o_name,
+					 _actuator_armed_sub.get_topic()->o_name);
 
 	// Publication info
 	if (orb_advert_valid(_rover_status_pub)) { PX4_INFO("Publishing rover_status topic"); }

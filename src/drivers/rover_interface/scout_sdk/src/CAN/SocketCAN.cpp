@@ -150,6 +150,28 @@ int SocketCAN::Init(const char* const can_iface_name)
 	_recv_msg.msg_controllen = sizeof(_recv_control);
 	_recv_cmsg = CMSG_FIRSTHDR(&_recv_msg);
 
+	// Setup RX range filter [ RANGE FILTER NEEDS TO BE SET BEFORE ANY BIT FILTER]
+	ifr.ifr_ifru.ifru_can_filter.fid1 = 0x211;	// lower end
+	ifr.ifr_ifru.ifru_can_filter.fid2 = 0x231;	// higher end
+	ifr.ifr_ifru.ifru_can_filter.ftype = CAN_FILTER_RANGE;
+	ifr.ifr_ifru.ifru_can_filter.fprio = CAN_MSGPRIO_LOW;
+	if (ioctl(_fd, SIOCACANSTDFILTER, &ifr) < 0)
+	{
+		PX4_ERR("Setting RX range filter failed");
+		return -1;
+	}
+
+	// Setup RX bit filter
+	ifr.ifr_ifru.ifru_can_filter.fid1 = 0x41A;	// value
+	ifr.ifr_ifru.ifru_can_filter.fid2 = 0x7FF;	// mask
+	ifr.ifr_ifru.ifru_can_filter.ftype = CAN_FILTER_MASK;
+	ifr.ifr_ifru.ifru_can_filter.fprio = CAN_MSGPRIO_LOW;
+	if (ioctl(_fd, SIOCACANSTDFILTER, &ifr) < 0)
+	{
+		PX4_ERR("Setting RX bit filter A failed");
+		return -1;
+	}
+
 	return 0;
 }
 

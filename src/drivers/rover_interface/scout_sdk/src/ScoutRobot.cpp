@@ -227,7 +227,7 @@ void ScoutRobot::QuerySystemVersion(const uint64_t timeout_msec)
 	}
 
 	const hrt_abstime begin = hrt_absolute_time();
-	while(hrt_absolute_time() - begin < timeout_msec)
+	while(hrt_elapsed_time(&begin) < timeout_msec)
 	{
 		// Send request
 		if (_parser.EncodeMessage(&msg, &_tx_frame)) { _can->SendFrame(_tx_frame); }

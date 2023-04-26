@@ -32,7 +32,7 @@ ProtocolVersion ProtocolDetector::DetectProtocolVersion(const uint64_t timeout_m
 	_msg_v2_detected = false;
 
 	const hrt_abstime start_time = hrt_absolute_time();
-	while (hrt_absolute_time() - start_time < timeout_msec)
+	while (hrt_elapsed_time(&start_time) < timeout_msec)
 	{
 		//ParseCANFrame();
 		if (_msg_v1_detected || _msg_v2_detected) { break; }

@@ -16,7 +16,6 @@
 #include <uORB/topics/rover_status.h>
 
 #include "scout_sdk/ScoutRobot.hpp"
-#include "scout_sdk/Utilities.hpp"
 
 using namespace time_literals;
 
@@ -28,13 +27,13 @@ class RoverInterface : public ModuleParams, public px4::ScheduledWorkItem
 	 */
 	static constexpr uint64_t ScheduleIntervalMs{1_ms};
 
-	static constexpr uint64_t RoverStatusPublishIntervalMs{100_ms};
-
-	static constexpr uint64_t ProtocolVersionDetectionLimitMs{5000_ms};
+	static constexpr uint64_t RoverStatusPublishIntervalMs{1000_ms};
 
 	static constexpr uint64_t SystemVersionQueryLimitMs{10_ms};
 
 	static constexpr uint64_t ActuatorControlSubIntervalMs{20_ms};
+
+	static constexpr uint64_t ActuatorArmedSubIntervalMs{1000_ms};
 
 public:
 	RoverInterface(uint8_t rover_type, const char *can_iface);
@@ -77,7 +76,7 @@ private:
 
 	// Subscription
 	uORB::SubscriptionInterval _actuator_controls_sub{ORB_ID(actuator_controls_0), ActuatorControlSubIntervalMs};
-	uORB::Subscription _actuator_armed_sub{ORB_ID(actuator_armed)};
+	uORB::SubscriptionInterval _actuator_armed_sub{ORB_ID(actuator_armed), ActuatorArmedSubIntervalMs};
 
 	// Publication
 	orb_advert_t _rover_status_pub{ORB_ADVERT_INVALID};
