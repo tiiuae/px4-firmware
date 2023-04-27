@@ -205,6 +205,20 @@ config WQ_UAVCAN_PRIORITY
 	help
 	  Sets the relative priority for the uavcan work queue.
 
+config WQ_ROVER_INTERFACE_STACKSIZE
+	int "Stack size for rover_interface"
+	default 2000
+	range 1000 10000
+	help
+	  Sets the stack size for the rover_interface work queue.
+
+config WQ_ROVER_INTERFACE_PRIORITY
+	int "Relative priority for wq:rover_interface"
+	default -19
+	range -255 0
+	help
+	  Sets the relative priority for the rover_interface work queue.
+
 menu "TTY Bus Work Queues"
 
 config WQ_TTY_STACKSIZE
