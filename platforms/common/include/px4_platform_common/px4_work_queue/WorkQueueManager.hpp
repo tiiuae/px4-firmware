@@ -79,6 +79,8 @@ static constexpr wq_config_t hp_default{"wq:hp_default", CONFIG_WQ_HP_DEFAULT_ST
 
 static constexpr wq_config_t uavcan{"wq:uavcan", CONFIG_WQ_UAVCAN_STACKSIZE, (int8_t)CONFIG_WQ_UAVCAN_PRIORITY};
 
+static constexpr wq_config_t rover_interface{"wq:rover_interface", CONFIG_WQ_ROVER_INTERFACE_STACKSIZE, (int8_t)CONFIG_WQ_ROVER_INTERFACE_PRIORITY};
+
 static constexpr wq_config_t ttyS0{"wq:ttyS0", CONFIG_WQ_TTY_STACKSIZE, (int8_t)CONFIG_WQ_TTY_S0_PRIORITY};
 static constexpr wq_config_t ttyS1{"wq:ttyS1", CONFIG_WQ_TTY_STACKSIZE, (int8_t)CONFIG_WQ_TTY_S1_PRIORITY};
 static constexpr wq_config_t ttyS2{"wq:ttyS2", CONFIG_WQ_TTY_STACKSIZE, (int8_t)CONFIG_WQ_TTY_S2_PRIORITY};
