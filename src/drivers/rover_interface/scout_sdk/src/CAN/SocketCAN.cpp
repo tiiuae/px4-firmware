@@ -203,14 +203,13 @@ int16_t SocketCAN::SendFrame(const TxFrame &txf, int timeout_ms)
 	_send_tv->tv_sec = (deadline_systick - _send_tv->tv_usec) / 1000000ULL;
 
 	auto ret =  sendmsg(_fd, &_send_msg, 0);
-	//perror("send error");
+
 	return ret;
 }
 
 int16_t SocketCAN::ReceiveFrame(RxFrame *rxf)
 {
 	int32_t result = recvmsg(_fd, &_recv_msg, MSG_DONTWAIT);
-	//perror("receive error");
 
 	if (result <= 0) { return result; }
 
