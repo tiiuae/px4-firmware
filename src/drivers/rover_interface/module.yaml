@@ -1,0 +1,45 @@
+module_name: rover_interface
+
+parameters:
+  - group: Rover Interface
+    definitions:
+      RI_ROVER_TYPE:
+        description:
+          short: Rover type
+        type: enum
+        values:
+          -1: Not selected
+          0: Scout Mini
+          1: Scout
+          2: Scout Pro
+          3: Scout 2
+          4: Scout 2 Pro
+          5: Bunker
+          6: Bunker Mini
+        default: -1
+
+      RI_CAN_BITRATE:
+        description:
+          short: Rover interface CAN bitrate
+        type: int32
+        unit: bit/s
+        min: 20000
+        max: 4000000
+        default: 500000
+        reboot_required: true
+
+      RI_MAN_SPD_SC:
+        description:
+          short: Rover interface manual control speed scale
+        type: float
+        unit: m/s
+        min: 1.0
+        max: 3.0
+        default: 1.0
+
+      RI_PUB_BATT:
+        description:
+          short: Rover interface battery status publishing
+          long: Enable publishing of battery status to QGroundControl.
+        type: boolean
+        default: 1
