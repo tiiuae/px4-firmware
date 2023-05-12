@@ -77,6 +77,33 @@ static pthread_t _wq_threads[WQ_MAX_THREADS] {};
 static int _wq_thread_count = 0;
 #endif
 
+#if defined(__PX4_NUTTX) && defined(CONFIG_BUILD_KERNEL)
+static void WorkQueueManagerLazyStart(void)
+{
+	static px4::atomic_int _wq_manager_start_issued{0};
+
+	// Start the manager if it is not running yet
+	if (!_wq_manager_running.load()) {
+		int ret = PX4_OK;
+
+		// Only the first one to arrive gets to do this, others block
+		if (_wq_manager_start_issued.fetch_or(1) == 0) {
+			ret = WorkQueueManagerStart();
+
+		}
+
+		// Start command issued, wait until it is running
+		if (ret == PX4_OK) {
+			int retries = 0;
+
+			// Ok make sure the manager is truly running
+			while (!_wq_manager_running.load() && retries++ < 100) {
+				px4_usleep(1_ms);
+			}
+		}
+	}
+}
+#endif
 
 static WorkQueue *
 FindWorkQueueByName(const char *name)
@@ -101,6 +128,10 @@ FindWorkQueueByName(const char *name)
 WorkQueue *
 WorkQueueFindOrCreate(const wq_config_t &new_wq)
 {
+#if defined(__PX4_NUTTX) && defined(CONFIG_BUILD_KERNEL)
+	WorkQueueManagerLazyStart();
+#endif
+
 	if (!_wq_manager_running.load()) {
 		PX4_ERR("not running");
 		return nullptr;
