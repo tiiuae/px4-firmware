@@ -2,7 +2,7 @@ name: tiiuae-pixhawk-and-saluki
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, new_bsp_wip ]
   pull_request:
     branches: [ main ]
   # Allows you to run this workflow manually from the Actions tab
@@ -12,7 +12,8 @@ jobs:
   fc_matrix:
     strategy:
       matrix:
-        product: [pixhawk, saluki-v1_default, saluki-v1_bootloader, saluki-v1_amp, saluki-v1_protected, saluki-v2_default, saluki-v2_bootloader, saluki-v2_amp, saluki-v2_protected, saluki-pi_default, saluki-pi_bootloader, saluki-pi_amp, saluki-pi_protected]
+        #product: [pixhawk, saluki-v1_default, saluki-v1_bootloader, saluki-v1_amp, saluki-v1_protected, saluki-v2_default, saluki-v2_bootloader, saluki-v2_amp, saluki-v2_protected, saluki-pi_default, saluki-pi_bootloader, saluki-pi_amp, saluki-pi_protected]
+        product: [saluki-v2_default, saluki-v2_bootloader, saluki-v2_amp]
     uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
     with:
       product: ${{ matrix.product }}
@@ -267,9 +268,9 @@ jobs:
               "$pkg" \
               "${artifactory_path}$file_name"
 
-            jfrog rt cp --flat \
-              "${artifactory_path}$file_name" \
-              "${artifactory_path}latest/${pkg_name}.${ext}"
+            #jfrog rt cp --flat \
+            #  "${artifactory_path}$file_name" \
+            #  "${artifactory_path}latest/${pkg_name}.${ext}"
 
             # append every file to artifactory_links
             artifactory_links+="${newline}| ${pkg_name} | ${artifactory_base_url}${artifactory_path}${file_name} |"
