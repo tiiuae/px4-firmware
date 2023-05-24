@@ -729,15 +729,6 @@ void
 arch_do_jump(const uint32_t *app_base)
 {
 
-	/* PX4 on hart 2 */
-#if CONFIG_MPFS_HART2_ENTRYPOINT != 0xFFFFFFFFFFFFFFFF
-	bool use_sbi = info_bits & INFO_BIT_USE_SBI ? true : false;
-	_alert("Jump to PX4 0x%lx %s\n", (uint64_t)app_base, use_sbi ? "via SBI" : "");
-	mpfs_set_use_sbi(2, use_sbi);
-	mpfs_set_entrypt(2, (uintptr_t)app_base);
-	*(volatile uint32_t *)MPFS_CLINT_MSIP2 = 0x01U;
-#endif
-
 	/* Linux on harts 1, 3 and 4 */
 	if (u_boot_loaded) {
 #if CONFIG_MPFS_HART3_ENTRYPOINT != 0xFFFFFFFFFFFFFFFF
@@ -762,6 +753,15 @@ arch_do_jump(const uint32_t *app_base)
 #endif
 
 	}
+
+	/* PX4 on hart 2 */
+#if CONFIG_MPFS_HART2_ENTRYPOINT != 0xFFFFFFFFFFFFFFFF
+	bool use_sbi = info_bits & INFO_BIT_USE_SBI ? true : false;
+	_alert("Jump to PX4 0x%lx %s\n", (uint64_t)app_base, use_sbi ? "via SBI" : "");
+	mpfs_set_use_sbi(2, use_sbi);
+	mpfs_set_entrypt(2, (uintptr_t)app_base);
+	*(volatile uint32_t *)MPFS_CLINT_MSIP2 = 0x01U;
+#endif
 
 	// TODO. monitor?
 	while (1) {
