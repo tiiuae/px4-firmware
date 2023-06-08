@@ -2,31 +2,53 @@ name: tiiuae-pixhawk-and-saluki
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
     inputs:
-        build-saluki-v1:
-           description: 'Build Saluki-v1 product manually'
-           required: true
-           default: false
-           type: boolean
+      build-saluki-v1:
+        description: 'Build Saluki-v1 product manually'
+        required: true
+        default: false
+        type: boolean
+
 jobs:
   fc_matrix:
     strategy:
       fail-fast: false
       matrix:
-        product: [pixhawk, saluki-v2_default, saluki-v2_bootloader, saluki-v2_amp, saluki-v2_protected, saluki-pi_default, saluki-pi_bootloader, saluki-pi_amp, saluki-pi_protected]
+        product:
+          - pixhawk
+          - saluki-v2_default
+          - saluki-v2_bootloader
+          - saluki-v2_amp
+          - saluki-v2_protected
+          - saluki-pi_default
+          - saluki-pi_bootloader
+          - saluki-pi_amp
+          - saluki-pi_protected
         include:
-          product: [saluki-v1_default ,saluki-v1_amp,saluki-v1_bootloader,saluki-v1_protected]
-            
-  if: matrix.product != 'saluki-v1_*' && github.event.inputs.version != 'saluki-v1_*' # Skip the job for saluki-v1_*
-    uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
-    with:
-      product: ${{ matrix.product }}
-      # old workflow had condition to run only if PR is done to current repo (or triggered with other event)
-      enabled: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
-    secrets: inherit
+          - product: saluki-v1_default
+          - product: saluki-v1_amp
+          - product: saluki-v1_bootloader
+          - product: saluki-v1_protected
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run tiiuae-pixhawk-and-saluki-builder
+        if: |
+          matrix.product != 'saluki-v1_default' &&
+          matrix.product != 'saluki-v1_amp' &&
+          matrix.product != 'saluki-v1_bootloader' &&
+          matrix.product != 'saluki-v1_protected' &&
+          github.event.inputs.build-saluki-v1 != true
+        uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
+        with:
+          product: ${{ matrix.product }}
+          enabled: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        secrets: inherit
 
