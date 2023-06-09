@@ -41,6 +41,8 @@
 #include <errno.h>
 #include <nuttx/board.h>
 
+#include "riscv_internal.h"
+
 extern "C" void __start(void);
 
 static void board_reset_enter_bootloader()
@@ -50,9 +52,19 @@ static void board_reset_enter_bootloader()
 	up_systemreset();
 }
 
+static void board_reset_enter_app(uintptr_t hartid)
+{
+	register long r0 asm("a0") = (long)(hartid);
+
+	asm volatile
+	(
+		"tail __start\n" :: "r"(r0) : "memory"
+	);
+}
+
 int board_reset(int status)
 {
-
+	uintptr_t hartid = riscv_mhartid();
 #if defined(BOARD_HAS_ON_RESET)
 	board_on_reset(status);
 #endif
@@ -63,7 +75,7 @@ int board_reset(int status)
 
 	/* Just reboot via reset vector */
 
-	__start();
+	board_reset_enter_app(hartid);
 
 	return 0;
 }
