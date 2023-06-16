@@ -42,6 +42,7 @@
 #include <parameters/param.h>
 #include <drivers/drv_hrt.h>
 #include <lib/atmosphere/atmosphere.h>
+#include <math.h>
 
 #define MOTOR_BIT(x) (1<<(x))
 
@@ -139,7 +140,7 @@ UavcanEscController::esc_status_sub_cb(const uavcan::ReceivedDataStructure<uavca
 		ref.timestamp       = hrt_absolute_time();
 		ref.esc_address = msg.getSrcNodeID().get();
 		ref.esc_voltage     = msg.voltage;
-		ref.esc_current     = msg.current;
+		ref.esc_current     = fabsf(msg.current);
 		ref.esc_temperature = msg.temperature + atmosphere::kAbsoluteNullCelsius; // Kelvin to Celsius
 		ref.esc_rpm         = msg.rpm;
 		ref.esc_errorcount  = msg.error_count;
