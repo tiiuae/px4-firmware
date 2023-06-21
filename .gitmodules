@@ -77,3 +77,12 @@
 	path = boards/ssrc/saluki-pi
 	url = ../saluki-pi.git
 	branch = v1.13.3_fc_only
+[submodule "src/drivers/pfsoc_crypto"]
+	path = src/drivers/pfsoc_crypto
+	url = git@github.com:/tiiuae/pfsoc_crypto.git
+[submodule "src/drivers/pfsoc_keystore"]
+	path = src/drivers/pfsoc_keystore
+	url = git@github.com:/tiiuae/pfsoc_keystore.git
+[submodule "platforms/nuttx/NuttX/extern/pf_crypto"]
+	path = platforms/nuttx/NuttX/extern/pf_crypto
+	url = git@github.com:/tiiuae/pf_crypto.git
