@@ -145,7 +145,7 @@ if [ -n "${PX4_SIM_MODEL#*gz_}" ] && [ -z "${PX4_GZ_MODEL_NAME}" ]; then
 	sleep 1
 
 	# Start gz_bridge
-	if ! gz_bridge start -w "${PX4_GZ_WORLD}" -n "${MODEL_NAME_INSTANCE}"; then
+	if ! gz_bridge start -w "${PX4_GZ_WORLD}" -n "${MODEL_NAME_INSTANCE}" -v "${VEHICLE_TYPE}"; then
 		echo "ERROR [init] gz_bridge failed to start and spawn model"
 		exit 1
 	fi
@@ -184,7 +184,7 @@ if [ -n "${PX4_SIM_MODEL#*gz_}" ] && [ -z "${PX4_GZ_MODEL_NAME}" ]; then
 elif [ -n "${PX4_GZ_MODEL_NAME}" ]; then
 	# Connect to existing model
 	echo "INFO  [init] PX4_GZ_MODEL_NAME set, PX4 will attach to existing model"
-	if ! gz_bridge start -w "${PX4_GZ_WORLD}" -n "${PX4_GZ_MODEL_NAME}"; then
+	if ! gz_bridge start -w "${PX4_GZ_WORLD}" -n "${PX4_GZ_MODEL_NAME}" -v "${VEHICLE_TYPE}"; then
 		echo "ERROR [init] gz_bridge failed to start and attach to existing model"
 		exit 1
 	fi

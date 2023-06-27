@@ -65,6 +65,8 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_global_position.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/vehicle_thrust_setpoint.h>
+#include <uORB/topics/vehicle_torque_setpoint.h>
 #include <uORB/topics/vehicle_odometry.h>
 
 #include <gz/math.hh>
@@ -87,7 +89,7 @@ using namespace time_literals;
 class GZBridge : public ModuleBase<GZBridge>, public ModuleParams, public px4::ScheduledWorkItem
 {
 public:
-	GZBridge(const std::string &world, const std::string &model_name);
+	GZBridge(const std::string &world, const std::string &model_name, const std::string &vehicle_type);
 	~GZBridge() override;
 
 	/** @see ModuleBase */
@@ -139,7 +141,11 @@ private:
 	void addGpsNoise(double &latitude, double &longitude, double &altitude,
 			 float &vel_north, float &vel_east, float &vel_down);
 
+	void updateCmdVel();
+
 	uORB::SubscriptionInterval                    _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+	uORB::SubscriptionInterval                    _vehicle_thrust_setpoint_sub{ORB_ID(vehicle_thrust_setpoint), 50_ms};
+	uORB::SubscriptionInterval                    _vehicle_torque_setpoint_sub{ORB_ID(vehicle_torque_setpoint), 50_ms};
 
 	uORB::Publication<distance_sensor_s>          _distance_sensor_pub{ORB_ID(distance_sensor)};
 	uORB::Publication<differential_pressure_s>    _differential_pressure_pub{ORB_ID(differential_pressure)};
@@ -173,11 +179,16 @@ private:
 
 	const std::string _world_name;
 	const std::string _model_name;
+	const std::string _vehicle_type;
 
 	float _temperature{288.15};  // 15 degrees
 
+	float _rover_throttle_control{0.0f};
+	float _rover_yaw_control{0.0f};
+
 	bool _realtime_clock_set{false};
 	gz::transport::Node _node;
+	gz::transport::Node::Publisher _cmd_vel_pub;
 
 	// GPS noise model
 	float _gps_pos_noise_n = 0.0f;

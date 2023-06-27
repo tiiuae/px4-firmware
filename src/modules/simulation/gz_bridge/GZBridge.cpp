@@ -40,14 +40,17 @@
 
 #include <px4_platform_common/getopt.h>
 
+#include <lib/drivers/device/Device.hpp>
+
 #include <iostream>
 #include <string>
 
-GZBridge::GZBridge(const std::string &world, const std::string &model_name) :
+GZBridge::GZBridge(const std::string &world, const std::string &model_name, const std::string &vehicle_type) :
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::rate_ctrl),
 	_world_name(world),
-	_model_name(model_name)
+	_model_name(model_name),
+	_vehicle_type(vehicle_type)
 {
 	updateParams();
 }
@@ -132,6 +135,17 @@ int GZBridge::init()
 		}
 	}
 
+	// output (rover vehicle type) eg /model/$MODEL_NAME/cmd_vel
+	if (_vehicle_type.compare(0, 5, "rover") == 0) {
+		std::string cmd_vel_topic = "/model/" + _model_name + "/cmd_vel";
+		_cmd_vel_pub = _node.Advertise<gz::msgs::Twist>(cmd_vel_topic);
+
+		if (!_cmd_vel_pub.Valid()) {
+			PX4_ERR("failed to advertise %s", cmd_vel_topic.c_str());
+			return PX4_ERROR;
+		}
+	}
+
 	// ESC mixing interface
 	if (!_mixing_interface_esc.init(_model_name)) {
 		PX4_ERR("failed to init ESC output");
@@ -184,6 +198,11 @@ void GZBridge::Run()
 		_mixing_interface_servo.updateParams();
 		_mixing_interface_wheel.updateParams();
 		_gimbal.updateParams();
+	}
+
+	// In case of rover vehicle type, publish gz cmd_vel
+	if (_vehicle_type.compare(0, 5, "rover") == 0) {
+		updateCmdVel();
 	}
 
 	ScheduleDelayed(10_ms);
@@ -931,6 +950,45 @@ void GZBridge::laserScanCallback(const gz::msgs::LaserScan &msg)
 	_obstacle_distance_pub.publish(report);
 }
 
+void GZBridge::updateCmdVel()
+{
+	bool do_update = false;
+
+	// Check torque setppoint update
+	if (_vehicle_torque_setpoint_sub.updated()) {
+		vehicle_torque_setpoint_s vehicle_torque_setpoint_msg;
+
+		if (_vehicle_torque_setpoint_sub.copy(&vehicle_torque_setpoint_msg)) {
+			_rover_yaw_control = vehicle_torque_setpoint_msg.xyz[2];
+			do_update = true;
+		}
+	}
+
+	// Check thrust setpoint update
+	if (_vehicle_thrust_setpoint_sub.updated()) {
+		vehicle_thrust_setpoint_s vehicle_thrust_setpoint_msg;
+
+		if (_vehicle_thrust_setpoint_sub.copy(&vehicle_thrust_setpoint_msg)) {
+			_rover_throttle_control = vehicle_thrust_setpoint_msg.xyz[0];
+			do_update = true;
+		}
+	}
+
+	if (do_update) {
+		auto throttle = 1.0f * _rover_throttle_control;
+		auto steering = _rover_yaw_control;
+
+		// publish cmd_vel
+		gz::msgs::Twist cmd_vel_message;
+		cmd_vel_message.mutable_linear()->set_x(throttle);
+		cmd_vel_message.mutable_angular()->set_z(steering);
+
+		if (_cmd_vel_pub.Valid()) {
+			_cmd_vel_pub.Publish(cmd_vel_message);
+		}
+	}
+}
+
 void GZBridge::rotateQuaternion(gz::math::Quaterniond &q_FRD_to_NED, const gz::math::Quaterniond q_FLU_to_ENU)
 {
 	// FLU (ROS) to FRD (PX4) static rotation
@@ -953,12 +1011,13 @@ int GZBridge::task_spawn(int argc, char *argv[])
 {
 	std::string world_name;
 	std::string model_name;
+	std::string vehicle_type{"mc"};
 
 	int myoptind = 1;
 	int ch;
 	const char *myoptarg = nullptr;
 
-	while ((ch = px4_getopt(argc, argv, "w:n:", &myoptind, &myoptarg)) != EOF) {
+	while ((ch = px4_getopt(argc, argv, "w:n:v:", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 'w':
 			world_name = myoptarg;
@@ -968,15 +1027,19 @@ int GZBridge::task_spawn(int argc, char *argv[])
 			model_name = myoptarg;
 			break;
 
+		case 'v':
+			vehicle_type = myoptarg;
+			break;
+
 		default:
 			print_usage();
 			return PX4_ERROR;
 		}
 	}
 
-	PX4_INFO("world: %s, model: %s", world_name.c_str(), model_name.c_str());
+	PX4_INFO("world: %s, model: %s, vehicle type: %s", world_name.c_str(), model_name.c_str(), vehicle_type.c_str());
 
-	GZBridge *instance = new GZBridge(world_name, model_name);
+	GZBridge *instance = new GZBridge(world_name, model_name, vehicle_type);
 
 	if (!instance) {
 		PX4_ERR("alloc failed");
@@ -1031,6 +1094,7 @@ int GZBridge::print_usage(const char *reason)
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAM_STRING('w', nullptr, nullptr, "World name", true);
 	PRINT_MODULE_USAGE_PARAM_STRING('n', nullptr, nullptr, "Model name", false);
+	PRINT_MODULE_USAGE_PARAM_STRING('v', "mc", nullptr, "Vehicle type", false);
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 
 	return 0;
