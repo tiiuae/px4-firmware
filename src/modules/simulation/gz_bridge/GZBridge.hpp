@@ -70,7 +70,7 @@ using namespace time_literals;
 class GZBridge : public ModuleBase<GZBridge>, public ModuleParams, public px4::ScheduledWorkItem
 {
 public:
-	GZBridge(const char *world, const char *name, const char *model, const char *pose_str);
+	GZBridge(const char *world, const char *name, const char *model, const char *type, const char *pose_str);
 	~GZBridge() override;
 
 	/** @see ModuleBase */
@@ -102,6 +102,7 @@ private:
 	void imuCallback(const gz::msgs::IMU &imu);
 	void poseInfoCallback(const gz::msgs::Pose_V &pose);
 	void odometryCallback(const gz::msgs::OdometryWithCovariance &odometry);
+	void updateCmdVel();
 
 	/**
 	*
@@ -144,11 +145,13 @@ private:
 	const std::string _world_name;
 	const std::string _model_name;
 	const std::string _model_sim;
+	const std::string _vehicle_type;
 	const std::string _model_pose;
 
 	float _temperature{288.15};  // 15 degrees
 
 	gz::transport::Node _node;
+	gz::transport::Node::Publisher _cmd_vel_pub;
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::SIM_GZ_HOME_LAT>) _param_sim_home_lat,

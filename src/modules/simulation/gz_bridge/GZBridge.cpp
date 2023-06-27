@@ -44,12 +44,13 @@
 #include <string>
 
 GZBridge::GZBridge(const char *world, const char *name, const char *model,
-		   const char *pose_str) :
+		   const char *type, const char *pose_str) :
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::rate_ctrl),
 	_world_name(world),
 	_model_name(name),
 	_model_sim(model),
+	_vehicle_type(type),
 	_model_pose(pose_str)
 {
 	pthread_mutex_init(&_node_mutex, nullptr);
@@ -152,13 +153,43 @@ int GZBridge::init()
 		return PX4_ERROR;
 	}
 
-
 	// IMU: /world/$WORLD/model/$MODEL/link/base_link/sensor/imu_sensor/imu
 	std::string odometry_topic = "/model/" + _model_name + "/odometry_with_covariance";
 
 	if (!_node.Subscribe(odometry_topic, &GZBridge::odometryCallback, this)) {
 		PX4_ERR("failed to subscribe to %s", odometry_topic.c_str());
 		return PX4_ERROR;
+	}
+
+	// ESC feedback: /x500/command/motor_speed
+	if (_vehicle_type != "rover") {
+		std::string motor_speed_topic = "/" + _model_name + "/command/motor_speed";
+
+		if (!_node.Subscribe(motor_speed_topic, &GZBridge::motorSpeedCallback, this)) {
+			PX4_ERR("failed to subscribe to %s", motor_speed_topic.c_str());
+			return PX4_ERROR;
+		}
+	}
+
+	// output (rover vehicle type) eg /model/$MODEL_NAME/cmd_vel
+	if (_vehicle_type == "rover") {
+		std::string cmd_vel_topic = "/model/" + _model_name + "/cmd_vel";
+		_cmd_vel_pub = _node.Advertise<gz::msgs::Twist>(cmd_vel_topic);
+
+		if (!_cmd_vel_pub.Valid()) {
+			PX4_ERR("failed to advertise %s", cmd_vel_topic.c_str());
+			return PX4_ERROR;
+		}
+
+	} else {
+		// output (other vehicle types) eg%5 /X500/command/motor_speed
+		std::string actuator_topic = "/" + _model_name + "/command/motor_speed";
+		_actuators_pub = _node.Advertise<gz::msgs::Actuators>(actuator_topic);
+
+		if (!_actuators_pub.Valid()) {
+			PX4_ERR("failed to advertise %s", actuator_topic.c_str());
+			return PX4_ERROR;
+		}
 	}
 
 #if 0
@@ -201,6 +232,7 @@ int GZBridge::task_spawn(int argc, char *argv[])
 	const char *model_name = nullptr;
 	const char *model_pose = nullptr;
 	const char *model_sim = nullptr;
+	const char *vehicle_type = nullptr;
 	const char *px4_instance = nullptr;
 	std::string model_name_std;
 
@@ -210,7 +242,7 @@ int GZBridge::task_spawn(int argc, char *argv[])
 	int ch;
 	const char *myoptarg = nullptr;
 
-	while ((ch = px4_getopt(argc, argv, "w:m:p:i:n:", &myoptind, &myoptarg)) != EOF) {
+	while ((ch = px4_getopt(argc, argv, "w:m:p:i:n:v:", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 'w':
 			// world
@@ -237,6 +269,11 @@ int GZBridge::task_spawn(int argc, char *argv[])
 			px4_instance = myoptarg;
 			break;
 
+		case 'v':
+			// vehicle type
+			vehicle_type = myoptarg;
+			break;
+
 		case '?':
 			error_flag = true;
 			break;
@@ -260,6 +297,10 @@ int GZBridge::task_spawn(int argc, char *argv[])
 		model_sim = "";
 	}
 
+	if (!vehicle_type) {
+		vehicle_type = "mc";
+	}
+
 	if (!px4_instance) {
 		if (!model_name) {
 			model_name = model_sim;
@@ -270,9 +311,10 @@ int GZBridge::task_spawn(int argc, char *argv[])
 		model_name = model_name_std.c_str();
 	}
 
-	PX4_INFO("world: %s, model name: %s, simulation model: %s", world_name, model_name, model_sim);
+	PX4_INFO("world: %s, model name: %s, simulation model: %s, vehicle type: %s", world_name, model_name, model_sim,
+		 vehicle_type);
 
-	GZBridge *instance = new GZBridge(world_name, model_name, model_sim, model_pose);
+	GZBridge *instance = new GZBridge(world_name, model_name, model_sim, vehicle_type, model_pose);
 
 	if (instance) {
 		_object.store(instance);
@@ -664,6 +706,28 @@ void GZBridge::odometryCallback(const gz::msgs::OdometryWithCovariance &odometry
 	pthread_mutex_unlock(&_node_mutex);
 }
 
+void GZBridge::updateCmdVel()
+{
+	if (_actuator_controls_sub.updated()) {
+		actuator_controls_s actuator_controls_msg;
+
+		if (_actuator_controls_sub.copy(&actuator_controls_msg)) {
+			auto throttle = actuator_controls_msg.control[actuator_controls_s::INDEX_THROTTLE];
+			auto steering = actuator_controls_msg.control[actuator_controls_s::INDEX_YAW];
+
+			// publish cmd_vel
+			gz::msgs::Twist cmd_vel_message;
+			cmd_vel_message.mutable_linear()->set_x(throttle);
+			cmd_vel_message.mutable_angular()->set_z(steering);
+
+			if (_cmd_vel_pub.Valid()) {
+				_cmd_vel_pub.Publish(cmd_vel_message);
+			}
+		}
+	}
+}
+
+
 void GZBridge::rotateQuaternion(gz::math::Quaterniond &q_FRD_to_NED, const gz::math::Quaterniond q_FLU_to_ENU)
 {
 	// FLU (ROS) to FRD (PX4) static rotation
@@ -705,6 +769,9 @@ void GZBridge::Run()
 		_mixing_interface_esc.updateParams();
 		_mixing_interface_servo.updateParams();
 	}
+
+	// In case of rover vehicle type, publish gz cmd_vel
+	if (_vehicle_type == "rover") { updateCmdVel(); }
 
 	ScheduleDelayed(10_ms);
 
