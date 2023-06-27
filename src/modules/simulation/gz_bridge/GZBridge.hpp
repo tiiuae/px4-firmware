@@ -65,6 +65,8 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_global_position.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/vehicle_thrust_setpoint.h>
+#include <uORB/topics/vehicle_torque_setpoint.h>
 #include <uORB/topics/vehicle_odometry.h>
 
 #include <gz/math.hh>
@@ -89,7 +91,7 @@ class GZBridge : public ModuleBase, public ModuleParams, public px4::ScheduledWo
 public:
 	static Descriptor desc;
 
-	GZBridge(const std::string &world, const std::string &model_name);
+	GZBridge(const std::string &world, const std::string &model_name, const std::string &vehicle_type);
 	~GZBridge() override;
 
 	/** @see ModuleBase */
@@ -141,7 +143,11 @@ private:
 	void addGpsNoise(double &latitude, double &longitude, double &altitude,
 			 float &vel_north, float &vel_east, float &vel_down);
 
+	void updateCmdVel();
+
 	uORB::SubscriptionInterval                    _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+	uORB::SubscriptionInterval                    _vehicle_thrust_setpoint_sub{ORB_ID(vehicle_thrust_setpoint), 50_ms};
+	uORB::SubscriptionInterval                    _vehicle_torque_setpoint_sub{ORB_ID(vehicle_torque_setpoint), 50_ms};
 
 	// simulated sensors using the general-purpose driver wrappers
 	PX4Accelerometer _px4_accel{1310988}; // 1310988: DRV_IMU_DEVTYPE_SIM, BUS: 1, ADDR: 1, TYPE: SIMULATION
@@ -177,11 +183,16 @@ private:
 
 	const std::string _world_name;
 	const std::string _model_name;
+	const std::string _vehicle_type;
 
 	float _temperature{15.0f}; // default temperature in Celsius
 
+	float _rover_throttle_control{0.0f};
+	float _rover_yaw_control{0.0f};
+
 	bool _realtime_clock_set{false};
 	gz::transport::Node _node;
+	gz::transport::Node::Publisher _cmd_vel_pub;
 
 	// GPS noise model
 	float _gps_pos_noise_n = 0.0f;
