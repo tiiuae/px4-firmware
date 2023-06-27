@@ -52,18 +52,19 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_global_position.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/actuator_controls.h>
 
-#include <ignition/msgs.hh>
-#include <ignition/transport.hh>
-#include <ignition/math.hh>
-#include <ignition/msgs/imu.pb.h>
+#include <gz/msgs.hh>
+#include <gz/transport.hh>
+#include <gz/math.hh>
+#include <gz/msgs/imu.pb.h>
 
 using namespace time_literals;
 
 class GZBridge : public ModuleBase<GZBridge>, public OutputModuleInterface
 {
 public:
-	GZBridge(const char *world, const char *name, const char *model, const char *pose_str);
+	GZBridge(const char *world, const char *name, const char *model, const char *type, const char *pose_str);
 	~GZBridge() override;
 
 	/** @see ModuleBase */
@@ -91,13 +92,15 @@ private:
 
 	bool updateClock(const uint64_t tv_sec, const uint64_t tv_nsec);
 
-	void clockCallback(const ignition::msgs::Clock &clock);
-	void imuCallback(const ignition::msgs::IMU &imu);
-	void poseInfoCallback(const ignition::msgs::Pose_V &pose);
-	void motorSpeedCallback(const ignition::msgs::Actuators &actuators);
+	void clockCallback(const gz::msgs::Clock &clock);
+	void imuCallback(const gz::msgs::IMU &imu);
+	void poseInfoCallback(const gz::msgs::Pose_V &pose);
+	void motorSpeedCallback(const gz::msgs::Actuators &actuators);
+	void updateCmdVel();
 
 	// Subscriptions
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+	uORB::Subscription _actuator_controls_sub{ORB_ID(actuator_controls_0)};
 
 	uORB::Publication<esc_status_s>               _esc_status_pub{ORB_ID(esc_status)};
 	uORB::Publication<vehicle_angular_velocity_s> _angular_velocity_ground_truth_pub{ORB_ID(vehicle_angular_velocity_groundtruth)};
@@ -122,12 +125,14 @@ private:
 	const std::string _world_name;
 	const std::string _model_name;
 	const std::string _model_sim;
+	const std::string _vehicle_type;
 	const std::string _model_pose;
 
 	MixingOutput _mixing_output{"SIM_GZ", 8, *this, MixingOutput::SchedulingPolicy::Auto, false, false};
 
-	ignition::transport::Node _node;
-	ignition::transport::Node::Publisher _actuators_pub;
+	gz::transport::Node _node;
+	gz::transport::Node::Publisher _actuators_pub;
+	gz::transport::Node::Publisher _cmd_vel_pub;
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::SIM_GZ_HOME_LAT>) _param_sim_home_lat,
