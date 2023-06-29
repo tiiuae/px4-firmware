@@ -1,6 +1,7 @@
 /****************************************************************************
  *
- *   Copyright (C) 2018 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2014 Pavel Kirienko <pavel.kirienko@gmail.com>
+ *   NuttX SocketCAN port Copyright (C) 2022 NXP Semiconductors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,19 +32,10 @@
  *
  ****************************************************************************/
 
-/**
- * @author David Sidrane <david_s5@nscdg.com>
- */
-
 #pragma once
-#if defined(UAVCAN_SOCKETCAN_NUTTX)
-#  include <uavcan_nuttx/uavcan_nuttx.hpp>
-#elif defined(UAVCAN_KINETIS_NUTTX)
-#  include <uavcan_kinetis/uavcan_kinetis.hpp>
-#elif defined(UAVCAN_STM32_NUTTX)
-#  include <uavcan_stm32/uavcan_stm32.hpp>
-#elif defined(UAVCAN_STM32H7_NUTTX)
-#  include <uavcan_stm32h7/uavcan_stm32h7.hpp>
-#else
-#  error "Unsupported driver"
-#endif
+
+#include <uavcan/uavcan.hpp>
+
+#include <uavcan_nuttx/thread.hpp>
+#include <uavcan_nuttx/clock.hpp>
+#include <uavcan_nuttx/socketcan.hpp>

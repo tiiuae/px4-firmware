@@ -51,6 +51,7 @@ UavcanEscController::UavcanEscController(uavcan::INode &node) :
 	_uavcan_sub_status(node)
 {
 	_uavcan_pub_raw_cmd.setPriority(UAVCAN_COMMAND_TRANSFER_PRIORITY);
+	param_get(param_find("UAVCAN_ESC_RL"), &_uavcan_rate_limit_enable);
 }
 
 int
@@ -75,7 +76,7 @@ UavcanEscController::update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUA
 	 */
 	const auto timestamp = _node.getMonotonicTime();
 
-	if ((timestamp - _prev_cmd_pub).toUSec() < (1000000 / MAX_RATE_HZ)) {
+	if (_uavcan_rate_limit_enable == 1 && (timestamp - _prev_cmd_pub).toUSec() < (1000000 / MAX_RATE_HZ)) {
 		return;
 	}
 
@@ -137,7 +138,7 @@ UavcanEscController::esc_status_sub_cb(const uavcan::ReceivedDataStructure<uavca
 		ref.timestamp       = hrt_absolute_time();
 		ref.esc_address = msg.getSrcNodeID().get();
 		ref.esc_voltage     = msg.voltage;
-		ref.esc_current     = msg.current;
+		ref.esc_current     = fabs(msg.current);
 		ref.esc_temperature = msg.temperature;
 		ref.esc_rpm         = msg.rpm;
 		ref.esc_errorcount  = msg.error_count;

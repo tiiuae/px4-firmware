@@ -1,6 +1,8 @@
 /****************************************************************************
  *
- *   Copyright (C) 2018 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2014 Pavel Kirienko <pavel.kirienko@gmail.com>
+ *   Kinetis Port Author David Sidrane <david_s5@nscdg.com>
+ *   NuttX SocketCAN port Copyright (C) 2022 NXP Semiconductors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,19 +33,59 @@
  *
  ****************************************************************************/
 
-/**
- * @author David Sidrane <david_s5@nscdg.com>
- */
+#include <uavcan_nuttx/thread.hpp>
+#include <uavcan_nuttx/socketcan.hpp>
 
-#pragma once
-#if defined(UAVCAN_SOCKETCAN_NUTTX)
-#  include <uavcan_nuttx/uavcan_nuttx.hpp>
-#elif defined(UAVCAN_KINETIS_NUTTX)
-#  include <uavcan_kinetis/uavcan_kinetis.hpp>
-#elif defined(UAVCAN_STM32_NUTTX)
-#  include <uavcan_stm32/uavcan_stm32.hpp>
-#elif defined(UAVCAN_STM32H7_NUTTX)
-#  include <uavcan_stm32h7/uavcan_stm32h7.hpp>
-#else
-#  error "Unsupported driver"
-#endif
+namespace uavcan_socketcan
+{
+
+BusEvent::BusEvent(CanDriver &can_driver)
+{
+	sem_init(&sem_, 0, 0);
+	sem_setprotocol(&sem_, SEM_PRIO_NONE);
+}
+
+BusEvent::~BusEvent()
+{
+	sem_destroy(&sem_);
+}
+
+bool BusEvent::wait(uavcan::MonotonicDuration duration)
+{
+	if (duration.isPositive()) {
+		timespec abstime;
+
+		if (clock_gettime(CLOCK_REALTIME, &abstime) == 0) {
+			const unsigned billion = 1000 * 1000 * 1000;
+			uint64_t nsecs = abstime.tv_nsec + (uint64_t)duration.toUSec() * 1000;
+			abstime.tv_sec += nsecs / billion;
+			nsecs -= (nsecs / billion) * billion;
+			abstime.tv_nsec = nsecs;
+
+			int ret;
+
+			while ((ret = sem_timedwait(&sem_, &abstime)) == -1 && errno == EINTR);
+
+			if (ret == -1) { // timed out or error
+				return false;
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void BusEvent::signalFromInterrupt()
+{
+	if (sem_.semcount <= 0) {
+		(void)sem_post(&sem_);
+	}
+
+	if (signal_cb_) {
+		signal_cb_();
+	}
+}
+
+}

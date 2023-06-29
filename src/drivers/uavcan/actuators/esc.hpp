@@ -78,6 +78,8 @@ public:
 
 	static int max_output_value() { return uavcan::equipment::esc::RawCommand::FieldTypes::cmd::RawValueType::max(); }
 
+	esc_status_s &esc_status() { return _esc_status; }
+
 private:
 	/**
 	 * ESC status message reception will be reported via this callback.
@@ -102,6 +104,8 @@ private:
 	uORB::PublicationMulti<esc_status_s> _esc_status_pub{ORB_ID(esc_status)};
 
 	uint8_t		_rotor_count{0};
+
+	int32_t _uavcan_rate_limit_enable{0};
 
 	/*
 	 * libuavcan related things

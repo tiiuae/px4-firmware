@@ -65,3 +65,9 @@ param set-default COM_RC_OVERRIDE 0
 
 # Change current sense shunt resistor value
 param set-default INA226_SHUNT 0.00025
+
+# UAVCAN_EC functions
+param set-default UAVCAN_EC_FUNC1 101
+param set-default UAVCAN_EC_FUNC2 102
+param set-default UAVCAN_EC_FUNC3 103
+param set-default UAVCAN_EC_FUNC4 104

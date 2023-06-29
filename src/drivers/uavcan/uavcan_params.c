@@ -219,6 +219,30 @@ PARAM_DEFINE_INT32(UAVCAN_PUB_RTCM, 0);
 PARAM_DEFINE_INT32(UAVCAN_PUB_MBD, 0);
 
 /**
+ * publish safety state
+ *
+ * Enable UAVCAN safety state publish to control CAN SafetyState led
+ *  ardupilot::indication::SafetyState
+ *
+ * @boolean
+ * @reboot_required true
+ * @group UAVCAN
+ */
+PARAM_DEFINE_INT32(UAVCAN_PUB_SS, 0);
+
+/**
+ * publish rgb led
+ *
+ * Enable UAVCAN rgb led control
+ *  uavcan::equipment::indication::LightsCommand
+ *
+ * @boolean
+ * @reboot_required true
+ * @group UAVCAN
+ */
+PARAM_DEFINE_INT32(UAVCAN_PUB_RGB, 0);
+
+/**
  * subscription airspeed
  *
  * Enable UAVCAN airspeed subscriptions.
@@ -252,7 +276,15 @@ PARAM_DEFINE_INT32(UAVCAN_SUB_BARO, 0);
  *  uavcan::equipment::power::BatteryInfo
  *  ardupilot::equipment::power::BatteryInfoAux
  *
- * @boolean
+ *  0 - Disable
+ *  1 - Use raw data. Recommended for Smart battery
+ *  2 - Filter the data with internal battery library
+ *
+ * @min 0
+ * @max 2
+ * @value 0 Disable
+ * @value 1 Raw data
+ * @value 2 Filter data
  * @reboot_required true
  * @group UAVCAN
  */
@@ -310,7 +342,7 @@ PARAM_DEFINE_INT32(UAVCAN_SUB_HYGRO, 0);
 /**
  * subscription ICE
  *
- * Enable UAVCAN internal combusion engine (ICE) subscription.
+ * Enable UAVCAN internal combustion engine (ICE) subscription.
  *  uavcan::equipment::ice::reciprocating::Status
  *
  * @boolean
@@ -367,3 +399,26 @@ PARAM_DEFINE_INT32(UAVCAN_SUB_RNG, 0);
  * @group UAVCAN
  */
 PARAM_DEFINE_INT32(UAVCAN_SUB_BTN, 0);
+
+/**
+ * use rate limit of ESC output
+ *
+ * Enable UAVCAN ESC rate limit for output update
+ *
+ * @boolean
+ * @reboot_required true
+ * @group UAVCAN
+ */
+PARAM_DEFINE_INT32(UAVCAN_ESC_RL, 0);
+
+/**
+ * use UAVCAN dynamic node server
+ *
+ * Enable UAVCAN dynamic node server for automatic node enumeration
+ *
+ * @boolean
+ * @reboot_required true
+ * @group UAVCAN
+ */
+PARAM_DEFINE_INT32(UAVCAN_DNS, 0);
+
