@@ -1,54 +1,39 @@
-name: tiiuae-pixhawk-and-saluki
+name: Build Workflow
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
     inputs:
       build-saluki-v1:
         description: 'Build Saluki-v1 product manually'
         required: true
-        default: false
-        type: boolean
+        default: saluki-v1_default,saluki-v1_bootloader,saluki-v1_amp,saluki-v1_protected
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   fc_matrix:
     strategy:
       fail-fast: false
       matrix:
-        product:
-          - pixhawk
-          - saluki-v2_default
-          - saluki-v2_bootloader
-          - saluki-v2_amp
-          - saluki-v2_protected
-          - saluki-pi_default
-          - saluki-pi_bootloader
-          - saluki-pi_amp
-          - saluki-pi_protected
+        product: [pixhawk, saluki-v2_default, saluki-v2_bootloader, saluki-v2_amp, saluki-v2_protected, saluki-pi_default, saluki-pi_bootloader, saluki-pi_amp, saluki-pi_protected]
         include:
-          - product: saluki-v1_default
-          - product: saluki-v1_amp
-          - product: saluki-v1_bootloader
-          - product: saluki-v1_protected
+          product: [saluki-v1_default, saluki-v1_bootloader, saluki-v1_amp, saluki-v1_protected]
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    if: |
+     matrix.product != 'saluki-v1_default' && github.event.inputs.version != 'saluki-v1_default'
+     matrix.product != 'saluki-v1_bootloader' && github.event.inputs.version != 'saluki-v1_bootloader'
+     matrix.product != 'saluki-v1_amp' && github.event.inputs.version != 'saluki-v1_amp'
+     matrix.product != 'saluki-v1_protected' && github.event.inputs.version != 'saluki-v1_protected'
 
-      - name: Run tiiuae-pixhawk-and-saluki-builder
-        if: |
-          matrix.product != 'saluki-v1_default' &&
-          matrix.product != 'saluki-v1_amp' &&
-          matrix.product != 'saluki-v1_bootloader' &&
-          matrix.product != 'saluki-v1_protected' &&
-          github.event.inputs.build-saluki-v1 != true
-        uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
-        with:
-          product: ${{ matrix.product }}
-          enabled: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
-        secrets: inherit
+    uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
+    with:
+      product: ${{ matrix.product }}
+      enabled: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && contains(github.event.inputs.build-saluki-v1, matrix.product)) }}
+    secrets: inherit
 
