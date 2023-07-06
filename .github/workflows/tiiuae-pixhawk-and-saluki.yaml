@@ -21,9 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        product: [pixhawk, saluki-v2_default, saluki-v2_bootloader, saluki-v2_amp, saluki-v2_protected, saluki-pi_default, saluki-pi_bootloader, saluki-pi_amp, saluki-pi_protected]
-        include:
-          product: [saluki-v1_default, saluki-v1_bootloader, saluki-v1_amp, saluki-v1_protected]
+        product: [pixhawk, saluki-v2_default, saluki-v2_bootloader, saluki-v2_amp, saluki-v2_protected, saluki-pi_default, saluki-pi_bootloader, saluki-pi_amp, saluki-pi_protected, saluki-v1_default, saluki-v1_bootloader, saluki-v1_amp, saluki-v1_protected]
 
     if: |
      matrix.product != 'saluki-v1_default' && github.event.inputs.version != 'saluki-v1_default'
