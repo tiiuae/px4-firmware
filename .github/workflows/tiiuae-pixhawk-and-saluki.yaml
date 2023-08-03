@@ -38,7 +38,7 @@ jobs:
           JF_ENV_1: ${{ secrets.ARTIFACTORY_CLOUD_TOKEN }}
       - name: Upload px4-firmware build to Artifactory
         env:
-          ARTIFACTORY_GEN_REPO: ssrc-gen-public-local
+          ARTIFACTORY_GEN_REPO: ssrc-gen-private-local
           BUILD_NAME_PX4: px4-firmware-fw-only
           CI: true
         run: |
