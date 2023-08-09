@@ -23,6 +23,10 @@ param set-default MC_PITCHRATE_I 0.3
 param set-default MC_ROLLRATE_D 0.004
 param set-default MC_PITCHRATE_D 0.004
 
+# Master gain parameters
+param set-default MC_ROLLRATE_K 0.4
+param set-default MC_PITCHRATE_K 0.4
+
 # Control allocator parameters
 param set-default CA_ROTOR_COUNT 4
 param set-default CA_ROTOR0_PX 0.25
