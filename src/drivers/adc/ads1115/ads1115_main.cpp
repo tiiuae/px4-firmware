@@ -121,6 +121,9 @@ void ADS1115::RunImpl()
 		PX4_WARN("ADS1115 not ready!");
 	}
 
+	// Schedule the next sample reading (regardless of isSampleReady())
+	ScheduleDelayed(SAMPLE_INTERVAL / 4);
+
 	perf_end(_cycle_perf);
 }
 
