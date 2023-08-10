@@ -44,7 +44,7 @@ int ADS1115::init()
 
 	readChannel(Channel::A0);  // prepare for the first measure.
 
-	ScheduleOnInterval(SAMPLE_INTERVAL / 4, SAMPLE_INTERVAL / 4);
+	ScheduleDelayed(SAMPLE_INTERVAL / 4);
 
 	return PX4_OK;
 }
