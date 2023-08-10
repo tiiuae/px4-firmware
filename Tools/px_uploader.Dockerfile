@@ -1,4 +1,4 @@
-FROM python:alpine3.14
+FROM alpine:edge
 
 # run this with something like:
 #
@@ -16,6 +16,12 @@ FROM python:alpine3.14
 #
 # ("/" above is relative to GH action runner home dir)
 # (see .github/workflows/tiiuae-pixhawk.yaml)
+
+# Swapped python:alpine image to alpine image, need to set up python first.
+ENV PYTHONUNBUFFERED=1
+RUN apk add --update --no-cache python3 && ln -sf python3 /usr/bin/python
+RUN python3 -m ensurepip
+RUN pip3 install --no-cache --upgrade pip setuptools
 
 WORKDIR /firmware
 
