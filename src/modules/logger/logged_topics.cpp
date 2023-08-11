@@ -92,6 +92,7 @@ void LoggedTopics::add_default_topics()
 	add_topic("position_setpoint_triplet", 200);
 	add_optional_topic("px4io_status");
 	add_topic("radio_status");
+	add_optional_topic("rover_status", 1000);
 	add_topic("rtl_time_estimate", 1000);
 	add_topic("sensor_combined");
 	add_optional_topic("sensor_correction");
