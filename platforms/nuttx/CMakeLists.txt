@@ -141,6 +141,15 @@ if (NOT CONFIG_BUILD_FLAT)
 		nuttx_stubs
 		nuttx_kc
 		)
+
+	list(APPEND nuttx_userlibs
+		nuttx_arch
+		nuttx_apps
+		nuttx_mm
+		nuttx_proxies
+		nuttx_c
+		nuttx_xx
+		)
 else()
 	list(APPEND nuttx_libs
 		nuttx_apps
@@ -186,6 +195,7 @@ endif()
 
 if (NOT CONFIG_BUILD_FLAT)
 
+	# Build the px4-kernelspace
 	target_link_libraries(nuttx_karch
 		INTERFACE
 			drivers_board
@@ -210,33 +220,30 @@ if (NOT CONFIG_BUILD_FLAT)
 
 		-Wl,--start-group
 			${nuttx_libs}
-			${kernel_module_libraries}
 		-Wl,--end-group
 
 		m
 		gcc
 		)
 
+	target_link_libraries(px4_kernel PRIVATE -Wl,--print-memory-usage)
+
+	target_link_libraries(px4_kernel PRIVATE ${kernel_module_libraries})
+
 	if (config_romfs_root)
 		add_subdirectory(${PX4_SOURCE_DIR}/ROMFS ${PX4_BINARY_DIR}/ROMFS)
 		target_link_libraries(px4_kernel PRIVATE romfs)
 	endif()
 
-	target_link_libraries(px4_kernel PRIVATE -Wl,--print-memory-usage)
-
-	set(nuttx_userspace)
-
-	list(APPEND nuttx_userspace
-		drivers_userspace
-		nuttx_arch
-		nuttx_apps
-		nuttx_mm
-		nuttx_proxies
-		nuttx_c
-		nuttx_xx
-		)
 
 	target_link_libraries(nuttx_c INTERFACE nuttx_proxies)
+	target_link_libraries(nuttx_c INTERFACE nuttx_mm)
+	target_link_libraries(nuttx_mm INTERFACE nuttx_c)
+	target_link_libraries(nuttx_xx INTERFACE nuttx_c)
+	target_link_libraries(nuttx_c INTERFACE gcc)
+
+	# NSH needs the px4 user entry point and userspace structure
+	list(APPEND nuttx_userlibs drivers_userspace)
 
 	target_link_libraries(px4 PRIVATE
 
@@ -255,7 +262,7 @@ if (NOT CONFIG_BUILD_FLAT)
 		-Wl,--gc-sections
 
 		-Wl,--start-group
-		${nuttx_userspace}
+			${nuttx_userlibs}
 		-Wl,--end-group
 
 		m
@@ -264,9 +271,7 @@ if (NOT CONFIG_BUILD_FLAT)
 
 	target_link_libraries(px4 PRIVATE -Wl,--print-memory-usage)
 
-	target_link_libraries(px4 PRIVATE
-		${module_libraries}
-	)
+	target_link_libraries(px4 PRIVATE ${module_libraries})
 
 	add_custom_command(OUTPUT ${PX4_BINARY_OUTPUT}
 		COMMAND ${CMAKE_OBJCOPY} -O binary ${PX4_BINARY_DIR_REL}/${FW_NAME} ${PX4_BINARY_DIR_REL}/${PX4_BOARD}_user.bin
@@ -387,7 +392,7 @@ else()
 	)
 
 	target_link_libraries(nuttx_c INTERFACE nuttx_drivers)
-	target_link_libraries(nuttx_drivers INTERFACE nuttx_c)
+	target_link_libraries(nuttx_drivers INTERFACE nuttx_c nuttx_fs)
 	target_link_libraries(nuttx_xx INTERFACE nuttx_c)
 	target_link_libraries(nuttx_fs INTERFACE nuttx_c nuttx_mm)
 
