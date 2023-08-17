@@ -7,6 +7,7 @@ do
   [[ "${repo}" == *saluki-?? ]] || \
   [[ "${repo}" == *pfsoc_crypto ]]  || \
   [[ "${repo}" == *pfsoc_keystore ]]  || \
-  [[ "${repo}" == *pf_crypto ]] && continue
+  [[ "${repo}" == *pf_crypto ]] || \
+  [[ "${repo}" == *process ]] && continue
   git submodule update --init --recursive "${repo}"
 done <<< "$(git submodule status | awk '{print $2}')"
