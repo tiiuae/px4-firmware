@@ -15,11 +15,19 @@
 
 param set-default RI_ROVER_TYPE 0
 
-param set-default BAT1_N_CELLS 4
+# Battery setting
+param set-default BAT1_N_CELLS 7
+param set-default BAT1_V_EMPTY 3.3
+param set-default BAT1_V_CHARGED 4.2
 
+# EKF2
 param set-default EKF2_GBIAS_INIT 0.01
 param set-default EKF2_ANGERR_INIT 0.01
 param set-default EKF2_MAG_TYPE 1
+param set-default EKF2_REQ_SACC 1.0
+param set-default EKF2_REQ_VDRIFT 0.4
+param set-default EKF2_REQ_HDRIFT 0.2
+
 
 param set-default FW_AIRSPD_MIN 0
 param set-default FW_AIRSPD_TRIM 1
