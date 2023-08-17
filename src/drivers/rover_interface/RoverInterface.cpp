@@ -11,7 +11,7 @@ RoverInterface::RoverInterface(uint8_t rover_type, uint32_t bitrate, uint8_t man
 	  ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::rover_interface),
 	  _rover_type(rover_type),
 	  _bitrate(bitrate),
-		_manual_throttle_max(manual_throttle_max)
+	  _manual_throttle_max(manual_throttle_max)
 {
 	pthread_mutex_init(&_node_mutex, nullptr);
 }
@@ -209,7 +209,7 @@ void RoverInterface::ActuatorControlsUpdate()
 
 		if (_actuator_controls_sub.copy(&actuator_controls_msg)) {
 			auto throttle = (_is_manual_mode ? _manual_throttle_max : 1.0f) *
-											actuator_controls_msg.control[actuator_controls_s::INDEX_THROTTLE];
+					actuator_controls_msg.control[actuator_controls_s::INDEX_THROTTLE];
 			auto steering = actuator_controls_msg.control[actuator_controls_s::INDEX_YAW];
 			_scout->SetMotionCommand(throttle, steering);
 		}
@@ -225,7 +225,7 @@ void RoverInterface::ActuatorArmedUpdate()
 		if (_actuator_armed_sub.copy(&actuator_armed_msg)) {
 			// Arm or disarm the rover
 			if (!_armed && actuator_armed_msg.armed) {
-				_scout->SetLightCommand(LightMode::CONST_OFF, 0);
+				_scout->SetLightCommand(LightMode::CONST_ON, 0);
 				_armed = true;
 
 			} else if (_armed && !actuator_armed_msg.armed) {
@@ -353,8 +353,8 @@ extern "C" __EXPORT int rover_interface_main(int argc, char *argv[])
 		PX4_INFO("Start Rover Interface to rover type %d at CAN iface %s with bitrate %d bit/s",
 			 rover_type, RoverInterface::CAN_IFACE, can_bitrate);
 		return RoverInterface::start(static_cast<uint8_t>(rover_type),
-																 can_bitrate,
-																 static_cast<uint8_t>(manual_throttle_max));
+					     can_bitrate,
+					     static_cast<uint8_t>(manual_throttle_max));
 	}
 
 	/* commands below assume that the app has been already started */
