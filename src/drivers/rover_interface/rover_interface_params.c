@@ -53,3 +53,15 @@ PARAM_DEFINE_INT32(RI_ROVER_TYPE, 0);
  * @group RoverInterface
  */
 PARAM_DEFINE_INT32(RI_CAN_BITRATE, 500000);
+
+
+/**
+ * Rover interface manual control throttle max.
+ *
+ * @unit m/s
+ * @min 1
+ * @max 3
+ * @reboot_required true
+ * @group RoverInterface
+ */
+PARAM_DEFINE_INT32(RI_MAN_THR_MAX, 1);

@@ -14,6 +14,7 @@
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/rover_status.h>
+#include <uORB/topics/vehicle_control_mode.h>
 
 #include "scout_sdk/ScoutRobot.hpp"
 
@@ -38,10 +39,10 @@ class RoverInterface : public ModuleParams, public px4::ScheduledWorkItem
 public:
 	static const char *const CAN_IFACE;
 
-	RoverInterface(uint8_t rover_type, uint32_t bitrate);
+	RoverInterface(uint8_t rover_type, uint32_t bitrate, uint8_t manual_throttle_max);
 	~RoverInterface() override;
 
-	static int start(uint8_t rover_type, uint32_t bitrate);
+	static int start(uint8_t rover_type, uint32_t bitrate, uint8_t manual_throttle_max);
 
 	void print_status();
 
@@ -53,6 +54,7 @@ private:
 
 	void ActuatorControlsUpdate();
 	void ActuatorArmedUpdate();
+	void VehicleControlModeUpdate();
 	void PublishRoverState();
 
 	// Flag to indicate to tear down the rover interface
@@ -66,6 +68,8 @@ private:
 
 	uint8_t _init_try_count{0};
 
+	bool _is_manual_mode{false};
+
 	static RoverInterface *_instance;
 
 	pthread_mutex_t _node_mutex;
@@ -73,6 +77,8 @@ private:
 	uint8_t _rover_type;
 
 	uint32_t _bitrate;
+
+	uint8_t _manual_throttle_max;
 
 	scoutsdk::ProtocolVersion _protocol_version{scoutsdk::ProtocolVersion::AGX_V2};
 
@@ -83,6 +89,7 @@ private:
 	// Subscription
 	uORB::SubscriptionInterval _actuator_controls_sub{ORB_ID(actuator_controls_0), ActuatorControlSubIntervalMs};
 	uORB::SubscriptionInterval _actuator_armed_sub{ORB_ID(actuator_armed), ActuatorArmedSubIntervalMs};
+	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 
 	// Publication
 	orb_advert_t _rover_status_pub{ORB_ADVERT_INVALID};
