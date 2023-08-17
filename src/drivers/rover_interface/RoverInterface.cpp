@@ -6,11 +6,12 @@ RoverInterface *RoverInterface::_instance;
 // CAN interface | default is can0
 const char *const RoverInterface::CAN_IFACE = "can0";
 
-RoverInterface::RoverInterface(uint8_t rover_type, uint32_t bitrate)
+RoverInterface::RoverInterface(uint8_t rover_type, uint32_t bitrate, uint8_t manual_throttle_max)
 	: ModuleParams(nullptr),
 	  ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::rover_interface),
 	  _rover_type(rover_type),
-	  _bitrate(bitrate)
+	  _bitrate(bitrate),
+		_manual_throttle_max(manual_throttle_max)
 {
 	pthread_mutex_init(&_node_mutex, nullptr);
 }
@@ -42,14 +43,14 @@ RoverInterface::~RoverInterface()
 }
 
 
-int RoverInterface::start(uint8_t rover_type, uint32_t bitrate)
+int RoverInterface::start(uint8_t rover_type, uint32_t bitrate, uint8_t manual_throttle_max)
 {
 	if (_instance != nullptr) {
 		PX4_ERR("Already started");
 		return -1;
 	}
 
-	_instance = new RoverInterface(rover_type, bitrate);
+	_instance = new RoverInterface(rover_type, bitrate, manual_throttle_max);
 
 	if (_instance == nullptr) {
 		PX4_ERR("Failed to allocate RoverInterface object");
@@ -184,6 +185,9 @@ void RoverInterface::Run()
 	// Check for actuator armed command to rover
 	ActuatorArmedUpdate();
 
+	// Check for vehicle control mode
+	VehicleControlModeUpdate();
+
 	// Check for receive msgs from the rover
 	_scout->CheckUpdateFromRover();
 
@@ -204,7 +208,8 @@ void RoverInterface::ActuatorControlsUpdate()
 		actuator_controls_s actuator_controls_msg;
 
 		if (_actuator_controls_sub.copy(&actuator_controls_msg)) {
-			auto throttle = actuator_controls_msg.control[actuator_controls_s::INDEX_THROTTLE];
+			auto throttle = (_is_manual_mode ? _manual_throttle_max : 1.0f) *
+											actuator_controls_msg.control[actuator_controls_s::INDEX_THROTTLE];
 			auto steering = actuator_controls_msg.control[actuator_controls_s::INDEX_YAW];
 			_scout->SetMotionCommand(throttle, steering);
 		}
@@ -220,7 +225,7 @@ void RoverInterface::ActuatorArmedUpdate()
 		if (_actuator_armed_sub.copy(&actuator_armed_msg)) {
 			// Arm or disarm the rover
 			if (!_armed && actuator_armed_msg.armed) {
-				_scout->SetLightCommand(LightMode::CONST_ON, 0);
+				_scout->SetLightCommand(LightMode::CONST_OFF, 0);
 				_armed = true;
 
 			} else if (_armed && !actuator_armed_msg.armed) {
@@ -230,6 +235,17 @@ void RoverInterface::ActuatorArmedUpdate()
 
 			// Kill switch
 			_manual_lockdown = actuator_armed_msg.manual_lockdown;
+		}
+	}
+}
+
+void RoverInterface::VehicleControlModeUpdate()
+{
+	if (_vehicle_control_mode_sub.updated()) {
+		vehicle_control_mode_s vehicle_control_mode_msg;
+
+		if (_vehicle_control_mode_sub.copy(&vehicle_control_mode_msg)) {
+			_is_manual_mode = vehicle_control_mode_msg.flag_control_manual_enabled;
 		}
 	}
 }
@@ -329,10 +345,16 @@ extern "C" __EXPORT int rover_interface_main(int argc, char *argv[])
 		int32_t can_bitrate = 0;
 		param_get(param_find("RI_CAN_BITRATE"), &can_bitrate);
 
+		// Manual control mode max throttle (1m/s to 3m/s)
+		int32_t manual_throttle_max = 1;
+		param_get(param_find("RI_MAN_THR_MAX"), &manual_throttle_max);
+
 		// Start
 		PX4_INFO("Start Rover Interface to rover type %d at CAN iface %s with bitrate %d bit/s",
 			 rover_type, RoverInterface::CAN_IFACE, can_bitrate);
-		return RoverInterface::start(static_cast<uint8_t>(rover_type), can_bitrate);
+		return RoverInterface::start(static_cast<uint8_t>(rover_type),
+																 can_bitrate,
+																 static_cast<uint8_t>(manual_throttle_max));
 	}
 
 	/* commands below assume that the app has been already started */
