@@ -317,6 +317,11 @@ bool MixingOutput::updateSubscriptionsStaticMixer(bool allow_wq_switch, bool lim
 		if (_groups_required == 0) {
 			// TODO: this might need to be configurable depending on the module
 			_interface.ScheduleOnInterval(100_ms);
+
+		} else {
+			// We just wiped the schedule, run the queue again to make sure
+			// it refreshes its own schedule (if any)
+			_interface.ScheduleNow();
 		}
 	}
 
