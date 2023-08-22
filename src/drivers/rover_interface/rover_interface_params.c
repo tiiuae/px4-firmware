@@ -39,6 +39,8 @@
  * @value 2 Scout Pro
  * @value 3 Scout 2
  * @value 4 Scout 2 Pro
+ * @value 5 Bunker
+ * @value 6 Bunker Mini
  * @group RoverInterface
  */
 PARAM_DEFINE_INT32(RI_ROVER_TYPE, 0);

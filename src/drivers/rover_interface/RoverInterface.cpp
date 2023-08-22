@@ -68,36 +68,47 @@ void RoverInterface::Init()
 	_initialized = false;
 
 	// Check rover type
-	if (_rover_type == 0) {
+	switch (_rover_type) {
+	case 0:
 		// Scout Mini
 		PX4_INFO("Scout Mini (rover type 0) is supported. Initializing...");
+		break;
 
-	} else if (_rover_type == 1) {
+	case 1:
 		// Scout
 		PX4_INFO("Scout (rover type 1) is not supported. Aborted");
 		return;
 
-	} else if (_rover_type == 2) {
+	case 2:
 		// Scout Pro
-		PX4_INFO("Scout Pro (rover type 0) is not supported. Aborted");
+		PX4_INFO("Scout Pro (rover type 2) is not supported. Aborted");
 		return;
 
-	} else if (_rover_type == 3) {
+	case 3:
 		// Scout 2
 		PX4_INFO("Scout 2 (rover type 3) is not supported. Aborted");
 		return;
 
-	} else if (_rover_type == 4) {
+	case 4:
 		// Scout 2 Pro
 		PX4_INFO("Scout 2 Pro (rover type 4) is not supported. Aborted");
 		return;
 
-	} else {
+	case 5:
+		// Bunker
+		PX4_INFO("Bunker (rover type 5) is supported. Initializing...");
+		return;
+
+	case 6:
+		// Bunker Mini
+		PX4_INFO("Bunker Mini (rover type 6) is supported. Initializing...");
+		return;
+
+	default:
 		// Unknown Rover type
 		PX4_INFO("Unknown rover type. Aborted");
 		return;
 	}
-
 
 	// Check protocol version and create ScoutRobot object
 	if (_protocol_version == scoutsdk::ProtocolVersion::AGX_V1) {
@@ -293,8 +304,8 @@ void RoverInterface::print_status()
 
 	// Rover info
 	if (_scout->GetCANConnected()) {
-		PX4_INFO("Rover Type: %s. Protocol Version: %s",
-			 _rover_type == 0 ? "Scout Mini" : "Unknown",
+		PX4_INFO("Rover Type: %d. Protocol Version: %s",
+			 _rover_type,
 			 _protocol_version == scoutsdk::ProtocolVersion::AGX_V2 ? "AGX_V2" : "Unknown");
 		PX4_INFO("Rover system version: %s", _scout->GetSystemVersion());
 	}
