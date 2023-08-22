@@ -40,6 +40,7 @@
 
 #include <mathlib/mathlib.h>
 #include <px4_platform_common/posix.h>
+#include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/log.h>
 
 #if defined(PX4_CRYPTO)
@@ -48,8 +49,11 @@
 
 #if defined(__PX4_NUTTX)
 # include <malloc.h>
-# include <systemlib/hardfault_log.h>
 #endif // __PX4_NUTTX
+
+#if defined(__PX4_NUTTX) && defined(SYSTEMCMDS_HARDFAULT_LOG)
+# include <systemlib/hardfault_log.h>
+#endif // __PX4_NUTTX && SYSTEMCMDS_HARDFAULT_LOG
 
 using namespace time_literals;
 
@@ -243,7 +247,7 @@ bool LogWriterFile::start_log(LogType type, const char *filename)
 
 int LogWriterFile::hardfault_store_filename(const char *log_file)
 {
-#if defined(__PX4_NUTTX) && defined(px4_savepanic)
+#if defined(__PX4_NUTTX) && defined(px4_savepanic) && defined(SYSTEMCMDS_HARDFAULT_LOG)
 	int fd = open(HARDFAULT_ULOG_PATH, O_TRUNC | O_WRONLY | O_CREAT);
 
 	if (fd < 0) {
