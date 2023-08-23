@@ -529,7 +529,7 @@ static ssize_t flash_write_pages(off_t start, unsigned n_pages, uint8_t *src)
 
 		if (ret != bytes) {
 			ret = -errno;
-			_alert("eMMC write error at 0x%x-0x%x\n", start * flash_func_block_size(),
+			_alert("eMMC write error at 0x%lx-0x%lx\n", start * flash_func_block_size(),
 			       (start + n_pages) * flash_func_block_size());
 		}
 
@@ -911,7 +911,7 @@ static int loader_main(int argc, char *argv[])
 		loading_status = LOAD_FAIL;
 
 	} else if (loading_status == IN_PROGRESS) {
-		_alert("Image loaded succesfully, size %d\n", image_sz);
+		_alert("Image loaded succesfully, size %ld\n", image_sz);
 		loading_status = DONE;
 
 	} else {
