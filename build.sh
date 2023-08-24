@@ -16,6 +16,7 @@ usage() {
   echo "     saluki-v2_amp"
   echo "     saluki-v2_bootloader"
   echo "     saluki-v2_protected"
+  echo "     saluki-v2_kernel"
   echo "     saluki-pi_default"
   echo "     saluki-pi_amp"
   echo "     saluki-pi_bootloader"
@@ -87,6 +88,10 @@ case $target in
   "saluki-v2_bootloader")
     $build_cmd_fw ssrc_saluki-v2_bootloader
     cp ${script_dir}/build/ssrc_saluki-v2_bootloader/ssrc_saluki-v2_bootloader.elf ${dest_dir}/ssrc_saluki-v2_bootloader-${version}.elf
+    ;;
+  "saluki-v2_kernel")
+    $build_cmd_fw ssrc_saluki-v2_kernel
+    cp ${script_dir}/build/ssrc_saluki-v2_kernel/ssrc_saluki-v2_kernel.px4 ${dest_dir}/ssrc_saluki-v2_kernel-${version}.px4
     ;;
   "saluki-pi_default")
     $build_cmd_fw ssrc_saluki-pi_default
