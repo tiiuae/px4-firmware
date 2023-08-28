@@ -6,8 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list
 RUN wget http://packages.osrfoundation.org/gazebo.key -O - | apt-key add -
 RUN apt-get update && apt-get install -y --no-install-recommends \
-   libgz-transport12-dev \
-   libgz-msgs9-dev \
+   libignition-transport8-dev \
    && rm -rf /var/lib/apt/lists/*
 
 # Install PX4 SITL
