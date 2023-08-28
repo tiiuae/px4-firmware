@@ -35,9 +35,6 @@
 find_package(gz-transport
 	#REQUIRED COMPONENTS core
 	NAMES
-		ignition-transport8
-		ignition-transport10
-		ignition-transport11
 		gz-transport12
 	#QUIET
 )
