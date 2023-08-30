@@ -92,6 +92,7 @@ case $target in
   "saluki-v2_kernel")
     $build_cmd_fw ssrc_saluki-v2_kernel
     cp ${script_dir}/build/ssrc_saluki-v2_kernel/ssrc_saluki-v2_kernel.px4 ${dest_dir}/ssrc_saluki-v2_kernel-${version}.px4
+    cp ${script_dir}/build/ssrc_saluki-v2_kernel/ssrc_saluki-v2_kernel.bin ${dest_dir}/ssrc_saluki-v2_kernel-${version}.bin
     ;;
   "saluki-pi_default")
     $build_cmd_fw ssrc_saluki-pi_default
