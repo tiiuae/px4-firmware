@@ -26,7 +26,7 @@ class RoverInterface : public ModuleParams, public px4::ScheduledWorkItem
 	 * Base interval, has to be compliant with the rate of the actuator_controls
 	 * topic subscription and CAN bus update rate
 	 */
-	static constexpr uint64_t ScheduleIntervalMs{500_us};
+	static constexpr uint64_t ScheduleIntervalMs{100_us};
 
 	static constexpr uint64_t RoverStatusPublishIntervalMs{1000_ms};
 
