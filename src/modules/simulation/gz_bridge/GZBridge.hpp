@@ -48,6 +48,7 @@
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/sensor_accel.h>
 #include <uORB/topics/sensor_gyro.h>
+#include <uORB/topics/sensor_gps.h>
 #include <uORB/topics/vehicle_angular_velocity.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_global_position.h>
@@ -94,6 +95,7 @@ private:
 
 	void clockCallback(const gz::msgs::Clock &clock);
 	void imuCallback(const gz::msgs::IMU &imu);
+	void gpsCallback(const gz::msgs::NavSat &gps);
 	void poseInfoCallback(const gz::msgs::Pose_V &pose);
 	void motorSpeedCallback(const gz::msgs::Actuators &actuators);
 	void updateCmdVel();
@@ -110,6 +112,7 @@ private:
 
 	uORB::PublicationMulti<sensor_accel_s> _sensor_accel_pub{ORB_ID(sensor_accel)};
 	uORB::PublicationMulti<sensor_gyro_s>  _sensor_gyro_pub{ORB_ID(sensor_gyro)};
+	uORB::PublicationMulti<sensor_gps_s>  _sensor_gps_pub{ORB_ID(sensor_gps)};
 
 	px4::atomic<uint64_t> _world_time_us{0};
 
