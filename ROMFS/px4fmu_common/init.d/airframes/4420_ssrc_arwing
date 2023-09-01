@@ -41,7 +41,6 @@ param set-default BAT2_V_LOAD_DROP 0.1000
 
 param set CAL_MAG0_PRIO 0
 
-param set-default CAL_MAG_ROT_AUTO 1
 param set-default CA_AIRFRAME 1
 param set-default CA_FAILURE_MODE 0
 param set-default CA_METHOD 2
