@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# @name SSRC Striver Mini
+#
+# @type Standard VTOL
+# @class VTOL
+#
+# @board px4_fmu-v2 exclude
+# @board bitcraze_crazyflie exclude
+#
+
+. /etc/init.d/rc.vtol_defaults
