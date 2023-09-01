@@ -39,10 +39,10 @@ class RoverInterface : public ModuleParams, public px4::ScheduledWorkItem
 public:
 	static const char *const CAN_IFACE;
 
-	RoverInterface(uint8_t rover_type, uint32_t bitrate, uint8_t manual_throttle_max);
+	RoverInterface(uint8_t rover_type, uint32_t bitrate, float manual_throttle_max);
 	~RoverInterface() override;
 
-	static int start(uint8_t rover_type, uint32_t bitrate, uint8_t manual_throttle_max);
+	static int start(uint8_t rover_type, uint32_t bitrate, float manual_throttle_max);
 
 	void print_status();
 
@@ -78,7 +78,7 @@ private:
 
 	uint32_t _bitrate;
 
-	uint8_t _manual_throttle_max;
+	float _manual_throttle_max;
 
 	scoutsdk::ProtocolVersion _protocol_version{scoutsdk::ProtocolVersion::AGX_V2};
 
