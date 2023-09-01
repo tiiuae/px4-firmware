@@ -6,7 +6,7 @@ RoverInterface *RoverInterface::_instance;
 // CAN interface | default is can0
 const char *const RoverInterface::CAN_IFACE = "can0";
 
-RoverInterface::RoverInterface(uint8_t rover_type, uint32_t bitrate, uint8_t manual_throttle_max)
+RoverInterface::RoverInterface(uint8_t rover_type, uint32_t bitrate, float manual_throttle_max)
 	: ModuleParams(nullptr),
 	  ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::rover_interface),
 	  _rover_type(rover_type),
@@ -43,7 +43,7 @@ RoverInterface::~RoverInterface()
 }
 
 
-int RoverInterface::start(uint8_t rover_type, uint32_t bitrate, uint8_t manual_throttle_max)
+int RoverInterface::start(uint8_t rover_type, uint32_t bitrate, float manual_throttle_max)
 {
 	if (_instance != nullptr) {
 		PX4_ERR("Already started");
@@ -357,7 +357,7 @@ extern "C" __EXPORT int rover_interface_main(int argc, char *argv[])
 		param_get(param_find("RI_CAN_BITRATE"), &can_bitrate);
 
 		// Manual control mode max throttle (1m/s to 3m/s)
-		int32_t manual_throttle_max = 1;
+		float manual_throttle_max = 1.0;
 		param_get(param_find("RI_MAN_THR_MAX"), &manual_throttle_max);
 
 		// Start
@@ -365,7 +365,7 @@ extern "C" __EXPORT int rover_interface_main(int argc, char *argv[])
 			 rover_type, RoverInterface::CAN_IFACE, can_bitrate);
 		return RoverInterface::start(static_cast<uint8_t>(rover_type),
 					     can_bitrate,
-					     static_cast<uint8_t>(manual_throttle_max));
+					     manual_throttle_max);
 	}
 
 	/* commands below assume that the app has been already started */
