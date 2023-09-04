@@ -34,7 +34,7 @@ class RoverInterface : public ModuleParams, public px4::ScheduledWorkItem
 
 	static constexpr uint64_t ActuatorControlSubIntervalMs{20_ms};
 
-	static constexpr uint64_t ActuatorArmedSubIntervalMs{1000_ms};
+	static constexpr uint64_t ActuatorArmedSubIntervalMs{500_ms};
 
 public:
 	static const char *const CAN_IFACE;

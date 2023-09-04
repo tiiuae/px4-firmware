@@ -246,6 +246,7 @@ void RoverInterface::ActuatorArmedUpdate()
 
 			// Kill switch
 			_manual_lockdown = actuator_armed_msg.manual_lockdown;
+			if (_manual_lockdown) { _scout->SetMotionCommand(0.0, 0.0); }
 		}
 	}
 }
