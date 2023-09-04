@@ -32,7 +32,7 @@ class RoverInterface : public ModuleParams, public px4::ScheduledWorkItem
 
 	static constexpr uint64_t SystemVersionQueryLimitMs{10_ms};
 
-	static constexpr uint64_t ActuatorControlSubIntervalMs{20_ms};
+	static constexpr uint64_t ActuatorControlSubIntervalMs{50_ms};
 
 	static constexpr uint64_t ActuatorArmedSubIntervalMs{500_ms};
 
