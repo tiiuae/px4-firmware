@@ -97,12 +97,12 @@ void RoverInterface::Init()
 	case 5:
 		// Bunker
 		PX4_INFO("Bunker (rover type 5) is supported. Initializing...");
-		return;
+		break;
 
 	case 6:
 		// Bunker Mini
 		PX4_INFO("Bunker Mini (rover type 6) is supported. Initializing...");
-		return;
+		break;
 
 	default:
 		// Unknown Rover type
