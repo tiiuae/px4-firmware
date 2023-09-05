@@ -190,11 +190,15 @@ void RoverInterface::Run()
 	perf_begin(_cycle_perf);
 	perf_count(_interval_perf);
 
-	// Check for actuator controls command to rover
-	if (!_manual_lockdown && _armed) { ActuatorControlsUpdate(); }
 
 	// Check for actuator armed command to rover
 	ActuatorArmedUpdate();
+
+	// Check for action request (manual lock down)
+	ActionRequestUpdate();
+
+	// Check for actuator controls command to rover
+	if (!_kill_switch && _armed) { ActuatorControlsUpdate(); }
 
 	// Check for vehicle control mode
 	VehicleControlModeUpdate();
@@ -243,13 +247,32 @@ void RoverInterface::ActuatorArmedUpdate()
 				_scout->SetLightCommand(LightMode::BREATH, 0);
 				_armed = false;
 			}
-
-			// Kill switch
-			_manual_lockdown = actuator_armed_msg.manual_lockdown;
-			if (_manual_lockdown) { _scout->SetMotionCommand(0.0, 0.0); }
 		}
 	}
 }
+
+
+void RoverInterface::ActionRequestUpdate()
+{
+	if (_action_request_sub.updated()) {
+		action_request_s action_request_msg;
+
+		if (_action_request_sub.copy(&action_request_msg)) {
+			// Check for kill switch (expected pub rate is 5Hz)
+			switch (action_request_msg.action) {
+			case action_request_s::ACTION_KILL:
+				_kill_switch = true;
+				_scout->SetMotionCommand(0.0, 0.0);
+				break;
+
+			case action_request_s::ACTION_UNKILL:
+				_kill_switch = false;
+				break;
+			}
+		}
+	}
+}
+
 
 void RoverInterface::VehicleControlModeUpdate()
 {
@@ -312,7 +335,7 @@ void RoverInterface::print_status()
 	}
 
 	// Arm / disarm / kill switch status
-	PX4_INFO("Rover is armed: %s. Manual lockdown: %s", _armed ? "true" : "false", _manual_lockdown ? "true" : "false");
+	PX4_INFO("Rover is armed: %s. Kill switch: %s", _armed ? "true" : "false", _kill_switch ? "true" : "false");
 
 	// Subscription info
 	PX4_INFO("Subscribed to topics: %s, %s",
