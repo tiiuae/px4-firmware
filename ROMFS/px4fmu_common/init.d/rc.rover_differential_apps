@@ -1,20 +1,9 @@
 #!/bin/sh
 # Standard apps for a differential rover.
 
-# Start rover interface CAN driver for SSRC-supported rover types.
-if param compare SYS_AUTOSTART 50005
-then
-	ifup can0
-	rover_interface start
-fi
-
-if param compare SYS_AUTOSTART 50006
-then
-	ifup can0
-	rover_interface start
-fi
-
-if param compare SYS_AUTOSTART 50007
+# Start the rover interface CAN driver if rover type is one of SSRC supported
+# rover types (scout mini, bunker, ..)
+if param greater RI_ROVER_TYPE -1
 then
 	ifup can0
 	rover_interface start
