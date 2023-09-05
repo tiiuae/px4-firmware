@@ -13,6 +13,7 @@
 #include <uORB/Publication.hpp>
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/actuator_armed.h>
+#include <uORB/topics/action_request.h>
 #include <uORB/topics/rover_status.h>
 #include <uORB/topics/vehicle_control_mode.h>
 
@@ -34,8 +35,6 @@ class RoverInterface : public ModuleParams, public px4::ScheduledWorkItem
 
 	static constexpr uint64_t ActuatorControlSubIntervalMs{50_ms};
 
-	static constexpr uint64_t ActuatorArmedSubIntervalMs{500_ms};
-
 public:
 	static const char *const CAN_IFACE;
 
@@ -54,6 +53,7 @@ private:
 
 	void ActuatorControlsUpdate();
 	void ActuatorArmedUpdate();
+	void ActionRequestUpdate();
 	void VehicleControlModeUpdate();
 	void PublishRoverState();
 
@@ -62,7 +62,7 @@ private:
 
 	bool _armed{false};
 
-	bool _manual_lockdown{false};
+	bool _kill_switch{false};
 
 	bool _initialized{false};
 
@@ -88,7 +88,8 @@ private:
 
 	// Subscription
 	uORB::SubscriptionInterval _actuator_controls_sub{ORB_ID(actuator_controls_0), ActuatorControlSubIntervalMs};
-	uORB::SubscriptionInterval _actuator_armed_sub{ORB_ID(actuator_armed), ActuatorArmedSubIntervalMs};
+	uORB::SubscriptionInterval _actuator_armed_sub{ORB_ID(actuator_armed)};
+	uORB::Subscription _action_request_sub{ORB_ID(action_request)};
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 
 	// Publication
