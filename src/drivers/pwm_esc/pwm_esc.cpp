@@ -50,6 +50,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include <drivers/device/device.h>
 #include <drivers/drv_pwm_output.h>
 #include <drivers/drv_hrt.h>
 #include <drivers/drv_mixer.h>
@@ -63,6 +64,12 @@
 #include <uORB/topics/parameter_update.h>
 
 #include <nuttx/timers/pwm.h>
+
+/* Note: This driver will register two device nodes: /dev/px4fmu and
+ * /dev/pwm_output[0|1] depending on whether px4io has been loaded previously
+ */
+
+#define PX4FMU_DEVICE_PATH "/dev/px4fmu"
 
 #ifndef PWMESC_OUT_PATH
 #define PWMESC_OUT_PATH "/dev/pwmX";
@@ -183,6 +190,7 @@ private:
 
 	int32_t		_pwm_disarmed_default;
 	int32_t		_pwm_rate{PWM_DEFAULT_RATE};
+	int		_class_instance{-1};
 
 	int		init_pwm_outputs();
 
@@ -233,7 +241,7 @@ private:
 PWMESC *PWMESC::_instance = nullptr;
 
 PWMESC::PWMESC() :
-	CDev(PWM_OUTPUT0_DEVICE_PATH),
+	CDev(PX4FMU_DEVICE_PATH),
 	OutputModuleInterface(MODULE_NAME, px4::wq_configurations::hp_default),
 	_task(-1),
 	_task_should_exit(false),
@@ -266,6 +274,9 @@ PWMESC::~PWMESC()
 		px4_task_delete(_task);
 	}
 
+	/* clean up the alternate device node */
+	unregister_class_devname(PWM_OUTPUT_BASE_DEVICE_PATH, _class_instance);
+
 	/* deallocate perfs */
 	perf_free(_perf_update);
 
@@ -285,6 +296,15 @@ PWMESC::init(bool hitl_mode)
 	if (ret != OK) {
 		return ret;
 	}
+
+	/* Claim the generic PWM output device node */
+	_class_instance = register_class_devname(PWM_OUTPUT_BASE_DEVICE_PATH);
+
+	if (_class_instance < 0) {
+		PX4_ERR("FAILED registering class device");
+	}
+
+	_mixing_output.setDriverInstance(_class_instance);
 
 	/* start the main task */
 	_task = px4_task_spawn_cmd("pwm_esc",
@@ -505,10 +525,28 @@ void PWMESC::update_params()
 	int32_t _pwm_max_default = PWM_DEFAULT_MAX;
 	_pwm_disarmed_default = PWM_MOTOR_OFF;
 
-	param_get(param_find("PWM_MAIN_MIN"), &_pwm_min_default);
-	param_get(param_find("PWM_MAIN_MAX"), &_pwm_max_default);
-	param_get(param_find("PWM_MAIN_DISARM"), &_pwm_disarmed_default);
-	param_get(param_find("PWM_MAIN_RATE"), &_pwm_rate);
+	if (_class_instance == CLASS_DEVICE_PRIMARY) {
+		param_get(param_find("PWM_MAIN_MIN"), &_pwm_min_default);
+		param_get(param_find("PWM_MAIN_MAX"), &_pwm_max_default);
+		param_get(param_find("PWM_MAIN_DISARM"), &_pwm_disarmed_default);
+		param_get(param_find("PWM_MAIN_RATE"), &_pwm_rate);
+
+	} else if (_class_instance == CLASS_DEVICE_SECONDARY) {
+		param_get(param_find("PWM_AUX_MIN"), &_pwm_min_default);
+		param_get(param_find("PWM_AUX_MAX"), &_pwm_max_default);
+		param_get(param_find("PWM_AUX_DISARM"), &_pwm_disarmed_default);
+		param_get(param_find("PWM_AUX_RATE"), &_pwm_rate);
+
+	} else if (_class_instance == CLASS_DEVICE_TERTIARY) {
+		param_get(param_find("PWM_EXTRA_MIN"), &_pwm_min_default);
+		param_get(param_find("PWM_EXTRA_MAX"), &_pwm_max_default);
+		param_get(param_find("PWM_EXTRA_DISARM"), &_pwm_disarmed_default);
+		param_get(param_find("PWM_EXTRA_RATE"), &_pwm_rate);
+
+	} else {
+		PX4_ERR("invalid class instance %d", _class_instance);
+		return;
+	}
 
 	for (unsigned i = 0; i < PWMESC_MAX_CHANNELS; i++) {
 		_mixing_output.minValue(i) = _pwm_min_default;
