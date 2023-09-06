@@ -34,6 +34,7 @@ set MIXER_AUX none
 set MIXER_FILE none
 set MIXER_EXTRA none
 set OUTPUT_MODE none
+set OUTPUT_CMD pwm_out
 set PARAM_FILE ""
 set PWM_OUT none
 set PWM_MAIN_RATE p:PWM_MAIN_RATE

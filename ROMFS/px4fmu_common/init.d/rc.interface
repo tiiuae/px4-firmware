@@ -9,7 +9,6 @@
 #  Otherwise, the variable name goes to the end of the argument.
 #
 
-set OUTPUT_CMD pwm_out
 set MIXER_AUX_FILE none
 set MIXER_EXTRA_FILE none
 
