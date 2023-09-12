@@ -130,6 +130,12 @@ public:
 	static int		stop();
 
 	/**
+	 * Status of PWMESC driver
+	*/
+	int                     printStatus();
+	static int              status();
+
+	/**
 	 * Return if the PWMESC driver is already running
 	 */
 	bool		running() {return _initialized;};
@@ -623,8 +629,16 @@ PWMESC::ioctl(file *filep, int cmd, unsigned long arg)
 			break;
 		}
 
-	case PWM_SERVO_GET_MIN_PWM:
-		break;
+	case PWM_SERVO_GET_MIN_PWM: {
+			struct pwm_output_values *pwm = (struct pwm_output_values *)arg;
+			pwm->channel_count = MAX_ACTUATORS;
+
+			for (unsigned i = 0; i < MAX_ACTUATORS; i++) {
+				pwm->values[i] = _mixing_output.minValue(i);
+			}
+
+			break;
+		}
 
 	case PWM_SERVO_SET_MAX_PWM: {
 			struct pwm_output_values *pwm = (struct pwm_output_values *)arg;
@@ -638,8 +652,16 @@ PWMESC::ioctl(file *filep, int cmd, unsigned long arg)
 			break;
 		}
 
-	case PWM_SERVO_GET_MAX_PWM:
-		break;
+	case PWM_SERVO_GET_MAX_PWM: {
+			struct pwm_output_values *pwm = (struct pwm_output_values *)arg;
+			pwm->channel_count = MAX_ACTUATORS;
+
+			for (unsigned i = 0; i < MAX_ACTUATORS; i++) {
+				pwm->values[i] = _mixing_output.maxValue(i);
+			}
+
+			break;
+		}
 
 	case PWM_SERVO_GET_COUNT:
 		break;
@@ -735,12 +757,37 @@ PWMESC::stop()
 	return 0;
 }
 
+int PWMESC::printStatus()
+{
+	_mixing_output.printStatus();
+	return 0;
+}
+
+
+int
+PWMESC::status()
+{
+	if (PWMESC::getInstance() == nullptr) {
+		PX4_ERR("status: Driver allocation failed");
+		return -1;
+	}
+
+	if (!PWMESC::getInstance()->running()) {
+		PX4_ERR("status: Not running");
+		return -1;
+	}
+
+	PWMESC::getInstance()->printStatus();
+	return 0;
+}
+
+
 int
 pwm_esc_main(int argc, char *argv[])
 {
 	/* check for sufficient number of arguments */
 	if (argc < 2) {
-		PX4_ERR("Need a command, try 'start' / 'stop'");
+		PX4_ERR("Need a command, try 'start' / 'stop' / 'status'");
 		return -1;
 	}
 
@@ -751,6 +798,11 @@ pwm_esc_main(int argc, char *argv[])
 	if (!strcmp(argv[1], "stop")) {
 		return PWMESC::stop();
 	}
+
+	if (!strcmp(argv[1], "status")) {
+		return PWMESC::status();
+	}
+
 
 	return 0;
 }
