@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# @name Generic Flying Wing
+#
+# @type Flying Wing
+# @class Plane
+#
+# @output MAIN1 left aileron
+# @output MAIN2 right aileron
+# @output MAIN4 throttle
+#
+# @output AUX1 feed-through of RC AUX1 channel
+# @output AUX2 feed-through of RC AUX2 channel
+# @output AUX3 feed-through of RC AUX3 channel
+#
+# @maintainer
+#
+# @board px4_fmu-v2 exclude
+# @board bitcraze_crazyflie exclude
+#
+
+. ${R}etc/init.d/rc.fw_defaults
+
+set MIXER fw_generic_wing
+set MIXER_AUX fw_generic_wing
+set PWM_OUT 1234
+
+# PWM
+param set-default PWM_MAIN_DISARM 900
+param set-default PWM_AUX_DISARM 900
+
+# Airspeed parameters
+sdp3x start -X -f 400
+param set-default ASPD_DO_CHECKS 15
+param set-default FW_AIRSPD_MAX 22.0
+param set-default FW_AIRSPD_MIN 14.0
+param set-default FW_AIRSPD_STALL 12.0
+param set-default FW_AIRSPD_TRIM 18.0
+
+# Battery parameters
+param set-default BAT1_N_CELLS 4
+param set-default BAT1_R_INTERNAL 0.0050
+param set-default BAT1_V_EMPTY 3.6000
+param set-default BAT1_V_LOAD_DROP 0.1000
+
+param set-default BAT2_R_INTERNAL 0.0050
+param set-default BAT2_V_EMPTY 3.6000
+param set-default BAT2_V_LOAD_DROP 0.1000
+
+# Disable internal magnetometer
+param set CAL_MAG0_PRIO 0
+
+# Launch detection
+param set-default LAUN_ALL_ON 1
+
+# Maximum manual roll angle
+param set-default FW_MAN_R_MAX 60.0
+
+# Rate control
+param set-default FW_RR_IMAX 0.4000
+param set-default FW_YR_IMAX 0.4000
+
+# NPFG
+param set-default FW_USE_NPFG 1
+
+# Misc
+param set-default RTL_RETURN_ALT 30.0

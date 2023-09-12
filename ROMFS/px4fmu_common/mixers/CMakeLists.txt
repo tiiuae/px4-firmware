@@ -50,6 +50,7 @@ px4_add_romfs_files(
 	dodeca_top_cox.main.mix
 	firefly6.aux.mix
 	firefly6.main.mix
+	fw_generic_wing.aux.mix
 	fw_generic_wing.main.mix
 	generic_diff_rover.main.mix
 	hexa_cox.main.mix
@@ -86,6 +87,8 @@ px4_add_romfs_files(
 	vectored6dof.main.mix
 	Viper.main.mix
 	vtol_AAERT.aux.mix
+	vtol_AAEERT.aux.mix
+	vtol_quad_AAEERT.main.mix
 	vtol_AAVVT.aux.mix
 	vtol_TTTTAAER.aux.mix
 	vtol_convergence.main.mix

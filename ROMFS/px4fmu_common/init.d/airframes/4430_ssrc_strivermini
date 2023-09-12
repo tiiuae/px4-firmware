@@ -1,0 +1,102 @@
+#!/bin/sh
+#
+# @name Generic Quadplane VTOL
+#
+# @type Standard VTOL
+# @class VTOL
+#
+# @maintainer
+#
+# @output MAIN1 motor 1
+# @output MAIN2 motor 2
+# @output MAIN3 motor 3
+# @output MAIN4 motor 4
+# @output AUX1 Aileron 1
+# @output AUX2 Aileron 2
+# @output AUX3 Elevator 1
+# @output AUX4 Elevator 2
+# @output AUX5 Rudder
+# @output AUX6 Throttle
+#
+# @board px4_fmu-v2 exclude
+# @board bitcraze_crazyflie exclude
+# @board holybro_kakutef7 exclude
+#
+
+. ${R}etc/init.d/rc.vtol_defaults
+
+# Start airspeed sensor driver
+ms4525do start -X -f 500
+
+# Quad idle values
+param set-default VT_IDLE_PWM_MC 1050
+param set-default PWM_MAIN_MIN 1000
+param set-default PWM_AUX_MIN 1000
+
+param set-default PWM_MAIN_DISARM 900
+param set-default PWM_AUX_DISARM 900
+
+param set-default VT_TYPE 2
+param set-default VT_MOT_ID 1234
+param set-default VT_FW_MOT_OFFID 1234
+
+param set-default MAV_TYPE 22
+
+# Airspeed parameters
+param set-default ASPD_DO_CHECKS 15
+param set-default FW_AIRSPD_MAX 22.0
+param set-default FW_AIRSPD_MIN 15.0
+param set-default FW_AIRSPD_STALL 12.0
+param set-default FW_AIRSPD_TRIM 18.0
+
+# Battery parameters
+param set-default BAT1_N_CELLS 4
+param set-default BAT1_V_CHARGED 4.2
+param set-default BAT1_V_EMPTY 3.6
+param set-default BAT1_V_DIV 18.1
+
+# Disable internal magnetometer
+param set CAL_MAG0_PRIO 0
+
+# Fixed wing specific
+param set-default LAUN_ALL_ON 1
+param set-default FW_MAN_R_MAX 60.0
+param set-default FW_RR_IMAX 0.4000
+param set-default FW_USE_NPFG 1
+param set-default FW_YR_IMAX 0.4000
+
+# VTOL specific
+# Transition
+# Airspeed at which we can start blending both fw and mc controls.
+param set-default VT_ARSP_BLEND 10
+
+# Airspeed at which we can switch to fw mode
+param set-default VT_ARSP_TRANS 12
+
+# Back-transition duration
+param set-default VT_B_TRANS_DUR 4
+param set-default VT_B_TRANS_RAMP 3
+
+# Transition duration
+param set-default VT_F_TRANS_DUR 6
+param set-default VT_F_TRANS_THR 1
+param set-default VT_PSHER_RMP_DT 3.0
+
+# VTOL takeoff
+param set-default VTO_LOITER_ALT 20
+
+# QuadChute altitude (transition to quad mode as a failsafe)
+param set-default VT_FW_MIN_ALT 5
+
+# QuadChute angle limits
+param set-default VT_FW_QC_P 35
+param set-default VT_FW_QC_R 60
+
+# Misc
+param set-default RTL_RETURN_ALT 30.0
+
+# Temporary: MIXER and MIXER_AUX are swapped
+set MIXER vtol_quad_AAEERT
+set MIXER_AUX vtol_AAEERT
+
+set PWM_OUT 123456

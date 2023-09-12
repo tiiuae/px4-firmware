@@ -21,3 +21,5 @@
 . ${R}etc/init.d/rc.fw_defaults
 
 set MIXER fw_generic_wing
+set MIXER_AUX fw_generic_wing
+set PWM_OUT 1234
