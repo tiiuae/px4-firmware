@@ -1,4 +1,4 @@
-name: tiiuae-builder-images
+name: tiiuae-coverity-scan-image
 
 on:
   # Run only manually
