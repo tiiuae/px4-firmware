@@ -167,7 +167,7 @@ static bool usb_connected = false;
  * Bit 0 marks for whether SBI should be used or not
 */
 
-static uint32_t info_bits;
+static uint8_t info_bits;
 
 static uint32_t board_get_reset_reason(void)
 {
@@ -784,7 +784,7 @@ static size_t get_image_size(void)
 
 		for (int i = 0; i < len; i++) {
 			if (*(uint32_t *)(void *)toc_entries[i].name == sig) {
-				info_bits = toc_entries[i].reserved;
+				info_bits = toc_entries[i].flags2;
 			}
 
 			if (toc_entries[i].end > end) {
