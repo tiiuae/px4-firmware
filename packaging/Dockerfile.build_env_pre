@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-gazebo-ros \
     ros-humble-fastrtps \
     ros-humble-rmw-fastrtps-cpp \
-    fastddsgen \
     fakeroot \
     dh-make \
     debhelper \
