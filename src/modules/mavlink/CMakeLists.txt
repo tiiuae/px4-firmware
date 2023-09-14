@@ -151,6 +151,15 @@ if(CONFIG_DRIVERS_SERIALPASSTHROUGH)
 	target_link_libraries(modules__mavlink PRIVATE drivers__serialpassthrough)
 endif()
 
+px4_add_module(
+	MODULE modules__mavlink_shell
+	MAIN mavlink_shell
+	STACK_MAIN 2048
+	NO_DAEMON
+	SRCS
+		mavlink_shell_main.cpp
+	)
+
 px4_add_unit_gtest(SRC MavlinkStatustextHandlerTest.cpp
 	INCLUDES
 		${MAVLINK_LIBRARY_DIR}
