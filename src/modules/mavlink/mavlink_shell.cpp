@@ -143,6 +143,9 @@ int MavlinkShell::start()
 #endif
 
 	if (ret == 0) {
+#ifdef __PX4_NUTTX
+		_task = px4_exec("mavlink_shell", nullptr, nullptr, 0);
+#else
 		_task = px4_task_spawn_cmd("mavlink_shell",
 					   SCHED_DEFAULT,
 					   SCHED_PRIORITY_DEFAULT,
@@ -152,6 +155,7 @@ int MavlinkShell::start()
 					   argv);
 #else
 					   nullptr);
+#endif
 #endif
 
 		if (_task < 0) {
@@ -185,12 +189,6 @@ int MavlinkShell::start()
 
 int MavlinkShell::shell_start_thread(int argc, char *argv[])
 {
-#ifdef __PX4_NUTTX
-	dup2(1, 2); //redirect stderror to stdout
-
-	nsh_consolemain(0, NULL);
-#endif /* __PX4_NUTTX */
-
 #ifdef __PX4_POSIX
 
 	if (argc != 3) {
