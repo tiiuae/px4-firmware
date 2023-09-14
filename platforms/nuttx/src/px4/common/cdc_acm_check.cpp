@@ -39,7 +39,6 @@ __BEGIN_DECLS
 #include <arch/board/board.h>
 #include <syslog.h>
 #include <nuttx/wqueue.h>
-#include <builtin/builtin.h>
 
 #include <termios.h>
 #include <sys/ioctl.h>
@@ -50,6 +49,7 @@ extern int serdis_main(int c, char **argv);
 __END_DECLS
 
 #include <px4_platform_common/shutdown.h>
+#include <px4_platform_common/tasks.h>
 
 #include <uORB/Subscription.hpp>
 #include <uORB/topics/actuator_armed.h>
@@ -84,7 +84,6 @@ enum class UsbAutoStartState {
 	connected,
 	disconnecting,
 } usb_auto_start_state{UsbAutoStartState::disconnected};
-
 
 static void mavlink_usb_check(void *arg)
 {
@@ -305,7 +304,7 @@ static void mavlink_usb_check(void *arg)
 								else if (launch_passthru) {
 									sched_lock();
 									exec_argv = (char **)gps_argv;
-									exec_builtin(exec_argv[0], exec_argv, nullptr, 0);
+									px4_exec(exec_argv[0], exec_argv, nullptr, 0);
 									sched_unlock();
 									exec_argv = (char **)passthru_argv;
 								}
@@ -314,7 +313,7 @@ static void mavlink_usb_check(void *arg)
 
 								sched_lock();
 
-								if (exec_builtin(exec_argv[0], exec_argv, nullptr, 0) > 0) {
+								if (px4_exec(exec_argv[0], exec_argv, nullptr, 0) > 0) {
 									usb_auto_start_state = UsbAutoStartState::connected;
 
 								} else {
@@ -344,7 +343,7 @@ static void mavlink_usb_check(void *arg)
 				sched_lock();
 				static const char app[] {"mavlink"};
 				static const char *stop_argv[] {"mavlink", "stop", "-d", USB_DEVICE_PATH, NULL};
-				exec_builtin(app, (char **)stop_argv, NULL, 0);
+				px4_exec(stop_argv[0], (char **)stop_argv, NULL, 0);
 				sched_unlock();
 
 				usb_auto_start_state = UsbAutoStartState::disconnecting;
@@ -366,7 +365,6 @@ static void mavlink_usb_check(void *arg)
 		work_queue(LPWORK, &usb_serial_work, mavlink_usb_check, NULL, USEC2TICK(1000000));
 	}
 }
-
 
 void cdcacm_init(void)
 {
