@@ -54,7 +54,6 @@ jobs:
           mro_x21-777,
           nxp_fmuk66-e,
           nxp_fmuk66-v3,
-          nxp_fmurt1062-v1,
           nxp_mr-canhubk3,
           nxp_ucans32k146,
           omnibus_f4sd,
@@ -67,13 +66,14 @@ jobs:
           px4_fmu-v6c,
           px4_fmu-v6u,
           px4_fmu-v6x,
+          px4_fmu-v6xrt,
           raspberrypi_pico,
           sky-drones_smartap-airlink,
           spracing_h7extreme,
           uvify_core
           ]
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
       with:
         token: ${{secrets.ACCESS_TOKEN}}
 
@@ -84,7 +84,7 @@ jobs:
         string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
         message("::set-output name=timestamp::${current_date}")
     - name: ccache cache files
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ~/.ccache
         key: ${{matrix.config}}-ccache-${{steps.ccache_cache_timestamp.outputs.timestamp}}
@@ -121,7 +121,7 @@ jobs:
       run: ccache -s
 
     - name: Upload px4 package
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.3
       with:
         name: px4_package_${{matrix.config}}
         path: |
