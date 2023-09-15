@@ -216,6 +216,7 @@ set(msg_files
 	SensorsStatus.msg
 	SensorsStatusImu.msg
 	SensorTemp.msg
+	SensorTvs.msg
 	SensorUwb.msg
 	SensorAirflow.msg
 	SystemPower.msg
