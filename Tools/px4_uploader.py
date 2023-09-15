@@ -1751,6 +1751,8 @@ class UploaderConfig:
     windowed: bool = False
     noninteractive: bool = False
     json_output: bool = False
+    udp_addr: str = "192.168.200.100"
+    udp_port: int = 14541
 
 
 class Uploader:
@@ -1948,6 +1950,8 @@ class Uploader:
             except Exception:
                 continue
 
+            self._send_udp_reboot(protocol)
+
             # Send reboot commands multiple times to increase reliability
             # The board might be busy and miss the first command
             for attempt in range(3):
@@ -2134,6 +2138,18 @@ class Uploader:
             windowed=protocol._windowed_mode,
         )
 
+    def _send_udp_reboot(self, protocol: BootloaderProtocol) -> None:
+        """Request a reboot over MAVLink UDP before retrying serial."""
+        destination = (self.config.udp_addr, self.config.udp_port)
+        logger.info("Attempting reboot on ethernet at %s:%d", *destination)
+
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.sendto(protocol.MAVLINK_REBOOT_ID1, destination)
+                sock.sendto(protocol.MAVLINK_REBOOT_ID0, destination)
+        except OSError as exc:
+            logger.warning("UDP reboot to %s:%d failed: %s", *destination, exc)
+
     def _send_gcs_release(self) -> None:
         """Send UDP message to release serial port from GCS."""
         try:
@@ -2171,6 +2187,19 @@ Examples:
     )
 
     parser.add_argument("firmware", nargs="+", help="Firmware file(s) to upload")
+    parser.add_argument(
+        "--udp-addr",
+        default="192.168.200.100",
+        help="UDP address of PX4 flight controller (default: 192.168.200.100)",
+    )
+    parser.add_argument(
+        "--udp-port",
+        type=int,
+        choices=range(1, 65536),
+        metavar="PORT",
+        default=14541,
+        help="UDP port of PX4 MAVLink (default: 14541)",
+    )
     parser.add_argument(
         "--port",
         "-p",
@@ -2251,6 +2280,8 @@ Examples:
     # Create config
     config = UploaderConfig(
         port=args.port,
+        udp_addr=args.udp_addr,
+        udp_port=args.udp_port,
         baud_bootloader=args.baud_bootloader,
         baud_flightstack=baud_flightstack,
         force=args.force,
