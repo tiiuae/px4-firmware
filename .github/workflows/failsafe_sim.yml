@@ -3,7 +3,7 @@ name: Failsafe Simulator Build
 on:
   push:
     branches:
-    - 'main'
+      - 'main'
     paths-ignore:
       - 'docs/**'
   pull_request:
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: [runs-on,runner=4cpu-linux-x64,image=ubuntu24-full-x64,"run-id=${{ github.run_id }}",spot=false,extras=s3-cache]
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
@@ -29,36 +29,27 @@ jobs:
           "failsafe_web",
         ]
     container:
-      image: ghcr.io/px4/px4-dev:v1.17.0-rc2
+      image: px4io/px4-dev:v1.16.0-rc1-258-g0369abd556
       options: --privileged --ulimit core=-1 --security-opt seccomp=unconfined
     steps:
-      - uses: runs-on/action@v2
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Configure Git Safe Directory
-        run: git config --system --add safe.directory '*'
-
       - name: Install Node v20.18.0
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 20.18.0
 
-      - name: Cache - Restore Emscripten SDK
-        id: cache-emsdk
-        uses: actions/cache@v5
+      - uses: actions/checkout@v4
         with:
-          path: _emscripten_sdk
-          key: emsdk-4.0.15
+          fetch-depth: 0
+
+      - name: Git ownership workaround
+        run: git config --system --add safe.directory '*'
 
       - name: Install empscripten
-        if: steps.cache-emsdk.outputs.cache-hit != 'true'
         run: |
           git clone https://github.com/emscripten-core/emsdk.git _emscripten_sdk
           cd _emscripten_sdk
-          git checkout 4.0.15
-          ./emsdk install latest
-          ./emsdk activate latest
+          ./emsdk install 4.0.15
+          ./emsdk activate 4.0.15
 
       - name: Testing [${{ matrix.check }}]
         run: |

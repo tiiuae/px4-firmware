@@ -12,25 +12,19 @@ env:
 
 jobs:
   Fuzzing:
-    runs-on: [runs-on,runner=4cpu-linux-x64,image=ubuntu24-full-x64,"run-id=${{ github.run_id }}",spot=false,extras=s3-cache]
+    runs-on: ubuntu-latest
     container:
       image: px4io/px4-dev:v1.16.0-rc2-4-gb67c65bfe6
     steps:
-      - uses: runs-on/action@v2
+      - name: Install Dependencies
+        run: |
+          apt update && apt install -y clang
 
-      - uses: actions/checkout@v6
+      - name: Fix git in Container
+        run: |
+          git config --global --add safe.directory $(realpath .)
 
-      - name: Configure Git Safe Directory
-        run: git config --system --add safe.directory '*'
-
-      - name: Install clang
-        run: apt-get update && apt-get install -y clang
-
-      - uses: ./.github/actions/setup-ccache
-        id: ccache
-        with:
-          cache-key-prefix: ccache-sitl
-          max-size: 300M
+      - uses: actions/checkout@v4
 
       - name: Build and Run Fuzz Tests
         run: |
@@ -44,11 +38,7 @@ jobs:
             ./Tools/ci/run_fuzz_tests.sh $fuzz_binary 15m
           done
 
-      - uses: ./.github/actions/save-ccache
-        if: always()
-        with:
-          cache-primary-key: ${{ steps.ccache.outputs.cache-primary-key }}
-
+      # Create a github issue in case of a failure
       - name: Create Issue
         if: ${{ failure() }}
         uses: JasonEtco/create-an-issue@v2
