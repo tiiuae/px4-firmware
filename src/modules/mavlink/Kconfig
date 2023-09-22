@@ -17,3 +17,10 @@ menuconfig USER_MAVLINK
 	depends on BOARD_PROTECTED && MODULES_MAVLINK
 	---help---
 		Put mavlink in userspace memory
+
+menuconfig MAVLINK_PARALLEL_LOGGING
+	bool "Custom mavlink logging protocol"
+	default n
+	depends on MODULES_MAVLINK
+	---help---
+		Custom mavlink logging protocol for speed up logging start phase
