@@ -60,6 +60,15 @@ MavlinkULog::MavlinkULog(int datarate, float max_rate_factor, uint8_t target_sys
 
 	}
 
+#ifdef MAVLINK_PARALLEL_LOGGING
+
+	PX4_INFO("[Mavlink_ulog] Parallel logging enabled");
+
+	while (_ulog_stream_acked_sub.update()) {
+
+	}
+
+#endif
 	_waiting_for_initial_ack = true;
 	_last_sent_time = hrt_absolute_time(); //(ab)use this timestamp during initialization
 	_next_rate_check = _last_sent_time + _rate_calculation_delta_t;
@@ -84,7 +93,7 @@ int MavlinkULog::handle_update(mavlink_channel_t channel)
 	static_assert(sizeof(ulog_stream_s::data) == MAVLINK_MSG_LOGGING_DATA_FIELD_DATA_LEN,
 		      "Invalid uorb ulog_stream.data length");
 	static_assert(sizeof(ulog_stream_s::data) == MAVLINK_MSG_LOGGING_DATA_ACKED_FIELD_DATA_LEN,
-		      "Invalid uorb ulog_stream.data length");
+		      "Invalid uorb ulog_stream_acked.data length");
 
 	if (_waiting_for_initial_ack) {
 		if (hrt_elapsed_time(&_last_sent_time) > 3e5) {
@@ -94,6 +103,51 @@ int MavlinkULog::handle_update(mavlink_channel_t channel)
 
 		return 0;
 	}
+
+#ifdef MAVLINK_PARALLEL_LOGGING
+
+	while ((_current_num_msgs < _max_num_messages) && _ulog_stream_sub.updated()) {
+		const unsigned last_generation = _ulog_stream_sub.get_last_generation();
+		_ulog_stream_sub.update();
+
+		if (_ulog_stream_sub.get_last_generation() != last_generation + 1) {
+			perf_count(_msg_missed_ulog_stream_perf);
+		}
+
+		const ulog_stream_s &ulog_data = _ulog_stream_sub.get();
+
+		if (ulog_data.timestamp > 0) {
+			mavlink_logging_data_t msg;
+			msg.sequence = ulog_data.msg_sequence;
+			msg.length = ulog_data.length;
+			msg.first_message_offset = ulog_data.first_message_offset;
+			msg.target_system = _target_system;
+			msg.target_component = _target_component;
+			memcpy(msg.data, ulog_data.data, sizeof(msg.data));
+			mavlink_msg_logging_data_send_struct(channel, &msg);
+		}
+
+		++_current_num_msgs;
+	}
+
+	//need to update the rate?
+	hrt_abstime t = hrt_absolute_time();
+
+	if (t > _next_rate_check) {
+		if (_current_num_msgs < _max_num_messages) {
+			_current_rate_factor = _max_rate_factor * (float)_current_num_msgs / _max_num_messages;
+
+		} else {
+			_current_rate_factor = _max_rate_factor;
+		}
+
+		_current_num_msgs = 0;
+		_next_rate_check = t + _rate_calculation_delta_t * 1.e6f;
+		PX4_DEBUG("current rate=%.3f (max=%i msgs in %.3fs)", (double)_current_rate_factor, _max_num_messages,
+			  (double)_rate_calculation_delta_t);
+	}
+
+#endif
 
 	// check if we're waiting for an ACK
 	if (_last_sent_time) {
@@ -113,7 +167,11 @@ int MavlinkULog::handle_update(mavlink_channel_t channel)
 					PX4_DEBUG("re-sending ulog mavlink message (try=%i)", _sent_tries);
 					_last_sent_time = hrt_absolute_time();
 
+#ifdef MAVLINK_PARALLEL_LOGGING
+					const ulog_stream_s &ulog_data = _ulog_stream_acked_sub.get();
+#else
 					const ulog_stream_s &ulog_data = _ulog_stream_sub.get();
+#endif
 
 					mavlink_logging_data_acked_t msg;
 					msg.sequence = ulog_data.msg_sequence;
@@ -132,6 +190,35 @@ int MavlinkULog::handle_update(mavlink_channel_t channel)
 		}
 	}
 
+#ifdef MAVLINK_PARALLEL_LOGGING
+
+	if (_ulog_stream_acked_sub.updated()) {
+		_ulog_stream_acked_sub.update();
+
+		const ulog_stream_s &ulog_data = _ulog_stream_acked_sub.get();
+
+		if (ulog_data.timestamp > 0) {
+			_sent_tries = 1;
+			_last_sent_time = hrt_absolute_time();
+			lock();
+			_wait_for_ack_sequence = ulog_data.msg_sequence;
+			_ack_received = false;
+			unlock();
+
+			mavlink_logging_data_acked_t msg;
+			msg.sequence = ulog_data.msg_sequence;
+			msg.length = ulog_data.length;
+			msg.first_message_offset = ulog_data.first_message_offset;
+			msg.target_system = _target_system;
+			msg.target_component = _target_component;
+			memcpy(msg.data, ulog_data.data, sizeof(msg.data));
+			mavlink_msg_logging_data_acked_send_struct(channel, &msg);
+
+		}
+
+	}
+
+#else
 
 	while ((_current_num_msgs < _max_num_messages) && _ulog_stream_sub.updated()) {
 		const unsigned last_generation = _ulog_stream_sub.get_last_generation();
@@ -193,6 +280,7 @@ int MavlinkULog::handle_update(mavlink_channel_t channel)
 			  (double)(_rate_calculation_delta_t / 1e6));
 	}
 
+#endif
 	return 0;
 }
 
