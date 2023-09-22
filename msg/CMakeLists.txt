@@ -185,6 +185,7 @@ set(msg_files
 	UavcanParameterValue.msg
 	UlogStream.msg
 	UlogStreamAck.msg
+	UlogStreamAcked.msg
 	UwbDistance.msg
 	UwbGrid.msg
 	VehicleAcceleration.msg
