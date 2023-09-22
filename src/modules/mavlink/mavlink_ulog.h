@@ -52,6 +52,9 @@
 #include <uORB/topics/ulog_stream.h>
 #include <uORB/topics/ulog_stream_ack.h>
 
+#ifdef MAVLINK_PARALLEL_LOGGING
+#include <uORB/topics/ulog_stream_acked.h>
+#endif
 #include "mavlink_bridge_header.h"
 
 /**
@@ -123,7 +126,10 @@ private:
 	static const float _rate_calculation_delta_t; ///< rate update interval
 
 	uORB::SubscriptionData<ulog_stream_s> _ulog_stream_sub{ORB_ID(ulog_stream)};
-	uORB::Publication<ulog_stream_ack_s> _ulog_stream_ack_pub{ORB_ID(ulog_stream_ack)};
+#ifdef MAVLINK_PARALLEL_LOGGING
+	uORB::SubscriptionData<ulog_stream_s> _ulog_stream_acked_sub {ORB_ID(ulog_stream_acked)};
+#endif
+	uORB::Publication<ulog_stream_ack_s> _ulog_stream_ack_pub {ORB_ID(ulog_stream_ack)};
 	uint16_t _wait_for_ack_sequence;
 	uint8_t _sent_tries = 0;
 	volatile bool _ack_received = false; ///< set to true if a matching ack received
