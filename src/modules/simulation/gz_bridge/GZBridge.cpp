@@ -154,6 +154,14 @@ int GZBridge::init()
 		return PX4_ERROR;
 	}
 
+		// MAG: /world/$WORLD/model/$MODEL/link/base_link/sensor/magnetometer_sensor/magnetometer
+	std::string mag_topic = "/world/" + _world_name + "/model/" + _model_name + "/link/base_link/sensor/magnetometer_sensor/magnetometer";
+
+	if (!_node.Subscribe(mag_topic, &GZBridge::magnetometerCallback, this)) {
+		PX4_ERR("failed to subscribe to %s", mag_topic.c_str());
+		return PX4_ERROR;
+	}
+
 	// GPS: /world/$WORLD/model/$MODEL/link/gps1_link/sensor/gps/navsat
 	std::string gps_topic = "/world/" + _world_name + "/model/" + _model_name + "/link/gps1_link/sensor/gps/navsat";
 
@@ -425,6 +433,49 @@ void GZBridge::imuCallback(const gz::msgs::IMU &imu)
 	sensor_gyro.temperature = NAN;
 	sensor_gyro.samples = 1;
 	_sensor_gyro_pub.publish(sensor_gyro);
+
+	pthread_mutex_unlock(&_mutex);
+}
+
+void GZBridge::magnetometerCallback(const gz::msgs::Magnetometer &magnetometer)
+{
+	if (hrt_absolute_time() == 0) {
+		return;
+	}
+
+	pthread_mutex_lock(&_mutex);
+
+	const uint64_t time_us = (magnetometer.header().stamp().sec() * 1000000) + (magnetometer.header().stamp().nsec() / 1000);
+
+	if (time_us > _world_time_us.load()) {
+		updateClock(magnetometer.header().stamp().sec(), magnetometer.header().stamp().nsec());
+	}
+
+	// FLU -> FRD
+	static const auto q_FLU_to_FRD = gz::math::Quaterniond(0, 1, 0, 0);
+
+	gz::math::Vector3d mag_b = q_FLU_to_FRD.RotateVector(gz::math::Vector3d(
+			magnetometer.field_tesla().x(),
+			magnetometer.field_tesla().y(),
+			magnetometer.field_tesla().z()));
+
+	// publish mag
+	sensor_mag_s sensor_mag{};
+#if defined(ENABLE_LOCKSTEP_SCHEDULER)
+	sensor_mag.timestamp_sample = time_us;
+	sensor_mag.timestamp = time_us;
+#else
+	sensor_mag.timestamp_sample = hrt_absolute_time();
+	sensor_mag.timestamp = hrt_absolute_time();
+#endif
+	sensor_mag.device_id = 197388; // 197388: DRV_MAG_DEVTYPE_MAGSIM, BUS: 1, ADDR: 1, TYPE: SIMULATION
+	sensor_mag.x = mag_b.X();
+	sensor_mag.y = mag_b.Y();
+	sensor_mag.z = mag_b.Z();
+	sensor_mag.temperature = NAN;
+	sensor_mag.error_count = 0;
+
+	_sensor_mag_pub.publish(sensor_mag);
 
 	pthread_mutex_unlock(&_mutex);
 }
