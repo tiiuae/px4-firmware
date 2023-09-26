@@ -90,7 +90,7 @@ public:
 	 *         -1 if not enough space in the buffer left (file backend), -2 mavlink backend failed
 	 *  add type -> pass through, but not to mavlink if mission log
 	 */
-	int write_message(LogType type, void *ptr, size_t size, uint64_t dropout_start = 0);
+	int write_message(LogType type, void *ptr, size_t size, uint64_t dropout_start = 0, bool acked = false);
 
 	/**
 	 * Select a backend, so that future calls to write_message() only write to the selected
