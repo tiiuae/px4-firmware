@@ -154,8 +154,9 @@ int GZBridge::init()
 		return PX4_ERROR;
 	}
 
-		// MAG: /world/$WORLD/model/$MODEL/link/base_link/sensor/magnetometer_sensor/magnetometer
-	std::string mag_topic = "/world/" + _world_name + "/model/" + _model_name + "/link/base_link/sensor/magnetometer_sensor/magnetometer";
+	// MAG: /world/$WORLD/model/$MODEL/link/base_link/sensor/magnetometer_sensor/magnetometer
+	std::string mag_topic = "/world/" + _world_name + "/model/" + _model_name +
+				"/link/base_link/sensor/magnetometer_sensor/magnetometer";
 
 	if (!_node.Subscribe(mag_topic, &GZBridge::magnetometerCallback, this)) {
 		PX4_ERR("failed to subscribe to %s", mag_topic.c_str());
@@ -169,6 +170,27 @@ int GZBridge::init()
 		PX4_ERR("failed to subscribe to %s", gps_topic.c_str());
 		return PX4_ERROR;
 	}
+
+	// Air pressure: /world/$WORLD/model/$MODEL/link/base_link/sensor/air_pressure_sensor/air_pressure
+	std::string air_pressure_topic = "/world/" + _world_name + "/model/" + _model_name +
+					 "/link/base_link/sensor/air_pressure_sensor/air_pressure";
+
+	if (!_node.Subscribe(air_pressure_topic, &GZBridge::barometerCallback, this)) {
+		PX4_ERR("failed to subscribe to %s", air_pressure_topic.c_str());
+		return PX4_ERROR;
+	}
+
+#if 0
+	// Airspeed: /world/$WORLD/model/$MODEL/link/airspeed_link/sensor/air_speed/air_speed
+	std::string airpressure_topic = "/world/" + _world_name + "/model/" + _model_name +
+					"/link/airspeed_link/sensor/air_speed/air_speed";
+
+	if (!_node.Subscribe(airpressure_topic, &GZBridge::airspeedCallback, this)) {
+		PX4_ERR("failed to subscribe to %s", airpressure_topic.c_str());
+		return PX4_ERROR;
+	}
+
+#endif
 
 	// ESC feedback: /x500/command/motor_speed
 	if (_vehicle_type != "rover") {
@@ -445,7 +467,8 @@ void GZBridge::magnetometerCallback(const gz::msgs::Magnetometer &magnetometer)
 
 	pthread_mutex_lock(&_mutex);
 
-	const uint64_t time_us = (magnetometer.header().stamp().sec() * 1000000) + (magnetometer.header().stamp().nsec() / 1000);
+	const uint64_t time_us = (magnetometer.header().stamp().sec() * 1000000) + (magnetometer.header().stamp().nsec() /
+				 1000);
 
 	if (time_us > _world_time_us.load()) {
 		updateClock(magnetometer.header().stamp().sec(), magnetometer.header().stamp().nsec());
@@ -455,9 +478,9 @@ void GZBridge::magnetometerCallback(const gz::msgs::Magnetometer &magnetometer)
 	static const auto q_FLU_to_FRD = gz::math::Quaterniond(0, 1, 0, 0);
 
 	gz::math::Vector3d mag_b = q_FLU_to_FRD.RotateVector(gz::math::Vector3d(
-			magnetometer.field_tesla().x(),
-			magnetometer.field_tesla().y(),
-			magnetometer.field_tesla().z()));
+					   magnetometer.field_tesla().x(),
+					   magnetometer.field_tesla().y(),
+					   magnetometer.field_tesla().z()));
 
 	// publish mag
 	sensor_mag_s sensor_mag{};
@@ -554,6 +577,57 @@ void GZBridge::gpsCallback(const gz::msgs::NavSat &gps)
 
 	pthread_mutex_unlock(&_mutex);
 }
+
+void GZBridge::barometerCallback(const gz::msgs::FluidPressure &air_pressure)
+{
+	if (hrt_absolute_time() == 0) {
+		return;
+	}
+
+	pthread_mutex_lock(&_mutex);
+
+	const uint64_t time_us = (air_pressure.header().stamp().sec() * 1000000)
+				 + (air_pressure.header().stamp().nsec() / 1000);
+
+	// publish
+	sensor_baro_s sensor_baro{};
+	sensor_baro.timestamp_sample = time_us;
+	sensor_baro.device_id = 6620172; // 6620172: DRV_BARO_DEVTYPE_BAROSIM, BUS: 1, ADDR: 4, TYPE: SIMULATION
+	sensor_baro.pressure = air_pressure.pressure();
+	sensor_baro.temperature = this->_temperature;
+	sensor_baro.timestamp = hrt_absolute_time();
+	_sensor_baro_pub.publish(sensor_baro);
+
+	pthread_mutex_unlock(&_mutex);
+}
+
+#if 0
+void GZBridge::airspeedCallback(const gz::msgs::AirSpeedSensor &air_speed)
+{
+	if (hrt_absolute_time() == 0) {
+		return;
+	}
+
+	pthread_mutex_lock(&_mutex);
+
+	const uint64_t time_us = (air_speed.header().stamp().sec() * 1000000)
+				 + (air_speed.header().stamp().nsec() / 1000);
+
+	double air_speed_value = air_speed.diff_pressure();
+
+	differential_pressure_s report{};
+	report.timestamp_sample = time_us;
+	report.device_id = 1377548; // 1377548: DRV_DIFF_PRESS_DEVTYPE_SIM, BUS: 1, ADDR: 5, TYPE: SIMULATION
+	report.differential_pressure_pa = static_cast<float>(air_speed_value); // hPa to Pa;
+	report.temperature = static_cast<float>(air_speed.temperature()) + CONSTANTS_ABSOLUTE_NULL_CELSIUS; // K to C
+	report.timestamp = hrt_absolute_time();;
+	_differential_pressure_pub.publish(report);
+
+	this->_temperature = report.temperature;
+
+	pthread_mutex_unlock(&_mutex);
+}
+#endif
 
 void GZBridge::poseInfoCallback(const gz::msgs::Pose_V &pose)
 {

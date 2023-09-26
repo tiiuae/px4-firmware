@@ -46,10 +46,12 @@
 #include <uORB/SubscriptionInterval.hpp>
 #include <uORB/topics/esc_status.h>
 #include <uORB/topics/parameter_update.h>
+#include <uORB/topics/differential_pressure.h>
 #include <uORB/topics/sensor_accel.h>
 #include <uORB/topics/sensor_gyro.h>
 #include <uORB/topics/sensor_mag.h>
 #include <uORB/topics/sensor_gps.h>
+#include <uORB/topics/sensor_baro.h>
 #include <uORB/topics/vehicle_angular_velocity.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_global_position.h>
@@ -60,6 +62,7 @@
 #include <gz/transport.hh>
 #include <gz/math.hh>
 #include <gz/msgs/imu.pb.h>
+#include <gz/msgs/fluid_pressure.pb.h>
 
 using namespace time_literals;
 
@@ -98,6 +101,8 @@ private:
 	void imuCallback(const gz::msgs::IMU &imu);
 	void magnetometerCallback(const gz::msgs::Magnetometer &mag);
 	void gpsCallback(const gz::msgs::NavSat &gps);
+	void barometerCallback(const gz::msgs::FluidPressure &air_pressure);
+
 	void poseInfoCallback(const gz::msgs::Pose_V &pose);
 	void motorSpeedCallback(const gz::msgs::Actuators &actuators);
 	void updateCmdVel();
@@ -111,11 +116,14 @@ private:
 	uORB::Publication<vehicle_attitude_s>         _attitude_ground_truth_pub{ORB_ID(vehicle_attitude_groundtruth)};
 	uORB::Publication<vehicle_global_position_s>  _gpos_ground_truth_pub{ORB_ID(vehicle_global_position_groundtruth)};
 	uORB::Publication<vehicle_local_position_s>   _lpos_ground_truth_pub{ORB_ID(vehicle_local_position_groundtruth)};
+	//uORB::Publication<differential_pressure_s>    _differential_pressure_pub{ORB_ID(differential_pressure)};
 
 	uORB::PublicationMulti<sensor_accel_s> _sensor_accel_pub{ORB_ID(sensor_accel)};
 	uORB::PublicationMulti<sensor_gyro_s>  _sensor_gyro_pub{ORB_ID(sensor_gyro)};
 	uORB::PublicationMulti<sensor_mag_s>  _sensor_mag_pub{ORB_ID(sensor_mag)};
 	uORB::PublicationMulti<sensor_gps_s>  _sensor_gps_pub{ORB_ID(sensor_gps)};
+	uORB::PublicationMulti<sensor_baro_s> _sensor_baro_pub{ORB_ID(sensor_baro)};
+
 
 	px4::atomic<uint64_t> _world_time_us{0};
 
@@ -135,6 +143,8 @@ private:
 	const std::string _model_pose;
 
 	MixingOutput _mixing_output{"SIM_GZ", 8, *this, MixingOutput::SchedulingPolicy::Auto, false, false};
+
+	float _temperature{288.15};  // 15 degrees
 
 	gz::transport::Node _node;
 	gz::transport::Node::Publisher _actuators_pub;
