@@ -36,6 +36,7 @@
 #include <stdint.h>
 #include <uORB/Publication.hpp>
 #include <uORB/topics/ulog_stream.h>
+#include <uORB/topics/ulog_stream_acked.h>
 #include <uORB/topics/ulog_stream_ack.h>
 
 namespace px4
@@ -62,7 +63,7 @@ public:
 	bool is_started() const { return _is_started; }
 
 	/** @see LogWriter::write_message() */
-	int write_message(void *ptr, size_t size);
+	int write_message(void *ptr, size_t size, bool acked = false);
 
 	void set_need_reliable_transfer(bool need_reliable);
 
@@ -74,10 +75,12 @@ public:
 private:
 
 	/** publish message, wait for ack if needed & reset message */
-	int publish_message();
+	int publish_message(bool acked);
 
 	ulog_stream_s _ulog_stream_data{};
+	ulog_stream_s _ulog_stream_acked_data{};
 	uORB::Publication<ulog_stream_s> _ulog_stream_pub{ORB_ID(ulog_stream)};
+	uORB::Publication<ulog_stream_s> _ulog_stream_acked_pub{ORB_ID(ulog_stream_acked)};
 	orb_sub_t _ulog_stream_ack_sub{ORB_SUB_INVALID};
 	bool _need_reliable_transfer{false};
 	bool _is_started{false};
