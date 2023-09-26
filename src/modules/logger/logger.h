@@ -173,13 +173,13 @@ private:
 	/**
 	 * Write an ADD_LOGGED_MSG to the log for a all current subscriptions and instances
 	 */
-	void write_all_add_logged_msg(LogType type);
+	void write_all_add_logged_msg(LogType type, bool acked = false);
 
 	/**
 	 * Write an ADD_LOGGED_MSG to the log for a given subscription and instance.
 	 * _writer.lock() must be held when calling this.
 	 */
-	void write_add_logged_msg(LogType type, LoggerSubscription &subscription);
+	void write_add_logged_msg(LogType type, LoggerSubscription &subscription, bool acked = false);
 
 	/**
 	 * Create logging directory
@@ -204,6 +204,16 @@ private:
 
 	void stop_log_mavlink();
 
+#ifdef LOGGER_PARALLEL_LOGGING
+	/**
+	 * Run in separate thread to continue data logging while sending header&descriptions
+	 */
+	void mav_start_steps();
+
+	static void *mav_start_steps_helper(void *);
+	pthread_t _mav_start_thread = 0;
+#endif
+
 	/** check if mavlink logging can be started */
 	bool can_start_mavlink_log() const
 	{
@@ -217,25 +227,25 @@ private:
 	/**
 	 * write the file header with file magic and timestamp.
 	 */
-	void write_header(LogType type);
+	void write_header(LogType type, bool acked = false);
 
 	/// Array to store written formats for nested definitions (only)
 	using WrittenFormats = Array < const orb_metadata *, 20 >;
 
 	void write_format(LogType type, const orb_metadata &meta, WrittenFormats &written_formats, ulog_message_format_s &msg,
-			  int subscription_index, int level = 1);
-	void write_formats(LogType type);
+			  int subscription_index, int level = 1, bool acked = false);
+	void write_formats(LogType type, bool acked = false);
 
 	/**
 	 * write performance counters
 	 * @param preflight preflight if true, postflight otherwise
 	 */
-	void write_perf_data(bool preflight);
+	void write_perf_data(bool preflight, bool acked = false);
 
 	/**
 	 * write bootup console output
 	 */
-	void write_console_output();
+	void write_console_output(bool acked = false);
 
 	/**
 	 * callback to write the performance counters
@@ -247,25 +257,25 @@ private:
 	 */
 	static void print_load_callback(void *user);
 
-	void write_version(LogType type);
+	void write_version(LogType type, bool acked = false);
 
-	void write_excluded_optional_topics(LogType type);
+	void write_excluded_optional_topics(LogType type, bool acked = false);
 
-	void write_info(LogType type, const char *name, const char *value);
-	void write_info_multiple(LogType type, const char *name, const char *value, bool is_continued);
-	void write_info_multiple(LogType type, const char *name, int fd);
-	void write_info(LogType type, const char *name, int32_t value);
-	void write_info(LogType type, const char *name, uint32_t value);
+	void write_info(LogType type, const char *name, const char *value, bool acked = false);
+	void write_info_multiple(LogType type, const char *name, const char *value, bool is_continued, bool acked = false);
+	void write_info_multiple(LogType type, const char *name, int fd, bool acked = false);
+	void write_info(LogType type, const char *name, int32_t value, bool acked = false);
+	void write_info(LogType type, const char *name, uint32_t value, bool acked = false);
 
 	/** generic common template method for write_info variants */
 	template<typename T>
-	void write_info_template(LogType type, const char *name, T value, const char *type_str);
+	void write_info_template(LogType type, const char *name, T value, const char *type_str, bool acked = false);
 
-	void write_parameters(LogType type);
-	void write_parameter_defaults(LogType type);
+	void write_parameters(LogType type, bool acked = false);
+	void write_parameter_defaults(LogType type, bool acked = false);
 
 	void write_changed_parameters(LogType type);
-	void write_events_file(LogType type);
+	void write_events_file(LogType type, bool acked = false);
 
 	inline bool copy_if_updated(int sub_idx, void *buffer, bool try_to_subscribe);
 
@@ -274,7 +284,7 @@ private:
 	 * Must be called with _writer.lock() held.
 	 * @return true if data written, false otherwise (on overflow)
 	 */
-	bool write_message(LogType type, void *ptr, size_t size);
+	bool write_message(LogType type, void *ptr, size_t size, bool acked = false);
 
 	/**
 	 * Add topic subscriptions from SD file if it exists, otherwise add topics based on the configured profile.
