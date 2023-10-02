@@ -543,23 +543,22 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 	} else {
 		const unsigned current_generation = _generation.load();
 
-		if (current_generation > generation + _queue_size) {
-			// Reader is too far behind: some messages are lost
-			generation = current_generation - _queue_size;
-		}
-
-		if ((current_generation == generation) && (generation > 0)) {
+		if (current_generation == generation) {
 			/* The subscriber already read the latest message, but nothing new was published yet.
 			 * Return the previous message
 			 */
 			--generation;
 		}
 
+		/* Compatible with normal and overflow conditions */
+		if (current_generation - generation > _queue_size) {
+			/* Reader is too far behind: some messages are lost */
+			generation = current_generation - _queue_size;
+		}
+
 		memcpy(dst, ((uint8_t *)node_data(handle)) + (o_size * (generation % _queue_size)), o_size);
 
-		if (generation < current_generation) {
-			++generation;
-		}
+		++generation;
 	}
 
 	ATOMIC_LEAVE;
