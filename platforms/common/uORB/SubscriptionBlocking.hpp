@@ -129,7 +129,7 @@ public:
 
 				// Calculate an absolute time in the future
 				struct timespec ts;
-#if defined(ENABLE_LOCKSTEP_SCHEDULER)
+#if defined(CONFIG_ARCH_BOARD_PX4_SITL)
 				px4_clock_gettime(CLOCK_MONOTONIC, &ts);
 #else
 				px4_clock_gettime(CLOCK_REALTIME, &ts);
