@@ -39,6 +39,7 @@
 #include <px4_platform_common/log.h>
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform/board_determine_hw_info.h>
+#include <px4_arch/device_info.h>
 #include <stdint.h>
 
 #include <board_config.h>
@@ -73,6 +74,8 @@ static unsigned fpga_version_minor;
 static char hw_info[HW_INFO_SIZE] = {0};
 
 static mfguid_t device_serial_number = { 0 };
+
+devinfo_t device_info __attribute__((section(".deviceinfo")));
 
 static void determine_hw(void);
 
@@ -123,6 +126,11 @@ int board_mcu_version(char *rev, const char **revstr, const char **errata)
 	}
 
 	return hw_version;
+}
+
+const char *board_bl_version_string(void)
+{
+	return device_info.bl_version;
 }
 
 int board_get_px4_guid(px4_guid_t px4_guid)
