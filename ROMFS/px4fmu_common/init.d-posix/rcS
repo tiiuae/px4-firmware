@@ -306,7 +306,7 @@ then
 	uxrce_dds_port="$PX4_UXRCE_DDS_PORT"
 fi
 
-microdds_client start -t udp -h 127.0.0.1 -r 2019 -p 2020 $microdds_ns
+uxrce_dds_client start -t udp -h 127.0.0.1 -r 2019 -p 2020 $microdds_ns
 
 if param greater -s MNT_MODE_IN -1
 then
