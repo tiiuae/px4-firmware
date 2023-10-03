@@ -33,7 +33,7 @@
 
 #pragma once
 
-#include <image_toc.h>
+#define IMAGE_NUM_TYPES 4
 
 typedef struct __attribute__((__packed__))
 {
