@@ -49,7 +49,13 @@
 #define arraySize(a) (sizeof((a))/sizeof(((a)[0])))
 #endif
 
-#define HW_INFO_SIZE (int) arraySize(HW_INFO_INIT_PREFIX) + HW_INFO_VER_DIGITS + HW_INFO_REV_DIGITS
+#define HW_INFO_FPGA_PREFIX          " FPGA: "
+#define HW_INFO_FPGA_SUFFIX          "%u.%u"
+#define HW_INFO_FPGA_VER_DIGITS      3
+#define HW_INFO_FPGA_REV_DIGITS      5
+
+#define HW_INFO_SIZE (int) arraySize(HW_INFO_INIT_PREFIX) + HW_INFO_VER_DIGITS + HW_INFO_REV_DIGITS + sizeof(HW_INFO_FPGA_PREFIX) + HW_INFO_FPGA_VER_DIGITS + HW_INFO_FPGA_REV_DIGITS
+#define FPGA_VER_REGISTER          0x42000000
 #define MPFS_SYS_SERVICE_CR        0x37020050
 #define MPFS_SYS_SERVICE_SR        0x37020054
 #define MPFS_SYS_SERVICE_MAILBOX   0x37020800
@@ -60,8 +66,10 @@
 #define getreg32(a)                (*(volatile uint32_t *)(a))
 #define putreg32(v,a)              (*(volatile uint32_t *)(a) = (v))
 
-static int hw_version = 0;
-static int hw_revision = 0;
+static unsigned hw_version = 0;
+static unsigned hw_revision = 0;
+static unsigned fpga_version_major;
+static unsigned fpga_version_minor;
 static char hw_info[HW_INFO_SIZE] = {0};
 
 static mfguid_t device_serial_number = { 0 };
@@ -106,7 +114,7 @@ int board_mcu_version(char *rev, const char **revstr, const char **errata)
 		const char *errata;
 	} hw_version_table[] = BOARD_REVISIONS;
 
-	int len = sizeof(hw_version_table) / sizeof(hw_version_table[0]);
+	unsigned len = sizeof(hw_version_table) / sizeof(hw_version_table[0]);
 
 	if (hw_version < len) {
 		*rev = hw_version_table[hw_version].rev;
@@ -173,31 +181,21 @@ int board_determine_hw_info(void)
 {
 	determine_hw();
 
-	snprintf(hw_info, sizeof(hw_info), HW_INFO_INIT_PREFIX HW_INFO_SUFFIX, hw_version, hw_revision);
+	snprintf(hw_info, sizeof(hw_info), HW_INFO_INIT_PREFIX HW_INFO_SUFFIX HW_INFO_FPGA_PREFIX HW_INFO_FPGA_SUFFIX,
+		 hw_version, hw_revision, fpga_version_major, fpga_version_minor);
 
 	return OK;
 }
 
 void determine_hw(void)
 {
-	uint8_t pin1, pin2, pin3;
-
 	/* read device serial number */
 	mpfs_read_dsn(device_serial_number, sizeof(device_serial_number));
 
-	/* determine hw version number */
-	px4_arch_configgpio(GPIO_HW_VERSION_PIN1);
-	px4_arch_configgpio(GPIO_HW_VERSION_PIN2);
-	px4_arch_configgpio(GPIO_HW_VERSION_PIN3);
-
-	/* wait pins to set */
-	usleep(5);
-
-	pin1 = px4_arch_gpioread(GPIO_HW_VERSION_PIN1);
-	pin2 = px4_arch_gpioread(GPIO_HW_VERSION_PIN2);
-	pin3 = px4_arch_gpioread(GPIO_HW_VERSION_PIN3);
-
-	hw_version = (pin3 << 2) | (pin2 << 1) | pin1;
+	uint32_t fpga_version_reg = getreg32(FPGA_VER_REGISTER);
+	fpga_version_major = (fpga_version_reg >> 8) & 0xff;
+	fpga_version_minor = (fpga_version_reg >> 16) & 0xffff;
+	hw_version = fpga_version_reg & 0x3f;
 
 #ifdef BOARD_HAS_MULTIPURPOSE_VERSION_PINS
 	/* NOTE: utilizes same GPIOs as LEDs. Restore GPIO pin configuration */
@@ -205,7 +203,6 @@ void determine_hw(void)
 	px4_arch_configgpio(GPIO_nLED_GREEN);
 	px4_arch_configgpio(GPIO_nLED_BLUE);
 #endif
-
 }
 
 int board_get_mfguid(mfguid_t mfgid)
