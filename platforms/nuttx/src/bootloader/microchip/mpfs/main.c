@@ -44,6 +44,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <debug.h>
+#include <stdio.h>
 
 #include "hw_config.h"
 #include "board_type.h"
@@ -57,6 +58,8 @@
 #include <nuttx/board.h>
 
 #include <mpfs_entrypoints.h>
+
+#include <px4_arch/device_info.h>
 
 #include "image_toc.h"
 #include "crypto.h"
@@ -162,6 +165,8 @@ static bool g_led_state[3];
 
 /* State of an inserted USB cable */
 static bool usb_connected = false;
+
+devinfo_t device_info __attribute__((section(".deviceinfo")));
 
 /* PX4 image TOC 'reserved' field for vendor specific info_bits
  * Bit 0 marks for whether SBI should be used or not
@@ -941,7 +946,8 @@ bootloader_main(int argc, char *argv[])
 {
 	unsigned timeout = BOOTLOADER_DELAY;	 /* if nonzero, drop out of the bootloader after this time */
 	bool try_boot;
-	_alert("Version: %s\n", VERSION);
+	snprintf(device_info.bl_version, sizeof(device_info.bl_version), VERSION);
+	_alert("Version: %s\n", device_info.bl_version);
 
 	/* do board-specific initialisation */
 	board_init();
