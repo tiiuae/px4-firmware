@@ -200,7 +200,7 @@ void RoverInterface::Run()
 	ActionRequestUpdate();
 
 	// Check for actuator controls command to rover
-	if (!_kill_switch && _armed) { ActuatorControlsUpdate(); }
+	if (!_kill_switch && _armed) { VehicleTorqueAndThrustUpdate(); }
 
 	// Check for vehicle control mode
 	VehicleControlModeUpdate();
@@ -219,17 +219,34 @@ void RoverInterface::Run()
 }
 
 
-void RoverInterface::ActuatorControlsUpdate()
+void RoverInterface::VehicleTorqueAndThrustUpdate()
 {
-	if (_actuator_controls_sub.updated()) {
-		actuator_controls_s actuator_controls_msg;
+	bool do_update = false;
 
-		if (_actuator_controls_sub.copy(&actuator_controls_msg)) {
-			auto throttle = (_is_manual_mode ? _manual_throttle_max : _mission_throttle_max) *
-					actuator_controls_msg.control[actuator_controls_s::INDEX_THROTTLE];
-			auto steering = actuator_controls_msg.control[actuator_controls_s::INDEX_YAW];
-			_scout->SetMotionCommand(throttle, steering);
+	// Check torque setppoint update
+	if (_vehicle_torque_setpoint_sub.updated()) {
+		vehicle_torque_setpoint_s vehicle_torque_setpoint_msg;
+
+		if (_vehicle_torque_setpoint_sub.copy(&vehicle_torque_setpoint_msg)) {
+			_yaw_control = vehicle_torque_setpoint_msg.xyz[2];
+			do_update = true;
 		}
+	}
+
+	// Check thrust setpoint update
+	if (_vehicle_thrust_setpoint_sub.updated()) {
+		vehicle_thrust_setpoint_s vehicle_thrust_setpoint_msg;
+
+		if (_vehicle_thrust_setpoint_sub.copy(&vehicle_thrust_setpoint_msg)) {
+			_throttle_control = vehicle_thrust_setpoint_msg.xyz[0];
+			do_update = true;
+		}
+	}
+
+	if (do_update) {
+		auto throttle = (_is_manual_mode ? _manual_throttle_max : _mission_throttle_max) * _throttle_control;
+		auto steering = _yaw_control;
+		_scout->SetMotionCommand(throttle, steering);
 	}
 }
 
@@ -340,8 +357,9 @@ void RoverInterface::print_status()
 	PX4_INFO("Rover is armed: %s. Kill switch: %s", _armed ? "true" : "false", _kill_switch ? "true" : "false");
 
 	// Subscription info
-	PX4_INFO("Subscribed to topics: %s, %s",
-		 _actuator_controls_sub.get_topic()->o_name,
+	PX4_INFO("Subscribed to topics: %s, %s, %s",
+		 _vehicle_thrust_setpoint_sub.get_topic()->o_name,
+		 _vehicle_torque_setpoint_sub.get_topic()->o_name,
 		 _actuator_armed_sub.get_topic()->o_name);
 
 	// Publication info

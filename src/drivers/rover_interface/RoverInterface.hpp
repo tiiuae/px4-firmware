@@ -11,7 +11,8 @@
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionInterval.hpp>
 #include <uORB/Publication.hpp>
-#include <uORB/topics/actuator_controls.h>
+#include <uORB/topics/vehicle_thrust_setpoint.h>
+#include <uORB/topics/vehicle_torque_setpoint.h>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/action_request.h>
 #include <uORB/topics/rover_status.h>
@@ -33,7 +34,7 @@ class RoverInterface : public ModuleParams, public px4::ScheduledWorkItem
 
 	static constexpr uint64_t SystemVersionQueryLimitMs{10_ms};
 
-	static constexpr uint64_t ActuatorControlSubIntervalMs{50_ms};
+	static constexpr uint64_t ControlSubIntervalMs{50_ms};
 
 public:
 	static const char *const CAN_IFACE;
@@ -51,7 +52,7 @@ private:
 	void Init();
 	void Run() override;
 
-	void ActuatorControlsUpdate();
+	void VehicleTorqueAndThrustUpdate();
 	void ActuatorArmedUpdate();
 	void ActionRequestUpdate();
 	void VehicleControlModeUpdate();
@@ -82,6 +83,10 @@ private:
 
 	float _mission_throttle_max;
 
+	float _throttle_control;
+
+	float _yaw_control;
+
 	scoutsdk::ProtocolVersion _protocol_version{scoutsdk::ProtocolVersion::AGX_V2};
 
 	const char *_can_iface{nullptr};
@@ -89,8 +94,9 @@ private:
 	scoutsdk::ScoutRobot *_scout{nullptr};
 
 	// Subscription
-	uORB::SubscriptionInterval _actuator_controls_sub{ORB_ID(actuator_controls_0), ActuatorControlSubIntervalMs};
-	uORB::SubscriptionInterval _actuator_armed_sub{ORB_ID(actuator_armed)};
+	uORB::SubscriptionInterval _vehicle_thrust_setpoint_sub{ORB_ID(vehicle_thrust_setpoint), ControlSubIntervalMs};
+	uORB::SubscriptionInterval _vehicle_torque_setpoint_sub{ORB_ID(vehicle_torque_setpoint), ControlSubIntervalMs};
+	uORB::Subscription _actuator_armed_sub{ORB_ID(actuator_armed)};
 	uORB::Subscription _action_request_sub{ORB_ID(action_request)};
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 
