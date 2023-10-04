@@ -155,30 +155,12 @@ int GZBridge::init()
 		return PX4_ERROR;
 	}
 
-	// IMU: /world/$WORLD/model/$MODEL/link/base_link/sensor/imu_sensor/imu
+	// Odometry: /world/$WORLD/model/$MODEL/odometry_with_covariance
 	std::string odometry_topic = "/model/" + _model_name + "/odometry_with_covariance";
 
 	if (!_node.Subscribe(odometry_topic, &GZBridge::odometryCallback, this)) {
 		PX4_ERR("failed to subscribe to %s", odometry_topic.c_str());
 		return PX4_ERROR;
-	}
-
-	// GPS: /world/$WORLD/model/$MODEL/link/gps1_link/sensor/gps/navsat
-	std::string gps_topic = "/world/" + _world_name + "/model/" + _model_name + "/link/gps1_link/sensor/gps/navsat";
-
-	if (!_node.Subscribe(gps_topic, &GZBridge::gpsCallback, this)) {
-		PX4_ERR("failed to subscribe to %s", gps_topic.c_str());
-		return PX4_ERROR;
-	}
-
-	// ESC feedback: /x500/command/motor_speed
-	if (_vehicle_type != "rover") {
-		std::string motor_speed_topic = "/" + _model_name + "/command/motor_speed";
-
-		if (!_node.Subscribe(motor_speed_topic, &GZBridge::motorSpeedCallback, this)) {
-			PX4_ERR("failed to subscribe to %s", motor_speed_topic.c_str());
-			return PX4_ERROR;
-		}
 	}
 
 	// output (rover vehicle type) eg /model/$MODEL_NAME/cmd_vel
@@ -191,15 +173,6 @@ int GZBridge::init()
 			return PX4_ERROR;
 		}
 
-	} else {
-		// output (other vehicle types) eg%5 /X500/command/motor_speed
-		std::string actuator_topic = "/" + _model_name + "/command/motor_speed";
-		_actuators_pub = _node.Advertise<gz::msgs::Actuators>(actuator_topic);
-
-		if (!_actuators_pub.Valid()) {
-			PX4_ERR("failed to advertise %s", actuator_topic.c_str());
-			return PX4_ERROR;
-		}
 	}
 
 #if 0
@@ -515,81 +488,6 @@ void GZBridge::imuCallback(const gz::msgs::IMU &imu)
 	pthread_mutex_unlock(&_node_mutex);
 }
 
-void GZBridge::gpsCallback(const gz::msgs::NavSat &gps)
-{
-	if (hrt_absolute_time() == 0) {
-		return;
-	}
-
-	pthread_mutex_lock(&_mutex);
-
-	const uint64_t time_us = (gps.header().stamp().sec() * 1000000) + (gps.header().stamp().nsec() / 1000);
-
-	if (time_us > _world_time_us.load()) {
-		updateClock(gps.header().stamp().sec(), gps.header().stamp().nsec());
-	}
-
-	// device id
-	device::Device::DeviceId device_id;
-	device_id.devid_s.bus_type = device::Device::DeviceBusType::DeviceBusType_SIMULATION;
-	device_id.devid_s.bus = 0;
-	device_id.devid_s.address = 0;
-	device_id.devid_s.devtype = DRV_GPS_DEVTYPE_SIM;
-
-	// publish gps
-	sensor_gps_s sensor_gps{};
-#if defined(ENABLE_LOCKSTEP_SCHEDULER)
-	sensor_gps.timestamp_sample = time_us;
-	sensor_gps.timestamp = time_us;
-#else
-	sensor_gps.timestamp_sample = hrt_absolute_time();
-	sensor_gps.timestamp = hrt_absolute_time();
-#endif
-
-	sensor_gps.device_id = device_id.devid;
-
-	sensor_gps.lat = roundf(gps.latitude_deg() * 1e7); // Latitude in 1E-7 degrees
-	sensor_gps.lon = roundf(gps.longitude_deg() * 1e7); // Longitude in 1E-7 degrees
-	sensor_gps.alt = roundf(static_cast<float>(gps.altitude()) *
-				1000.f); // Altitude in 1E-3 meters above MSL, (millimetres)
-	sensor_gps.alt_ellipsoid = sensor_gps.alt;
-
-	sensor_gps.s_variance_m_s = 0.5f;
-	sensor_gps.c_variance_rad = 0.1f;
-
-	sensor_gps.fix_type = 3; // 3D fix
-
-	sensor_gps.eph = 0.9f;
-	sensor_gps.epv = 1.78f;
-	sensor_gps.hdop = 0.7f;
-	sensor_gps.vdop = 1.1f;
-
-	sensor_gps.noise_per_ms = 0;
-	sensor_gps.automatic_gain_control = 0;
-	sensor_gps.jamming_state = 0;
-	sensor_gps.jamming_indicator = 0;
-
-	sensor_gps.vel_m_s = sqrtf(gps.velocity_east() * gps.velocity_east() +
-				   gps.velocity_north() * gps.velocity_north());
-	sensor_gps.vel_n_m_s = gps.velocity_north();
-	sensor_gps.vel_e_m_s = gps.velocity_east();
-	sensor_gps.vel_d_m_s = gps.velocity_up();
-	sensor_gps.cog_rad = atan2(gps.velocity_east(), gps.velocity_north());
-	sensor_gps.vel_ned_valid = true;
-	sensor_gps.timestamp_time_relative = 0;
-	sensor_gps.time_utc_usec = 0;
-
-	sensor_gps.satellites_used = 8;
-
-	sensor_gps.heading = 0.0f;
-	sensor_gps.heading_offset = NAN;
-	sensor_gps.heading_accuracy = 0;
-
-	_sensor_gps_pub.publish(sensor_gps);
-
-	pthread_mutex_unlock(&_mutex);
-}
-
 void GZBridge::poseInfoCallback(const gz::msgs::Pose_V &pose)
 {
 	if (hrt_absolute_time() == 0) {
@@ -793,21 +691,39 @@ void GZBridge::odometryCallback(const gz::msgs::OdometryWithCovariance &odometry
 
 void GZBridge::updateCmdVel()
 {
-	if (_actuator_controls_sub.updated()) {
-		actuator_controls_s actuator_controls_msg;
+	bool do_update = false;
 
-		if (_actuator_controls_sub.copy(&actuator_controls_msg)) {
-			auto throttle = actuator_controls_msg.control[actuator_controls_s::INDEX_THROTTLE];
-			auto steering = actuator_controls_msg.control[actuator_controls_s::INDEX_YAW];
+	// Check torque setppoint update
+	if (_vehicle_torque_setpoint_sub.updated()) {
+		vehicle_torque_setpoint_s vehicle_torque_setpoint_msg;
 
-			// publish cmd_vel
-			gz::msgs::Twist cmd_vel_message;
-			cmd_vel_message.mutable_linear()->set_x(throttle);
-			cmd_vel_message.mutable_angular()->set_z(steering);
+		if (_vehicle_torque_setpoint_sub.copy(&vehicle_torque_setpoint_msg)) {
+			_rover_yaw_control = vehicle_torque_setpoint_msg.xyz[2];
+			do_update = true;
+		}
+	}
 
-			if (_cmd_vel_pub.Valid()) {
-				_cmd_vel_pub.Publish(cmd_vel_message);
-			}
+	// Check thrust setpoint update
+	if (_vehicle_thrust_setpoint_sub.updated()) {
+		vehicle_thrust_setpoint_s vehicle_thrust_setpoint_msg;
+
+		if (_vehicle_thrust_setpoint_sub.copy(&vehicle_thrust_setpoint_msg)) {
+			_rover_throttle_control = vehicle_thrust_setpoint_msg.xyz[0];
+			do_update = true;
+		}
+	}
+
+	if (do_update) {
+		auto throttle = 1.0f * _rover_throttle_control;
+		auto steering = _rover_yaw_control;
+
+		// publish cmd_vel
+		gz::msgs::Twist cmd_vel_message;
+		cmd_vel_message.mutable_linear()->set_x(throttle);
+		cmd_vel_message.mutable_angular()->set_z(steering);
+
+		if (_cmd_vel_pub.Valid()) {
+			_cmd_vel_pub.Publish(cmd_vel_message);
 		}
 	}
 }
