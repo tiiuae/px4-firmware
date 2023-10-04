@@ -60,7 +60,7 @@ typedef void *uorb_cb_handle_t;
 #if defined(CONFIG_BUILD_KERNEL)
 #define MAX_EVENT_WAITERS 32
 #else
-#define MAX_EVENT_WAITERS 5
+#define MAX_EVENT_WAITERS 6
 #endif
 #define UORB_INVALID_CB_HANDLE -1
 typedef int8_t uorb_cb_handle_t;
