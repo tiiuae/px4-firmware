@@ -1,0 +1,137 @@
+#!/bin/sh
+#
+# @name SSRC PWM test frame
+#
+# @type Hexarotor x
+# @class Copter
+#
+# @maintainer Matias Soini <matias.soini@unikie.com>
+#
+# @board px4_fmu-v2 exclude
+# @board bitcraze_crazyflie exclude
+#
+
+. /etc/init.d/rc.mc_defaults
+
+param set-default MAV_TYPE 13
+
+set MIXER pwm_test
+set MIXER_AUX pwm_test
+set PWM_OUT 12345678
+
+param set-default SYS_CTRL_ALLOC 0
+
+param set-default RC_MAP_AUX1 6
+param set-default RC_MAP_AUX2 8
+
+# params for MAIN when using FMU (saluki v2)
+param set-default PWM_MAIN_MIN 901
+param set-default PWM_MAIN_MAX 1999
+param set-default PWM_MAIN_DISARM 903
+
+# params for MAIN when using PX4IO
+param set-default PWM_MAIN_MIN1 1001
+param set-default PWM_MAIN_MIN2 1002
+param set-default PWM_MAIN_MIN3 1003
+param set-default PWM_MAIN_MIN4 1004
+param set-default PWM_MAIN_MIN5 1005
+param set-default PWM_MAIN_MIN6 1006
+param set-default PWM_MAIN_MIN7 1007
+param set-default PWM_MAIN_MIN8 1008
+
+param set-default PWM_MAIN_MAX1 1999
+param set-default PWM_MAIN_MAX2 1998
+param set-default PWM_MAIN_MAX3 1997
+param set-default PWM_MAIN_MAX4 1996
+param set-default PWM_MAIN_MAX5 1995
+param set-default PWM_MAIN_MAX6 1994
+param set-default PWM_MAIN_MAX7 1993
+param set-default PWM_MAIN_MAX8 1992
+
+param set-default PWM_MAIN_DIS1 901
+param set-default PWM_MAIN_DIS2 902
+param set-default PWM_MAIN_DIS3 903
+param set-default PWM_MAIN_DIS4 904
+param set-default PWM_MAIN_DIS5 905
+param set-default PWM_MAIN_DIS6 906
+param set-default PWM_MAIN_DIS7 907
+param set-default PWM_MAIN_DIS8 908
+
+param set-default PWM_MAIN_REV 170
+
+param set-default PWM_MAIN_TRIM1 0.01
+param set-default PWM_MAIN_TRIM2 0.02
+param set-default PWM_MAIN_TRIM3 0.03
+param set-default PWM_MAIN_TRIM4 0.04
+param set-default PWM_MAIN_TRIM5 -0.05
+param set-default PWM_MAIN_TRIM6 -0.06
+param set-default PWM_MAIN_TRIM7 -0.07
+param set-default PWM_MAIN_TRIM8 -0.08
+
+param set-default PWM_MAIN_FAIL1 911
+param set-default PWM_MAIN_FAIL2 912
+param set-default PWM_MAIN_FAIL3 913
+param set-default PWM_MAIN_FAIL4 914
+param set-default PWM_MAIN_FAIL5 915
+param set-default PWM_MAIN_FAIL6 916
+param set-default PWM_MAIN_FAIL7 917
+param set-default PWM_MAIN_FAIL8 918
+
+param set-default PWM_MAIN_RATE 400
+
+
+# Known working ones for aux
+param set-default PWM_AUX_MIN 901
+param set-default PWM_AUX_MAX 1999
+param set-default PWM_AUX_DISARM 903
+param set-default PWM_AUX_RATE 400
+
+
+# To be fixed in the future
+param set-default PWM_AUX_MIN1 1001
+param set-default PWM_AUX_MIN2 1002
+param set-default PWM_AUX_MIN3 1003
+param set-default PWM_AUX_MIN4 1004
+param set-default PWM_AUX_MIN5 1005
+param set-default PWM_AUX_MIN6 1006
+param set-default PWM_AUX_MIN7 1007
+param set-default PWM_AUX_MIN8 1008
+
+param set-default PWM_AUX_MAX1 1999
+param set-default PWM_AUX_MAX2 1998
+param set-default PWM_AUX_MAX3 1997
+param set-default PWM_AUX_MAX4 1996
+param set-default PWM_AUX_MAX5 1995
+param set-default PWM_AUX_MAX6 1994
+param set-default PWM_AUX_MAX7 1993
+param set-default PWM_AUX_MAX8 1992
+
+param set-default PWM_AUX_DIS1 901
+param set-default PWM_AUX_DIS2 902
+param set-default PWM_AUX_DIS3 903
+param set-default PWM_AUX_DIS4 904
+param set-default PWM_AUX_DIS5 905
+param set-default PWM_AUX_DIS6 906
+param set-default PWM_AUX_DIS7 907
+param set-default PWM_AUX_DIS8 908
+
+param set-default PWM_AUX_REV 170
+
+param set-default PWM_AUX_TRIM1 0.01
+param set-default PWM_AUX_TRIM2 0.02
+param set-default PWM_AUX_TRIM3 0.03
+param set-default PWM_AUX_TRIM4 0.04
+param set-default PWM_AUX_TRIM5 -0.05
+param set-default PWM_AUX_TRIM6 -0.06
+param set-default PWM_AUX_TRIM7 -0.07
+param set-default PWM_AUX_TRIM8 -0.08
+
+param set-default PWM_AUX_FAIL1 911
+param set-default PWM_AUX_FAIL2 912
+param set-default PWM_AUX_FAIL3 913
+param set-default PWM_AUX_FAIL4 914
+param set-default PWM_AUX_FAIL5 915
+param set-default PWM_AUX_FAIL6 916
+param set-default PWM_AUX_FAIL7 917
+param set-default PWM_AUX_FAIL8 918
+
