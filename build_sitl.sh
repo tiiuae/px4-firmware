@@ -36,7 +36,6 @@ docker run \
     -v ${version} \
 
 mv px4_sitl_build-*.tar.gz   ${dest_dir}/
-mv px4_gazebo_data-*.tar.gz  ${dest_dir}/
 
 echo "Done"
 exit 0
