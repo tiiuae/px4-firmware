@@ -95,7 +95,7 @@ void RoverPositionControl::parameters_update(bool force)
 		_gnd_control.set_l1_period(_param_l1_period.get());
 		_gnd_control.set_l1_roll_limit(math::radians(0.0f));
 
-		pid_init(&_speed_ctrl, PID_MODE_DERIVATIV_CALC, 0.01f);
+		pid_init(&_speed_ctrl, PID_MODE_DERIVATIV_NONE, 0.01f);
 		pid_set_parameters(&_speed_ctrl,
 				   _param_speed_p.get(),
 				   _param_speed_i.get(),
@@ -337,7 +337,7 @@ RoverPositionControl::control_velocity(const matrix::Vector3f &current_velocity)
 	float dt = 0.01; // Using non zero value to a avoid division by zero
 
 	const float mission_throttle = _param_throttle_cruise.get();
-	const float desired_speed = desired_velocity.norm();
+	const float desired_speed = desired_velocity.norm() * _param_gndspeed_max.get();
 
 	if (desired_speed > 0.01f) {
 		const Dcmf R_to_body(Quatf(_vehicle_att.q).inversed());
@@ -346,10 +346,15 @@ RoverPositionControl::control_velocity(const matrix::Vector3f &current_velocity)
 		const float x_vel = vel(0);
 		const float x_acc = _vehicle_acceleration_sub.get().xyz[0];
 
-		const float control_throttle = pid_calculate(&_speed_ctrl, desired_speed, x_vel, x_acc, dt);
+		float control_throttle = pid_calculate(&_speed_ctrl, desired_speed, x_vel, x_acc, dt);
 
 		//Constrain maximum throttle to mission throttle
-		_act_controls.control[actuator_controls_s::INDEX_THROTTLE] = math::constrain(control_throttle, 0.0f, mission_throttle);
+		control_throttle = math::constrain(control_throttle, -mission_throttle, mission_throttle);
+
+		// Calculate the output linear speed
+		float output_speed = math::constrain(desired_speed - control_throttle, 0.0f, _param_gndspeed_max.get());
+
+		_act_controls.control[actuator_controls_s::INDEX_THROTTLE] = output_speed;
 
 		Vector3f desired_body_velocity;
 
