@@ -6,8 +6,8 @@ FROM ghcr.io/tiiuae/saluki-pi-fpga:$saluki_v2_version AS SALUKI_V2
 
 FROM python:alpine3.14
 
-COPY --from=SALUKI_PI /firmware/saluki_pi /firmware/fpga/saluki_pi
-COPY --from=SALUKI_V2 /firmware/saluki_v2 /firmware/fpga/saluki_v2
+COPY --from=SALUKI_PI /firmware/saluki_pi-fpga /firmware/fpga/saluki_pi
+COPY --from=SALUKI_V2 /firmware/saluki_v2-fpga /firmware/fpga/saluki_v2
 
 # run this with something like:
 #

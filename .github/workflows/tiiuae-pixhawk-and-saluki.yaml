@@ -11,6 +11,10 @@ permissions:
   contents: read
   packages: write
 
+env:
+  saluki_pi_fpga_version: "sha-8bad0c4"
+  saluki_v2_fpga_version: "sha-8bad0c4"
+
 jobs:
   fc_matrix:
     strategy:
@@ -212,5 +216,5 @@ jobs:
           tags: ${{ steps.containermeta.outputs.tags }}
           labels: ${{ steps.containermeta.outputs.labels }}
           build-args: |
-            "saluki_pi_version=sha-e17687d"
-            "saluki_v2_version=sha-e17687d"
+            "saluki_pi_version=${{ env.saluki_pi_fpga_version }}"
+            "saluki_v2_version=${{ env.saluki_v2_fpga_version }}"
