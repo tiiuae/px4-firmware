@@ -26,6 +26,9 @@ param set-default CA_SV_CS1_TRQ_R 0.5
 param set-default PWM_MAIN_FUNC1 201
 param set-default PWM_MAIN_FUNC2 202
 param set-default PWM_MAIN_FUNC4 101
+param set-default PWM_AUX_FUNC1 201
+param set-default PWM_AUX_FUNC2 202
+param set-default PWM_AUX_FUNC4 101
 
 # Airspeed parameters
 sdp3x start -X -f 400
