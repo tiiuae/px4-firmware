@@ -61,8 +61,5 @@ param set-default FW_MAN_R_MAX 60.0
 param set-default FW_RR_IMAX 0.4000
 param set-default FW_YR_IMAX 0.4000
 
-# NPFG
-param set-default FW_USE_NPFG 1
-
 # Misc
 param set-default RTL_RETURN_ALT 30.0
