@@ -45,8 +45,6 @@ px4_add_romfs_files(
 	2100_standard_plane
 	2106_albatross
 
-	2507_cloudship
-
 	# [3000, 3999] Flying wing"
 	3000_generic_wing
 
@@ -64,10 +62,10 @@ px4_add_romfs_files(
 	4052_holybro_qav250
 	4053_holybro_kopis2
 	4061_atl_mantis_edu
-	4071_ifo
-	4073_ifo-s
 	4400_ssrc_fog_x
 	4401_ssrc_fog_x_tmotor
+	4420_ssrc_arwing
+	4430_ssrc_strivermini
 	4500_clover4
 	4900_crazyflie
 	4901_crazyflie21
@@ -107,13 +105,6 @@ px4_add_romfs_files(
 
 	16001_helicopter
 
-	# [17000, 17999] Autogyro
-	17002_TF-AutoG2
-	17003_TF-G2
-
-	# [18000, 18999] High-altitude balloons
-	18001_TF-B1
-
 	# [22000, 22999] Reserve for custom models
 
 	24001_dodeca_cox
@@ -126,6 +117,5 @@ px4_add_romfs_files(
 
 	# [60000, 61000] (Unmanned) Underwater Robots
 	60000_uuv_generic
-	60001_uuv_hippocampus
-	60002_uuv_bluerov2_heavy
 )
+		
