@@ -183,6 +183,12 @@ private:
 
 	MixingOutput _mixing_output{PARAM_PREFIX, PWMESC_MAX_CHANNELS, *this, MixingOutput::SchedulingPolicy::Auto, true};
 
+	bool _pwm_min_configured{false};
+	bool _pwm_max_configured{false};
+	bool _pwm_fail_configured{false};
+	bool _pwm_dis_configured{false};
+	bool _pwm_rev_configured{false};
+
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1000000};
 
 	/* advertised topics */
@@ -531,43 +537,192 @@ void PWMESC::update_params()
 	int32_t _pwm_max_default = PWM_DEFAULT_MAX;
 	_pwm_disarmed_default = PWM_MOTOR_OFF;
 
+	uint32_t pwm_default_channel_mask = 0;
+	char str[18];
+	const char *prefix;
+
 	if (_class_instance == CLASS_DEVICE_PRIMARY) {
 		param_get(param_find("PWM_MAIN_MIN"), &_pwm_min_default);
 		param_get(param_find("PWM_MAIN_MAX"), &_pwm_max_default);
 		param_get(param_find("PWM_MAIN_DISARM"), &_pwm_disarmed_default);
 		param_get(param_find("PWM_MAIN_RATE"), &_pwm_rate);
+		prefix = "PWM_MAIN";
 
 	} else if (_class_instance == CLASS_DEVICE_SECONDARY) {
 		param_get(param_find("PWM_AUX_MIN"), &_pwm_min_default);
 		param_get(param_find("PWM_AUX_MAX"), &_pwm_max_default);
 		param_get(param_find("PWM_AUX_DISARM"), &_pwm_disarmed_default);
 		param_get(param_find("PWM_AUX_RATE"), &_pwm_rate);
+		prefix = "PWM_AUX";
 
 	} else if (_class_instance == CLASS_DEVICE_TERTIARY) {
 		param_get(param_find("PWM_EXTRA_MIN"), &_pwm_min_default);
 		param_get(param_find("PWM_EXTRA_MAX"), &_pwm_max_default);
 		param_get(param_find("PWM_EXTRA_DISARM"), &_pwm_disarmed_default);
 		param_get(param_find("PWM_EXTRA_RATE"), &_pwm_rate);
+		prefix = "PWM_EXTRA";
 
 	} else {
 		PX4_ERR("invalid class instance %d", _class_instance);
 		return;
 	}
 
-	for (unsigned i = 0; i < PWMESC_MAX_CHANNELS; i++) {
-		_mixing_output.minValue(i) = _pwm_min_default;
+	/* Init to a known state - never a bad idea although might look unnecessary */
+	for (unsigned i = 0; i <  PWMESC_MAX_CHANNELS; i++) {
+		if (!_pwm_fail_configured) {
+			_mixing_output.failsafeValue(i) = 0;
+		}
+
+		if (!_pwm_dis_configured) {
+			_mixing_output.disarmedValue(i) = _pwm_disarmed_default;
+		}
+
+		if (!_pwm_min_configured) {
+			_mixing_output.minValue(i) = _pwm_min_default;
+		}
+
+		if (!_pwm_max_configured) {
+			_mixing_output.maxValue(i) = _pwm_max_default;
+		}
 	}
 
-	for (unsigned i = 0; i <  PWMESC_MAX_CHANNELS; i++) {
-		_mixing_output.maxValue(i) = _pwm_max_default;
+	// PWM_*_MINx (PWM_MAIN_MIN, PWM_AUX_MIN or PWM_EXTRA_MIN)
+	if (!_pwm_min_configured) {
+		for (unsigned i = 0; i < PWMESC_MAX_CHANNELS; i++) {
+			sprintf(str, "%s_MIN%u", prefix, i + 1);
+			int32_t pwm_min = -1;
+
+			if (param_get(param_find(str), &pwm_min) == PX4_OK) {
+				if (pwm_min >= 0 && pwm_min != 1000) {
+					_mixing_output.minValue(i) = math::constrain(pwm_min, static_cast<int32_t>(PWM_LOWEST_MIN),
+								     static_cast<int32_t>(PWM_HIGHEST_MIN));
+
+					if (pwm_min != _mixing_output.minValue(i)) {
+						int32_t pwm_min_new = _mixing_output.minValue(i);
+						param_set(param_find(str), &pwm_min_new);
+					}
+
+				} else if (pwm_default_channel_mask & 1 << i) {
+					_mixing_output.minValue(i) = _pwm_min_default;
+				}
+			}
+		}
+
+		_pwm_min_configured = true;
 	}
 
-	for (unsigned i = 0; i <  PWMESC_MAX_CHANNELS; i++) {
-		_mixing_output.failsafeValue(i) = 0;
+	// PWM_*_MAXx
+	if (!_pwm_max_configured) {
+		for (unsigned i = 0; i < PWMESC_MAX_CHANNELS; i++) {
+			sprintf(str, "%s_MAX%u", prefix, i + 1);
+			int32_t pwm_max = -1;
+
+			if (param_get(param_find(str), &pwm_max) == PX4_OK) {
+				if (pwm_max >= 0 && pwm_max != 2000) {
+					_mixing_output.maxValue(i) = math::constrain(pwm_max, static_cast<int32_t>(PWM_LOWEST_MAX),
+								     static_cast<int32_t>(PWM_HIGHEST_MAX));
+
+					if (pwm_max != _mixing_output.maxValue(i)) {
+						int32_t pwm_max_new = _mixing_output.maxValue(i);
+						param_set(param_find(str), &pwm_max_new);
+					}
+
+				} else if (pwm_default_channel_mask & 1 << i) {
+					_mixing_output.maxValue(i) = _pwm_max_default;
+				}
+			}
+		}
+
+		_pwm_max_configured = true;
 	}
 
-	for (unsigned i = 0; i <  PWMESC_MAX_CHANNELS; i++) {
-		_mixing_output.disarmedValue(i) = _pwm_disarmed_default;
+	// PWM_*_FAILx
+	if (!_pwm_fail_configured) {
+		for (unsigned i = 0; i < PWMESC_MAX_CHANNELS; i++) {
+			sprintf(str, "%s_FAIL%u", prefix, i + 1);
+			int32_t pwm_fail = -1;
+
+			if (param_get(param_find(str), &pwm_fail) == PX4_OK) {
+				if (pwm_fail >= 0) {
+					_mixing_output.failsafeValue(i) = math::constrain(pwm_fail, static_cast<int32_t>(0),
+									  static_cast<int32_t>(PWM_HIGHEST_MAX));
+
+					if (pwm_fail != _mixing_output.failsafeValue(i)) {
+						int32_t pwm_fail_new = _mixing_output.failsafeValue(i);
+						param_set(param_find(str), &pwm_fail_new);
+					}
+				}
+			}
+		}
+
+		_pwm_fail_configured = true;
+	}
+
+	// PWM_*_DISx
+	if (!_pwm_dis_configured) {
+		for (unsigned i = 0; i < PWMESC_MAX_CHANNELS; i++) {
+			sprintf(str, "%s_DIS%u", prefix, i + 1);
+			int32_t pwm_dis = -1;
+
+			if (param_get(param_find(str), &pwm_dis) == PX4_OK) {
+				if (pwm_dis >= 0 && pwm_dis != 900) {
+					_mixing_output.disarmedValue(i) = math::constrain(pwm_dis, static_cast<int32_t>(0),
+									  static_cast<int32_t>(PWM_HIGHEST_MAX));
+
+					if (pwm_dis != _mixing_output.disarmedValue(i)) {
+						int32_t pwm_dis_new = _mixing_output.disarmedValue(i);
+						param_set(param_find(str), &pwm_dis_new);
+					}
+
+				} else if (pwm_default_channel_mask & 1 << i) {
+					_mixing_output.disarmedValue(i) = _pwm_disarmed_default;
+				}
+			}
+		}
+
+		_pwm_dis_configured = true;
+	}
+
+	// PWM_*_REVx
+	if (!_pwm_rev_configured) {
+		uint16_t &reverse_pwm_mask = _mixing_output.reverseOutputMask();
+		reverse_pwm_mask = 0;
+
+		for (unsigned i = 0; i < PWMESC_MAX_CHANNELS; i++) {
+			sprintf(str, "%s_REV%u", prefix, i + 1);
+			int32_t pwm_rev = -1;
+
+			if (param_get(param_find(str), &pwm_rev) == PX4_OK) {
+				if (pwm_rev >= 1) {
+					reverse_pwm_mask |= (1 << i);
+
+				} else {
+					reverse_pwm_mask = reverse_pwm_mask & ~(1 << i);
+				}
+
+			}
+		}
+
+		_pwm_rev_configured = true;
+	}
+
+	// PWM_*_TRIMx
+	{
+		int16_t values[8] {};
+
+		for (unsigned i = 0; i < PWMESC_MAX_CHANNELS; i++) {
+			sprintf(str, "%s_TRIM%u", prefix, i + 1);
+			float pwm_trim = 0.f;
+
+			if (param_get(param_find(str), &pwm_trim) == PX4_OK) {
+				values[i] = roundf(10000 * pwm_trim);
+			}
+		}
+
+		if (_mixing_output.mixers()) {
+			// copy the trim values to the mixer offsets
+			_mixing_output.mixers()->set_trims(values, PWMESC_MAX_CHANNELS);
+		}
 	}
 }
 
