@@ -86,3 +86,6 @@
 [submodule "platforms/nuttx/NuttX/extern/pf_crypto"]
 	path = platforms/nuttx/NuttX/extern/pf_crypto
 	url = git@github.com:/tiiuae/pf_crypto.git
+[submodule "Tools/saluki-sec-scripts"]
+	path = Tools/saluki-sec-scripts
+	url = git@github.com:tiiuae/saluki-sec-scripts.git
