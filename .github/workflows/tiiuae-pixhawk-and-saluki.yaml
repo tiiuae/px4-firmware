@@ -27,11 +27,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        product: [saluki-v2_default, saluki-v2_bootloader, saluki-pi_default, saluki-pi_bootloader]
+        product: [saluki-v2_default, saluki-v2_custom_keys, saluki-v2_bootloader, saluki-pi_default, saluki-pi_custom_keys, saluki-pi_bootloader]
+        include:
+          - product: saluki-v2_custom_keys
+            keys: Tools/saluki-sec-scripts/custom_keys/saluki-v2/px4_bin_ed25519_private.pem
+          - product: saluki-pi_custom_keys
+            keys: Tools/saluki-sec-scripts/custom_keys/saluki-pi/px4_bin_ed25519_private.pem
 
     uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
     with:
       product: ${{ matrix.product }}
+      keys: ${{ matrix.keys }}
       # old workflow had condition to run only if PR is done to current repo (or triggered with other event)
       enabled: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     secrets: inherit
@@ -69,7 +75,7 @@ jobs:
           |--------|------|"
           artifactory_base_url="https://ssrc.jfrog.io/artifactory/"
 
-          for pkg in $(find bin -type f); do
+          for pkg in $(find bin -type f|sort); do
 
             file_name=$(basename $pkg)
             ext="${file_name##*.}"
@@ -143,7 +149,7 @@ jobs:
           |--------|------|"
           artifactory_base_url="https://artifactory.ssrcdevops.tii.ae/artifactory/"
 
-          for pkg in $(find bin -type f); do
+          for pkg in $(find bin -type f|sort); do
 
             file_name=$(basename $pkg)
             ext="${file_name##*.}"

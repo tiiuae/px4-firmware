@@ -14,6 +14,10 @@ usage() {
   exit 1
 }
 
+if [ -z ${SIGNING_ARGS} ]; then
+  echo "using custom signing keys: ${SIGNING_ARGS}"
+fi
+
 dest_dir="${1:-}"
 target="${2:-}"
 
@@ -30,7 +34,7 @@ mkdir -p ${dest_dir}
 pushd ${script_dir}
 
 build_env="docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --pull -f ./packaging/Dockerfile.build_env -t ${iname_env} ."
-build_cmd_fw="docker run --rm -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
+build_cmd_fw="docker run --rm -e SIGNING_ARGS:${SIGNING_ARGS} -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
 
 # Generate build_env
 if [ "${target}" != px4fwupdater ]; then
@@ -42,6 +46,11 @@ case $target in
     $build_cmd_fw ssrc_saluki-v2_default
     cp ${script_dir}/build/ssrc_saluki-v2_default/ssrc_saluki-v2_default.px4 ${dest_dir}/ssrc_saluki-v2_default-${version}.px4
     ;;
+  "saluki-v2_custom_keys")
+    # on custom keys case we build _default target but SIGNING_ARGS env variable is set above in build_cmd_fw
+    $build_cmd_fw ssrc_saluki-v2_default
+    cp ${script_dir}/build/ssrc_saluki-v2_default/ssrc_saluki-v2_default.px4 ${dest_dir}/ssrc_saluki-v2_custom_keys-${version}.px4
+    ;;
   "saluki-v2_bootloader")
     $build_cmd_fw ssrc_saluki-v2_bootloader
     cp ${script_dir}/build/ssrc_saluki-v2_bootloader/ssrc_saluki-v2_bootloader.elf ${dest_dir}/ssrc_saluki-v2_bootloader-${version}.elf
@@ -49,6 +58,11 @@ case $target in
   "saluki-pi_default")
     $build_cmd_fw ssrc_saluki-pi_default
     cp ${script_dir}/build/ssrc_saluki-pi_default/ssrc_saluki-pi_default.px4 ${dest_dir}/ssrc_saluki-pi_default-${version}.px4
+    ;;
+  "saluki-pi_custom_keys")
+    # on custom keys case we build _default target but SIGNING_ARGS env variable is set above in build_cmd_fw
+    $build_cmd_fw ssrc_saluki-pi_default
+    cp ${script_dir}/build/ssrc_saluki-pi_default/ssrc_saluki-pi_default.px4 ${dest_dir}/ssrc_saluki-pi_custom_keys-${version}.px4
     ;;
   "saluki-pi_bootloader")
     $build_cmd_fw ssrc_saluki-pi_bootloader
