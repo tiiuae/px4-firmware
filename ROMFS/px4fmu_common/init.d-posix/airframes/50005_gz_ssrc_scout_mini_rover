@@ -15,6 +15,7 @@ PX4_GZ_WORLD=${PX4_GZ_WORLD:=default}
 PX4_SIM_MODEL=${PX4_SIM_MODEL:=scout_mini}
 
 param set-default SIM_GZ_EN 1
+param set-default SIM_GZ_RUN_GZSIM 0
 
 param set-default CA_AIRFRAME 6
 
@@ -67,6 +68,10 @@ param set-default GND_THR_MIN 0
 param set-default GND_SPEED_P 0.4
 param set-default GND_SPEED_I 1
 param set-default GND_SPEED_D 0.001
-param set-default GND_SPEED_IMAX 1
-param set-default GND_SPEED_MAX 1
-param set-default GND_SPEED_THR_SC 1
+param set-default GND_SPEED_MAX 3.0
+param set-default GND_SPEED_TRIM 3.0
+param set-default GND_SPEED_THR_SC 1.0
+param set-default GND_VEL_CTRL 1
+param set-default GND_ANG_VEL_CTRL 1
+param set-default GND_ACC_LIMIT 10
+param set-default GND_DEC_LIMIT 100

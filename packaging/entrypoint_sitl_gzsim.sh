@@ -6,18 +6,19 @@ export PATH=/px4_sitl/bin:$PATH
 case $PX4_VEHICLE_TYPE in
   mc)
     export PX4_SYS_AUTOSTART=4401
+    export PX4_GZ_MODEL=holybro-x500
     ;;
   rover)
-    export PX4_SYS_AUTOSTART=50006
+    export PX4_SYS_AUTOSTART=50005
+    export PX4_GZ_MODEL=scout_mini
     ;;
   vtol)
     export PX4_SYS_AUTOSTART=4430
+    export PX4_GZ_MODEL=striver_mini
     ;;
   fw)
     export PX4_SYS_AUTOSTART=4440
-    ;;
-  uuv)
-    export PX4_SYS_AUTOSTART=4403
+    export PX4_GZ_MODEL=skywalker_x8
     ;;
   *)
     echo "ERROR: unknown vehicle type: $PX4_VEHICLE_TYPE"
@@ -33,4 +34,4 @@ export GZ_IP=$(hostname -i)
 
 source /opt/ros/humble/setup.sh
 
-/px4/bin/px4 -d -s /px4/etc/init.d-posix/rcS -w /px4
+/px4_sitl/bin/px4 -d -s /px4_sitl/etc/init.d-posix/rcS -w /px4_sitl

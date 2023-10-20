@@ -13,6 +13,7 @@ PX4_GZ_WORLD=${PX4_GZ_WORLD:=default}
 PX4_SIM_MODEL=${PX4_SIM_MODEL:=skywalker_x8}
 
 param set-default SIM_GZ_EN 1
+param set-default SIM_GZ_RUN_GZSIM 0
 
 # Control allocator parameters
 param set-default CA_AIRFRAME 1
