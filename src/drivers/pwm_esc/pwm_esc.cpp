@@ -203,7 +203,7 @@ private:
 	int32_t		_pwm_disarmed_default;
 	int32_t		_pwm_rate{PWM_DEFAULT_RATE};
 	int		_class_instance{-1};
-
+	bool		_force_safety{false};
 	int		init_pwm_outputs();
 
 	/* Singleton pointer */
@@ -358,7 +358,7 @@ PWMESC::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigne
 		// TODO: channel to proper pwm device map.
 		// this is now just quick hack for one pwm device, direct map of channels
 
-		uint16_t pwm_val = outputs[i];
+		uint16_t pwm_val = _force_safety ? _mixing_output.disarmedValue(i) : outputs[i];
 		pwm.channels[i].duty = ((((uint32_t)pwm_val) << 16) / (1000000 / _pwm_rate));
 		pwm.channels[i].channel = i + 1;
 	}
@@ -750,26 +750,45 @@ PWMESC::ioctl(file *filep, int cmd, unsigned long arg)
 
 	case PWM_SERVO_GET_DEFAULT_UPDATE_RATE:
 		/* get the default update rate */
+		*(unsigned *)arg = PWM_DEFAULT_RATE;
 		break;
 
 	case PWM_SERVO_SET_UPDATE_RATE:
-		/* set the requested alternate rate */
+		/* set the update rate */
+		_pwm_rate = arg;
 		break;
 
 	case PWM_SERVO_GET_UPDATE_RATE:
 		/* get the alternative update rate */
-		break;
-
-	case PWM_SERVO_SET_SELECT_UPDATE_RATE:
+		*(unsigned *)arg = _pwm_rate;
 		break;
 
 	case PWM_SERVO_GET_SELECT_UPDATE_RATE:
+		*(unsigned *)arg = 0;
 		break;
 
-	case PWM_SERVO_GET_FAILSAFE_PWM:
-		break;
+	case PWM_SERVO_GET_FAILSAFE_PWM: {
+			struct pwm_output_values *pwm = (struct pwm_output_values *)arg;
 
-	case PWM_SERVO_GET_DISARMED_PWM:
+			for (unsigned i = 0; i < MAX_ACTUATORS; i++) {
+				pwm->values[i] = _mixing_output.failsafeValue(i);
+			}
+
+			pwm->channel_count = MAX_ACTUATORS;
+			break;
+		}
+
+	case PWM_SERVO_GET_DISARMED_PWM:  {
+			struct pwm_output_values *pwm = (struct pwm_output_values *)arg;
+
+			for (unsigned i = 0; i < MAX_ACTUATORS; i++) {
+				pwm->values[i] = _mixing_output.disarmedValue(i);
+			}
+
+			pwm->channel_count = MAX_ACTUATORS;
+			break;
+		}
+
 		break;
 
 	case PWM_SERVO_SET_MIN_PWM: {
@@ -819,19 +838,64 @@ PWMESC::ioctl(file *filep, int cmd, unsigned long arg)
 		}
 
 	case PWM_SERVO_GET_COUNT:
+		*(unsigned *)arg = PWMESC_MAX_CHANNELS;
 		break;
 
 	case PWM_SERVO_SET_FORCE_SAFETY_OFF:
+		_force_safety = false;
 		break;
 
 	case PWM_SERVO_SET_FORCE_SAFETY_ON:
+		_force_safety = true;
 		break;
 
-	case PWM_SERVO_GET(0) ... PWM_SERVO_GET(PWM_OUTPUT_MAX_CHANNELS - 1):
-		break;
+	case PWM_SERVO_GET(0) ... PWM_SERVO_GET(PWM_OUTPUT_MAX_CHANNELS - 1): {
 
-	case PWM_SERVO_GET_RATEGROUP(0) ... PWM_SERVO_GET_RATEGROUP(PWM_OUTPUT_MAX_CHANNELS - 1):
-		break;
+			unsigned channel = cmd - PWM_SERVO_GET(0);
+
+			if (channel >= MAX_ACTUATORS) {
+				ret = -EINVAL;
+				break;
+			}
+
+			char pwm_device_name[] = PWMESC_OUT_PATH;
+			pwm_device_name[sizeof(pwm_device_name) - 2] = '0';
+
+			int fd = ::open(pwm_device_name, O_RDONLY);
+
+			if (fd < 0) {
+				ret = -EINVAL;
+
+			} else {
+
+				/* fetch a current PWM value */
+				pwm_info_s pwm;
+				ret = ::ioctl(fd, PWMIOC_GETCHARACTERISTICS,
+					      (unsigned long)((uintptr_t)&pwm));
+
+				/* calculate duty cycle in us and round properly */
+				uint32_t duty = pwm.channels[channel].duty * (1000000 / _pwm_rate);
+				*(servo_position_t *)arg = (duty >> 16) + ((duty & 0x8000) >> 15);
+
+				::close(fd);
+			}
+
+			break;
+		}
+
+	case PWM_SERVO_GET_RATEGROUP(0) ... PWM_SERVO_GET_RATEGROUP(PWM_OUTPUT_MAX_CHANNELS - 1): {
+			unsigned channel = cmd - PWM_SERVO_GET_RATEGROUP(0);
+
+			if (channel >= MAX_ACTUATORS) {
+				ret = -EINVAL;
+
+			} else {
+				/* rategroups not supported, it is always 0 */
+				*(uint32_t *)arg = 0;
+			}
+
+			break;
+		}
 
 	case MIXERIOCRESET:
 		/* Can start the main thread now */
