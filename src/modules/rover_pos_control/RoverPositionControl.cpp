@@ -328,7 +328,8 @@ RoverPositionControl::control_velocity(const matrix::Vector3f &current_velocity)
 
 	const float mission_throttle = _param_throttle_cruise.get();
 	const float desired_speed = desired_velocity.norm();
-	float desired_angular_vel = PX4_ISFINITE(_trajectory_setpoint.yawspeed) ?  _trajectory_setpoint.yawspeed : desired_velocity(1);
+	float desired_angular_vel = PX4_ISFINITE(_trajectory_setpoint.yawspeed) ?  _trajectory_setpoint.yawspeed :
+				    desired_velocity(1);
 
 	if (desired_speed > 0.01f || desired_angular_vel > 0.01f) {
 		const Dcmf R_to_body(Quatf(_vehicle_att.q).inversed());
@@ -343,12 +344,13 @@ RoverPositionControl::control_velocity(const matrix::Vector3f &current_velocity)
 			// Use PID control
 			control_throttle = pid_calculate(&_speed_ctrl, desired_speed, x_vel, x_acc, dt);
 			_throttle_control = math::constrain(control_throttle, 0.0f, mission_throttle);
+
 		} else if (_param_speed_control_mode.get() == 1) {
 			// Use acc limited direct control
 			float max_delta_speed = (speed_error > 0 ? _param_speed_acc_limit.get() : _param_speed_dec_limit.get()) * dt;
 			// Compute the velocity with delta speed and constrain it to GND_SPEED_TRIM
 			float command_velocity = math::constrain(x_vel + math::constrain(speed_error, -max_delta_speed, max_delta_speed),
-				-_param_gndspeed_trim.get(), _param_gndspeed_trim.get());
+						 -_param_gndspeed_trim.get(), _param_gndspeed_trim.get());
 			// Compute the desired velocity and divide it by max speed to get the throttle control
 			_throttle_control = command_velocity / _param_gndspeed_max.get();
 		}
@@ -367,10 +369,12 @@ RoverPositionControl::control_velocity(const matrix::Vector3f &current_velocity)
 			// Determine yaw from XY vector
 			const float desired_theta = atan2f(desired_body_velocity(1), desired_body_velocity(0));
 			_yaw_control = math::constrain(desired_theta / _param_max_turn_angle.get(), -1.0f, 1.0f);
+
 		} else if (_param_ang_vel_control_mode.get() == 1) {
 			// Use direct yaw input from velocity setpoint
 			// Limit it to max anguler velocity
-			_yaw_control = math::constrain(desired_angular_vel, -_param_max_angular_velocity.get(), _param_max_angular_velocity.get());
+			_yaw_control = math::constrain(desired_angular_vel, -_param_max_angular_velocity.get(),
+						       _param_max_angular_velocity.get());
 		}
 
 	} else {
