@@ -24,7 +24,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Run coverity scan
-        run:
+        run: |
           docker run --rm -v "$(pwd):/main_ws" ghcr.io/tiiuae/px4-coverity-scan-image:latest
       - name: Update summary
         run:

@@ -5,6 +5,6 @@ capture:
 commit:
   connect:
     auth-key-file: /auth_key.txt
-    stream: px4-coverity-test
+    stream: px4-coverity
     url: https://coverity.ssrc.fi:443/
     on-new-cert: trust
