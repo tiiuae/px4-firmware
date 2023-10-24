@@ -5,6 +5,8 @@ COVERITY_SCAN_OUT=/main_ws/cov-scan-output.txt
 COVERITY_REPORT_OUT=/main_ws/coverity-output
 
 cp /main_ws/packaging/coverity.yaml /main_ws/coverity.yaml
+cd /main_ws
+git config --global --add safe.directory '*'
 
 export PATH=$PATH:/cov/bin/
 cov-configure --gcc
@@ -29,4 +31,15 @@ echo '------' >> ${COVERITY_SUMMARY_OUT}
 
 # save coverity html output
 cov-format-errors --dir idir --html-output ${COVERITY_REPORT_OUT}
+
+# github output to format table
+echo "| checker | file |" >> ${COVERITY_SUMMARY_OUT}
+echo "| ------- | ---- |" >> ${COVERITY_SUMMARY_OUT}
+
+# findings from output xml, save error, filename and line number
+# grep away files which begins with "/" as they are from the environment and not from the project
+xmlstarlet sel -t -m "/coverity/error" -o "| " -v "checker" -o " | " -v "file" -o ":" -v "line" -o " |" -n ${COVERITY_REPORT_OUT}/index.xml | grep -v '.*[[:space:]]\/.*'>> ${COVERITY_SUMMARY_OUT}
+
+# echo an empty line to end table formatting
+echo '' >> ${COVERITY_SUMMARY_OUT}
 echo 'for more details please check attached html report from "Artifacts" -sections above' >> ${COVERITY_SUMMARY_OUT}
