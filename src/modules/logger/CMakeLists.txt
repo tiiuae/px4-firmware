@@ -30,9 +30,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
-if(CONFIG_LOGGER_PARALLEL_LOGGING)
-	set(LOGGER_PARALLEL_COMPILE_FLAG "-DLOGGER_PARALLEL_LOGGING")
-endif()
 
 px4_add_module(
 	MODULE modules__logger
@@ -41,7 +38,6 @@ px4_add_module(
 	COMPILE_FLAGS
 		${MAX_CUSTOM_OPT_LEVEL}
 		-Wno-cast-align # TODO: fix and enable
-		${LOGGER_PARALLEL_COMPILE_FLAG}
 	SRCS
 		logged_topics.cpp
 		logger.cpp

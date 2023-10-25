@@ -158,7 +158,7 @@ void LogWriter::thread_stop()
 	}
 }
 
-int LogWriter::write_message(LogType type, void *ptr, size_t size, uint64_t dropout_start, bool acked)
+int LogWriter::write_message(LogType type, void *ptr, size_t size, uint64_t dropout_start)
 {
 	int ret_file = 0, ret_mavlink = 0;
 
@@ -167,7 +167,7 @@ int LogWriter::write_message(LogType type, void *ptr, size_t size, uint64_t drop
 	}
 
 	if (_log_writer_mavlink_for_write && type == LogType::Full) {
-		ret_mavlink = _log_writer_mavlink_for_write->write_message(ptr, size, acked);
+		ret_mavlink = _log_writer_mavlink_for_write->write_message(ptr, size);
 	}
 
 	// file backend errors takes precedence

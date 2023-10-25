@@ -48,7 +48,6 @@ namespace logger
 LogWriterMavlink::LogWriterMavlink()
 {
 	_ulog_stream_data.length = 0;
-	_ulog_stream_acked_data.length = 0;
 }
 
 bool LogWriterMavlink::init()
@@ -77,51 +76,37 @@ void LogWriterMavlink::start_log()
 	_ulog_stream_data.length = 0;
 	_ulog_stream_data.first_message_offset = 0;
 
-	_ulog_stream_acked_data.msg_sequence = 0;
-	_ulog_stream_acked_data.length = 0;
-	_ulog_stream_acked_data.first_message_offset = 0;
-
 	_is_started = true;
 }
 
 void LogWriterMavlink::stop_log()
 {
 	_ulog_stream_data.length = 0;
-	_ulog_stream_acked_data.length = 0;
 	_is_started = false;
 }
 
-int LogWriterMavlink::write_message(void *ptr, size_t size, bool acked)
+int LogWriterMavlink::write_message(void *ptr, size_t size)
 {
 	if (!is_started()) {
 		return 0;
 	}
 
-	ulog_stream_s *ulog_s_p;
-
-	if (acked) {
-		ulog_s_p = &_ulog_stream_acked_data;
-
-	} else {
-		ulog_s_p = &_ulog_stream_data;
-	}
-
-	const uint8_t data_len = (uint8_t)sizeof(ulog_s_p->data);
+	const uint8_t data_len = (uint8_t)sizeof(_ulog_stream_data.data);
 	uint8_t *ptr_data = (uint8_t *)ptr;
 
-	if (ulog_s_p->first_message_offset == 255) {
-		ulog_s_p->first_message_offset = ulog_s_p->length;
+	if (_ulog_stream_data.first_message_offset == 255) {
+		_ulog_stream_data.first_message_offset = _ulog_stream_data.length;
 	}
 
 	while (size > 0) {
-		size_t send_len = math::min((size_t)data_len - ulog_s_p->length, size);
-		memcpy(ulog_s_p->data + ulog_s_p->length, ptr_data, send_len);
-		ulog_s_p->length += send_len;
+		size_t send_len = math::min((size_t)data_len - _ulog_stream_data.length, size);
+		memcpy(_ulog_stream_data.data + _ulog_stream_data.length, ptr_data, send_len);
+		_ulog_stream_data.length += send_len;
 		ptr_data += send_len;
 		size -= send_len;
 
-		if (ulog_s_p->length >= data_len) {
-			if (publish_message(acked)) {
+		if (_ulog_stream_data.length >= data_len) {
+			if (publish_message()) {
 				return -2;
 			}
 		}
@@ -132,8 +117,6 @@ int LogWriterMavlink::write_message(void *ptr, size_t size, bool acked)
 
 void LogWriterMavlink::set_need_reliable_transfer(bool need_reliable)
 {
-#ifndef LOGGER_PARALLEL_LOGGING
-
 	if (!need_reliable && _need_reliable_transfer) {
 		if (_ulog_stream_data.length > 0) {
 			// make sure to send previous data using reliable transfer
@@ -142,32 +125,12 @@ void LogWriterMavlink::set_need_reliable_transfer(bool need_reliable)
 	}
 
 	_need_reliable_transfer = need_reliable;
-#endif
 }
 
-int LogWriterMavlink::publish_message(bool acked)
+int LogWriterMavlink::publish_message()
 {
-	ulog_stream_s *ulog_s_p;
-
-	if (acked) {
-		ulog_s_p = &_ulog_stream_acked_data;
-
-	} else {
-		ulog_s_p = &_ulog_stream_data;
-	}
-
-	ulog_s_p->timestamp = hrt_absolute_time();
-	ulog_s_p->flags = 0;
-
-#ifdef LOGGER_PARALLEL_LOGGING
-
-	if (!acked) {
-		_ulog_stream_pub.publish(*ulog_s_p);
-
-	} else {
-		ulog_s_p->flags = ulog_s_p->FLAGS_NEED_ACK;
-		_ulog_stream_acked_pub.publish(*ulog_s_p);
-#else
+	_ulog_stream_data.timestamp = hrt_absolute_time();
+	_ulog_stream_data.flags = 0;
 
 	if (_need_reliable_transfer) {
 		_ulog_stream_data.flags = _ulog_stream_data.FLAGS_NEED_ACK;
@@ -176,7 +139,6 @@ int LogWriterMavlink::publish_message(bool acked)
 	_ulog_stream_pub.publish(_ulog_stream_data);
 
 	if (_need_reliable_transfer) {
-#endif
 		// we need to wait for an ack. Note that this blocks the main logger thread, so if a file logging
 		// is already running, it will miss samples.
 		px4_pollfd_struct_t fds[1];
@@ -198,7 +160,7 @@ int LogWriterMavlink::publish_message(bool acked)
 				ulog_stream_ack_s ack;
 				orb_copy(ORB_ID(ulog_stream_ack), _ulog_stream_ack_sub, &ack);
 
-				if (ack.msg_sequence == ulog_s_p->msg_sequence) {
+				if (ack.msg_sequence == _ulog_stream_data.msg_sequence) {
 					got_ack = true;
 				}
 
@@ -216,9 +178,9 @@ int LogWriterMavlink::publish_message(bool acked)
 		PX4_DEBUG("got ack in %i ms", (int)(hrt_elapsed_time(&started) / 1000));
 	}
 
-	ulog_s_p->msg_sequence++;
-	ulog_s_p->length = 0;
-	ulog_s_p->first_message_offset = 255;
+	_ulog_stream_data.msg_sequence++;
+	_ulog_stream_data.length = 0;
+	_ulog_stream_data.first_message_offset = 255;
 	return 0;
 }
 
