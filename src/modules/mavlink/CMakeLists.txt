@@ -31,10 +31,6 @@
 #
 ############################################################################
 
-if(CONFIG_MAVLINK_PARALLEL_LOGGING)
-	set(MAVLINK_PARALLEL_COMPILE_FLAG "-DMAVLINK_PARALLEL_LOGGING")
-endif()
-
 set(MAVLINK_GIT_DIR "${CMAKE_CURRENT_LIST_DIR}/mavlink")
 set(MAVLINK_LIBRARY_DIR "${CMAKE_BINARY_DIR}/mavlink")
 file(RELATIVE_PATH MAVLINK_GIT_DIR_RELATIVE ${CMAKE_SOURCE_DIR} ${MAVLINK_GIT_DIR})
@@ -109,7 +105,6 @@ px4_add_module(
 	MAIN mavlink
 	COMPILE_FLAGS
 		-Wno-enum-compare # ROTATION <-> MAV_SENSOR_ROTATION
-		${MAVLINK_PARALLEL_COMPILE_FLAG}
 		#-DDEBUG_BUILD
 	SRCS
 		mavlink.c
