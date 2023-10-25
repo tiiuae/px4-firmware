@@ -1944,7 +1944,11 @@ void Logger::write_add_logged_msg(LogType type, LoggerSubscription &subscription
 
 	bool prev_reliable = _writer.need_reliable_transfer();
 	_writer.set_need_reliable_transfer(true);
-	write_message(type, &msg, msg_size, acked);
+#ifdef LOGGER_PARALLEL_LOGGING
+	write_message(type, &msg, msg_size, true);
+#else
+	write_message(type, &msg, msg_size);
+#endif
 	_writer.set_need_reliable_transfer(prev_reliable);
 }
 
