@@ -133,7 +133,6 @@ private:
 	perf_counter_t	_loop_perf;			/**< loop performance counter */
 
 	hrt_abstime _control_position_last_called{0}; 	/**<last call of control_position  */
-	hrt_abstime _control_velocity_last_called{0};	/**<last call of control_velocity  */
 	hrt_abstime _manual_setpoint_last_called{0};
 
 	MapProjection _global_local_proj_ref{};
@@ -168,8 +167,8 @@ private:
 
 	float _manual_yaw_sp{0.0};
 	bool _reset_yaw_sp{true};
-	float _throttle_control{0.0};
-	float _yaw_control{0.0};
+	float _throttle_control{0.f};
+	float _yaw_control{0.f};
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::GND_L1_PERIOD>) _param_l1_period,
@@ -180,8 +179,6 @@ private:
 		(ParamFloat<px4::params::GND_SPEED_MAX>) _param_gndspeed_max,
 
 		(ParamInt<px4::params::GND_SP_CTRL_MODE>) _param_speed_control_mode,
-		(ParamInt<px4::params::GND_VEL_CTRL>) _param_vel_control_mode,
-		(ParamInt<px4::params::GND_ANG_VEL_CTRL>) _param_ang_vel_control_mode,
 		(ParamFloat<px4::params::GND_SPEED_P>) _param_speed_p,
 		(ParamFloat<px4::params::GND_SPEED_I>) _param_speed_i,
 		(ParamFloat<px4::params::GND_SPEED_D>) _param_speed_d,
@@ -193,10 +190,7 @@ private:
 		(ParamFloat<px4::params::GND_THR_CRUISE>) _param_throttle_cruise,
 
 		(ParamFloat<px4::params::GND_WHEEL_BASE>) _param_wheel_base,
-		(ParamFloat<px4::params::GND_ACC_LIMIT>) _param_speed_acc_limit,
-		(ParamFloat<px4::params::GND_DEC_LIMIT>) _param_speed_dec_limit,
 		(ParamFloat<px4::params::GND_MAX_ANG>) _param_max_turn_angle,
-		(ParamFloat<px4::params::GND_MAX_ANG_VEL>) _param_max_angular_velocity,
 		(ParamFloat<px4::params::GND_MAN_Y_MAX>) _param_gnd_man_y_max,
 		(ParamFloat<px4::params::NAV_LOITER_RAD>) _param_nav_loiter_rad	/**< loiter radius for Rover */
 	)
