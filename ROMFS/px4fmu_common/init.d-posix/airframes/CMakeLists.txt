@@ -85,6 +85,9 @@ px4_add_romfs_files(
 	4009_gz_r1_rover
 	4010_gz_x500_mono_cam
 	4011_gz_lawnmower
+	4401_gz_ssrc_fog_x
+	4440_gz_ssrc_skywalker_x8
+	50005_gz_ssrc_scout_mini_rover
 
 	6011_gazebo-classic_typhoon_h480
 	6011_gazebo-classic_typhoon_h480.post
