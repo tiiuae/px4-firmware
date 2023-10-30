@@ -35,9 +35,6 @@ publications:
   - topic: /fmu/out/message_format_response
     type: px4_msgs::msg::MessageFormatResponse
 
-  - topic: /fmu/out/position_setpoint_triplet
-    type: px4_msgs::msg::PositionSetpointTriplet
-
   - topic: /fmu/out/sensor_combined
     type: px4_msgs::msg::SensorCombined
 
