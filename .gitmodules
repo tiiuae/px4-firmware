@@ -65,6 +65,18 @@
 [submodule "src/modules/microdds_client/Micro-XRCE-DDS-Client"]
 	path = src/modules/microdds_client/Micro-XRCE-DDS-Client
 	url = https://github.com/eProsima/Micro-XRCE-DDS-Client.git
+[submodule "boards/ssrc/saluki-v1"]
+	path = boards/ssrc/saluki-v1
+	url = ../saluki-v1.git
+	branch = v1.13.3_fc_only
+[submodule "boards/ssrc/saluki-v2"]
+	path = boards/ssrc/saluki-v2
+	url = ../saluki-v2.git
+	branch = v1.13.3_fc_only
+[submodule "boards/ssrc/saluki-pi"]
+	path = boards/ssrc/saluki-pi
+	url = ../saluki-pi.git
+	branch = v1.13.3_fc_only
 [submodule "src/drivers/pfsoc_crypto"]
 	path = src/drivers/pfsoc_crypto
 	url = git@github.com:/tiiuae/pfsoc_crypto.git
