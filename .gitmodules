@@ -77,6 +77,3 @@
 [submodule "Tools/saluki-sec-scripts"]
 	path = Tools/saluki-sec-scripts
 	url = git@github.com:tiiuae/saluki-sec-scripts.git
-[submodule "boards/ssrc"]
-	path = boards/ssrc
-	url = git@github.com:tiiuae/px4_boards_ssrc.git
