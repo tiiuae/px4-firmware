@@ -1,16 +1,13 @@
 ARG saluki_pi_fpga_version
 ARG saluki_v2_fpga_version
-ARG bootloader_v2_version
 
 FROM ghcr.io/tiiuae/saluki-pi-fpga:$saluki_pi_fpga_version AS SALUKI_PI
 FROM ghcr.io/tiiuae/saluki-pi-fpga:$saluki_v2_fpga_version AS SALUKI_V2
-FROM ghcr.io/tiiuae/saluki_bootloader_v2:$bootloader_v2_version AS BOOTLOADER_V2
 
 FROM python:alpine3.14
 
 COPY --from=SALUKI_PI /firmware/saluki_pi-fpga /firmware/fpga/saluki_pi
 COPY --from=SALUKI_V2 /firmware/saluki_v2-fpga /firmware/fpga/saluki_v2
-COPY --from=BOOTLOADER_V2 firmware/bootloader_v2 /firmware/bootloader_v2
 
 WORKDIR /firmware
 
