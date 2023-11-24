@@ -1,0 +1,19 @@
+device: # UxV device
+  address: "127.0.0.1"
+
+qgc_proxy: # QGroundControl side proxy
+  address: "127.0.0.1"      # QGC proxy address
+  mavlink_port: 50909       # QGC proxy's port where to send encrypted MAVLink packets
+  key_port: 54320           # QGC proxy's port where to send AES-GCM session key
+
+proxy: # This proxy
+  key_ack_port: 54321                   # Port where to listen ACK
+  qgc_mavlink_listen_port: 50910        # Port where to expect encrypted MAVLink from QGC proxy
+  device_mavlink_listen_port: 12345     # Port where to expect MAVLink packets from device
+  key_change_interval: 3600             # How often key renewed in seconds. 0 = No periodic key renewal
+  ack_timeout: 5                        # How many seconds to wait for ACK
+  resend_timeout: 5                     # How many seconds to wait before trying to resend failed key
+  mavlink_inactivity_timeout: 5         # How many seconds inactivity in mavlink messages from QGC allowed before changing the key
+  encrypted_key_exchange_packet: false  # Encrypt key exchange packet (header + already encrypted key)
+  rsa_public_key_path: "publickey.der" #"../rsa_public_key.pem" # File to look RSA public key
+  verbose: true                         # Print information of sent and received pacekts
