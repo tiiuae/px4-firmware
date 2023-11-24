@@ -1,0 +1,5 @@
+menuconfig MODULES_SECURE_MAVLINK_UDP_PROXY
+	bool "secure_mavlink_udp"
+	default n
+	---help---
+		Enable secure MAVLink UDP communication with QGC using proxies
