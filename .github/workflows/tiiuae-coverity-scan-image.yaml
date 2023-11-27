@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ghcr.io/tiiuae/px4-coverity-scan-image
           tags: |

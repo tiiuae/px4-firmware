@@ -87,7 +87,7 @@ jobs:
           path: bin
       - name: Firmware flasher - Container metadata
         id: containermeta # referenced from later step
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ghcr.io/tiiuae/px4-firmware
           tags: |
@@ -133,7 +133,7 @@ jobs:
           path: bin
       - name: Firmware flasher - Container metadata
         id: containermeta # referenced from later step
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: artifactory.ssrcdevops.tii.ae/tiiuae/px4-firmware
           tags: |
