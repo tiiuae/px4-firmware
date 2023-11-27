@@ -91,3 +91,6 @@
 [submodule "boards/ssrc/common"]
 	path = boards/ssrc/common
 	url = git@github.com:tiiuae/px4_boards_ssrc.git
+[submodule "src/modules/secure_mavlink_udp_proxy"]
+	path = src/modules/secure_mavlink_udp_proxy
+	url = git@github.com:tiiuae/secure_mavlink_udp_proxy.git
