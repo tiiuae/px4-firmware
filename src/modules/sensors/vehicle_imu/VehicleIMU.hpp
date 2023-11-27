@@ -200,6 +200,8 @@ private:
 		(ParamInt<px4::params::IMU_INTEG_RATE>) _param_imu_integ_rate,
 		(ParamBool<px4::params::SENS_IMU_AUTOCAL>) _param_sens_imu_autocal
 	)
+
+	int accel_drift_timestep, gyro_drift_timestep;
 };
 
 } // namespace sensors

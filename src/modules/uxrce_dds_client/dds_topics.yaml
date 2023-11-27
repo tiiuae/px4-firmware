@@ -68,7 +68,21 @@ publications:
   - topic: /fmu/out/vehicle_trajectory_waypoint_desired
     type: px4_msgs::msg::VehicleTrajectoryWaypoint
 
-# Create uORB::Publication
+  - topic: /fmu/out/sensor_mag
+    type: px4_msgs::msg::SensorMag
+
+  - topic: /fmu/out/sensor_baro
+    type: px4_msgs::msg::SensorBaro
+
+  - topic: /fmu/out/sensor_gps
+    type: px4_msgs::msg::SensorGps
+
+  - topic: /fmu/out/sensor_gyro
+    type: px4_msgs::msg::SensorGyro
+
+  - topic: /fmu/out/sensor_accel
+    type: px4_msgs::msg::SensorAccel
+
 subscriptions:
   - topic: /fmu/in/register_ext_component_request
     type: px4_msgs::msg::RegisterExtComponentRequest

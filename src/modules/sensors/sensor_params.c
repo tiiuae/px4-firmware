@@ -233,3 +233,130 @@ PARAM_DEFINE_INT32(SENS_IMU_MODE, 1);
  * @group Sensors
  */
 PARAM_DEFINE_INT32(SENS_INT_BARO_EN, 1);
+
+/**
+ * **********************************************
+*/
+/**
+ * FAILURE - ACCEL - FAULT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_ACCEL_FAULT, 0);
+
+/**
+ * FAILURE - ACCEL - NOISE
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_NOISE, 0);
+
+/**
+ * FAILURE - ACCEL - BIAS - SHIFT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_SHIF, 0);
+
+/**
+ * FAILURE - ACCEL - BIAS - SCALE
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_SCAL, 0);
+
+/**
+ * FAILURE - ACCEL - DRIFT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_DRIFT, 0);
+
+/**
+ * ***********************************************
+*/
+
+/**
+ * FAILURE - GYRO - FAULT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_GYRO_FAULT, 0);
+
+/**
+ * FAILURE - GYRO - NOISE
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GYRO_NOISE, 0);
+
+/**
+ * FAILURE - GYRO - BIAS - SHIFT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GYRO_SHIF, 0);
+
+/**
+ * FAILURE - GYRO - BIAS - SCALE
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GYRO_SCAL, 0);
+
+/**
+ * FAILURE - GYRO - DRIFT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GYRO_DRIFT, 0);
