@@ -9,7 +9,7 @@ on:
 jobs:
   scan:
     name: run blackduck scan
-    runs-on: px4-firmware-fc-only-blackduck-dlabbuilder02
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout px4-firmware
         uses: actions/checkout@v4
@@ -18,7 +18,7 @@ jobs:
           submodules: 'recursive'
           path: px4-firmware
           fetch-depth: 0
-      - name: Upload px4-firmware build to Artifactory
+      - name: Run the scan
         run: |
           set -exu
 
@@ -30,6 +30,7 @@ jobs:
           blackduck_url="https://blackduck.ssrc.fi"
           blackduck_token=${{ secrets.BLACKDUCK_ACCESS_TOKEN }}
           project_id="80abbe88-e449-45c4-a635-1840869115c5"
+          bdscan_output_file=bdscan_output.log
 
           # run the actual scan
           bash <(curl -s -L https://detect.synopsys.com/detect8.sh) \
@@ -48,4 +49,8 @@ jobs:
             --detect.target.type=SOURCE \
             --detect.timeout=6000 \
             --detect.tools=ALL \
-            --detect.wait.for.results=true
+            --detect.wait.for.results=true \
+            | tee ${bdscan_output_file}
+
+            # find blackduck link from output log:
+            grep 'Black Duck Project BOM:' ${bdscan_output_file} |sed 's/^.*Black Duck Project BOM: //g' >> $GITHUB_STEP_SUMMARY
