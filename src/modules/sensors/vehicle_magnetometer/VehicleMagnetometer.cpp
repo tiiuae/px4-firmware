@@ -38,6 +38,9 @@
 #include <lib/geo/geo.h>
 #include <lib/sensor_calibration/Utilities.hpp>
 
+#include <random>
+#include <chrono>
+
 namespace sensors
 {
 
@@ -70,6 +73,8 @@ VehicleMagnetometer::VehicleMagnetometer() :
 			}
 		}
 	}
+
+	mag_drift_timestep = 0;
 }
 
 VehicleMagnetometer::~VehicleMagnetometer()
@@ -549,13 +554,74 @@ void VehicleMagnetometer::Run()
 					}
 
 					if (publish) {
-						const Vector3f magnetometer_data = _data_sum[instance] / _data_sum_count[instance];
+						Vector3f magnetometer_data = _data_sum[instance] / _data_sum_count[instance];
 
 						// populate vehicle_magnetometer and publish
 						vehicle_magnetometer_s out{};
 						out.timestamp_sample = timestamp_sample;
 						out.device_id = _calibration[instance].device_id();
 						magnetometer_data.copyTo(out.magnetometer_ga);
+
+						// Adding faults to the magnetometer
+						param_t mag_fault = param_find("SENS_MAG_FAULT");
+						int32_t mag_fault_flag;
+						param_get(mag_fault, &mag_fault_flag);
+
+						if (mag_fault_flag == 1)
+						{
+							param_t mag_noise = param_find("SENS_MAG_NOISE");
+							float_t mag_noise_flag;
+							param_get(mag_noise, &mag_noise_flag);
+
+							if (abs(mag_noise_flag) > 0)
+							{
+								unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+								std::default_random_engine generator (seed);
+
+								std::normal_distribution<float> distribution (0.0,mag_noise_flag);
+								float dev = distribution(generator);
+								out.magnetometer_ga[0] += out.magnetometer_ga[0]*dev;
+								out.magnetometer_ga[1] += out.magnetometer_ga[1]*dev;
+								out.magnetometer_ga[2] += out.magnetometer_ga[2]*dev;
+							}
+
+							param_t mag_bias_shift = param_find("SENS_MAG_SHIF");
+							float_t mag_bias_shift_flag;
+							param_get(mag_bias_shift, &mag_bias_shift_flag);
+
+							if (abs(mag_bias_shift_flag) > 0)
+							{
+								out.magnetometer_ga[0] += mag_bias_shift_flag;
+								out.magnetometer_ga[1] += mag_bias_shift_flag;
+								out.magnetometer_ga[2] += mag_bias_shift_flag;
+							}
+
+							param_t mag_bias_scale = param_find("SENS_MAG_SCAL");
+							float_t mag_bias_scale_flag;
+							param_get(mag_bias_scale, &mag_bias_scale_flag);
+
+							if (abs(mag_bias_scale_flag) > 0)
+							{
+								out.magnetometer_ga[0] *= mag_bias_scale_flag;
+								out.magnetometer_ga[1] *= mag_bias_scale_flag;
+								out.magnetometer_ga[2] *= mag_bias_scale_flag;
+							}
+
+							param_t mag_drift = param_find("SENS_MAG_DRIFT");
+							float_t mag_drift_flag;
+							param_get(mag_drift, &mag_drift_flag);
+
+							if (abs(mag_drift_flag) > 0)
+							{
+								out.magnetometer_ga[0] += 0.01f*mag_drift_flag*mag_drift_timestep;
+								out.magnetometer_ga[1] += 0.01f*mag_drift_flag*mag_drift_timestep;
+								out.magnetometer_ga[2] += 0.01f*mag_drift_flag*mag_drift_timestep;
+
+								mag_drift_timestep += 1;
+							}
+						}
+						// PX4_INFO("%f %f %f %d", (double)out.magnetometer_ga[0], (double)out.magnetometer_ga[1], (double)out.magnetometer_ga[2], out.device_id);
+
 						out.calibration_count = _calibration[instance].calibration_count();
 						out.timestamp = hrt_absolute_time();
 

@@ -38,6 +38,8 @@
 #include <lib/geo/geo.h>
 #include <lib/atmosphere/atmosphere.h>
 
+#include <random>
+#include <chrono>
 
 namespace sensors
 {
@@ -54,6 +56,7 @@ VehicleAirData::VehicleAirData() :
 	_vehicle_air_data_pub.advertise();
 
 	_voter.set_timeout(SENSOR_TIMEOUT);
+	baro_drift_timestep = 0;
 }
 
 VehicleAirData::~VehicleAirData()
@@ -268,6 +271,58 @@ void VehicleAirData::Run()
 						out.baro_alt_meter = altitude;
 						out.baro_temp_celcius = temperature;
 						out.baro_pressure_pa = pressure_pa;
+
+						// Adding faults to the barometer
+						param_t baro_fault = param_find("SENS_BARO_FAULT");
+						int32_t baro_fault_flag;
+						param_get(baro_fault, &baro_fault_flag);
+
+						if (baro_fault_flag == 1)
+						{
+							param_t baro_noise = param_find("SENS_BARO_NOISE");
+							float_t baro_noise_flag;
+							param_get(baro_noise, &baro_noise_flag);
+
+							if (abs(baro_noise_flag) > 0)
+							{
+								unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+								std::default_random_engine generator (seed);
+
+								std::normal_distribution<float> distribution (0.0,baro_noise_flag);
+								float dev = distribution(generator);
+								out.baro_pressure_pa += out.baro_pressure_pa*dev;
+							}
+
+							param_t baro_bias_shift = param_find("SENS_BARO_SHIF");
+							float_t baro_bias_shift_flag;
+							param_get(baro_bias_shift, &baro_bias_shift_flag);
+
+							if (abs(baro_bias_shift_flag) > 0)
+							{
+								out.baro_pressure_pa += baro_bias_shift_flag;
+							}
+
+							param_t baro_bias_scale = param_find("SENS_BARO_SCAL");
+							float_t baro_bias_scale_flag;
+							param_get(baro_bias_scale, &baro_bias_scale_flag);
+
+							if (abs(baro_bias_scale_flag) > 0)
+							{
+								out.baro_pressure_pa *= baro_bias_scale_flag;
+							}
+
+							param_t baro_drift = param_find("SENS_BARO_DRIFT");
+							float_t baro_drift_flag;
+							param_get(baro_drift, &baro_drift_flag);
+
+							if (abs(baro_drift_flag) > 0)
+							{
+								out.baro_pressure_pa += 0.01f*baro_drift_flag*baro_drift_timestep;
+
+								baro_drift_timestep += 1;
+							}
+						}
+
 						out.rho = air_density;
 						out.eas2tas = sqrtf(kAirDensitySeaLevelStandardAtmos / math::max(air_density, FLT_EPSILON));
 						out.calibration_count = _calibration[instance].calibration_count();

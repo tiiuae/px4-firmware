@@ -669,9 +669,9 @@ bool VehicleIMU::Publish()
 
 					std::normal_distribution<float> distribution (0.0,accel_noise_flag);
 					float dev = distribution(generator);
-					imu.delta_velocity[0] += dev;
-					imu.delta_velocity[1] += dev;
-					imu.delta_velocity[2] += dev;
+					imu.delta_velocity[0] += imu.delta_velocity[0]*dev;
+					imu.delta_velocity[1] += imu.delta_velocity[1]*dev;
+					imu.delta_velocity[2] += imu.delta_velocity[2]*dev;
 				}
 
 				param_t accel_bias_shift = param_find("SENS_ACCEL_SHIF");
@@ -728,9 +728,9 @@ bool VehicleIMU::Publish()
 
 					std::normal_distribution<float> distribution (0.0,gyro_noise_flag);
 					float dev = distribution(generator);
-					imu.delta_angle[0] += dev;
-					imu.delta_angle[1] += dev;
-					imu.delta_angle[2] += dev;
+					imu.delta_angle[0] += imu.delta_angle[0]*dev;
+					imu.delta_angle[1] += imu.delta_angle[0]*dev;
+					imu.delta_angle[2] += imu.delta_angle[0]*dev;
 				}
 
 				param_t gyro_bias_shift = param_find("SENS_GYRO_SHIF");
