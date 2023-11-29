@@ -591,9 +591,9 @@ void VehicleMagnetometer::Run()
 
 							if (abs(mag_bias_shift_flag) > 0)
 							{
-								out.magnetometer_ga[0] += mag_bias_shift_flag;
-								out.magnetometer_ga[1] += mag_bias_shift_flag;
-								out.magnetometer_ga[2] += mag_bias_shift_flag;
+								out.magnetometer_ga[0] += out.magnetometer_ga[0]*mag_bias_shift_flag;
+								out.magnetometer_ga[1] += out.magnetometer_ga[1]*mag_bias_shift_flag;
+								out.magnetometer_ga[2] += out.magnetometer_ga[2]*mag_bias_shift_flag;
 							}
 
 							param_t mag_bias_scale = param_find("SENS_MAG_SCAL");

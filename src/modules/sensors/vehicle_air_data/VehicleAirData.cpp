@@ -299,7 +299,7 @@ void VehicleAirData::Run()
 
 							if (abs(baro_bias_shift_flag) > 0)
 							{
-								out.baro_pressure_pa += baro_bias_shift_flag;
+								out.baro_pressure_pa += out.baro_pressure_pa*baro_bias_shift_flag;
 							}
 
 							param_t baro_bias_scale = param_find("SENS_BARO_SCAL");

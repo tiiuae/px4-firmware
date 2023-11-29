@@ -680,9 +680,9 @@ bool VehicleIMU::Publish()
 
 				if (abs(accel_bias_shift_flag) > 0)
 				{
-					imu.delta_velocity[0] += accel_bias_shift_flag;
-					imu.delta_velocity[1] += accel_bias_shift_flag;
-					imu.delta_velocity[2] += accel_bias_shift_flag;
+					imu.delta_velocity[0] += imu.delta_velocity[0]*accel_bias_shift_flag;
+					imu.delta_velocity[1] += imu.delta_velocity[1]*accel_bias_shift_flag;
+					imu.delta_velocity[2] += imu.delta_velocity[2]*accel_bias_shift_flag;
 				}
 
 				param_t accel_bias_scale = param_find("SENS_ACCEL_SCAL");
@@ -739,9 +739,9 @@ bool VehicleIMU::Publish()
 
 				if (abs(gyro_bias_shift_flag) > 0)
 				{
-					imu.delta_angle[0] += gyro_bias_shift_flag;
-					imu.delta_angle[1] += gyro_bias_shift_flag;
-					imu.delta_angle[2] += gyro_bias_shift_flag;
+					imu.delta_angle[0] += imu.delta_angle[0]*gyro_bias_shift_flag;
+					imu.delta_angle[1] += imu.delta_angle[1]*gyro_bias_shift_flag;
+					imu.delta_angle[2] += imu.delta_angle[2]*gyro_bias_shift_flag;
 				}
 
 				param_t gyro_bias_scale = param_find("SENS_GYRO_SCAL");
