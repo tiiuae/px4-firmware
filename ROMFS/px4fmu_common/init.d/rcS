@@ -38,6 +38,7 @@ set SDCARD_FORMAT no
 set STARTUP_TUNE 1
 set VEHICLE_TYPE none
 set SDCARD_DEVPATH /dev/mmcsd0
+set SDCARD_SCRIPT_ENABLED no
 
 # Fine-grained feature gates.
 set USE_HARDFAULT_LOG no
@@ -63,6 +64,12 @@ then
 	. $BOARD_RC_PATHS
 fi
 unset BOARD_RC_PATHS
+
+if rdfeat cmp FEATURE_ENABLE_PX4_SDCARD_SCRIPT
+then
+	echo "SD card script execution enabled"
+	set SDCARD_SCRIPT_ENABLED yes
+fi
 
 #
 # Print full system version.
@@ -185,7 +192,7 @@ unset SDCARD_DEVPATH
 # Look for an init script on the microSD card.
 # Disable autostart if the script found.
 #
-if [ -f $FRC ]
+if [ -f $FRC -a $SDCARD_SCRIPT_ENABLED = yes ]
 then
 	. $FRC
 else
@@ -222,7 +229,7 @@ else
 
 		bsondump $PARAM_FILE
 
-		if [ -d "${BOARD_ROOT_PATH}" ]
+		if [ -d "${BOARD_ROOT_PATH}" -a $SDCARD_SCRIPT_ENABLED = yes ]
 		then
 			if [ $USE_PARAM_IMPORT_DEBUG = yes ]
 			then
@@ -256,7 +263,7 @@ else
 		fi
 	fi
 
-	if [ $USE_PARAM_BACKUPS = yes ]
+	if [ $USE_PARAM_BACKUPS = yes -a $SDCARD_SCRIPT_ENABLED = yes ]
 	then
 		param select-backup $PARAM_BACKUP_FILE
 	fi
@@ -313,11 +320,11 @@ else
 	if [ ${VEHICLE_TYPE} = none ]
 	then
 		# Run external airframe script on SD card or EEPROM-backed storage
-		if [ $USE_EXTERNAL_AIRFRAMES = yes ]
+		if [ $USE_EXTERNAL_AIRFRAMES = yes -a $SDCARD_SCRIPT_ENABLED = yes ]
 		then
 			. ${R}etc/init.d/rc.autostart_ext
 		else
-			echo "ERROR [init] no external airframe storage, skipping"
+			echo "ERROR [init] external airframe storage unavailable or scripts disabled, skipping"
 		fi
 	fi
 
@@ -389,7 +396,7 @@ else
 	#
 	# Override parameters from user configuration file.
 	#
-	if [ -f $FCONFIG ]
+	if [ -f $FCONFIG -a $SDCARD_SCRIPT_ENABLED = yes ]
 	then
 		echo "Custom: ${FCONFIG}"
 		. $FCONFIG
@@ -682,7 +689,7 @@ else
 	#
 	# Start any custom addons from the sdcard.
 	#
-	if [ -f $FEXTRAS ]
+	if [ -f $FEXTRAS -a $SDCARD_SCRIPT_ENABLED = yes ]
 	then
 		echo "Addons script: ${FEXTRAS}"
 		. $FEXTRAS
