@@ -641,7 +641,14 @@ private: //class methods
 			}
 			void free() { px4_sem_destroy(&_sem); }
 			int take() { return px4_sem_wait(&_sem); }
-			int take_timedwait(struct timespec *abstime) { return px4_sem_timedwait(&_sem, abstime); }
+			int take_timedwait(struct timespec *abstime)
+			{
+#if defined(CONFIG_ARCH_BOARD_PX4_SITL)
+				return px4_sem_timedwait(&_sem, abstime);
+#else
+				return sem_clockwait(&_sem, CLOCK_MONOTONIC, abstime);
+#endif
+			}
 			void release() { px4_sem_post(&_sem); }
 			int value() { int value; px4_sem_getvalue(&_sem, &value); return value; }
 			bool in_use{false};
