@@ -419,7 +419,7 @@ PWMESC::task_main()
 		_actuator_armed_sub.update(&_actuator_armed);
 
 		struct timespec ts;
-		px4_clock_gettime(CLOCK_REALTIME, &ts);
+		px4_clock_gettime(CLOCK_MONOTONIC, &ts);
 		/* Add 100 ms, this can't overflow */
 		ts.tv_nsec += 100000000;
 
@@ -429,7 +429,7 @@ PWMESC::task_main()
 		}
 
 		/* sleep waiting for mixer update */
-		int ret = px4_sem_timedwait(&_update_sem, &ts);
+		int ret = sem_clockwait(&_update_sem, CLOCK_MONOTONIC, &ts);
 
 		perf_begin(_perf_update);
 
