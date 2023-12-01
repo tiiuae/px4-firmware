@@ -81,6 +81,28 @@ public:
 		if (ret_mutex_init != 0) {
 			PX4_ERR("pthread_mutex_init failed, status=%d", ret_mutex_init);
 		}
+
+		// pthread_condattr_init
+		pthread_condattr_t condattr;
+		int ret_condattr_init = pthread_condattr_init(&condattr);
+
+		if (ret_condattr_init) {
+			PX4_ERR("pthread_condattr_init failed, status=%d", ret_condattr_init);
+		}
+
+		// pthread_condattr_setclock
+		int ret_setclock = pthread_condattr_setclock(&condattr, CLOCK_MONOTONIC);
+
+		if (ret_setclock != 0) {
+			PX4_ERR("pthread_condattr_setclock failed, status=%d", ret_setclock);
+		}
+
+		// pthread_cond_init
+		int ret_cond_init = pthread_cond_init(&_cv, &condattr);
+
+		if (ret_cond_init) {
+			PX4_ERR("pthread_cond_init failed, status=%d", ret_cond_init);
+		}
 	}
 
 	virtual ~SubscriptionBlocking()
@@ -129,7 +151,7 @@ public:
 
 				// Calculate an absolute time in the future
 				struct timespec ts;
-				px4_clock_gettime(CLOCK_REALTIME, &ts);
+				px4_clock_gettime(CLOCK_MONOTONIC, &ts);
 				uint64_t nsecs = ts.tv_nsec + (timeout_us * 1000);
 				static constexpr unsigned billion = (1000 * 1000 * 1000);
 				ts.tv_sec += nsecs / billion;
