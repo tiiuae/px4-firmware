@@ -596,6 +596,15 @@ uORB::DeviceNode::write(const char *buffer, const orb_metadata *meta, orb_advert
 
 	memcpy(((uint8_t *)node_data(handle)) + o_size * (generation % _queue_size), buffer, o_size);
 
+#ifndef CONFIG_BUILD_FLAT
+
+	/* At the first write, store publisher priority for subscriber callback thread adjustment */
+	if (_data_valid == false) {
+		set_max_writer_priority();
+	}
+
+#endif
+
 	/* Mark at least one data has been published */
 	_data_valid = true;
 
@@ -925,3 +934,16 @@ uORB::DeviceNode::_unregister_callback(uorb_cb_handle_t &cb_handle)
 
 	return ret;
 }
+
+#ifndef CONFIG_BUILD_FLAT
+void
+uORB::DeviceNode::set_max_writer_priority()
+{
+	sched_param param;
+	int schedparam_ret = sched_getparam(gettid(), &param);
+
+	if (schedparam_ret == 0 && param.sched_priority > _max_writer_priority) {
+		_max_writer_priority = param.sched_priority;
+	}
+}
+#endif

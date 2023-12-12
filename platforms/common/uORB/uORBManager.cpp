@@ -68,6 +68,7 @@ int8_t uORB::Manager::per_process_lock = -1;
 pid_t uORB::Manager::per_process_cb_thread = -1;
 List<class uORB::SubscriptionCallback *> uORB::Manager::per_process_cb_list;
 px4_sem_t uORB::Manager::per_process_cb_list_mutex;
+int uORB::Manager::per_process_cb_priority;
 #endif
 
 void uORB::Manager::cleanup()
@@ -497,6 +498,29 @@ uORB::Manager::launchCallbackThread()
 	return per_process_lock;
 }
 
+void
+uORB::Manager::adjust_callback_thread_priority(int priority)
+{
+	if (priority > per_process_cb_priority) {
+		sched_param param;
+		int schedparam_ret = sched_getparam(per_process_cb_thread, &param);
+
+		if (schedparam_ret) {
+			PX4_ERR("getschedparam fail\n");
+
+		} else {
+			param.sched_priority = priority;
+
+			if (sched_setparam(per_process_cb_thread, &param)) {
+				PX4_ERR("setschedparam fail\n");
+
+			} else {
+				per_process_cb_priority = priority;
+			}
+		}
+	}
+}
+
 int
 uORB::Manager::callback_thread(int argc, char *argv[])
 {
@@ -511,6 +535,8 @@ uORB::Manager::callback_thread(int argc, char *argv[])
 		count = 0;
 
 		for (auto sub : per_process_cb_list) {
+			adjust_callback_thread_priority(sub->priority());
+
 			/* Just in cast the callback thread has been starved,
 			 * run all the queued callbacks now
 			 */

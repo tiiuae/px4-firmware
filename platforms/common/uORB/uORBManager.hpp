@@ -456,6 +456,8 @@ private: // class methods
 
 	static void cleanup();
 	static int callback_thread(int argc, char *argv[]);
+	static void adjust_callback_thread_priority(int priority);
+
 	static int8_t launchCallbackThread();
 
 private: // data members
@@ -663,6 +665,7 @@ private: //class methods
 
 	static int8_t per_process_lock;
 	static pid_t per_process_cb_thread;
+	static int per_process_cb_priority;
 	static List<class SubscriptionCallback *> per_process_cb_list;
 	static px4_sem_t per_process_cb_list_mutex;
 #endif

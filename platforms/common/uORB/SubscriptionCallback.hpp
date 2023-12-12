@@ -123,6 +123,11 @@ public:
 	virtual void call() = 0;
 
 #ifndef CONFIG_BUILD_FLAT
+	int priority()
+	{
+		return DeviceNode::get_max_writer_priority(_subscription.get_node());
+	}
+
 	bool do_call()
 	{
 		bool dequeued = DeviceNode::cb_dequeue(_subscription.get_node(), _cb_handle);

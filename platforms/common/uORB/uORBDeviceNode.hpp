@@ -255,6 +255,13 @@ public:
 	}
 #endif
 
+#ifndef CONFIG_BUILD_FLAT
+	static int get_max_writer_priority(orb_advert_t &node_handle)
+	{
+		return node(node_handle)->_max_writer_priority;
+	}
+#endif
+
 private:
 	friend uORBTest::UnitTest;
 
@@ -357,13 +364,18 @@ private:
 #else
 
 	/**
+	 * Get current thread priority and set the _max_writer_priority
+	 */
+	void set_max_writer_priority();
+
+	/**
 	 * Mutex for protecting node's internal data
 	 */
 
 	void		lock() { do {} while (px4_sem_wait(&_lock) != 0); }
 	void		unlock() { px4_sem_post(&_lock); }
 	px4_sem_t	_lock; /**< lock to protect access to all class members */
-
+	int _max_writer_priority{0};
 	char _devname[NAME_MAX + 1];
 #endif
 };
