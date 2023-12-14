@@ -54,7 +54,7 @@ jobs:
       - fc_matrix
     steps:
       - name: Checkout px4-firmware
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: px4-firmware
           fetch-depth: 0
@@ -85,7 +85,7 @@ jobs:
       - px4fwupdater
     steps:
       - name: Checkout px4-firmware
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: px4-firmware
           fetch-depth: 0
@@ -130,7 +130,7 @@ jobs:
       - px4fwupdater
     steps:
       - name: Checkout px4-firmware
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: px4-firmware
           fetch-depth: 0
