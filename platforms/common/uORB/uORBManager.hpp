@@ -373,6 +373,8 @@ public:
 	{
 		return per_process_lock >= 0 ? per_process_lock : launchCallbackThread();
 	}
+
+	static void setSubscriptionCallbackPriority();
 #endif
 
 	static uint8_t orb_get_instance(orb_advert_t &node_handle)
@@ -456,7 +458,7 @@ private: // class methods
 
 	static void cleanup();
 	static int callback_thread(int argc, char *argv[]);
-	static void adjust_callback_thread_priority(int priority);
+	static void adjust_callback_thread_priority(SubscriptionCallback *sub);
 
 	static int8_t launchCallbackThread();
 
@@ -663,11 +665,54 @@ private: //class methods
 	static void lock_cb_list() { do {} while (px4_sem_wait(&per_process_cb_list_mutex) != 0); }
 	static void unlock_cb_list() { px4_sem_post(&per_process_cb_list_mutex); }
 
+	static int get_priority()
+	{
+		sched_param param;
+		int schedparam_ret;
+#ifdef __PX4_NUTTX
+		schedparam_ret = sched_getparam(gettid(), &param);
+#else
+		int policy;
+		schedparam_ret = pthread_getschedparam(pthread_self(), &policy, &param);
+#endif
+
+		if (schedparam_ret == 0) {
+			return param.sched_priority;
+		}
+
+		return -1;
+	}
+
+	static int set_priority(int priority)
+	{
+		sched_param param;
+		int schedparam_ret;
+#ifdef __PX4_NUTTX
+		schedparam_ret = sched_getparam(gettid(), &param);
+#else
+		int policy;
+		schedparam_ret = pthread_getschedparam(pthread_self(), &policy, &param);
+#endif
+
+		if (schedparam_ret == 0) {
+			param.sched_priority = priority;
+
+#ifdef __PX4_NUTTX
+			schedparam_ret = sched_setparam(gettid(), &param);
+#else
+			schedparam_ret = pthread_setschedparam(pthread_self(), policy, &param);
+#endif
+		}
+
+		return schedparam_ret;
+	}
+
 	static int8_t per_process_lock;
 	static pid_t per_process_cb_thread;
-	static int per_process_cb_priority;
 	static List<class SubscriptionCallback *> per_process_cb_list;
 	static px4_sem_t per_process_cb_list_mutex;
+	static int per_process_cb_priority;
+	static int per_process_cb_sub_priority;
 #endif
 };
 } // namespace uORB

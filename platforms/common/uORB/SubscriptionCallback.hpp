@@ -66,6 +66,26 @@ public:
 		unregisterCallback();
 	};
 
+	bool update(void *dst)
+	{
+		if (first_copy) {
+			first_copy = false;
+			Manager::setSubscriptionCallbackPriority();
+		}
+
+		return SubscriptionInterval::update(dst);
+	}
+
+	bool copy(void *dst)
+	{
+		if (first_copy) {
+			first_copy = false;
+			Manager::setSubscriptionCallbackPriority();
+		}
+
+		return SubscriptionInterval::copy(dst);
+	}
+
 	bool registerCallback()
 	{
 		if (!orb_advert_valid(_subscription.get_node())) {
@@ -123,7 +143,7 @@ public:
 	virtual void call() = 0;
 
 #ifndef CONFIG_BUILD_FLAT
-	int priority()
+	int publisherPriority()
 	{
 		return DeviceNode::get_max_writer_priority(_subscription.get_node());
 	}
@@ -145,6 +165,10 @@ public:
 protected:
 
 	uorb_cb_handle_t _cb_handle{UORB_INVALID_CB_HANDLE};
+
+private:
+	bool first_copy{true};
+
 };
 
 // Subscription with callback that schedules a WorkItem

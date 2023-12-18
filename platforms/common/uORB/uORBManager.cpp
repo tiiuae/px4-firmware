@@ -68,6 +68,7 @@ int8_t uORB::Manager::per_process_lock = -1;
 pid_t uORB::Manager::per_process_cb_thread = -1;
 List<class uORB::SubscriptionCallback *> uORB::Manager::per_process_cb_list;
 px4_sem_t uORB::Manager::per_process_cb_list_mutex;
+int uORB::Manager::per_process_cb_sub_priority;
 int uORB::Manager::per_process_cb_priority;
 #endif
 
@@ -499,24 +500,35 @@ uORB::Manager::launchCallbackThread()
 }
 
 void
-uORB::Manager::adjust_callback_thread_priority(int priority)
+uORB::Manager::setSubscriptionCallbackPriority()
 {
-	if (priority > per_process_cb_priority) {
-		sched_param param;
-		int schedparam_ret = sched_getparam(per_process_cb_thread, &param);
+	int priority = get_priority();
 
-		if (schedparam_ret) {
-			PX4_ERR("getschedparam fail\n");
+	if (priority >= 0) {
+		if (priority > per_process_cb_sub_priority) {
+			printf("sub priority now %d at %d\n", priority, gettid());
+			per_process_cb_sub_priority = priority;
+		}
+
+	} else {
+		PX4_ERR("Get priority failed");
+	}
+}
+
+void
+uORB::Manager::adjust_callback_thread_priority(SubscriptionCallback *sub)
+{
+	int publisher_prio = sub->publisherPriority();
+
+	int target_prio = publisher_prio < per_process_cb_sub_priority ? publisher_prio : per_process_cb_sub_priority;
+
+	if (per_process_cb_priority < target_prio && target_prio >= SCHED_PRIORITY_MIN) {
+
+		if (set_priority(target_prio)) {
+			PX4_ERR("setting priority fail\n");
 
 		} else {
-			param.sched_priority = priority;
-
-			if (sched_setparam(per_process_cb_thread, &param)) {
-				PX4_ERR("setschedparam fail\n");
-
-			} else {
-				per_process_cb_priority = priority;
-			}
+			per_process_cb_priority = target_prio;
 		}
 	}
 }
@@ -535,7 +547,7 @@ uORB::Manager::callback_thread(int argc, char *argv[])
 		count = 0;
 
 		for (auto sub : per_process_cb_list) {
-			adjust_callback_thread_priority(sub->priority());
+			adjust_callback_thread_priority(sub);
 
 			/* Just in cast the callback thread has been starved,
 			 * run all the queued callbacks now
