@@ -59,7 +59,7 @@ jobs:
           path: px4-firmware
           fetch-depth: 0
       - name: Download pixhawk artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: pixhawk
           path: bin
@@ -90,7 +90,7 @@ jobs:
           path: px4-firmware
           fetch-depth: 0
       - name: Download pixhawk artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: pixhawk
           path: bin
@@ -135,7 +135,7 @@ jobs:
           path: px4-firmware
           fetch-depth: 0
       - name: Download pixhawk artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: pixhawk
           path: bin
@@ -184,7 +184,7 @@ jobs:
       - fc_matrix
     steps:
       - name: Download pixhawk artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: pixhawk
           path: bin
@@ -263,7 +263,7 @@ jobs:
       - fc_matrix
     steps:
       - name: Download pixhawk artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: pixhawk
           path: bin
