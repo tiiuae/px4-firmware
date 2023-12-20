@@ -108,10 +108,10 @@ bool LogWriterMavlink::reliable_fifo_is_sending()
 	return sending;
 }
 
-void LogWriterMavlink::wait_fifo_count(size_t count)
+void LogWriterMavlink::wait_fifo_count(size_t count, usize_t sleep_time_us)
 {
 	while (reliable_fifo_count() > count) {
-		usleep(30000);
+		usleep(sleep_time_us);
 	}
 }
 
@@ -267,6 +267,10 @@ int LogWriterMavlink::write_reliable_message(void *ptr, size_t size, bool wait)
 {
 	if (wait) {
 		wait_fifo_count(LOGGER_RELIABLE_FIFO_WAIT_THRESHOLD);
+
+	} else if (reliable_fifo_count() > LOGGER_RELIABLE_FIFO_MAX_COUNT_THRESHOLD) {
+		PX4_ERR("Reliable message fifo full");
+		return -1;
 	}
 
 	uint8_t *p = (uint8_t *) ptr;

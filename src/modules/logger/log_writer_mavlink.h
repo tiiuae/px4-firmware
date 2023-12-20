@@ -42,6 +42,7 @@
 #ifdef LOGGER_PARALLEL_LOGGING
 static constexpr size_t LOGGER_ULOG_STREAM_DATA_LEN {249}; // Size of ulog_stream data buffer
 static constexpr size_t LOGGER_RELIABLE_FIFO_WAIT_THRESHOLD{10}; // Msg count threshold for wait fifo trigger
+static constexpr size_t LOGGER_RELIABLE_FIFO_MAX_COUNT_THRESHOLD{200}; // Maximum allowed message count in reliable msg fifo
 #endif
 
 namespace px4
@@ -91,7 +92,7 @@ public:
 #ifdef LOGGER_PARALLEL_LOGGING
 	int write_reliable_message(void *ptr, size_t size, bool wait = false);
 	bool reliable_fifo_is_sending();
-	void wait_fifo_count(size_t count);
+	void wait_fifo_count(size_t count, usize_t sleep_time_us = 30000);
 #else
 	void set_need_reliable_transfer(bool need_reliable);
 #endif
