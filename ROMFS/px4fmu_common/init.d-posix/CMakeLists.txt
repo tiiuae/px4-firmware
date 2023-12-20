@@ -41,5 +41,7 @@ px4_add_romfs_files(
 	px4-rc.mavlinksim
 	px4-rc.sihsim
 	rc.replay
+	rcS.sim_tcp_server
+	rcS.sim_udp
 	rcS
 )
