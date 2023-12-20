@@ -42,5 +42,7 @@ px4_add_romfs_files(
 	px4-rc.sihsim
 	px4-rc.rotorpy
 	rc.replay
+	rcS.sim_tcp_server
+	rcS.sim_udp
 	rcS
 )
