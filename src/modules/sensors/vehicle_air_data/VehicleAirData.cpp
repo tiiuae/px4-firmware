@@ -317,7 +317,7 @@ void VehicleAirData::Run()
 
 							if (abs(baro_drift_flag) > 0)
 							{
-								out.baro_pressure_pa += 0.01f*baro_drift_flag*baro_drift_timestep;
+								out.baro_pressure_pa += 0.01f*baro_drift_flag*baro_drift_timestep/1000000;
 
 								baro_drift_timestep += 1;
 							}

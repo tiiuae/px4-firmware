@@ -702,9 +702,9 @@ bool VehicleIMU::Publish()
 
 				if (abs(accel_drift_flag) > 0)
 				{
-					imu.delta_velocity[0] += 0.01f*accel_drift_flag*accel_drift_timestep;
-					imu.delta_velocity[1] += 0.01f*accel_drift_flag*accel_drift_timestep;
-					imu.delta_velocity[2] += 0.01f*accel_drift_flag*accel_drift_timestep;
+					imu.delta_velocity[0] += 0.01f*accel_drift_flag*accel_drift_timestep/1000000;
+					imu.delta_velocity[1] += 0.01f*accel_drift_flag*accel_drift_timestep/1000000;
+					imu.delta_velocity[2] += 0.01f*accel_drift_flag*accel_drift_timestep/1000000;
 
 					accel_drift_timestep += 1;
 				}
@@ -761,9 +761,9 @@ bool VehicleIMU::Publish()
 
 				if (abs(gyro_drift_flag) > 0)
 				{
-					imu.delta_angle[0] += 0.01f*gyro_drift_flag*gyro_drift_timestep;
-					imu.delta_angle[1] += 0.01f*gyro_drift_flag*gyro_drift_timestep;
-					imu.delta_angle[2] += 0.01f*gyro_drift_flag*gyro_drift_timestep;
+					imu.delta_angle[0] += 0.01f*gyro_drift_flag*gyro_drift_timestep/1000000;
+					imu.delta_angle[1] += 0.01f*gyro_drift_flag*gyro_drift_timestep/1000000;
+					imu.delta_angle[2] += 0.01f*gyro_drift_flag*gyro_drift_timestep/1000000;
 
 					gyro_drift_timestep += 1;
 				}

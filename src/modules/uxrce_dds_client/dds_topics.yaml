@@ -83,6 +83,15 @@ publications:
   - topic: /fmu/out/sensor_accel
     type: px4_msgs::msg::SensorAccel
 
+  - topic: /fmu/out/health_report
+    type: px4_msgs::msg::HealthReport
+    
+  - topic: /fmu/out/failure_detector_status
+    type: px4_msgs::msg::FailureDetectorStatus
+    
+  - topic: /fmu/out/collision_report
+    type: px4_msgs::msg::CollisionReport
+
 subscriptions:
   - topic: /fmu/in/register_ext_component_request
     type: px4_msgs::msg::RegisterExtComponentRequest

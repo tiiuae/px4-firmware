@@ -613,9 +613,9 @@ void VehicleMagnetometer::Run()
 
 							if (abs(mag_drift_flag) > 0)
 							{
-								out.magnetometer_ga[0] += 0.01f*mag_drift_flag*mag_drift_timestep;
-								out.magnetometer_ga[1] += 0.01f*mag_drift_flag*mag_drift_timestep;
-								out.magnetometer_ga[2] += 0.01f*mag_drift_flag*mag_drift_timestep;
+								out.magnetometer_ga[0] += 0.01f*mag_drift_flag*mag_drift_timestep/1000000;
+								out.magnetometer_ga[1] += 0.01f*mag_drift_flag*mag_drift_timestep/1000000;
+								out.magnetometer_ga[2] += 0.01f*mag_drift_flag*mag_drift_timestep/1000000;
 
 								mag_drift_timestep += 1;
 							}
