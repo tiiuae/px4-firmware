@@ -1,0 +1,5 @@
+menuconfig MODULES_MOI_AGENT
+	bool "moi_agent"
+	default n
+	---help---
+		Enable M-O-I Agent
