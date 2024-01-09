@@ -1,0 +1,239 @@
+#!/bin/sh
+# Un comment and use set +e to ignore and set -e to enable 'exit on error control'
+set +e
+# Un comment the line below to help debug scripts by printing a trace of the script commands
+#set -x
+# PX4FMU startup script.
+#
+# NOTE: environment variable references:
+#    If the dollar sign ('$') is followed by a left bracket ('{') then the
+#    variable name is terminated with the right bracket character ('}').
+#    Otherwise, the variable name goes to the end of the argument.
+#
+#
+# NOTE: COMMENT LINES ARE REMOVED BEFORE STORED IN ROMFS.
+#
+#------------------------------------------------------------------------------
+
+#
+# Set default paramter values.
+# Do not add intra word spaces
+# it wastes flash
+#
+set R /
+set FCONFIG /fs/microsd/etc/config.txt
+set FEXTRAS /fs/microsd/etc/extras.txt
+set FRC /fs/microsd/etc/rc.txt
+set IOFW "/etc/extras/px4_io-v2_default.bin"
+set LOGGER_ARGS ""
+set LOGGER_BUF 8
+set PARAM_FILE ""
+set PARAM_BACKUP_FILE ""
+set RC_INPUT_ARGS ""
+set SDCARD_AVAILABLE no
+set SDCARD_EXT_PATH /fs/microsd/ext_autostart
+set SDCARD_FORMAT no
+set STARTUP_TUNE 1
+set VEHICLE_TYPE none
+set SDCARD_DEVPATH /dev/mmcsd0
+set SDCARD_SCRIPT_ENABLED no
+
+#
+# Optional board path defaults: rc.board_paths
+#
+set BOARD_RC_PATHS ${R}etc/init.d/rc.board_paths
+if [ -f $BOARD_RC_PATHS ]
+then
+	echo "Board path defaults: ${BOARD_RC_PATHS}"
+	. $BOARD_RC_PATHS
+fi
+unset BOARD_RC_PATHS
+
+if rdfeat cmp FEATURE_ENABLE_PX4_SDCARD_SCRIPT
+then
+	echo "SD card script execution enabled"
+	set SDCARD_SCRIPT_ENABLED yes
+fi
+
+#
+# Print full system version.
+#
+ver all
+
+#
+# Try to mount the microSD card.
+#
+if [ -b $SDCARD_DEVPATH ]
+then
+	if [ -f "/fs/microsd/.format" ]
+	then
+		echo "INFO [init] format ${SDCARD_DEVPATH} requested (/fs/microsd/.format)"
+		set SDCARD_FORMAT yes
+		rm /fs/microsd/.format
+		umount /fs/microsd
+
+	else
+		set SDCARD_AVAILABLE yes
+	fi
+
+	if [ $SDCARD_AVAILABLE = no -o $SDCARD_FORMAT = yes ]
+	then
+		echo "INFO [init] formatting ${SDCARD_DEVPATH}"
+		set STARTUP_TUNE 15 # tune 15 = SD_ERROR (overridden to SD_INIT if format + mount succeeds)
+
+		if mkfatfs -F 32 $SDCARD_DEVPATH
+		then
+			echo "INFO [init] card formatted"
+
+			if mount -t vfat $SDCARD_DEVPATH /fs/microsd
+			then
+				set SDCARD_AVAILABLE yes
+				set STARTUP_TUNE 14 # tune 14 = SD_INIT
+			else
+				echo "ERROR [init] card mount failed"
+			fi
+		else
+			echo "ERROR [init] format failed"
+		fi
+	fi
+
+	if [ $SDCARD_AVAILABLE = yes ]
+	then
+		if hardfault_log check
+		then
+			set STARTUP_TUNE 2 # tune 2 = ERROR_TUNE
+			if hardfault_log commit
+			then
+				hardfault_log reset
+			fi
+		fi
+	fi
+
+	set PARAM_FILE /fs/microsd/params
+	set PARAM_BACKUP_FILE "/fs/microsd/parameters_backup.bson"
+fi
+
+unset SDCARD_DEVPATH
+
+
+#
+# Set the parameter file the board supports params on
+# MTD device.
+#
+if mft query -q -k MTD -s MTD_PARAMETERS -v /fs/mtd_params
+then
+	set PARAM_FILE /fs/mtd_params
+fi
+
+#
+# Load parameters.
+#
+# if the board has a storage for (factory) calibration data
+if mft query -q -k MTD -s MTD_CALDATA -v /fs/mtd_caldata
+then
+	param load /fs/mtd_caldata
+fi
+
+param select $PARAM_FILE
+if ! param import
+then
+	echo "ERROR [init] param import failed"
+	set STARTUP_TUNE 2 # tune 2 = ERROR_TUNE
+
+	bsondump $PARAM_FILE
+
+	if [ -d "/fs/microsd" -a $SDCARD_SCRIPT_ENABLED = yes ]
+	then
+		# try to make a backup copy
+		cp $PARAM_FILE /fs/microsd/param_import_fail.bson
+
+		# try importing from backup file
+		if [ -f $PARAM_BACKUP_FILE ]
+		then
+			echo "[init] importing from parameter backup"
+
+			# dump current backup file contents for comparison
+			bsondump $PARAM_BACKUP_FILE
+
+			param import $PARAM_BACKUP_FILE
+
+			# overwrite invalid $PARAM_FILE with backup
+			cp $PARAM_BACKUP_FILE $PARAM_FILE
+		fi
+
+		param status
+
+		dmesg >> /fs/microsd/param_import_fail.txt &
+	fi
+fi
+
+
+#
+# Waypoint storage.
+# REBOOTWORK this needs to start in parallel.
+#
+if param compare -s SYS_DM_BACKEND 1
+then
+	dataman start -r
+else
+	if param compare SYS_DM_BACKEND 0
+	then
+		# dataman start default
+		dataman start
+	fi
+fi
+
+#
+# Start the tone_alarm driver.
+# Needs to be started after the parameters are loaded (for CBRK_BUZZER).
+#
+tone_alarm start
+
+#
+# Start the socket communication send_event handler.
+#
+send_event start
+
+#
+# Start the resource load monitor.
+#
+load_mon start
+
+#
+# Start system state indicator.
+#
+rgbled start -X -q
+rgbled_ncp5623c start -X -q
+rgbled_lp5562 start -X -q
+rgbled_is31fl3195 start -X -q
+
+# Start the IP link
+netconfig
+
+# Start MC flight control mavlink to ethernet interface
+mavlink start -c ${REMOTE_IPADDR} -u 14541 -o 14540 -r 1000000 -x
+
+
+#
+# Unset all script parameters to free RAM.
+#
+unset R
+unset FCONFIG
+unset FEXTRAS
+unset FRC
+unset IOFW
+unset LOGGER_ARGS
+unset LOGGER_BUF
+unset PARAM_FILE
+unset PARAM_BACKUP_FILE
+unset RC_INPUT_ARGS
+unset SDCARD_AVAILABLE
+unset SDCARD_EXT_PATH
+unset SDCARD_FORMAT
+unset STARTUP_TUNE
+unset VEHICLE_TYPE
+
+#
+# Boot is complete, inform MAVLink app(s) that the system is now fully up and running.
+#
+mavlink boot_complete
