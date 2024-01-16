@@ -31,3 +31,5 @@ uint8 target_system
 uint8 target_component
 
 bool from_external					# Indicates if the command came from an external source
+
+# TOPICS vehicle_command_ack moi_critical_resp
