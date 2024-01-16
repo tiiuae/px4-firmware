@@ -299,6 +299,10 @@ private:
 	uORB::Publication<vehicle_control_mode_s>		_vehicle_control_mode_pub{ORB_ID(vehicle_control_mode)};
 	uORB::Publication<vehicle_status_s>			_vehicle_status_pub{ORB_ID(vehicle_status)};
 
+	// M-O-I critical action handling
+	uORB::Publication<vehicle_command_s> 			_crit_act_req_pub{ORB_ID(moi_critical_req)};
+	uORB::Subscription					_crit_act_resp_sub{ORB_ID(moi_critical_resp)};
+
 	orb_advert_t _mavlink_log_pub{nullptr};
 
 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};

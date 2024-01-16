@@ -533,6 +533,55 @@ static constexpr const char *arm_disarm_reason_str(arm_disarm_reason_t calling_r
 
 transition_result_t Commander::arm(arm_disarm_reason_t calling_reason, bool run_preflight_checks)
 {
+	bool moi_critical_allowed = false;
+	bool moi_response_received = false;
+	hrt_abstime now = hrt_absolute_time();
+
+	PX4_INFO("M-O-I check..");
+	vehicle_command_s moi_critical_req{};
+	moi_critical_req.timestamp = now;
+	moi_critical_req.command = vehicle_command_s::VEHICLE_CMD_CUSTOM_1;
+	_crit_act_req_pub.publish(moi_critical_req);
+
+	while (!moi_response_received && hrt_elapsed_time(&now) < 1_s) {
+
+		vehicle_command_ack_s moi_critical_resp{};
+
+		if (_crit_act_resp_sub.update(&moi_critical_resp)) {
+
+			switch (moi_critical_resp.command) {
+			case vehicle_command_s::VEHICLE_CMD_CUSTOM_1: {
+					moi_response_received = true;
+
+					if (moi_critical_resp.result == vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED)	{
+						moi_critical_allowed = true;
+						PX4_INFO("M-O-I RESP - ALLOWED");
+
+					} else if (moi_critical_resp.result == vehicle_command_ack_s::VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED) {
+						moi_critical_allowed = false;
+						PX4_INFO("M-O-I RESP - DENIED");
+
+					} else {
+						PX4_WARN("M-O-I RESP - UKNOWN RESPONSE! %d", moi_critical_resp.result);
+					}
+				}
+				break;
+
+			default:
+				break;
+			}
+		}
+
+		if (!moi_response_received) {
+			px4_usleep(1000);
+		}
+	}
+
+	if (!moi_critical_allowed) {
+		PX4_WARN("ARMING DENIED: MOI critical action not allowed!");
+		return TRANSITION_DENIED;
+	}
+
 	// allow a grace period for re-arming: preflight checks don't need to pass during that time, for example for accidential in-air disarming
 	if (calling_reason == arm_disarm_reason_t::rc_switch
 	    && (hrt_elapsed_time(&_last_disarmed_timestamp) < 5_s)) {
@@ -594,6 +643,8 @@ transition_result_t Commander::arm(arm_disarm_reason_t calling_reason, bool run_
 
 transition_result_t Commander::disarm(arm_disarm_reason_t calling_reason, bool forced)
 {
+	vehicle_command_s moi_critical_req{};
+
 	if (!forced) {
 		const bool landed = (_vehicle_land_detected.landed || _vehicle_land_detected.maybe_landed
 				     || is_ground_vehicle(_vehicle_status));
@@ -634,6 +685,11 @@ transition_result_t Commander::disarm(arm_disarm_reason_t calling_reason, bool f
 	} else if (arming_res == TRANSITION_DENIED) {
 		tune_negative(true);
 	}
+
+	PX4_INFO("M-O-I Critical action release");
+	moi_critical_req.timestamp = hrt_absolute_time();
+	moi_critical_req.command = vehicle_command_s::VEHICLE_CMD_CUSTOM_0;
+	_crit_act_req_pub.publish(moi_critical_req);
 
 	return arming_res;
 }
