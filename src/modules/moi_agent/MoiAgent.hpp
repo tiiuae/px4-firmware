@@ -69,6 +69,12 @@ enum JsonState {
 	DATA,
 };
 
+enum RebootState {
+	NONE = 0,
+	PREPARED,
+	REQUESTED,
+};
+
 struct moi_store {
 	char state;
 	bool critical_activity_block;
@@ -126,9 +132,10 @@ private:
 	cJSON *handle_check_state_request(cJSON *root);
 	cJSON *handle_readiness_status_request(cJSON *root);
 	cJSON *handle_change_state_request(cJSON *root);
+	cJSON *handle_change_state_complete_ind(cJSON *root);
 	cJSON *create_readiness_status_resp(const char *error);
 	cJSON *create_change_state_resp(char state, const char *error);
-	void handle_change_state_complete_ind(cJSON *root);
+	cJSON *create_change_state_complete_resp();
 	void set_crit_act_block(bool block);
 	void check_critical_requests();
 
@@ -148,7 +155,7 @@ private:
 
 	char _current_state{'I'};
 	char _requested_state{'I'};
-	bool _reboot_request{false};
+	RebootState _reboot_request{RebootState::NONE};
 	bool _block_new_critical_activities{false};
 
 	pthread_mutex_t _ca_mtx;

@@ -230,13 +230,18 @@ void MoiAgent::run()
 
 	pthread_attr_destroy(&thr_attr);
 
-	// Read state from file
+	// Read state from file during startup
 
 	if (read_state_from_storage(&store) == PX4_OK) {
 		// Set current state
 		_current_state = store.state;
+
 		// mutex lock not needed as listener thread not yet started
-		_block_new_critical_activities = store.critical_activity_block;
+		//_block_new_critical_activities = store.critical_activity_block;
+
+		// Because reboot is performed in the end of state change, the
+		// critical activity block can be released here
+		_block_new_critical_activities = false;
 	}
 
 	if (_current_state == '\0') {
@@ -355,7 +360,7 @@ void MoiAgent::run_loop()
 
 		while (connected) {
 
-			if (should_exit() || _reboot_request) {
+			if (should_exit() || _reboot_request == RebootState::REQUESTED) {
 
 				// Close socket
 
@@ -503,7 +508,7 @@ void MoiAgent::run_loop()
 			px4_usleep(100_ms);
 		} // while (connected);
 
-		if (_reboot_request) {
+		if (_reboot_request == RebootState::REQUESTED) {
 			PX4_INFO("Reboot requested.....");
 			ret = px4_reboot_request(false, 0, false);
 
@@ -626,7 +631,7 @@ char *MoiAgent::process_message(char *data)
 		resp = handle_change_state_request(req);
 
 	} else if (strcmp(req_op->valuestring, "CHANGE_STATE_COMPLETE_IND") == 0) {
-		handle_change_state_complete_ind(req);
+		resp = handle_change_state_complete_ind(req);
 
 	} else {
 		PX4_ERR("Unknown command : '%s'", req_op->valuestring);
@@ -739,7 +744,7 @@ cJSON *MoiAgent::handle_change_state_request(cJSON *root)
 
 	if (state != _current_state) {
 		set_state(state);
-		_reboot_request = true;
+		_reboot_request = RebootState::PREPARED;
 
 	} else {
 		PX4_INFO("No state change");
@@ -748,45 +753,51 @@ cJSON *MoiAgent::handle_change_state_request(cJSON *root)
 	return create_change_state_resp(state, "");
 }
 
-void MoiAgent::handle_change_state_complete_ind(cJSON *root)
+cJSON *MoiAgent::handle_change_state_complete_ind(cJSON *root)
 {
-	char new_state;
-	cJSON *csci{nullptr};
-	cJSON *ns{nullptr};
+	//char new_state;
+	//cJSON *csci{nullptr};
+	//cJSON *ns{nullptr};
 
-	pthread_mutex_lock(&_ca_mtx);
+	/*
+		pthread_mutex_lock(&_ca_mtx);
 
-	if (!_block_new_critical_activities) {
-		PX4_ERR("Agent out of sync: received unexpected 'ChangeStateCompleteInd'");
+		if (!_block_new_critical_activities) {
+			PX4_ERR("Agent out of sync: received unexpected 'ChangeStateCompleteInd'");
+		}
+
+		PX4_INFO("Critical activity block released!");
+		set_crit_act_block(false);
+		pthread_mutex_unlock(&_ca_mtx);
+	*/
+	if (_reboot_request == RebootState::PREPARED) {
+		_reboot_request = RebootState::REQUESTED;
 	}
 
-	PX4_INFO("Critical activity block released!");
-	set_crit_act_block(false);
-	pthread_mutex_unlock(&_ca_mtx);
+	/*
+		csci = cJSON_GetObjectItem(root, "ChangeStateCompleteInd");
 
-	csci = cJSON_GetObjectItem(root, "ChangeStateCompleteInd");
+		if (!csci) {
+			PX4_ERR("Missing 'ChangeStateCompleteInd' field");
+			return create_change_state_complete_resp();
+		}
 
-	if (!csci) {
-		PX4_ERR("Missing 'ChangeStateCompleteInd' field");
-		return;
-	}
+		// Parse NewState
 
-	// Parse NewState
+		ns = cJSON_GetObjectItem(csci, "State");
+		new_state = json_parse_state(ns);
 
-	ns = cJSON_GetObjectItem(csci, "State");
-	new_state = json_parse_state(ns);
+		if (new_state == '\0') {
+			PX4_ERR("Invalid 'State' field");
+			return create_change_state_complete_resp();
+		}
 
-	if (new_state == '\0') {
-		PX4_ERR("Invalid 'State' field");
-		return;
-	}
-
-	if (new_state != _current_state) {
-		PX4_ERR("Agent states out of sync: assumed %c, current: %c", new_state, _current_state);
-	}
-
+		if (new_state != _current_state) {
+			PX4_ERR("Agent states out of sync: assumed %c, current: %c", new_state, _current_state);
+		}
+	*/
+	return create_change_state_complete_resp();
 }
-
 
 cJSON *MoiAgent::create_readiness_status_resp(const char *error)
 {
@@ -811,6 +822,15 @@ cJSON *MoiAgent::create_change_state_resp(char state, const char *error)
 	cJSON_AddStringToObject(resp_sr, "NewState", state_long(state));
 	cJSON_AddStringToObject(resp_sr, "Error", error);
 
+	return resp_root;
+}
+
+cJSON *MoiAgent::create_change_state_complete_resp()
+{
+	cJSON *resp_root{nullptr};
+
+	resp_root = cJSON_CreateObject();
+	cJSON_AddStringToObject(resp_root, "Op", "EMPTY_RESPONSE");
 	return resp_root;
 }
 
