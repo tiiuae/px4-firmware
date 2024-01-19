@@ -298,6 +298,19 @@ PARAM_DEFINE_FLOAT(SENS_ACCEL_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_ACCEL_DRIFT, 0);
 
 /**
+ * FAILURE - ACCEL - ZERO
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_ACCEL_ZERO, 0);
+
+
+/**
  * ***********************************************
 */
 
@@ -360,6 +373,19 @@ PARAM_DEFINE_FLOAT(SENS_GYRO_SCAL, 0);
  * @group Sensors
  */
 PARAM_DEFINE_FLOAT(SENS_GYRO_DRIFT, 0);
+
+/**
+ * FAILURE - GYRO - ZERO
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_GYRO_ZERO, 0);
+
 
 /**
  * ***********************************************
@@ -488,3 +514,68 @@ PARAM_DEFINE_FLOAT(SENS_BARO_SCAL, 0);
  * @group Sensors
  */
 PARAM_DEFINE_FLOAT(SENS_BARO_DRIFT, 0);
+
+
+/**
+ * ***********************************************
+*/
+
+/**
+ * FAILURE - GPS - FAULT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_GPS_FAULT, 0);
+
+/**
+ * FAILURE - GPS - NOISE
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GPS_NOISE, 0);
+
+/**
+ * FAILURE - GPS - BIAS - SHIFT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GPS_SHIF, 0);
+
+/**
+ * FAILURE - GPS - BIAS - SCALE
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GPS_SCAL, 0);
+
+/**
+ * FAILURE - GPS - DRIFT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GPS_DRIFT, 0);

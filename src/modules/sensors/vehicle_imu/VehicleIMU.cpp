@@ -708,6 +708,17 @@ bool VehicleIMU::Publish()
 
 					accel_drift_timestep += 1;
 				}
+
+                param_t accel_zero = param_find("SENS_ACCEL_ZERO");
+				int32_t accel_zero_flag;
+				param_get(accel_zero, &accel_zero_flag);
+
+				if (accel_zero_flag == 1)
+				{
+					imu.delta_velocity[0] = 0;
+					imu.delta_velocity[1] = 0;
+					imu.delta_velocity[2] = 0;
+				}
 			}
 
 			// Adding faults to the gyroscope
@@ -766,6 +777,17 @@ bool VehicleIMU::Publish()
 					imu.delta_angle[2] += 0.01f*gyro_drift_flag*gyro_drift_timestep/1000000;
 
 					gyro_drift_timestep += 1;
+				}
+
+                param_t gyro_zero = param_find("SENS_GYRO_ZERO");
+				int32_t gyro_zero_flag;
+				param_get(gyro_zero, &gyro_zero_flag);
+
+				if (gyro_zero_flag == 1)
+				{
+					imu.delta_angle[0] = 10000;
+					imu.delta_angle[1] = 10000;
+					imu.delta_angle[2] = 10000;
 				}
 			}
 
