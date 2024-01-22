@@ -150,6 +150,8 @@ private:
 
 	gz::transport::Node _node;
 
+	int baro_drift_timestep;
+
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::SIM_GZ_HOME_LAT>) _param_sim_home_lat,
 		(ParamFloat<px4::params::SIM_GZ_HOME_LON>) _param_sim_home_lon,

@@ -43,6 +43,9 @@
 #include <iostream>
 #include <string>
 
+#include <random>
+#include <chrono>
+
 GZBridge::GZBridge(const char *world, const char *name, const char *model,
 		   const char *pose_str) :
 	ModuleParams(nullptr),
@@ -55,6 +58,7 @@ GZBridge::GZBridge(const char *world, const char *name, const char *model,
 	pthread_mutex_init(&_node_mutex, nullptr);
 
 	updateParams();
+    baro_drift_timestep = 0;
 }
 
 GZBridge::~GZBridge()
@@ -359,12 +363,68 @@ void GZBridge::barometerCallback(const gz::msgs::FluidPressure &air_pressure)
 				 + (air_pressure.header().stamp().nsec() / 1000);
 
 	// publish
+    param_t baro_offset = param_find("SIM_BARO_OFF_T");
+    float_t baro_offset_flag;
+    param_get(baro_offset, &baro_offset_flag);
+
 	sensor_baro_s sensor_baro{};
 	sensor_baro.timestamp_sample = time_us;
 	sensor_baro.device_id = 6620172; // 6620172: DRV_BARO_DEVTYPE_BAROSIM, BUS: 1, ADDR: 4, TYPE: SIMULATION
 	sensor_baro.pressure = air_pressure.pressure();
-	sensor_baro.temperature = this->_temperature;
+	sensor_baro.temperature = this->_temperature + baro_offset_flag;
 	sensor_baro.timestamp = hrt_absolute_time();
+
+    // Adding faults to the barometer
+    param_t baro_fault = param_find("SENS_BARO_FAULT");
+    int32_t baro_fault_flag;
+    param_get(baro_fault, &baro_fault_flag);
+
+    if (baro_fault_flag == 1)
+    {
+        param_t baro_noise = param_find("SENS_BARO_NOISE");
+        float_t baro_noise_flag;
+        param_get(baro_noise, &baro_noise_flag);
+
+        if (abs(baro_noise_flag) > 0)
+        {
+            unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+            std::default_random_engine generator (seed);
+
+            std::normal_distribution<float> distribution (0.0,baro_noise_flag);
+            float dev = distribution(generator);
+            sensor_baro.pressure += sensor_baro.pressure*dev;
+        }
+
+        param_t baro_bias_shift = param_find("SENS_BARO_SHIF");
+        float_t baro_bias_shift_flag;
+        param_get(baro_bias_shift, &baro_bias_shift_flag);
+
+        if (abs(baro_bias_shift_flag) > 0)
+        {
+            sensor_baro.pressure += sensor_baro.pressure*baro_bias_shift_flag;
+        }
+
+        param_t baro_bias_scale = param_find("SENS_BARO_SCAL");
+        float_t baro_bias_scale_flag;
+        param_get(baro_bias_scale, &baro_bias_scale_flag);
+
+        if (abs(baro_bias_scale_flag) > 0)
+        {
+            sensor_baro.pressure *= baro_bias_scale_flag;
+        }
+
+        param_t baro_drift = param_find("SENS_BARO_DRIFT");
+        float_t baro_drift_flag;
+        param_get(baro_drift, &baro_drift_flag);
+
+        if (abs(baro_drift_flag) > 0)
+        {
+            sensor_baro.pressure += 0.01f*baro_drift_flag*baro_drift_timestep/1000000;
+
+            baro_drift_timestep += 1;
+        }
+    }
+
 	_sensor_baro_pub.publish(sensor_baro);
 
 	pthread_mutex_unlock(&_node_mutex);
