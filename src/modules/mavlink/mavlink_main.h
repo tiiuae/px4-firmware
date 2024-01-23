@@ -494,7 +494,7 @@ public:
 	{
 		if (_mavlink_ulog) { return; }
 
-		_mavlink_ulog = MavlinkULog::try_start(_datarate, 0.7f, target_system, target_component);
+		_mavlink_ulog = MavlinkULog::try_start(_datarate, _param_mav_ulog_max_rate.get(), target_system, target_component);
 	}
 
 	const events::SendProtocol &get_events_protocol() const { return _events; };
@@ -675,6 +675,7 @@ private:
 		(ParamBool<px4::params::MAV_HASH_CHK_EN>) _param_mav_hash_chk_en,
 		(ParamBool<px4::params::MAV_HB_FORW_EN>) _param_mav_hb_forw_en,
 		(ParamInt<px4::params::MAV_RADIO_TOUT>)      _param_mav_radio_timeout,
+		(ParamFloat<px4::params::MAV_ULOG_MAX_RT>) _param_mav_ulog_max_rate,
 		(ParamInt<px4::params::SYS_HITL>) _param_sys_hitl,
 		(ParamBool<px4::params::SYS_FAILURE_EN>) _param_sys_failure_injection_enabled
 	)

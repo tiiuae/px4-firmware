@@ -155,3 +155,12 @@ PARAM_DEFINE_INT32(MAV_HB_FORW_EN, 1);
  * @max 250
  */
 PARAM_DEFINE_INT32(MAV_RADIO_TOUT, 5);
+
+/**
+ * Maximum rate in msg/100ms for ULog streaming
+ *
+  * @group MAVLink
+  * @min 0.0
+  * @max 1.0
+ */
+PARAM_DEFINE_FLOAT(MAV_ULOG_MAX_RT, 0.5f);
