@@ -1935,7 +1935,17 @@ void Logger::write_add_logged_msg(LogType type, LoggerSubscription &subscription
 	_writer.set_need_reliable_transfer(true);
 #ifdef LOGGER_PARALLEL_LOGGING
 	thread_data_t *th_data = (thread_data_t *) pthread_getspecific(pthread_data_key);
-	write_message(type, &msg, msg_size, true, th_data->wait_for_ack);
+
+	// Do not use reliable for data logger side, because add_logged_msg triggers
+	//  ulog parser to switch from definitions to data parsing causing latter
+	//  format messages to be ignored.
+	if (th_data->wait_for_ack) {
+		write_message(type, &msg, msg_size, true, th_data->wait_for_ack);
+
+	} else {
+		write_message(type, &msg, msg_size, false, th_data->wait_for_ack);
+	}
+
 #else
 	write_message(type, &msg, msg_size);
 #endif
