@@ -2,7 +2,7 @@ name: tii-px4-sitl
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, f4f ]
   pull_request:
 
 permissions:
