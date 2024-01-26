@@ -38,10 +38,6 @@
 #include <lib/sensor_calibration/Utilities.hpp>
 #include <lib/systemlib/mavlink_log.h>
 
-#include <float.h>
-#include <random>
-#include <chrono>
-
 using namespace matrix;
 
 using math::constrain;
@@ -530,6 +526,33 @@ bool VehicleIMU::UpdateGyro()
 	return updated;
 }
 
+float generate_wgn(float std_dev)
+{
+    // generate white Gaussian noise sample with specified standard deviation (std_dev)
+
+    static float V1, V2, S;
+    static bool phase = true;
+    float X;
+
+    if (phase) {
+        do {
+            float U1 = (float)rand() / (float)RAND_MAX;
+            float U2 = (float)rand() / (float)RAND_MAX;
+            V1 = 2.0f * U1 - 1.0f;
+            V2 = 2.0f * U2 - 1.0f;
+            S = V1 * V1 + V2 * V2;
+        } while (S >= 1.0f || fabsf(S) < 1e-8f);
+
+        X = V1 * float(sqrtf(-2.0f * float(logf(S)) / S));
+
+    } else {
+        X = V2 * float(sqrtf(-2.0f * float(logf(S)) / S));
+    }
+
+    phase = !phase;
+    return X * std_dev; // Scale the output by the standard deviation
+}
+
 bool VehicleIMU::Publish()
 {
 	bool updated = false;
@@ -664,14 +687,9 @@ bool VehicleIMU::Publish()
 
 				if (abs(accel_noise_flag) > 0)
 				{
-					unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-					std::default_random_engine generator (seed);
-
-					std::normal_distribution<float> distribution (0.0,accel_noise_flag);
-					float dev = distribution(generator);
-					imu.delta_velocity[0] += imu.delta_velocity[0]*dev;
-					imu.delta_velocity[1] += imu.delta_velocity[1]*dev;
-					imu.delta_velocity[2] += imu.delta_velocity[2]*dev;
+					imu.delta_velocity[0] += imu.delta_velocity[0]*generate_wgn(accel_noise_flag);
+					imu.delta_velocity[1] += imu.delta_velocity[1]*generate_wgn(accel_noise_flag);
+					imu.delta_velocity[2] += imu.delta_velocity[2]*generate_wgn(accel_noise_flag);
 				}
 
 				param_t accel_bias_shift = param_find("SENS_ACCEL_SHIF");
@@ -734,14 +752,9 @@ bool VehicleIMU::Publish()
 
 				if (abs(gyro_noise_flag) > 0)
 				{
-					unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-					std::default_random_engine generator (seed);
-
-					std::normal_distribution<float> distribution (0.0,gyro_noise_flag);
-					float dev = distribution(generator);
-					imu.delta_angle[0] += imu.delta_angle[0]*dev;
-					imu.delta_angle[1] += imu.delta_angle[0]*dev;
-					imu.delta_angle[2] += imu.delta_angle[0]*dev;
+					imu.delta_angle[0] += imu.delta_angle[0]*generate_wgn(gyro_noise_flag);
+					imu.delta_angle[1] += imu.delta_angle[0]*generate_wgn(gyro_noise_flag);
+					imu.delta_angle[2] += imu.delta_angle[0]*generate_wgn(gyro_noise_flag);
 				}
 
 				param_t gyro_bias_shift = param_find("SENS_GYRO_SHIF");

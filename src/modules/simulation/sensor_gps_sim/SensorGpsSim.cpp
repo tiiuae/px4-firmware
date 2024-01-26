@@ -33,12 +33,11 @@
 
 #include "SensorGpsSim.hpp"
 
+#include <cmath>
+#include <cstdlib>
 #include <drivers/drv_sensor.h>
 #include <lib/drivers/device/Device.hpp>
 #include <lib/geo/geo.h>
-
-#include <random>
-#include <chrono>
 
 using namespace matrix;
 
@@ -89,6 +88,33 @@ float SensorGpsSim::generate_wgn()
 
 	phase = !phase;
 	return X;
+}
+
+float SensorGpsSim::generate_wgn(float std_dev)
+{
+    // generate white Gaussian noise sample with specified standard deviation (std_dev)
+
+    static float V1, V2, S;
+    static bool phase = true;
+    float X;
+
+    if (phase) {
+        do {
+            float U1 = (float)rand() / (float)RAND_MAX;
+            float U2 = (float)rand() / (float)RAND_MAX;
+            V1 = 2.0f * U1 - 1.0f;
+            V2 = 2.0f * U2 - 1.0f;
+            S = V1 * V1 + V2 * V2;
+        } while (S >= 1.0f || fabsf(S) < 1e-8f);
+
+        X = V1 * float(sqrtf(-2.0f * float(logf(S)) / S));
+
+    } else {
+        X = V2 * float(sqrtf(-2.0f * float(logf(S)) / S));
+    }
+
+    phase = !phase;
+    return X * std_dev; // Scale the output by the standard deviation
 }
 
 void SensorGpsSim::Run()
@@ -193,15 +219,10 @@ void SensorGpsSim::Run()
 
 			if (abs(gps_noise_flag) > 0)
 			{
-				unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-				std::default_random_engine generator (seed);
-
-				std::normal_distribution<double> distribution (0.0,static_cast<double>(gps_noise_flag));
-				double dev = distribution(generator);
-				sensor_gps.latitude_deg += sensor_gps.latitude_deg*dev;
-				sensor_gps.longitude_deg += sensor_gps.longitude_deg*dev;
-				sensor_gps.altitude_msl_m += sensor_gps.altitude_msl_m*dev;
-				sensor_gps.altitude_ellipsoid_m += sensor_gps.altitude_ellipsoid_m*dev;
+				sensor_gps.latitude_deg += sensor_gps.latitude_deg*(double)generate_wgn(gps_noise_flag);
+				sensor_gps.longitude_deg += sensor_gps.longitude_deg*(double)generate_wgn(gps_noise_flag);
+				sensor_gps.altitude_msl_m += sensor_gps.altitude_msl_m*(double)generate_wgn(gps_noise_flag);
+				sensor_gps.altitude_ellipsoid_m += sensor_gps.altitude_ellipsoid_m*(double)generate_wgn(gps_noise_flag);
 			}
 
 			param_t gps_bias_shift = param_find("SENS_GPS_SHIF");

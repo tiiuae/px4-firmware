@@ -70,6 +70,7 @@ private:
 
 	// generate white Gaussian noise sample with std=1
 	static float generate_wgn();
+	static float generate_wgn(float std_dev);
 
 	// generate white Gaussian noise sample as a 3D vector with specified std
 	matrix::Vector3f noiseGauss3f(float stdx, float stdy, float stdz) { return matrix::Vector3f(generate_wgn() * stdx, generate_wgn() * stdy, generate_wgn() * stdz); }

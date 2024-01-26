@@ -33,11 +33,9 @@
 
 #include "SensorMagSim.hpp"
 
+#include <cstdlib>
 #include <drivers/drv_sensor.h>
 #include <lib/world_magnetic_model/geo_mag_declination.h>
-
-#include <random>
-#include <chrono>
 
 using namespace matrix;
 
@@ -89,6 +87,33 @@ float SensorMagSim::generate_wgn()
 
 	phase = !phase;
 	return X;
+}
+
+float SensorMagSim::generate_wgn(float std_dev)
+{
+    // generate white Gaussian noise sample with specified standard deviation (std_dev)
+
+    static float V1, V2, S;
+    static bool phase = true;
+    float X;
+
+    if (phase) {
+        do {
+            float U1 = (float)rand() / (float)RAND_MAX;
+            float U2 = (float)rand() / (float)RAND_MAX;
+            V1 = 2.0f * U1 - 1.0f;
+            V2 = 2.0f * U2 - 1.0f;
+            S = V1 * V1 + V2 * V2;
+        } while (S >= 1.0f || fabsf(S) < 1e-8f);
+
+        X = V1 * float(sqrtf(-2.0f * float(logf(S)) / S));
+
+    } else {
+        X = V2 * float(sqrtf(-2.0f * float(logf(S)) / S));
+    }
+
+    phase = !phase;
+    return X * std_dev; // Scale the output by the standard deviation
 }
 
 void SensorMagSim::Run()
@@ -154,15 +179,10 @@ void SensorMagSim::Run()
 
                 if (abs(mag_noise_flag) > 0)
                 {
-                    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-                    std::default_random_engine generator (seed);
-
-                    std::normal_distribution<float> distribution (0.0,mag_noise_flag);
-                    float dev = distribution(generator);
                     _px4_mag.update(attitude.timestamp,
-                                    (1 + dev) * expected_field(0),
-                                    (1 + dev) * expected_field(1),
-                                    (1 + dev) * expected_field(2));
+                                    (1 + generate_wgn(mag_noise_flag)) * expected_field(0),
+                                    (1 + generate_wgn(mag_noise_flag)) * expected_field(1),
+                                    (1 + generate_wgn(mag_noise_flag)) * expected_field(2));
                 }
 
                 param_t mag_bias_shift = param_find("SENS_MAG_SHIF");

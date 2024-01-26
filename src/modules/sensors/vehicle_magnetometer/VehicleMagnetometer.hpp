@@ -184,6 +184,5 @@ private:
 		(ParamInt<px4::params::SENS_MAG_SIDES>) _param_sens_mag_sides
 	)
 
-	int mag_drift_timestep;
 };
 }; // namespace sensors
