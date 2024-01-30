@@ -37,6 +37,21 @@ publications:
 
   - topic: /fmu/out/sensor_combined
     type: px4_msgs::msg::SensorCombined
+     
+  - topic: /fmu/out/sensor_accel
+    type: px4_msgs::msg::SensorAccel
+
+  - topic: /fmu/out/sensor_gyro
+    type: px4_msgs::msg::SensorGyro
+
+  - topic: /fmu/out/sensor_mag
+    type: px4_msgs::msg::SensorMag
+
+  - topic: /fmu/out/sensor_baro
+    type: px4_msgs::msg::SensorBaro
+
+  - topic: /fmu/out/sensor_gps
+    type: px4_msgs::msg::SensorGps
 
   - topic: /fmu/out/timesync_status
     type: px4_msgs::msg::TimesyncStatus
