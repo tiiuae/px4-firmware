@@ -70,6 +70,7 @@ VehicleMagnetometer::VehicleMagnetometer() :
 			}
 		}
 	}
+
 }
 
 VehicleMagnetometer::~VehicleMagnetometer()
@@ -549,13 +550,15 @@ void VehicleMagnetometer::Run()
 					}
 
 					if (publish) {
-						const Vector3f magnetometer_data = _data_sum[instance] / _data_sum_count[instance];
+						Vector3f magnetometer_data = _data_sum[instance] / _data_sum_count[instance];
 
 						// populate vehicle_magnetometer and publish
 						vehicle_magnetometer_s out{};
 						out.timestamp_sample = timestamp_sample;
 						out.device_id = _calibration[instance].device_id();
 						magnetometer_data.copyTo(out.magnetometer_ga);
+
+
 						out.calibration_count = _calibration[instance].calibration_count();
 						out.timestamp = hrt_absolute_time();
 

@@ -38,8 +38,6 @@
 #include <lib/sensor_calibration/Utilities.hpp>
 #include <lib/systemlib/mavlink_log.h>
 
-#include <float.h>
-
 using namespace matrix;
 
 using math::constrain;
@@ -70,11 +68,12 @@ VehicleIMU::VehicleIMU(int instance, uint8_t accel_index, uint8_t gyro_index, co
 	_sensor_gyro_sub.set_required_updates(sensor_gyro_s::ORB_QUEUE_LENGTH / 2);
 #endif
 
-	_notify_clipping = _param_sens_imu_notify_clipping.get();
-
 	// advertise immediately to ensure consistent ordering
 	_vehicle_imu_pub.advertise();
 	_vehicle_imu_status_pub.advertise();
+
+	accel_drift_timestep = 0;
+	gyro_drift_timestep = 0;
 }
 
 VehicleIMU::~VehicleIMU()
@@ -376,7 +375,7 @@ bool VehicleIMU::UpdateAccel()
 
 			_publish_status = true;
 
-			if (_notify_clipping && _accel_calibration.enabled() && (hrt_elapsed_time(&_last_accel_clipping_notify_time) > 3_s)) {
+			if (_accel_calibration.enabled() && (hrt_elapsed_time(&_last_accel_clipping_notify_time) > 3_s)) {
 				// start notifying the user periodically if there's significant continuous clipping
 				const uint64_t clipping_total = _status.accel_clipping[0] + _status.accel_clipping[1] + _status.accel_clipping[2];
 
@@ -505,7 +504,7 @@ bool VehicleIMU::UpdateGyro()
 
 			_publish_status = true;
 
-			if (_notify_clipping && _gyro_calibration.enabled() && (hrt_elapsed_time(&_last_gyro_clipping_notify_time) > 3_s)) {
+			if (_gyro_calibration.enabled() && (hrt_elapsed_time(&_last_gyro_clipping_notify_time) > 3_s)) {
 				// start notifying the user periodically if there's significant continuous clipping
 				const uint64_t clipping_total = _status.gyro_clipping[0] + _status.gyro_clipping[1] + _status.gyro_clipping[2];
 
@@ -525,6 +524,33 @@ bool VehicleIMU::UpdateGyro()
 	}
 
 	return updated;
+}
+
+float generate_wgn(float std_dev)
+{
+    // generate white Gaussian noise sample with specified standard deviation (std_dev)
+
+    static float V1, V2, S;
+    static bool phase = true;
+    float X;
+
+    if (phase) {
+        do {
+            float U1 = (float)rand() / (float)RAND_MAX;
+            float U2 = (float)rand() / (float)RAND_MAX;
+            V1 = 2.0f * U1 - 1.0f;
+            V2 = 2.0f * U2 - 1.0f;
+            S = V1 * V1 + V2 * V2;
+        } while (S >= 1.0f || fabsf(S) < 1e-8f);
+
+        X = V1 * float(sqrtf(-2.0f * float(logf(S)) / S));
+
+    } else {
+        X = V2 * float(sqrtf(-2.0f * float(logf(S)) / S));
+    }
+
+    phase = !phase;
+    return X * std_dev; // Scale the output by the standard deviation
 }
 
 bool VehicleIMU::Publish()
@@ -647,7 +673,137 @@ bool VehicleIMU::Publish()
 			imu.gyro_device_id = _gyro_calibration.device_id();
 			delta_angle_corrected.copyTo(imu.delta_angle);
 			delta_velocity_corrected.copyTo(imu.delta_velocity);
-			imu.delta_angle_clipping = _delta_angle_clipping;
+
+			// Adding faults to the accelerometer
+			param_t accel_fault = param_find("SENS_ACCEL_FAULT");
+			int32_t accel_fault_flag;
+			param_get(accel_fault, &accel_fault_flag);
+
+			if (accel_fault_flag == 1)
+			{
+				param_t accel_noise = param_find("SENS_ACCEL_NOISE");
+				float_t accel_noise_flag;
+				param_get(accel_noise, &accel_noise_flag);
+
+				if (abs(accel_noise_flag) > 0)
+				{
+					imu.delta_velocity[0] += imu.delta_velocity[0]*generate_wgn(accel_noise_flag);
+					imu.delta_velocity[1] += imu.delta_velocity[1]*generate_wgn(accel_noise_flag);
+					imu.delta_velocity[2] += imu.delta_velocity[2]*generate_wgn(accel_noise_flag);
+				}
+
+				param_t accel_bias_shift = param_find("SENS_ACCEL_SHIF");
+				float_t accel_bias_shift_flag;
+				param_get(accel_bias_shift, &accel_bias_shift_flag);
+
+				if (abs(accel_bias_shift_flag) > 0)
+				{
+					imu.delta_velocity[0] += imu.delta_velocity[0]*accel_bias_shift_flag;
+					imu.delta_velocity[1] += imu.delta_velocity[1]*accel_bias_shift_flag;
+					imu.delta_velocity[2] += imu.delta_velocity[2]*accel_bias_shift_flag;
+				}
+
+				param_t accel_bias_scale = param_find("SENS_ACCEL_SCAL");
+				float_t accel_bias_scale_flag;
+				param_get(accel_bias_scale, &accel_bias_scale_flag);
+
+				if (abs(accel_bias_scale_flag) > 0)
+				{
+					imu.delta_velocity[0] *= accel_bias_scale_flag;
+					imu.delta_velocity[1] *= accel_bias_scale_flag;
+					imu.delta_velocity[2] *= accel_bias_scale_flag;
+				}
+
+				param_t accel_drift = param_find("SENS_ACCEL_DRIFT");
+				float_t accel_drift_flag;
+				param_get(accel_drift, &accel_drift_flag);
+
+				if (abs(accel_drift_flag) > 0)
+				{
+					imu.delta_velocity[0] += 0.01f*accel_drift_flag*accel_drift_timestep/1000000;
+					imu.delta_velocity[1] += 0.01f*accel_drift_flag*accel_drift_timestep/1000000;
+					imu.delta_velocity[2] += 0.01f*accel_drift_flag*accel_drift_timestep/1000000;
+
+					accel_drift_timestep += 1;
+				}
+
+                param_t accel_zero = param_find("SENS_ACCEL_ZERO");
+				int32_t accel_zero_flag;
+				param_get(accel_zero, &accel_zero_flag);
+
+				if (accel_zero_flag == 1)
+				{
+					imu.delta_velocity[0] = 0;
+					imu.delta_velocity[1] = 0;
+					imu.delta_velocity[2] = 0;
+				}
+			}
+
+			// Adding faults to the gyroscope
+			param_t gyro_fault = param_find("SENS_GYRO_FAULT");
+			int32_t gyro_fault_flag;
+			param_get(gyro_fault, &gyro_fault_flag);
+
+			if (gyro_fault_flag == 1)
+			{
+				param_t gyro_noise = param_find("SENS_GYRO_NOISE");
+				float_t gyro_noise_flag;
+				param_get(gyro_noise, &gyro_noise_flag);
+
+				if (abs(gyro_noise_flag) > 0)
+				{
+					imu.delta_angle[0] += imu.delta_angle[0]*generate_wgn(gyro_noise_flag);
+					imu.delta_angle[1] += imu.delta_angle[0]*generate_wgn(gyro_noise_flag);
+					imu.delta_angle[2] += imu.delta_angle[0]*generate_wgn(gyro_noise_flag);
+				}
+
+				param_t gyro_bias_shift = param_find("SENS_GYRO_SHIF");
+				float_t gyro_bias_shift_flag;
+				param_get(gyro_bias_shift, &gyro_bias_shift_flag);
+
+				if (abs(gyro_bias_shift_flag) > 0)
+				{
+					imu.delta_angle[0] += imu.delta_angle[0]*gyro_bias_shift_flag;
+					imu.delta_angle[1] += imu.delta_angle[1]*gyro_bias_shift_flag;
+					imu.delta_angle[2] += imu.delta_angle[2]*gyro_bias_shift_flag;
+				}
+
+				param_t gyro_bias_scale = param_find("SENS_GYRO_SCAL");
+				float_t gyro_bias_scale_flag;
+				param_get(gyro_bias_scale, &gyro_bias_scale_flag);
+
+				if (abs(gyro_bias_scale_flag) > 0)
+				{
+					imu.delta_angle[0] *= gyro_bias_scale_flag;
+					imu.delta_angle[1] *= gyro_bias_scale_flag;
+					imu.delta_angle[2] *= gyro_bias_scale_flag;
+				}
+
+				param_t gyro_drift = param_find("SENS_GYRO_DRIFT");
+				float_t gyro_drift_flag;
+				param_get(gyro_drift, &gyro_drift_flag);
+
+				if (abs(gyro_drift_flag) > 0)
+				{
+					imu.delta_angle[0] += 0.01f*gyro_drift_flag*gyro_drift_timestep/1000000;
+					imu.delta_angle[1] += 0.01f*gyro_drift_flag*gyro_drift_timestep/1000000;
+					imu.delta_angle[2] += 0.01f*gyro_drift_flag*gyro_drift_timestep/1000000;
+
+					gyro_drift_timestep += 1;
+				}
+
+                param_t gyro_zero = param_find("SENS_GYRO_ZERO");
+				int32_t gyro_zero_flag;
+				param_get(gyro_zero, &gyro_zero_flag);
+
+				if (gyro_zero_flag == 1)
+				{
+					imu.delta_angle[0] = 10000;
+					imu.delta_angle[1] = 10000;
+					imu.delta_angle[2] = 10000;
+				}
+			}
+
 			imu.delta_velocity_clipping = _delta_velocity_clipping;
 			imu.accel_calibration_count = _accel_calibration.calibration_count();
 			imu.gyro_calibration_count = _gyro_calibration.calibration_count();
@@ -655,7 +811,6 @@ bool VehicleIMU::Publish()
 			_vehicle_imu_pub.publish(imu);
 
 			// reset clip counts
-			_delta_angle_clipping = 0;
 			_delta_velocity_clipping = 0;
 
 			// record gyro publication latency and integrated samples

@@ -217,7 +217,7 @@ PARAM_DEFINE_INT32(SENS_EXT_I2C_PRB, 1);
  * @value 1 Publish primary IMU selection
  *
  * @category system
- * @reboot_required true
+ * @reboot_required false
  * @group Sensors
  */
 PARAM_DEFINE_INT32(SENS_IMU_MODE, 1);
@@ -233,3 +233,315 @@ PARAM_DEFINE_INT32(SENS_IMU_MODE, 1);
  * @group Sensors
  */
 PARAM_DEFINE_INT32(SENS_INT_BARO_EN, 1);
+
+/**
+ * **************************************************************************************************
+*/
+/**
+ * FAILURE - ACCEL - FAULT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_ACCEL_FAULT, 0);
+
+/**
+ * FAILURE - ACCEL - NOISE
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_NOISE, 0);
+
+/**
+ * FAILURE - ACCEL - BIAS - SHIFT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_SHIF, 0);
+
+/**
+ * FAILURE - ACCEL - BIAS - SCALE
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_SCAL, 0);
+
+/**
+ * FAILURE - ACCEL - DRIFT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_DRIFT, 0);
+
+/**
+ * FAILURE - ACCEL - ZERO
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_ACCEL_ZERO, 0);
+
+
+/**
+ * ***********************************************
+*/
+
+/**
+ * FAILURE - GYRO - FAULT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_GYRO_FAULT, 0);
+
+/**
+ * FAILURE - GYRO - NOISE
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GYRO_NOISE, 0);
+
+/**
+ * FAILURE - GYRO - BIAS - SHIFT
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GYRO_SHIF, 0);
+
+/**
+ * FAILURE - GYRO - BIAS - SCALE
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GYRO_SCAL, 0);
+
+/**
+ * FAILURE - GYRO - DRIFT
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GYRO_DRIFT, 0);
+
+/**
+ * FAILURE - GYRO - ZERO
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_GYRO_ZERO, 0);
+
+
+/**
+ * ***********************************************
+*/
+
+/**
+ * FAILURE - MAG - FAULT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_MAG_FAULT, 0);
+
+/**
+ * FAILURE - MAG - NOISE
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_MAG_NOISE, 0);
+
+/**
+ * FAILURE - MAG - BIAS - SHIFT
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_MAG_SHIF, 0);
+
+/**
+ * FAILURE - MAG - BIAS - SCALE
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_MAG_SCAL, 0);
+
+/**
+ * FAILURE - MAG - DRIFT
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_MAG_DRIFT, 0);
+
+/**
+ * ***********************************************
+*/
+
+/**
+ * FAILURE - BARO - FAULT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_BARO_FAULT, 0);
+
+/**
+ * FAILURE - BARO - NOISE
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_BARO_NOISE, 0);
+
+/**
+ * FAILURE - BARO - BIAS - SHIFT
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_BARO_SHIF, 0);
+
+/**
+ * FAILURE - BARO - BIAS - SCALE
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_BARO_SCAL, 0);
+
+/**
+ * FAILURE - BARO - DRIFT
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_BARO_DRIFT, 0);
+
+
+/**
+ * ***********************************************
+*/
+
+/**
+ * FAILURE - GPS - FAULT
+ *
+ * @value 0 Functional
+ * @value 1 Failure
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_GPS_FAULT, 0);
+
+/**
+ * FAILURE - GPS - NOISE
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GPS_NOISE, 0);
+
+/**
+ * FAILURE - GPS - BIAS - SHIFT
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GPS_SHIF, 0);
+
+/**
+ * FAILURE - GPS - BIAS - SCALE
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GPS_SCAL, 0);
+
+/**
+ * FAILURE - GPS - DRIFT
+ *
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GPS_DRIFT, 0);

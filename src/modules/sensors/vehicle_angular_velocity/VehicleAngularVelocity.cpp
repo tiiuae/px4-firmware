@@ -79,7 +79,7 @@ bool VehicleAngularVelocity::Start()
 		return false;
 	}
 
-	if (!SensorSelectionUpdate(hrt_absolute_time(), true)) {
+	if (!SensorSelectionUpdate(true)) {
 		ScheduleNow();
 	}
 
@@ -906,7 +906,7 @@ void VehicleAngularVelocity::Run()
 
 	// force reselection on timeout
 	if (time_now_us > _last_publish + 500_ms) {
-		SensorSelectionUpdate(time_now_us, true);
+		SensorSelectionUpdate(true);
 	}
 
 	perf_end(_cycle_perf);
