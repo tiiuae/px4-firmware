@@ -39,6 +39,11 @@
 #include <string>
 #include <thread>
 
+#ifdef __PX4_POSIX
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+
 #include "perf_counter.h"
 
 namespace
@@ -158,9 +163,8 @@ TEST(PerfCounter, AllocFromCallbackDoesNotDeadlock)
 	perf_free(counter);
 }
 
-TEST(PerfCounter, FreeDuringIterationIsDeferred)
+TEST(PerfCounter, UnlinkedCounterIsAbsentFromSubsequentIteration)
 {
-	// allocation order puts counter_b at the list head, so it is visited first
 	perf_counter_t counter_a = perf_alloc(PC_COUNT, "test_perf_free_defer_a");
 	perf_counter_t counter_b = perf_alloc(PC_COUNT, "test_perf_free_defer_b");
 	ASSERT_NE(counter_a, nullptr);
@@ -177,7 +181,7 @@ TEST(PerfCounter, FreeDuringIterationIsDeferred)
 		Context *ctx = static_cast<Context *>(user);
 
 		if (!ctx->free_thread.joinable() && strstr(counter_line, "test_perf_free_defer_b") != nullptr) {
-			// free a not-yet-visited counter while the iteration is running
+			// Directory iteration order is unspecified; counter_a may already have been visited.
 			ctx->free_thread = std::thread([ctx]() {
 				perf_free(ctx->counter_a);
 				ctx->free_done.store(true);
@@ -196,9 +200,9 @@ TEST(PerfCounter, FreeDuringIterationIsDeferred)
 	}
 
 	EXPECT_TRUE(context.free_done.load());
-	EXPECT_EQ(context.lines_a, 0);
+	EXPECT_LE(context.lines_a, 1);
 
-	// the freed entry must not reappear after deferred cleanup
+	// The unlinked entry must not reappear in a new iteration.
 	struct CountContext {
 		int lines_a{0};
 	} count_context;
@@ -214,9 +218,9 @@ TEST(PerfCounter, FreeDuringIterationIsDeferred)
 	perf_free(counter_b);
 }
 
-TEST(PerfCounter, FreeIsDeferredUntilLastOverlappingIterationEnds)
+TEST(PerfCounter, OverlappingMappingsSurviveUnlink)
 {
-	// Both iterators stop on counter_b with counter_a cached as their next entry.
+	// Both iterators hold independent mappings of counter_b while blocked.
 	perf_counter_t counter_a = perf_alloc(PC_COUNT, "test_perf_overlap_a");
 	perf_counter_t counter_b = perf_alloc(PC_COUNT, "test_perf_overlap_b");
 	ASSERT_NE(counter_a, nullptr);
@@ -274,7 +278,7 @@ TEST(PerfCounter, FreeIsDeferredUntilLastOverlappingIterationEnds)
 
 	std::atomic<bool> free_done{false};
 	std::thread free_thread([&]() {
-		perf_free(counter_a);
+		perf_free(counter_b);
 		free_done.store(true);
 	});
 
@@ -284,7 +288,7 @@ TEST(PerfCounter, FreeIsDeferredUntilLastOverlappingIterationEnds)
 		first_thread.join();
 		second_thread.join();
 		free_thread.join();
-		perf_free(counter_b);
+		perf_free(counter_a);
 		FAIL() << "perf_free() blocked on active callbacks";
 	}
 
@@ -292,14 +296,13 @@ TEST(PerfCounter, FreeIsDeferredUntilLastOverlappingIterationEnds)
 	first_context.release.store(true);
 	first_thread.join();
 
-	// If the first iterator incorrectly reclaimed counter_a, a same-sized
-	// allocation is likely to reuse the entry cached by the second iterator.
+	// A new mapping must not invalidate either iterator's mapping.
 	perf_counter_t replacement = perf_alloc(PC_COUNT, "test_perf_overlap_replacement");
 
 	if (replacement == nullptr) {
 		second_context.release.store(true);
 		second_thread.join();
-		perf_free(counter_b);
+		perf_free(counter_a);
 		FAIL() << "replacement counter allocation failed";
 	}
 
@@ -308,10 +311,97 @@ TEST(PerfCounter, FreeIsDeferredUntilLastOverlappingIterationEnds)
 
 	EXPECT_FALSE(first_context.timed_out.load());
 	EXPECT_FALSE(second_context.timed_out.load());
-	EXPECT_EQ(first_context.lines_a, 0);
-	EXPECT_EQ(second_context.lines_a, 0);
-	EXPECT_EQ(second_context.replacement_lines, 0);
+	EXPECT_EQ(first_context.lines_a, 1);
+	EXPECT_EQ(second_context.lines_a, 1);
 
 	perf_free(replacement);
-	perf_free(counter_b);
+	perf_free(counter_a);
 }
+
+TEST(PerfCounter, SharedCounterMappingIsWritable)
+{
+	perf_counter_t first = perf_alloc(PC_COUNT, "test_perf_shared");
+	ASSERT_NE(first, nullptr);
+	perf_counter_t second = perf_alloc_once(PC_COUNT, "test_perf_shared");
+	ASSERT_NE(second, nullptr);
+	perf_count(first);
+	perf_count(second);
+	EXPECT_EQ(perf_event_count(first), 2u);
+	EXPECT_EQ(perf_event_count(second), 2u);
+	EXPECT_EQ(perf_alloc_once(PC_INTERVAL, "test_perf_shared"), nullptr);
+	perf_free(first);
+	EXPECT_EQ(perf_event_count(second), 2u);
+	perf_free(second);
+}
+
+TEST(PerfCounter, DuplicateNamesHaveIndependentStorage)
+{
+	perf_counter_t first = perf_alloc(PC_COUNT, "test_perf_duplicate");
+	perf_counter_t second = perf_alloc(PC_COUNT, "test_perf_duplicate");
+	ASSERT_NE(first, nullptr);
+	ASSERT_NE(second, nullptr);
+	perf_count(first);
+	EXPECT_EQ(perf_event_count(first), 1u);
+	EXPECT_EQ(perf_event_count(second), 0u);
+	perf_free(first);
+	perf_count(second);
+	EXPECT_EQ(perf_event_count(second), 1u);
+	perf_free(second);
+}
+
+TEST(PerfCounter, OldMappingDoesNotUnlinkReplacement)
+{
+	perf_counter_t first = perf_alloc_once(PC_COUNT, "test_perf_replacement");
+	ASSERT_NE(first, nullptr);
+	perf_counter_t old_mapping = perf_alloc_once(PC_COUNT, "test_perf_replacement");
+	ASSERT_NE(old_mapping, nullptr);
+	perf_free(first);
+	perf_counter_t replacement = perf_alloc_once(PC_COUNT, "test_perf_replacement");
+	ASSERT_NE(replacement, nullptr);
+	perf_count(replacement);
+	perf_free(old_mapping);
+	perf_counter_t reopened = perf_alloc_once(PC_COUNT, "test_perf_replacement");
+	ASSERT_NE(reopened, nullptr);
+	EXPECT_EQ(perf_event_count(reopened), 1u);
+	perf_free(reopened);
+	perf_free(replacement);
+}
+
+TEST(PerfCounter, ResetAllUsesWritableMappings)
+{
+	perf_counter_t counter = perf_alloc(PC_ELAPSED, "test_perf_reset");
+	ASSERT_NE(counter, nullptr);
+	perf_set_elapsed(counter, 42);
+	EXPECT_EQ(perf_event_count(counter), 1u);
+	perf_reset_all();
+	EXPECT_EQ(perf_event_count(counter), 0u);
+	perf_free(counter);
+}
+
+#ifdef __PX4_POSIX
+TEST(PerfCounter, SharedAcrossProcesses)
+{
+	perf_counter_t counter = perf_alloc_once(PC_COUNT, "test_perf_process");
+	ASSERT_NE(counter, nullptr);
+	const pid_t child = fork();
+	ASSERT_GE(child, 0);
+
+	if (child == 0) {
+		perf_counter_t mapped = perf_alloc_once(PC_COUNT, "test_perf_process");
+
+		if (mapped == nullptr) {
+			_exit(1);
+		}
+
+		perf_count(mapped);
+		_exit(0);
+	}
+
+	int status = 0;
+	EXPECT_EQ(waitpid(child, &status, 0), child);
+	EXPECT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(WEXITSTATUS(status), 0);
+	EXPECT_EQ(perf_event_count(counter), 1u);
+	perf_free(counter);
+}
+#endif

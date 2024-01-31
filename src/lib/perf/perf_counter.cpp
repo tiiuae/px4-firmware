@@ -37,14 +37,28 @@
  * @brief Performance measuring tools.
  */
 
+#ifndef MODULE_NAME
+#define MODULE_NAME "perf"
+#endif
+
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <drivers/drv_hrt.h>
 #include <math.h>
-#include <pthread.h>
 #include <systemlib/err.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <limits.h>
+#include <new>
+#include <unistd.h>
+#include <px4_platform_common/time.h>
+
+#include <px4_platform_common/mmap.h>
 
 #include "perf_counter.h"
 
@@ -80,14 +94,23 @@ private:
 };
 #endif
 
+#define PERF_SHMNAME_PREFIX	"_perf_"
+#define PERF_SHMNAME_STR	PERF_SHMNAME_PREFIX "%s"
+#define PERF_SHMNAME_MAX	NAME_MAX + 1
+
+#ifndef CONFIG_FS_SHMFS_VFS_PATH
+#define CONFIG_FS_SHMFS_VFS_PATH "/dev/shm"
+#endif
+
 /**
  * Header common to all counters.
  */
 struct perf_ctr_header {
-	sq_entry_t		link;	/**< list linkage */
 	enum perf_counter_type	type;	/**< counter type */
-	bool			pending_free;	/**< freed during iteration, deleted after the last iteration ends */
-	const char		*name;	/**< counter name */
+	px4::atomic<bool>	ready{false};
+	px4::atomic<bool>	unlinked{false};
+	char 			name[PERF_SHMNAME_MAX]; /**< counter name */
+	char			shmname[PERF_SHMNAME_MAX];
 };
 
 /**
@@ -124,151 +147,241 @@ struct perf_ctr_interval : public perf_ctr_header {
 	PerfVar<float>	M2;
 };
 
-/**
- * List of all known counters.
- */
-static sq_queue_t	perf_counters = { nullptr, nullptr };
-
-/**
- * mutex protecting access to the perf_counters linked list (which is read from & written to by different threads)
- */
-pthread_mutex_t perf_counters_mutex = PTHREAD_MUTEX_INITIALIZER;
-// Note: the mutex only protects the linked list, not individual counter data.
-// Counter fields go through PerfVar (atomic on POSIX/TSan, plain on embedded).
-
-/**
- * Number of perf_iterate_all() calls currently in progress (guarded by perf_counters_mutex).
- * While non-zero, perf_free() only marks entries as pending_free; the last
- * iteration to finish deletes them.
- */
-static int perf_iterate_active = 0;
-
-static void
-perf_delete(perf_counter_t handle)
+static size_t perf_size(enum perf_counter_type type)
 {
-	switch (handle->type) {
-	case PC_COUNT:
-		delete (struct perf_ctr_count *)handle;
-		break;
-
-	case PC_ELAPSED:
-		delete (struct perf_ctr_elapsed *)handle;
-		break;
-
-	case PC_INTERVAL:
-		delete (struct perf_ctr_interval *)handle;
-		break;
-
-	default:
-		break;
-	}
-}
-
-/**
- * Delete all entries marked pending_free. Call with perf_counters_mutex held
- * and no iteration active.
- */
-static void
-perf_free_pending_locked()
-{
-	perf_counter_t handle = (perf_counter_t)sq_peek(&perf_counters);
-
-	while (handle != nullptr) {
-		perf_counter_t next = (perf_counter_t)sq_next(&handle->link);
-
-		if (handle->pending_free) {
-			sq_rem(&handle->link, &perf_counters);
-			perf_delete(handle);
-		}
-
-		handle = next;
-	}
-}
-
-perf_counter_t
-perf_alloc(enum perf_counter_type type, const char *name)
-{
-	perf_counter_t ctr = nullptr;
-
 	switch (type) {
 	case PC_COUNT:
-		ctr = new perf_ctr_count();
-		break;
+		return sizeof(perf_ctr_count);
 
 	case PC_ELAPSED:
-		ctr = new perf_ctr_elapsed();
-		break;
+		return sizeof(perf_ctr_elapsed);
 
 	case PC_INTERVAL:
-		ctr = new perf_ctr_interval();
-		break;
+		return sizeof(perf_ctr_interval);
 
 	default:
 		break;
 	}
 
-	if (ctr != nullptr) {
+	return 0;
+}
+
+static size_t perf_shmsize(int fd)
+{
+	struct stat sb {};
+
+	if (fstat(fd, &sb) < 0) {
+		PX4_ERR("Cannot stat %d", fd);
+		return 0;
+	}
+
+	return sb.st_size;
+}
+
+static int perf_shmname(char *shmname, const char *name, size_t size, bool once)
+{
+	static px4::atomic<unsigned> sequence{0};
+	const int ret = once ? snprintf(shmname, size, PERF_SHMNAME_STR, name) :
+			snprintf(shmname, size, PERF_SHMNAME_PREFIX "%ld_%u_%s",
+				 (long)getpid(), sequence.fetch_add(1), name);
+
+	if (ret < 0 || (size_t)ret >= size) {
+		return -ENAMETOOLONG;
+	}
+
+	return OK;
+}
+
+using perf_handle_callback = void (*)(perf_counter_t, void *);
+
+static void perf_foreach(perf_handle_callback cb, void *arg = nullptr)
+{
+	DIR *dir = opendir(CONFIG_FS_SHMFS_VFS_PATH);
+
+	if (dir == nullptr) {
+		PX4_ERR("Cannot open perf directory: %d", errno);
+		return;
+	}
+
+	struct dirent *perf;
+
+	while ((perf = readdir(dir)) != nullptr) {
+		if (!strncmp(perf->d_name, PERF_SHMNAME_PREFIX, sizeof(PERF_SHMNAME_PREFIX) - 1)) {
+			/* found the counter, map it for us */
+			int fd = shm_open(perf->d_name, O_RDWR, 0666);
+
+			if (fd >= 0) {
+				size_t size = perf_shmsize(fd);
+
+				if (size < sizeof(perf_ctr_header)) {
+					close(fd);
+					continue;
+				}
+
+				void *p = px4_mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+				/* the file can be closed now */
+				close(fd);
+
+				if (p != MAP_FAILED) {
+					perf_counter_t handle = (perf_counter_t)p;
+
+					if (handle->ready.load() && perf_size(handle->type) == size) {
+						cb(handle, arg);
+					}
+
+					px4_munmap(p, size);
+
+				} else {
+					PX4_ERR("Cannot map perf counter %s: %d", perf->d_name, errno);
+				}
+
+			} else if (errno != ENOENT) {
+				PX4_ERR("Cannot open perf counter %s: %d", perf->d_name, errno);
+			}
+		}
+	}
+
+	closedir(dir);
+}
+
+static void perf_print_cb(perf_counter_t handle, void *arg)
+{
+	perf_print_counter(handle);
+}
+
+static void perf_reset_cb(perf_counter_t handle, void *arg)
+{
+	perf_reset(handle);
+}
+
+static perf_counter_t perf_allocate(enum perf_counter_type type, const char *name, bool once)
+{
+	const size_t size = perf_size(type);
+
+	if (name == nullptr || size == 0) {
+		PX4_ERR("Invalid perf counter type or name");
+		return nullptr;
+	}
+
+	char shmname[PERF_SHMNAME_MAX];
+	int ret = perf_shmname(shmname, name, sizeof(shmname), true);
+
+	if (ret < 0) {
+		PX4_ERR("failed to allocate perf counter %s", name);
+		return nullptr;
+	}
+
+	int fd = shm_open(shmname, O_CREAT | O_RDWR | O_EXCL, 0666);
+
+	while (fd < 0 && !once && errno == EEXIST) {
+		if (perf_shmname(shmname, name, sizeof(shmname), false) < 0) {
+			PX4_ERR("Perf counter name too long: %s", name);
+			return nullptr;
+		}
+
+		fd = shm_open(shmname, O_CREAT | O_RDWR | O_EXCL, 0666);
+	}
+
+	const bool created = fd >= 0;
+
+	if (!created && once && errno == EEXIST) {
+		fd = shm_open(shmname, O_RDWR, 0666);
+	}
+
+	if (fd < 0) {
+		PX4_ERR("Cannot allocate perf counter %s: %d", name, errno);
+		return nullptr;
+	}
+
+	if (created) {
+		if (ftruncate(fd, size) != 0) {
+			PX4_ERR("Cannot size perf counter %s: %d", name, errno);
+			close(fd);
+			shm_unlink(shmname);
+			return nullptr;
+		}
+
+	} else {
+		for (unsigned retry = 0; retry < 100 && perf_shmsize(fd) == 0; ++retry) {
+			px4_usleep(1000);
+		}
+
+		if (perf_shmsize(fd) != size) {
+			PX4_ERR("Perf counter size mismatch: %s", name);
+			close(fd);
+			return nullptr;
+		}
+	}
+
+	void *p = px4_mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	close(fd);
+
+	if (p == MAP_FAILED) {
+		PX4_ERR("Cannot map perf counter %s: %d", name, errno);
+
+		if (created) {
+			shm_unlink(shmname);
+		}
+
+		return nullptr;
+	}
+
+	perf_counter_t ctr = (perf_counter_t)p;
+
+	if (created) {
+		switch (type) {
+		case PC_COUNT: ctr = new (p) perf_ctr_count(); break;
+
+		case PC_ELAPSED: ctr = new (p) perf_ctr_elapsed(); break;
+
+		case PC_INTERVAL: ctr = new (p) perf_ctr_interval(); break;
+		}
+
 		ctr->type = type;
-		ctr->name = name;
-		ctr->pending_free = false;
-		pthread_mutex_lock(&perf_counters_mutex);
-		sq_addfirst(&ctr->link, &perf_counters);
-		pthread_mutex_unlock(&perf_counters_mutex);
+		strcpy(ctr->name, name);
+		strcpy(ctr->shmname, shmname);
+		ctr->ready.store(true);
+
+	} else {
+		for (unsigned retry = 0; retry < 100 && !ctr->ready.load(); ++retry) {
+			px4_usleep(1000);
+		}
+
+		if (!ctr->ready.load() || ctr->type != type || strcmp(ctr->name, name) != 0) {
+			PX4_ERR("Perf counter not ready or type mismatch: %s", name);
+			px4_munmap(ctr, size);
+			return nullptr;
+		}
 	}
 
 	return ctr;
 }
 
 perf_counter_t
+perf_alloc(enum perf_counter_type type, const char *name)
+{
+	return perf_allocate(type, name, false);
+}
+
+perf_counter_t
 perf_alloc_once(enum perf_counter_type type, const char *name)
 {
-	pthread_mutex_lock(&perf_counters_mutex);
-	perf_counter_t handle = (perf_counter_t)sq_peek(&perf_counters);
-
-	while (handle != nullptr) {
-		if (!handle->pending_free && !strcmp(handle->name, name)) {
-			if (type == handle->type) {
-				/* they are the same counter */
-				pthread_mutex_unlock(&perf_counters_mutex);
-				return handle;
-
-			} else {
-				/* same name but different type, assuming this is an error and not intended */
-				pthread_mutex_unlock(&perf_counters_mutex);
-				return nullptr;
-			}
-		}
-
-		handle = (perf_counter_t)sq_next(&handle->link);
-	}
-
-	pthread_mutex_unlock(&perf_counters_mutex);
-
-	/* if the execution reaches here, no existing counter of that name was found */
-	return perf_alloc(type, name);
+	return perf_allocate(type, name, true);
 }
 
 void
 perf_free(perf_counter_t handle)
 {
-	if (handle == nullptr) {
-		return;
+	if (handle) {
+		bool unlinked = false;
+
+		if (handle->unlinked.compare_exchange(&unlinked, true) && shm_unlink(handle->shmname) < 0 && errno != ENOENT) {
+			PX4_ERR("Cannot unlink perf counter %s: %d", handle->name, errno);
+		}
+
+		px4_munmap(handle, perf_size(handle->type));
 	}
-
-	pthread_mutex_lock(&perf_counters_mutex);
-
-	if (perf_iterate_active > 0) {
-		// an iteration may be positioned on this entry: keep it linked
-		// and let the last active iteration delete it
-		handle->pending_free = true;
-		pthread_mutex_unlock(&perf_counters_mutex);
-		return;
-	}
-
-	sq_rem(&handle->link, &perf_counters);
-	pthread_mutex_unlock(&perf_counters_mutex);
-
-	perf_delete(handle);
 }
 
 void
@@ -694,58 +807,32 @@ perf_mean(perf_counter_t handle)
 	return 0.0f;
 }
 
-void
-perf_iterate_all(perf_callback cb, void *user)
+struct perf_iteration_context {
+	perf_callback callback;
+	void *user;
+};
+
+static void perf_iterate_cb(perf_counter_t handle, void *arg)
 {
+	auto *context = static_cast<perf_iteration_context *>(arg);
 	static constexpr size_t PERF_COUNTER_LINE_BUFFER_SIZE = 220;
 	char buffer[PERF_COUNTER_LINE_BUFFER_SIZE];
 
-	pthread_mutex_lock(&perf_counters_mutex);
-	++perf_iterate_active;
+	perf_print_counter_buffer(buffer, sizeof(buffer), handle);
+	context->callback(buffer, context->user);
+}
 
-	perf_counter_t handle = (perf_counter_t)sq_peek(&perf_counters);
-
-	while (handle != nullptr) {
-		// advance while locked; entries stay linked until all active iterations end
-		perf_counter_t next = (perf_counter_t)sq_next(&handle->link);
-
-		if (!handle->pending_free) {
-			perf_print_counter_buffer(buffer, sizeof(buffer), handle);
-
-			// the callback may block (the logger waits for MAVLink acks here), so run
-			// it without the global mutex: perf_alloc()/perf_free() on other threads
-			// keep working, and 'next' stays valid because perf_free() defers deletion
-			// while perf_iterate_active > 0
-			pthread_mutex_unlock(&perf_counters_mutex);
-			cb(buffer, user);
-			pthread_mutex_lock(&perf_counters_mutex);
-		}
-
-		handle = next;
-	}
-
-	if (--perf_iterate_active == 0) {
-		perf_free_pending_locked();
-	}
-
-	pthread_mutex_unlock(&perf_counters_mutex);
+void
+perf_iterate_all(perf_callback cb, void *user)
+{
+	perf_iteration_context context{cb, user};
+	perf_foreach(perf_iterate_cb, &context);
 }
 
 void
 perf_print_all(void)
 {
-	pthread_mutex_lock(&perf_counters_mutex);
-	perf_counter_t handle = (perf_counter_t)sq_peek(&perf_counters);
-
-	while (handle != nullptr) {
-		if (!handle->pending_free) {
-			perf_print_counter(handle);
-		}
-
-		handle = (perf_counter_t)sq_next(&handle->link);
-	}
-
-	pthread_mutex_unlock(&perf_counters_mutex);
+	perf_foreach(perf_print_cb);
 }
 
 void
@@ -767,18 +854,6 @@ perf_print_latency(void)
 void
 perf_reset_all(void)
 {
-	pthread_mutex_lock(&perf_counters_mutex);
-	perf_counter_t handle = (perf_counter_t)sq_peek(&perf_counters);
-
-	while (handle != nullptr) {
-		if (!handle->pending_free) {
-			perf_reset(handle);
-		}
-
-		handle = (perf_counter_t)sq_next(&handle->link);
-	}
-
-	pthread_mutex_unlock(&perf_counters_mutex);
-
+	perf_foreach(perf_reset_cb);
 	reset_latency_counters();
 }

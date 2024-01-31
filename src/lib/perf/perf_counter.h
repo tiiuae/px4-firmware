@@ -57,7 +57,7 @@ typedef struct perf_ctr_header	*perf_counter_t;
 __BEGIN_DECLS
 
 /**
- * Create a new local counter.
+ * Create a new shared-memory counter.
  *
  * @param type			The type of the new counter.
  * @param name			The counter name.
@@ -79,11 +79,10 @@ __EXPORT extern perf_counter_t	perf_alloc(enum perf_counter_type type, const cha
 __EXPORT extern perf_counter_t	perf_alloc_once(enum perf_counter_type type, const char *name);
 
 /**
- * Free a counter.
+ * Unlink a shared-memory counter and release this handle's mapping.
  *
- * If one or more perf_iterate_all() calls are in progress, the counter is
- * hidden from subsequent callbacks immediately and deleted after the last
- * iteration ends.
+ * Existing mappings, including an active iteration's mapping, remain valid
+ * until they are released. The caller must stop using this handle before freeing it.
  *
  * @param handle		The performance counter's handle.
  */
@@ -200,9 +199,10 @@ typedef void (*perf_callback)(const char *counter_line, void *user);
  * Iterate over all performance counters using a callback.
  *
  * The callback gets each counter formatted as with perf_print_counter_buffer();
- * the string is only valid during the call. The internal mutex is released
- * while the callback runs, therefore blocking inside the callback (e.g. on I/O)
- * does not stall other perf callers, and the callback may itself call perf methods.
+ * the string is only valid during the call. Each counter is independently mapped,
+ * so blocking inside the callback (e.g. on I/O) does not stall other perf callers,
+ * and the callback may itself call perf methods. Concurrently unlinked counters
+ * may still be reported if the iteration already opened them.
  *
  * @param cb callback method
  * @param user custom argument for the callback
