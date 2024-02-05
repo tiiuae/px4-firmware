@@ -345,35 +345,42 @@ int LogWriterMavlink::publish_message(bool reliable)
 		bool got_ack = false;
 		const int timeout_ms = ulog_stream_ack_s::ACK_TIMEOUT * ulog_stream_ack_s::ACK_MAX_TRIES;
 
-		hrt_abstime started = hrt_absolute_time();
+		while(!got_ack) {
 
-		do {
-			int ret = px4_poll(fds, sizeof(fds) / sizeof(fds[0]), timeout_ms);
+			hrt_abstime started = hrt_absolute_time();
 
-			if (ret <= 0) {
-				break;
-			}
+			do {
+				int ret = px4_poll(fds, sizeof(fds) / sizeof(fds[0]), timeout_ms);
 
-			if (fds[0].revents & POLLIN) {
-				ulog_stream_ack_s ack;
-				orb_copy(ORB_ID(ulog_stream_ack), _ulog_stream_ack_sub, &ack);
-
-				if (ack.msg_sequence == ulog_s_p->msg_sequence) {
-					got_ack = true;
+				if (ret <= 0) {
+					break;
 				}
 
-			} else {
-				break;
+				if (fds[0].revents & POLLIN) {
+					ulog_stream_ack_s ack;
+					orb_copy(ORB_ID(ulog_stream_ack), _ulog_stream_ack_sub, &ack);
+
+					if (ack.msg_sequence == ulog_s_p->msg_sequence) {
+						got_ack = true;
+					}
+
+				} else {
+					break;
+				}
+			} while (!got_ack && hrt_elapsed_time(&started) / 1000 < timeout_ms);
+
+			if (!got_ack) {
+				PX4_ERR("Ack timeout. Resending..");
+#ifdef LOGGER_PARALLEL_LOGGING
+				_ulog_stream_acked_pub.publish(*ulog_s_p);
+#else
+				stop_log();
+				return -2;
+#endif
 			}
-		} while (!got_ack && hrt_elapsed_time(&started) / 1000 < timeout_ms);
 
-		if (!got_ack) {
-			PX4_ERR("Ack timeout. Stopping mavlink log");
-			stop_log();
-			return -2;
+			PX4_DEBUG("got ack in %i ms", (int)(hrt_elapsed_time(&started) / 1000));
 		}
-
-		PX4_DEBUG("got ack in %i ms", (int)(hrt_elapsed_time(&started) / 1000));
 	}
 
 	ulog_s_p->msg_sequence++;
