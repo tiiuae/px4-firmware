@@ -236,13 +236,16 @@ PARAM_DEFINE_INT32(SENS_INT_BARO_EN, 1);
 
 /**
  * **************************************************************************************************
+ *                                      CUSTOM FAULT PARAMETERS
+ * ************************************************************************************************** 
 */
 /**
- * FAILURE - ACCEL - FAULT
+ * Trigger to expose fault injection modules
+ * 
+ * Target - Sensor: Accelerometer
  *
  * @value 0 Functional
  * @value 1 Failure
- *
  * @category system
  * @reboot_required false
  * @group Sensors
@@ -250,10 +253,9 @@ PARAM_DEFINE_INT32(SENS_INT_BARO_EN, 1);
 PARAM_DEFINE_INT32(SENS_ACCEL_FAULT, 0);
 
 /**
- * FAILURE - ACCEL - NOISE
+ * Gaussian noise with provided std. dev. value
  *
- * @value 0 Functional
- * @value 1 Failure
+ * Target - Sensor: Accelerometer
  *
  * @category system
  * @reboot_required false
@@ -262,10 +264,9 @@ PARAM_DEFINE_INT32(SENS_ACCEL_FAULT, 0);
 PARAM_DEFINE_FLOAT(SENS_ACCEL_NOISE, 0);
 
 /**
- * FAILURE - ACCEL - BIAS - SHIFT
+ * Systematic shift with provided percentage (as decimal)
  *
- * @value 0 Functional
- * @value 1 Failure
+ * Target - Sensor: Accelerometer
  *
  * @category system
  * @reboot_required false
@@ -274,10 +275,9 @@ PARAM_DEFINE_FLOAT(SENS_ACCEL_NOISE, 0);
 PARAM_DEFINE_FLOAT(SENS_ACCEL_SHIF, 0);
 
 /**
- * FAILURE - ACCEL - BIAS - SCALE
+ * Scaling with provided scalar
  *
- * @value 0 Functional
- * @value 1 Failure
+ * Target - Sensor: Accelerometer
  *
  * @category system
  * @reboot_required false
@@ -286,10 +286,9 @@ PARAM_DEFINE_FLOAT(SENS_ACCEL_SHIF, 0);
 PARAM_DEFINE_FLOAT(SENS_ACCEL_SCAL, 0);
 
 /**
- * FAILURE - ACCEL - DRIFT
+ * Drifting of provided percentage (as decimal) per second
  *
- * @value 0 Functional
- * @value 1 Failure
+ * Target - Sensor: Accelerometer
  *
  * @category system
  * @reboot_required false
@@ -298,11 +297,12 @@ PARAM_DEFINE_FLOAT(SENS_ACCEL_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_ACCEL_DRIFT, 0);
 
 /**
- * FAILURE - ACCEL - ZERO
+ * Set to zero 
+ *
+ * Target - Sensor: Accelerometer
  *
  * @value 0 Functional
- * @value 1 Failure
- *
+ * @value 1 Zero
  * @category system
  * @reboot_required false
  * @group Sensors
@@ -313,13 +313,13 @@ PARAM_DEFINE_INT32(SENS_ACCEL_ZERO, 0);
 /**
  * ***********************************************
 */
-
 /**
- * FAILURE - GYRO - FAULT
+ * Trigger to expose fault injection modules
+ * 
+ * Target - Sensor: Gyroscope
  *
  * @value 0 Functional
  * @value 1 Failure
- *
  * @category system
  * @reboot_required false
  * @group Sensors
@@ -327,8 +327,9 @@ PARAM_DEFINE_INT32(SENS_ACCEL_ZERO, 0);
 PARAM_DEFINE_INT32(SENS_GYRO_FAULT, 0);
 
 /**
- * FAILURE - GYRO - NOISE
+ * Gaussian noise with provided std. dev. value
  *
+ * Target - Sensor: Gyroscope
  *
  * @category system
  * @reboot_required false
@@ -337,8 +338,9 @@ PARAM_DEFINE_INT32(SENS_GYRO_FAULT, 0);
 PARAM_DEFINE_FLOAT(SENS_GYRO_NOISE, 0);
 
 /**
- * FAILURE - GYRO - BIAS - SHIFT
+ * Systematic shift with provided percentage (as decimal)
  *
+ * Target - Sensor: Gyroscope
  *
  * @category system
  * @reboot_required false
@@ -347,8 +349,9 @@ PARAM_DEFINE_FLOAT(SENS_GYRO_NOISE, 0);
 PARAM_DEFINE_FLOAT(SENS_GYRO_SHIF, 0);
 
 /**
- * FAILURE - GYRO - BIAS - SCALE
+ * Scaling with provided scalar
  *
+ * Target - Sensor: Gyroscope
  *
  * @category system
  * @reboot_required false
@@ -357,8 +360,9 @@ PARAM_DEFINE_FLOAT(SENS_GYRO_SHIF, 0);
 PARAM_DEFINE_FLOAT(SENS_GYRO_SCAL, 0);
 
 /**
- * FAILURE - GYRO - DRIFT
+ * Drifting of provided percentage (as decimal) per second
  *
+ * Target - Sensor: Gyroscope
  *
  * @category system
  * @reboot_required false
@@ -367,9 +371,12 @@ PARAM_DEFINE_FLOAT(SENS_GYRO_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_GYRO_DRIFT, 0);
 
 /**
- * FAILURE - GYRO - ZERO
+ * Set to zero 
  *
+ * Target - Sensor: Gyroscope
  *
+ * @value 0 Functional
+ * @value 1 Zero
  * @category system
  * @reboot_required false
  * @group Sensors
@@ -380,13 +387,13 @@ PARAM_DEFINE_INT32(SENS_GYRO_ZERO, 0);
 /**
  * ***********************************************
 */
-
 /**
- * FAILURE - MAG - FAULT
+ * Trigger to expose fault injection modules
+ * 
+ * Target - Sensor: Magnetometer
  *
  * @value 0 Functional
  * @value 1 Failure
- *
  * @category system
  * @reboot_required false
  * @group Sensors
@@ -394,8 +401,9 @@ PARAM_DEFINE_INT32(SENS_GYRO_ZERO, 0);
 PARAM_DEFINE_INT32(SENS_MAG_FAULT, 0);
 
 /**
- * FAILURE - MAG - NOISE
+ * Gaussian noise with provided std. dev. value
  *
+ * Target - Sensor: Magnetometer
  *
  * @category system
  * @reboot_required false
@@ -404,8 +412,9 @@ PARAM_DEFINE_INT32(SENS_MAG_FAULT, 0);
 PARAM_DEFINE_FLOAT(SENS_MAG_NOISE, 0);
 
 /**
- * FAILURE - MAG - BIAS - SHIFT
+ * Systematic shift with provided percentage (as decimal)
  *
+ * Target - Sensor: Magnetometer
  *
  * @category system
  * @reboot_required false
@@ -414,8 +423,9 @@ PARAM_DEFINE_FLOAT(SENS_MAG_NOISE, 0);
 PARAM_DEFINE_FLOAT(SENS_MAG_SHIF, 0);
 
 /**
- * FAILURE - MAG - BIAS - SCALE
+ * Scaling with provided scalar
  *
+ * Target - Sensor: Magnetometer
  *
  * @category system
  * @reboot_required false
@@ -424,8 +434,9 @@ PARAM_DEFINE_FLOAT(SENS_MAG_SHIF, 0);
 PARAM_DEFINE_FLOAT(SENS_MAG_SCAL, 0);
 
 /**
- * FAILURE - MAG - DRIFT
+ * Drifting of provided percentage (as decimal) per second
  *
+ * Target - Sensor: Magnetometer
  *
  * @category system
  * @reboot_required false
@@ -434,15 +445,28 @@ PARAM_DEFINE_FLOAT(SENS_MAG_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_MAG_DRIFT, 0);
 
 /**
- * ***********************************************
-*/
+ * Set to zero 
+ *
+ * Target - Sensor: Magnetometer
+ *
+ * @value 0 Functional
+ * @value 1 Zero
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_MAG_ZERO, 0);
 
 /**
- * FAILURE - BARO - FAULT
+ * ***********************************************
+*/
+/**
+ * Trigger to expose fault injection modules
+ * 
+ * Target - Sensor: Barometer
  *
  * @value 0 Functional
  * @value 1 Failure
- *
  * @category system
  * @reboot_required false
  * @group Sensors
@@ -450,8 +474,9 @@ PARAM_DEFINE_FLOAT(SENS_MAG_DRIFT, 0);
 PARAM_DEFINE_INT32(SENS_BARO_FAULT, 0);
 
 /**
- * FAILURE - BARO - NOISE
+ * Gaussian noise with provided std. dev. value
  *
+ * Target - Sensor: Barometer
  *
  * @category system
  * @reboot_required false
@@ -460,8 +485,9 @@ PARAM_DEFINE_INT32(SENS_BARO_FAULT, 0);
 PARAM_DEFINE_FLOAT(SENS_BARO_NOISE, 0);
 
 /**
- * FAILURE - BARO - BIAS - SHIFT
+ * Systematic shift with provided percentage (as decimal)
  *
+ * Target - Sensor: Barometer
  *
  * @category system
  * @reboot_required false
@@ -470,8 +496,9 @@ PARAM_DEFINE_FLOAT(SENS_BARO_NOISE, 0);
 PARAM_DEFINE_FLOAT(SENS_BARO_SHIF, 0);
 
 /**
- * FAILURE - BARO - BIAS - SCALE
+ * Scaling with provided scalar
  *
+ * Target - Sensor: Barometer
  *
  * @category system
  * @reboot_required false
@@ -480,8 +507,9 @@ PARAM_DEFINE_FLOAT(SENS_BARO_SHIF, 0);
 PARAM_DEFINE_FLOAT(SENS_BARO_SCAL, 0);
 
 /**
- * FAILURE - BARO - DRIFT
+ * Drifting of provided percentage (as decimal) per second
  *
+ * Target - Sensor: Barometer
  *
  * @category system
  * @reboot_required false
@@ -489,17 +517,29 @@ PARAM_DEFINE_FLOAT(SENS_BARO_SCAL, 0);
  */
 PARAM_DEFINE_FLOAT(SENS_BARO_DRIFT, 0);
 
+/**
+ * Set to zero 
+ *
+ * Target - Sensor: Barometer
+ *
+ * @value 0 Functional
+ * @value 1 Zero
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_BARO_ZERO, 0);
 
 /**
  * ***********************************************
 */
-
 /**
- * FAILURE - GPS - FAULT
+ * Trigger to expose fault injection modules
+ * 
+ * Target - Sensor: GPS
  *
  * @value 0 Functional
  * @value 1 Failure
- *
  * @category system
  * @reboot_required false
  * @group Sensors
@@ -507,8 +547,9 @@ PARAM_DEFINE_FLOAT(SENS_BARO_DRIFT, 0);
 PARAM_DEFINE_INT32(SENS_GPS_FAULT, 0);
 
 /**
- * FAILURE - GPS - NOISE
+ * Gaussian noise with provided std. dev. value
  *
+ * Target - Sensor: GPS
  *
  * @category system
  * @reboot_required false
@@ -517,8 +558,9 @@ PARAM_DEFINE_INT32(SENS_GPS_FAULT, 0);
 PARAM_DEFINE_FLOAT(SENS_GPS_NOISE, 0);
 
 /**
- * FAILURE - GPS - BIAS - SHIFT
+ * Systematic shift with provided percentage (as decimal)
  *
+ * Target - Sensor: GPS
  *
  * @category system
  * @reboot_required false
@@ -527,8 +569,9 @@ PARAM_DEFINE_FLOAT(SENS_GPS_NOISE, 0);
 PARAM_DEFINE_FLOAT(SENS_GPS_SHIF, 0);
 
 /**
- * FAILURE - GPS - BIAS - SCALE
+ * Scaling with provided scalar
  *
+ * Target - Sensor: GPS
  *
  * @category system
  * @reboot_required false
@@ -537,11 +580,25 @@ PARAM_DEFINE_FLOAT(SENS_GPS_SHIF, 0);
 PARAM_DEFINE_FLOAT(SENS_GPS_SCAL, 0);
 
 /**
- * FAILURE - GPS - DRIFT
+ * Drifting of provided percentage (as decimal) per second
  *
+ * Target - Sensor: GPS
  *
  * @category system
  * @reboot_required false
  * @group Sensors
  */
 PARAM_DEFINE_FLOAT(SENS_GPS_DRIFT, 0);
+
+/**
+ * Set to zero 
+ *
+ * Target - Sensor: GPS
+ *
+ * @value 0 Functional
+ * @value 1 Zero
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_INT32(SENS_GPS_ZERO, 0);

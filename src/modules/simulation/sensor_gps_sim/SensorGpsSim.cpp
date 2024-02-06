@@ -236,17 +236,17 @@ void SensorGpsSim::Run()
 				gps_drift_timestep += 1;
 			}
 
-			// param_t gps_zero = param_find("SENS_GPS_ZERO");
-			// int32_t gps_zero_flag;
-			// param_get(gps_zero, &gps_zero_flag);
+			param_t gps_zero = param_find("SENS_GPS_ZERO");
+			int32_t gps_zero_flag;
+			param_get(gps_zero, &gps_zero_flag);
 
-			// if (gps_zero_flag == 1)
-			// {
-			// 	sensor_gps.latitude_deg = 0;
-			// 	sensor_gps.longitude_deg = 0;
-			// 	sensor_gps.altitude_msl_m = 0;
-			// 	sensor_gps.altitude_ellipsoid_m = 0;
-			// }
+			if (gps_zero_flag == 1)
+			{
+				sensor_gps.latitude_deg = 0;
+				sensor_gps.longitude_deg = 0;
+				sensor_gps.altitude_msl_m = 0;
+				sensor_gps.altitude_ellipsoid_m = 0;
+			}
 		}
 
 		sensor_gps.timestamp = hrt_absolute_time();

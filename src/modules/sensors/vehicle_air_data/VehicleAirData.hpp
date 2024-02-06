@@ -123,8 +123,6 @@ private:
 
 	float _air_temperature_celsius{20.f}; // initialize with typical 20degC ambient temperature
 
-	/* int baro_drift_timestep; */
-
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::SENS_BARO_QNH>) _param_sens_baro_qnh,
 		(ParamFloat<px4::params::SENS_BARO_RATE>) _param_sens_baro_rate
