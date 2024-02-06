@@ -37,6 +37,8 @@
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
+#include <px4_platform_common/log.h>
+#include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/Subscription.hpp>
@@ -70,6 +72,7 @@ private:
 
 	// generate white Gaussian noise sample with std=1
 	static float generate_wgn();
+    int gps_drift_timestep;
 
 	// generate white Gaussian noise sample as a 3D vector with specified std
 	matrix::Vector3f noiseGauss3f(float stdx, float stdy, float stdz) { return matrix::Vector3f(generate_wgn() * stdx, generate_wgn() * stdy, generate_wgn() * stdz); }
@@ -83,6 +86,11 @@ private:
 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
 
 	DEFINE_PARAMETERS(
-		(ParamInt<px4::params::SIM_GPS_USED>) _sim_gps_used
+		(ParamInt<px4::params::SIM_GPS_USED>) _sim_gps_used,
+		(ParamInt<px4::params::SENS_GPS_FAULT>) _sens_gps_fault,
+		(ParamFloat<px4::params::SENS_GPS_NOISE>) _sens_gps_noise,
+		(ParamFloat<px4::params::SENS_GPS_SHIF>) _sens_gps_bias_shif,
+		(ParamFloat<px4::params::SENS_GPS_SCAL>) _sens_gps_bias_scal,
+		(ParamFloat<px4::params::SENS_GPS_DRIFT>) _sens_gps_drift
 	)
 };

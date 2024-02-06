@@ -86,6 +86,8 @@ private:
 
 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
 
+    int mag_drift_timestep;
+
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::SIM_MAG_OFFSET_X>) _sim_mag_offset_x,
 		(ParamFloat<px4::params::SIM_MAG_OFFSET_Y>) _sim_mag_offset_y,
