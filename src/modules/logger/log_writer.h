@@ -74,6 +74,11 @@ public:
 	void stop_log_mavlink();
 
 #ifdef LOGGER_PARALLEL_LOGGING
+
+	void stop_log_mavlink_req()
+	{
+		if (_log_writer_mavlink) { _log_writer_mavlink->stop_log_req(); }
+	}
 	void wait_fifo_empty()
 	{
 		if (_log_writer_mavlink) {

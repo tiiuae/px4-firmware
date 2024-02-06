@@ -204,6 +204,7 @@ void LogWriterMavlink::start_log()
 	_ulog_stream_acked_data.msg_sequence = 0;
 	_ulog_stream_acked_data.length = 0;
 	_ulog_stream_acked_data.first_message_offset = 0;
+	_stop_log_request = false;
 #endif
 	_is_started = true;
 }
@@ -370,9 +371,15 @@ int LogWriterMavlink::publish_message(bool reliable)
 			} while (!got_ack && hrt_elapsed_time(&started) / 1000 < timeout_ms);
 
 			if (!got_ack) {
-				PX4_ERR("Ack timeout. Resending..");
+				PX4_ERR("Ack timeout");
 #ifdef LOGGER_PARALLEL_LOGGING
-				_ulog_stream_acked_pub.publish(*ulog_s_p);
+				if (_stop_log_request) {
+					stop_log();
+					return -2;
+				} else {
+					PX4_ERR("Resending..");
+					_ulog_stream_acked_pub.publish(*ulog_s_p);
+				}
 #else
 				stop_log();
 				return -2;

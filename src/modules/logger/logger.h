@@ -228,6 +228,7 @@ private:
 	void start_log_mavlink();
 
 	void stop_log_mavlink();
+	void do_stop_log_mavlink();
 
 #ifdef LOGGER_PARALLEL_LOGGING
 	/**
@@ -237,6 +238,8 @@ private:
 
 	static void *mav_start_steps_helper(void *);
 
+	bool _mavlink_log_stop_req = false;
+	bool _mavlink_log_start_steps_sent = false;
 #endif
 
 	/** check if mavlink logging can be started */

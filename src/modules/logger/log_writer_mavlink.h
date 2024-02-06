@@ -89,6 +89,10 @@ public:
 	/** @see LogWriter::write_message() */
 	int write_message(void *ptr, size_t size, bool reliable = false);
 #ifdef LOGGER_PARALLEL_LOGGING
+	void stop_log_req()
+	{
+		_stop_log_request = true;
+	}
 	int write_reliable_message(void *ptr, size_t size, bool wait = false);
 	bool reliable_fifo_is_sending();
 	void wait_fifo_count(size_t count);
@@ -126,6 +130,7 @@ private:
 	uORB::Publication<ulog_stream_s> _ulog_stream_acked_pub{ORB_ID(ulog_stream_acked)};
 	ReliableFifo _fifo;
 	pthread_t _mav_reliable_sender_thread = 0;
+	bool _stop_log_request = false;
 #endif
 };
 

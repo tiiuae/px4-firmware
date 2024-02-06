@@ -1167,6 +1167,13 @@ bool Logger::start_stop_logging()
 		}
 	}
 
+#ifdef LOGGER_PARALLEL_LOGGING
+	if (_mavlink_log_stop_req && _mavlink_log_start_steps_sent) {
+		PX4_INFO("[start_stop_logging] do stop log mavlink");
+		do_stop_log_mavlink();
+	}
+#endif
+
 	return false;
 }
 
@@ -1494,6 +1501,7 @@ void Logger::mav_start_steps()
 	write_excluded_optional_topics(LogType::Full);
 	write_all_add_logged_msg(LogType::Full);
 	PX4_INFO("Write static data - End");
+	_mavlink_log_start_steps_sent = true;
 }
 #endif
 
@@ -1563,6 +1571,17 @@ void Logger::start_log_mavlink()
 
 void Logger::stop_log_mavlink()
 {
+#ifdef LOGGER_PARALLEL_LOGGING
+	PX4_INFO("Request to stop mavlink logging");
+	_mavlink_log_stop_req = true;
+	_writer.stop_log_mavlink_req();
+#else
+	do_stop_log_mavlink();
+#endif
+}
+
+void Logger::do_stop_log_mavlink()
+{
 	// don't write perf data since a client does not expect more data after a stop command
 	PX4_INFO("Stop mavlink log");
 
@@ -1580,6 +1599,10 @@ void Logger::stop_log_mavlink()
 	}
 
 	PX4_INFO("Mavlink logging stopped");
+#ifdef LOGGER_PARALLEL_LOGGING
+	_mavlink_log_stop_req = false;
+	_mavlink_log_start_steps_sent = false;
+#endif
 }
 
 struct perf_callback_data_t {
