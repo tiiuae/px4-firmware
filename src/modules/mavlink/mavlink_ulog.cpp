@@ -213,6 +213,8 @@ int MavlinkULog::handle_update(mavlink_channel_t channel)
 		}
 	}
 
+	_num_cumulative_messages += _current_num_msgs;
+
 	//need to update the rate?
 	hrt_abstime t = hrt_absolute_time();
 
@@ -265,6 +267,16 @@ MavlinkULog *MavlinkULog::try_start(int datarate, float max_rate_factor, uint8_t
 	}
 
 	return ret;
+}
+
+bool MavlinkULog::is_idle()
+{
+	if (_num_cumulative_messages == _prev_num_cumulative_messages) {
+		return true;
+	}
+
+	_prev_num_cumulative_messages = _num_cumulative_messages;
+	return false;
 }
 
 void MavlinkULog::stop()
