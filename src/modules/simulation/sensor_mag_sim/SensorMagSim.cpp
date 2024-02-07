@@ -42,6 +42,7 @@ SensorMagSim::SensorMagSim() :
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default)
 {
+    mag_drift_timestep = 0;
 	_px4_mag.set_device_type(DRV_MAG_DEVTYPE_MAGSIM);
 }
 
@@ -136,6 +137,63 @@ void SensorMagSim::Run()
 					expected_field(0) + _sim_mag_offset_x.get(),
 					expected_field(1) + _sim_mag_offset_y.get(),
 					expected_field(2) + _sim_mag_offset_z.get());
+					
+			// Adding faults to the magnetometer
+            param_t mag_fault = param_find("SENS_MAG_FAULT");
+            int32_t mag_fault_flag;
+            param_get(mag_fault, &mag_fault_flag);
+
+            if (mag_fault_flag == 1)
+            {
+                param_t mag_noise = param_find("SENS_MAG_NOISE");
+                float_t mag_noise_flag;
+                param_get(mag_noise, &mag_noise_flag);
+
+                if (abs(mag_noise_flag) > 0)
+                {
+                    _px4_mag.update(attitude.timestamp,
+                                    (1 + generate_wgn()*mag_noise_flag) * expected_field(0),
+                                    (1 + generate_wgn()*mag_noise_flag) * expected_field(1),
+                                    (1 + generate_wgn()*mag_noise_flag) * expected_field(2));
+                }
+
+                param_t mag_bias_shift = param_find("SENS_MAG_SHIF");
+                float_t mag_bias_shift_flag;
+                param_get(mag_bias_shift, &mag_bias_shift_flag);
+
+                if (abs(mag_bias_shift_flag) > 0)
+                {
+                    _px4_mag.update(attitude.timestamp,
+                                    (1 + mag_bias_shift_flag) * expected_field(0),
+                                    (1 + mag_bias_shift_flag) * expected_field(1),
+                                    (1 + mag_bias_shift_flag) * expected_field(2));
+                }
+
+                param_t mag_bias_scale = param_find("SENS_MAG_SCAL");
+                float_t mag_bias_scale_flag;
+                param_get(mag_bias_scale, &mag_bias_scale_flag);
+
+                if (abs(mag_bias_scale_flag) > 0)
+                {
+                    _px4_mag.update(attitude.timestamp,
+                                    mag_bias_scale_flag * expected_field(0),
+                                    mag_bias_scale_flag * expected_field(1),
+                                    mag_bias_scale_flag * expected_field(2));
+                }
+
+                param_t mag_drift = param_find("SENS_MAG_DRIFT");
+                float_t mag_drift_flag;
+                param_get(mag_drift, &mag_drift_flag);
+
+                if (abs(mag_drift_flag) > 0)
+                {
+                    _px4_mag.update(attitude.timestamp,
+                                    0.01f*mag_drift_flag*mag_drift_timestep/1000000 + expected_field(0),
+                                    0.01f*mag_drift_flag*mag_drift_timestep/1000000 + expected_field(1),
+                                    0.01f*mag_drift_flag*mag_drift_timestep/1000000 + expected_field(2));
+                    mag_drift_timestep += 1;
+                }
+            }
 		}
 	}
 

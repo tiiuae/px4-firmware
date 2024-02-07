@@ -70,7 +70,8 @@ private:
 
 	// generate white Gaussian noise sample with std=1
 	static float generate_wgn();
-
+    int baro_drift_timestep;
+    
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 	uORB::Subscription _vehicle_global_position_sub{ORB_ID(vehicle_global_position_groundtruth)};
 
