@@ -170,7 +170,7 @@ void SensorBaroSim::Run()
 			sensor_baro.temperature = temperature;
 			sensor_baro.timestamp = hrt_absolute_time();
 
-            // Adding faults to the magnetometer
+            // Adding faults to the barometer
             param_t baro_fault = param_find("SENS_BARO_FAULT");
             int32_t baro_fault_flag;
             param_get(baro_fault, &baro_fault_flag);

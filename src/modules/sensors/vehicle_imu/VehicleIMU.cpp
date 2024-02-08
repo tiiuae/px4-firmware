@@ -798,9 +798,9 @@ bool VehicleIMU::Publish()
 
 				if (gyro_zero_flag == 1)
 				{
-					imu.delta_angle[0] = 10000;
-					imu.delta_angle[1] = 10000;
-					imu.delta_angle[2] = 10000;
+					imu.delta_angle[0] = 0;
+					imu.delta_angle[1] = 0;
+					imu.delta_angle[2] = 0;
 				}
 			}
 
