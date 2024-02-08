@@ -71,7 +71,7 @@ namespace logger
 
 #ifdef LOGGER_PARALLEL_LOGGING
 typedef struct thread_data {
-	bool wait_for_ack{false};
+	ULogWriteType write_type{ULogWriteType::RELIABLE_TOPIC_DATA};
 } thread_data_t;
 
 pthread_key_t pthread_data_key;
@@ -311,7 +311,7 @@ private:
 	 * Must be called with _writer.lock() held.
 	 * @return true if data written, false otherwise (on overflow)
 	 */
-	bool write_message(LogType type, void *ptr, size_t size, bool reliable = false, bool wait = false);
+	bool write_message(LogType type, void *ptr, size_t size, ULogWriteType wrtype = ULogWriteType::BEST_EFFORT);
 
 	/**
 	 * Add topic subscriptions from SD file if it exists, otherwise add topics based on the configured profile.
