@@ -29,8 +29,8 @@ publications:
   - topic: /fmu/out/vehicle_global_position
     type: px4_msgs::msg::VehicleGlobalPosition
 
-  - topic: /fmu/out/vehicle_gps_position
-    type: px4_msgs::msg::SensorGps
+  # - topic: /fmu/out/vehicle_gps_position
+  #   type: px4_msgs::msg::SensorGps
 
   - topic: /fmu/out/vehicle_local_position
     type: px4_msgs::msg::VehicleLocalPosition
@@ -43,21 +43,6 @@ publications:
 
   - topic: /fmu/out/vehicle_trajectory_waypoint_desired
     type: px4_msgs::msg::VehicleTrajectoryWaypoint
-
-  - topic: /fmu/out/sensor_accel
-    type: px4_msgs::msg::SensorAccel
-
-  - topic: /fmu/out/sensor_gyro
-    type: px4_msgs::msg::SensorGyro
-
-  - topic: /fmu/out/sensor_mag
-    type: px4_msgs::msg::SensorMag
-
-  - topic: /fmu/out/sensor_baro
-    type: px4_msgs::msg::SensorBaro
-
-  - topic: /fmu/out/sensor_gps
-    type: px4_msgs::msg::SensorGps
 
 # messages added by ssrc
 
@@ -81,6 +66,15 @@ publications:
 
   - topic: /fmu/out/home_position
     type: px4_msgs::msg::HomePosition
+
+  - topic: /fmu/out/sensor_accel
+    type: px4_msgs::msg::SensorAccel
+
+  - topic: /fmu/out/sensor_gyro
+    type: px4_msgs::msg::SensorGyro
+
+  - topic: /fmu/out/sensor_gps
+    type: px4_msgs::msg::SensorGps
 
 subscriptions:
 
