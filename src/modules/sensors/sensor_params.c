@@ -237,7 +237,7 @@ PARAM_DEFINE_INT32(SENS_INT_BARO_EN, 1);
 /**
  * **************************************************************************************************
  *                                      CUSTOM FAULT PARAMETERS
- * ************************************************************************************************** 
+ * **************************************************************************************************
 */
 /**
  * Trigger to expose fault injection modules
@@ -297,7 +297,7 @@ PARAM_DEFINE_FLOAT(SENS_ACCEL_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_ACCEL_DRIFT, 0);
 
 /**
- * Set to zero 
+ * Set to zero
  *
  * Target - Sensor: Accelerometer
  *
@@ -315,7 +315,7 @@ PARAM_DEFINE_INT32(SENS_ACCEL_ZERO, 0);
 */
 /**
  * Trigger to expose fault injection modules
- * 
+ *
  * Target - Sensor: Gyroscope
  *
  * @value 0 Functional
@@ -371,7 +371,7 @@ PARAM_DEFINE_FLOAT(SENS_GYRO_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_GYRO_DRIFT, 0);
 
 /**
- * Set to zero 
+ * Set to zero
  *
  * Target - Sensor: Gyroscope
  *
@@ -389,7 +389,7 @@ PARAM_DEFINE_INT32(SENS_GYRO_ZERO, 0);
 */
 /**
  * Trigger to expose fault injection modules
- * 
+ *
  * Target - Sensor: Magnetometer
  *
  * @value 0 Functional
@@ -445,7 +445,7 @@ PARAM_DEFINE_FLOAT(SENS_MAG_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_MAG_DRIFT, 0);
 
 /**
- * Set to zero 
+ * Set to zero
  *
  * Target - Sensor: Magnetometer
  *
@@ -462,7 +462,7 @@ PARAM_DEFINE_INT32(SENS_MAG_ZERO, 0);
 */
 /**
  * Trigger to expose fault injection modules
- * 
+ *
  * Target - Sensor: Barometer
  *
  * @value 0 Functional
@@ -518,7 +518,7 @@ PARAM_DEFINE_FLOAT(SENS_BARO_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_BARO_DRIFT, 0);
 
 /**
- * Set to zero 
+ * Set to zero
  *
  * Target - Sensor: Barometer
  *
@@ -535,7 +535,7 @@ PARAM_DEFINE_INT32(SENS_BARO_ZERO, 0);
 */
 /**
  * Trigger to expose fault injection modules
- * 
+ *
  * Target - Sensor: GPS
  *
  * @value 0 Functional
@@ -591,7 +591,7 @@ PARAM_DEFINE_FLOAT(SENS_GPS_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_GPS_DRIFT, 0);
 
 /**
- * Set to zero 
+ * Set to zero
  *
  * Target - Sensor: GPS
  *
