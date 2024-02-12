@@ -189,10 +189,10 @@ void SensorGpsSim::Run()
 
 			if (abs(gps_noise_flag) > 0)
 			{
-				sensor_gps.latitude_deg += sensor_gps.latitude_deg*(double)(generate_wgn()*gps_noise_flag);
-				sensor_gps.longitude_deg += sensor_gps.longitude_deg*(double)(generate_wgn()*gps_noise_flag);
-				sensor_gps.altitude_msl_m += sensor_gps.altitude_msl_m*(double)(generate_wgn()*gps_noise_flag);
-				sensor_gps.altitude_ellipsoid_m += sensor_gps.altitude_ellipsoid_m*(double)(generate_wgn()*gps_noise_flag);
+				sensor_gps.lat += sensor_gps.lat*(double)(generate_wgn()*gps_noise_flag);
+				sensor_gps.lon += sensor_gps.lon*(double)(generate_wgn()*gps_noise_flag);
+				sensor_gps.alt += sensor_gps.alt*(double)(generate_wgn()*gps_noise_flag);
+				sensor_gps.alt_ellipsoid += sensor_gps.alt_ellipsoid*(double)(generate_wgn()*gps_noise_flag);
 			}
 
 			param_t gps_bias_shift = param_find("SENS_GPS_SHIF");
@@ -201,10 +201,10 @@ void SensorGpsSim::Run()
 
 			if (abs(gps_bias_shift_flag) > 0)
 			{
-				sensor_gps.latitude_deg += sensor_gps.latitude_deg*static_cast<double>(gps_bias_shift_flag);
-				sensor_gps.longitude_deg += sensor_gps.longitude_deg*static_cast<double>(gps_bias_shift_flag);
-				sensor_gps.altitude_msl_m += sensor_gps.altitude_msl_m*static_cast<double>(gps_bias_shift_flag);
-				sensor_gps.altitude_ellipsoid_m += sensor_gps.altitude_ellipsoid_m*static_cast<double>(gps_bias_shift_flag);
+				sensor_gps.lat += sensor_gps.lat*static_cast<double>(gps_bias_shift_flag);
+				sensor_gps.lon += sensor_gps.lon*static_cast<double>(gps_bias_shift_flag);
+				sensor_gps.alt += sensor_gps.alt*static_cast<double>(gps_bias_shift_flag);
+				sensor_gps.alt_ellipsoid += sensor_gps.alt_ellipsoid*static_cast<double>(gps_bias_shift_flag);
 			}
 
 			param_t gps_bias_scale = param_find("SENS_GPS_SCAL");
@@ -213,10 +213,10 @@ void SensorGpsSim::Run()
 
 			if (abs(gps_bias_scale_flag) > 0)
 			{
-				sensor_gps.latitude_deg *= static_cast<double>(gps_bias_scale_flag);
-				sensor_gps.longitude_deg *= static_cast<double>(gps_bias_scale_flag);
-				sensor_gps.altitude_msl_m *= static_cast<double>(gps_bias_scale_flag);
-				sensor_gps.altitude_ellipsoid_m *= static_cast<double>(gps_bias_scale_flag);
+				sensor_gps.lat *= static_cast<double>(gps_bias_scale_flag);
+				sensor_gps.lon *= static_cast<double>(gps_bias_scale_flag);
+				sensor_gps.alt *= static_cast<double>(gps_bias_scale_flag);
+				sensor_gps.alt_ellipsoid *= static_cast<double>(gps_bias_scale_flag);
 			}
 
 			param_t gps_drift = param_find("SENS_GPS_DRIFT");
@@ -225,10 +225,10 @@ void SensorGpsSim::Run()
 
 			if (abs(gps_drift_flag) > 0)
 			{
-				sensor_gps.latitude_deg += 0.01*static_cast<double>(gps_drift_flag)*gps_drift_timestep/1000000;
-				sensor_gps.longitude_deg += 0.01*static_cast<double>(gps_drift_flag)*gps_drift_timestep/1000000;
-				sensor_gps.altitude_msl_m += 0.01*static_cast<double>(gps_drift_flag)*gps_drift_timestep/1000000;
-				sensor_gps.altitude_ellipsoid_m += 0.01*static_cast<double>(gps_drift_flag)*gps_drift_timestep/1000000;
+				sensor_gps.lat += 0.01*static_cast<double>(gps_drift_flag)*gps_drift_timestep/1000000;
+				sensor_gps.lon += 0.01*static_cast<double>(gps_drift_flag)*gps_drift_timestep/1000000;
+				sensor_gps.alt += 0.01*static_cast<double>(gps_drift_flag)*gps_drift_timestep/1000000;
+				sensor_gps.alt_ellipsoid += 0.01*static_cast<double>(gps_drift_flag)*gps_drift_timestep/1000000;
 
 				gps_drift_timestep += 1;
 			}
@@ -239,10 +239,10 @@ void SensorGpsSim::Run()
 
 			if (gps_zero_flag == 1)
 			{
-				sensor_gps.latitude_deg = 0;
-				sensor_gps.longitude_deg = 0;
-				sensor_gps.altitude_msl_m = 0;
-				sensor_gps.altitude_ellipsoid_m = 0;
+				sensor_gps.lat = 0;
+				sensor_gps.lon = 0;
+				sensor_gps.alt = 0;
+				sensor_gps.alt_ellipsoid = 0;
 			}
 		}
 
