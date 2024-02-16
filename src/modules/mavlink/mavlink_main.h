@@ -575,6 +575,7 @@ private:
 	MavlinkShell		*_mavlink_shell{nullptr};
 	pthread_mutex_t		_mavlink_shell_mutex{};
 	MavlinkULog		*_mavlink_ulog{nullptr};
+	bool			_mavlink_ulog_stop_requested{false};
 	static events::EventBuffer	*_event_buffer;
 	events::SendProtocol		_events{*_event_buffer, *this};
 
