@@ -2438,14 +2438,24 @@ Mavlink::task_main(int argc, char *argv[])
 		/* check for ulog streaming messages */
 		if (_mavlink_ulog) {
 			const int ret = _mavlink_ulog->handle_update(get_channel());
+			bool stop_ulog = false;
 
 			if (ret < 0) { // abort the streaming on error
 				if (ret != -1) {
 					PX4_WARN("mavlink ulog stream update failed, stopping (%i)", ret);
 				}
 
+				stop_ulog = true;
+
+			} else if (_mavlink_ulog_stop_requested && _mavlink_ulog->is_idle()) {
+				PX4_INFO("[mavlink_ulog] stop");
+				stop_ulog = true;
+			}
+
+			if (stop_ulog) {
 				_mavlink_ulog->stop();
 				_mavlink_ulog = nullptr;
+				_mavlink_ulog_stop_requested = false;
 			}
 		}
 
@@ -2736,8 +2746,7 @@ void Mavlink::handleAndGetCurrentCommandAck()
 					} else if (command_ack.command == vehicle_command_s::VEHICLE_CMD_LOGGING_STOP
 						   && command_ack.result == vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED) {
 						if (_mavlink_ulog) {
-							_mavlink_ulog->stop();
-							_mavlink_ulog = nullptr;
+							_mavlink_ulog_stop_requested = true;
 						}
 					}
 
