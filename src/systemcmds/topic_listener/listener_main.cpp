@@ -114,21 +114,6 @@ void listener(const orb_id_t &id, unsigned num_msgs, int topic_instance,
 		int time = 0;
 
 		while (msgs_received < num_msgs) {
-
-			char c = 0;
-			int ret = read(0, &c, 1);
-
-			if (ret) {
-
-				switch (c) {
-				case 0x03: // ctrl-c
-				case 0x1b: // esc
-				case 'q':
-					return;
-					/* not reached */
-				}
-			}
-
 			if (px4_poll(&fds[0], 1, 50) > 0) {
 				// Received message from subscription
 
@@ -137,7 +122,7 @@ void listener(const orb_id_t &id, unsigned num_msgs, int topic_instance,
 
 					PX4_INFO_RAW("\nTOPIC: %s instance %d #%d\n", id->o_name, topic_instance, msgs_received);
 
-					ret = listener_print_topic(id, sub);
+					int ret = listener_print_topic(id, sub);
 
 					if (ret != PX4_OK) {
 						PX4_ERR("listener callback failed (%i)", ret);
