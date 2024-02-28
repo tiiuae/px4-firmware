@@ -151,6 +151,9 @@ private:
 	const std::string _model_pose;
 
 	float _temperature{288.15};  // 15 degrees
+    
+    int baro_drift_timestep;
+    float generate_wgn();
 
 	gz::transport::Node _node;
 

@@ -134,52 +134,44 @@ void SensorMagSim::Run()
 
 			expected_field += noiseGauss3f(0.02f, 0.02f, 0.03f);
 
-			_px4_mag.update(attitude.timestamp,
-					expected_field(0) + _sim_mag_offset_x.get(),
-					expected_field(1) + _sim_mag_offset_y.get(),
-					expected_field(2) + _sim_mag_offset_z.get());
+            float _x = expected_field(0) + _sim_mag_offset_x.get(); 
+            float _y = expected_field(1) + _sim_mag_offset_y.get();
+            float _z = expected_field(2) + _sim_mag_offset_z.get();
 
             // Adding faults to the magnetometer
             param_t mag_fault = param_find("SENS_MAG_FAULT");
             int32_t mag_fault_flag;
             param_get(mag_fault, &mag_fault_flag);
 
-            if (mag_fault_flag == 1)
-            {
+            if (mag_fault_flag == 1) {
                 param_t mag_noise = param_find("SENS_MAG_NOISE");
                 float_t mag_noise_flag;
                 param_get(mag_noise, &mag_noise_flag);
 
-                if (abs(mag_noise_flag) > 0)
-                {
-                    _px4_mag.update(attitude.timestamp,
-                                    (1 + generate_wgn()*mag_noise_flag) * expected_field(0),
-                                    (1 + generate_wgn()*mag_noise_flag) * expected_field(1),
-                                    (1 + generate_wgn()*mag_noise_flag) * expected_field(2));
+                if (abs(mag_noise_flag) > 0) {
+                    _x = (1 + generate_wgn()*mag_noise_flag) * _x;
+                    _y = (1 + generate_wgn()*mag_noise_flag) * _y;
+                    _z = (1 + generate_wgn()*mag_noise_flag) * _z;
                 }
 
                 param_t mag_bias_shift = param_find("SENS_MAG_SHIF");
                 float_t mag_bias_shift_flag;
                 param_get(mag_bias_shift, &mag_bias_shift_flag);
 
-                if (abs(mag_bias_shift_flag) > 0)
-                {
-                    _px4_mag.update(attitude.timestamp,
-                                    (1 + mag_bias_shift_flag) * expected_field(0),
-                                    (1 + mag_bias_shift_flag) * expected_field(1),
-                                    (1 + mag_bias_shift_flag) * expected_field(2));
+                if (abs(mag_bias_shift_flag) > 0) {
+                    _x = (1 + mag_bias_shift_flag) * _x;
+                    _y = (1 + mag_bias_shift_flag) * _y;
+                    _z = (1 + mag_bias_shift_flag) * _z;
                 }
 
                 param_t mag_bias_scale = param_find("SENS_MAG_SCAL");
                 float_t mag_bias_scale_flag;
                 param_get(mag_bias_scale, &mag_bias_scale_flag);
 
-                if (abs(mag_bias_scale_flag) > 0)
-                {
-                    _px4_mag.update(attitude.timestamp,
-                                    mag_bias_scale_flag * expected_field(0),
-                                    mag_bias_scale_flag * expected_field(1),
-                                    mag_bias_scale_flag * expected_field(2));
+                if (abs(mag_bias_scale_flag) > 0) {
+                    _x = mag_bias_scale_flag * _x;
+                    _y = mag_bias_scale_flag * _y;
+                    _z = mag_bias_scale_flag * _z;
                 }
 
                 param_t mag_drift = param_find("SENS_MAG_DRIFT");
@@ -188,14 +180,36 @@ void SensorMagSim::Run()
 
                 if (abs(mag_drift_flag) > 0)
                 {
-                    _px4_mag.update(attitude.timestamp,
-                                    0.01f*mag_drift_flag*mag_drift_timestep/1000000 + expected_field(0),
-                                    0.01f*mag_drift_flag*mag_drift_timestep/1000000 + expected_field(1),
-                                    0.01f*mag_drift_flag*mag_drift_timestep/1000000 + expected_field(2));
+                    _x = 0.01f*mag_drift_flag*mag_drift_timestep/1000000 + _x;
+                    _y = 0.01f*mag_drift_flag*mag_drift_timestep/1000000 + _y;
+                    _z = 0.01f*mag_drift_flag*mag_drift_timestep/1000000 + _z;
                     mag_drift_timestep += 1;
                 }
+
+				param_t mag_zero = param_find("SENS_MAG_ZERO");
+				int32_t mag_zero_flag;
+				param_get(mag_zero, &mag_zero_flag);
+
+				if (mag_zero_flag == 1) {
+                    _x = 0;
+                    _y = 0;
+                    _z = 0;
+				}
+
+				param_t mag_set = param_find("SENS_MAG_SET");
+				float_t mag_set_flag;
+				param_get(mag_set, &mag_set_flag);
+
+				if (abs(mag_set_flag) > 0) {
+                    _x = mag_set_flag;
+                    _y = mag_set_flag;
+                    _z = mag_set_flag;
+				}
+
             }
-		}
+
+            _px4_mag.update(attitude.timestamp, _x, _y, _z);
+        }
 	}
 
 	perf_end(_loop_perf);

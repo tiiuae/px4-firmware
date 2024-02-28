@@ -247,6 +247,18 @@ void SensorGpsSim::Run()
 				sensor_gps.altitude_msl_m = 0;
 				sensor_gps.altitude_ellipsoid_m = 0;
 			}
+
+			param_t gps_set = param_find("SENS_GPS_SET");
+			float_t gps_set_flag;
+			param_get(gps_set, &gps_set_flag);
+
+			if (abs(gps_set_flag) > 0) {
+				sensor_gps.latitude_deg = static_cast<double>(gps_set_flag);
+				sensor_gps.longitude_deg = static_cast<double>(gps_set_flag);
+				sensor_gps.altitude_msl_m = static_cast<double>(gps_set_flag);
+				sensor_gps.altitude_ellipsoid_m = static_cast<double>(gps_set_flag);
+			}
+
 		}
 
 		sensor_gps.timestamp = hrt_absolute_time();

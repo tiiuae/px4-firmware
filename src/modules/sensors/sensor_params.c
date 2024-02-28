@@ -235,13 +235,8 @@ PARAM_DEFINE_INT32(SENS_IMU_MODE, 1);
 PARAM_DEFINE_INT32(SENS_INT_BARO_EN, 1);
 
 /**
- * **************************************************************************************************
- *                                      CUSTOM FAULT PARAMETERS
- * ************************************************************************************************** 
-*/
-/**
  * Trigger to expose fault injection modules
- * 
+ *
  * Target - Sensor: Accelerometer
  *
  * @value 0 Functional
@@ -297,7 +292,7 @@ PARAM_DEFINE_FLOAT(SENS_ACCEL_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_ACCEL_DRIFT, 0);
 
 /**
- * Set to zero 
+ * Set to zero
  *
  * Target - Sensor: Accelerometer
  *
@@ -309,13 +304,20 @@ PARAM_DEFINE_FLOAT(SENS_ACCEL_DRIFT, 0);
  */
 PARAM_DEFINE_INT32(SENS_ACCEL_ZERO, 0);
 
+/**
+ * Set value to input
+ *
+ * Target - Sensor: Accelerometer
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_SET, 0);
 
 /**
- * ***********************************************
-*/
-/**
  * Trigger to expose fault injection modules
- * 
+ *
  * Target - Sensor: Gyroscope
  *
  * @value 0 Functional
@@ -371,7 +373,7 @@ PARAM_DEFINE_FLOAT(SENS_GYRO_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_GYRO_DRIFT, 0);
 
 /**
- * Set to zero 
+ * Set to zero
  *
  * Target - Sensor: Gyroscope
  *
@@ -383,13 +385,20 @@ PARAM_DEFINE_FLOAT(SENS_GYRO_DRIFT, 0);
  */
 PARAM_DEFINE_INT32(SENS_GYRO_ZERO, 0);
 
+/**
+ * Set value to input
+ *
+ * Target - Sensor: Gyroscope
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GYRO_SET, 0);
 
 /**
- * ***********************************************
-*/
-/**
  * Trigger to expose fault injection modules
- * 
+ *
  * Target - Sensor: Magnetometer
  *
  * @value 0 Functional
@@ -445,7 +454,7 @@ PARAM_DEFINE_FLOAT(SENS_MAG_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_MAG_DRIFT, 0);
 
 /**
- * Set to zero 
+ * Set to zero
  *
  * Target - Sensor: Magnetometer
  *
@@ -458,11 +467,19 @@ PARAM_DEFINE_FLOAT(SENS_MAG_DRIFT, 0);
 PARAM_DEFINE_INT32(SENS_MAG_ZERO, 0);
 
 /**
- * ***********************************************
-*/
+ * Set value to input
+ *
+ * Target - Sensor: Magnetometer
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_MAG_SET, 0);
+
 /**
  * Trigger to expose fault injection modules
- * 
+ *
  * Target - Sensor: Barometer
  *
  * @value 0 Functional
@@ -518,7 +535,7 @@ PARAM_DEFINE_FLOAT(SENS_BARO_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_BARO_DRIFT, 0);
 
 /**
- * Set to zero 
+ * Set to zero
  *
  * Target - Sensor: Barometer
  *
@@ -531,11 +548,19 @@ PARAM_DEFINE_FLOAT(SENS_BARO_DRIFT, 0);
 PARAM_DEFINE_INT32(SENS_BARO_ZERO, 0);
 
 /**
- * ***********************************************
-*/
+ * Set value to input
+ *
+ * Target - Sensor: Barometer
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_BARO_SET, 0);
+
 /**
  * Trigger to expose fault injection modules
- * 
+ *
  * Target - Sensor: GPS
  *
  * @value 0 Functional
@@ -591,7 +616,7 @@ PARAM_DEFINE_FLOAT(SENS_GPS_SCAL, 0);
 PARAM_DEFINE_FLOAT(SENS_GPS_DRIFT, 0);
 
 /**
- * Set to zero 
+ * Set to zero
  *
  * Target - Sensor: GPS
  *
@@ -602,3 +627,14 @@ PARAM_DEFINE_FLOAT(SENS_GPS_DRIFT, 0);
  * @group Sensors
  */
 PARAM_DEFINE_INT32(SENS_GPS_ZERO, 0);
+
+/**
+ * Set value to input
+ *
+ * Target - Sensor: GPS
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_GPS_SET, 0);
