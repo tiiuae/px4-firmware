@@ -53,7 +53,7 @@ GZBridge::GZBridge(const char *world, const char *name, const char *model,
 	_model_pose(pose_str)
 {
 	pthread_mutex_init(&_node_mutex, nullptr);
-
+    baro_drift_timestep = 0;
 	updateParams();
 }
 
@@ -387,6 +387,37 @@ void GZBridge::clockCallback(const gz::msgs::Clock &clock)
 	pthread_mutex_unlock(&_node_mutex);
 }
 
+float GZBridge::generate_wgn()
+{
+	// generate white Gaussian noise sample with std=1
+
+	// algorithm 1:
+	// float temp=((float)(rand()+1))/(((float)RAND_MAX+1.0f));
+	// return sqrtf(-2.0f*logf(temp))*cosf(2.0f*M_PI_F*rand()/RAND_MAX);
+	// algorithm 2: from BlockRandGauss.hpp
+	static float V1, V2, S;
+	static bool phase = true;
+	float X;
+
+	if (phase) {
+		do {
+			float U1 = (float)rand() / (float)RAND_MAX;
+			float U2 = (float)rand() / (float)RAND_MAX;
+			V1 = 2.0f * U1 - 1.0f;
+			V2 = 2.0f * U2 - 1.0f;
+			S = V1 * V1 + V2 * V2;
+		} while (S >= 1.0f || fabsf(S) < 1e-8f);
+
+		X = V1 * float(sqrtf(-2.0f * float(logf(S)) / S));
+
+	} else {
+		X = V2 * float(sqrtf(-2.0f * float(logf(S)) / S));
+	}
+
+	phase = !phase;
+	return X;
+}
+
 void GZBridge::barometerCallback(const gz::msgs::FluidPressure &air_pressure)
 {
 	if (hrt_absolute_time() == 0) {
@@ -406,8 +437,8 @@ void GZBridge::barometerCallback(const gz::msgs::FluidPressure &air_pressure)
 	sensor_baro.temperature = this->_temperature;
 	sensor_baro.timestamp = hrt_absolute_time();
 
-    // Adding faults to the barometer
-    param_t baro_fault = param_find("SENS_BARO_FAULT");
+    // adding faults to the barometer
+    param_t baro_fault = param_find("sens_baro_fault");
     int32_t baro_fault_flag;
     param_get(baro_fault, &baro_fault_flag);
 
