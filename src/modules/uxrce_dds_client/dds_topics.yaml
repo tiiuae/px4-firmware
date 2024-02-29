@@ -83,6 +83,15 @@ publications:
   - topic: /fmu/out/vehicle_trajectory_waypoint_desired
     type: px4_msgs::msg::VehicleTrajectoryWaypoint
 
+  - topic: /fmu/out/actuator_outputs
+    type: px4_msgs::msg::ActuatorOutputs
+
+  - topic: /fmu/out/actuator_controls_status_0
+    type: px4_msgs::msg::ActuatorControlsStatus
+
+  - topic: /fmu/out/actuator_controls_status_1
+    type: px4_msgs::msg::ActuatorControlsStatus
+
 # Create uORB::Publication
 subscriptions:
   - topic: /fmu/in/register_ext_component_request
