@@ -438,7 +438,7 @@ void GZBridge::barometerCallback(const gz::msgs::FluidPressure &air_pressure)
 	sensor_baro.timestamp = hrt_absolute_time();
 
     // adding faults to the barometer
-    param_t baro_fault = param_find("sens_baro_fault");
+    param_t baro_fault = param_find("SENS_BARO_FAULT");
     int32_t baro_fault_flag;
     param_get(baro_fault, &baro_fault_flag);
 
