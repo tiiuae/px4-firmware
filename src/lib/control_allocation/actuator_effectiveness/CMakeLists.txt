@@ -36,7 +36,7 @@ px4_add_library(ActuatorEffectiveness
 	ActuatorEffectiveness.hpp
 )
 
-target_compile_options(ActuatorEffectiveness PRIVATE ${MAX_CUSTOM_OPT_LEVEL})
+target_compile_options(ActuatorEffectiveness PRIVATE ${MAX_CUSTOM_OPT_LEVEL} -Wno-dangling-pointer) # TODO: fix and enable warning
 target_include_directories(ActuatorEffectiveness PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ActuatorEffectiveness
 	PRIVATE
