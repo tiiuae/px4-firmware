@@ -12,4 +12,6 @@
 
 cd /home/user/Firmware
 
+make px4_sitl_default
+
 make px4_sitl gz_x500
