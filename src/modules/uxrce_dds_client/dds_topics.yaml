@@ -95,6 +95,9 @@ publications:
   - topic: /fmu/out/actuator_controls_status_1
     type: px4_msgs::msg::ActuatorControlsStatus
 
+  - topic: /fmu/out/mission_result
+    type: px4_msgs::msg::MissionResult
+
 # Create uORB::Publication
 subscriptions:
   - topic: /fmu/in/register_ext_component_request
