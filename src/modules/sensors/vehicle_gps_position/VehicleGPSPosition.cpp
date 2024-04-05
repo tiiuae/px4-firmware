@@ -118,6 +118,10 @@ void VehicleGPSPosition::ParametersUpdate(bool force)
 
 void VehicleGPSPosition::Run()
 {
+	if (_paused) {
+		return;
+	}
+
 	perf_begin(_cycle_perf);
 	ParametersUpdate();
 

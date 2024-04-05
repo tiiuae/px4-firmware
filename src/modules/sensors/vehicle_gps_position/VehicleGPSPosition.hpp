@@ -63,6 +63,8 @@ public:
 
 	bool Start();
 	void Stop();
+	void Pause() { _paused = true; }
+	void Resume() { _paused = false; }
 
 	void PrintStatus();
 
@@ -102,6 +104,8 @@ private:
 		matrix::Vector3f offset{};
 		hrt_abstime delay_us{110_ms};
 	} _gps_param_slots[GPS_MAX_RECEIVERS] {};
+
+	bool _paused{false};
 
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::SENS_GPS_MASK>) _param_sens_gps_mask,
