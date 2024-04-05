@@ -186,7 +186,9 @@ static void mavlink_usb_check(void *arg)
 
 										if (param1 == 1) {
 											// 1: Reboot autopilot
+#if defined(CONFIG_BOARDCTL_RESET)
 											px4_reboot_request(REBOOT_REQUEST, 0);
+#endif
 
 										} else if (param1 == 2) {
 											// 2: Shutdown autopilot
@@ -196,7 +198,9 @@ static void mavlink_usb_check(void *arg)
 
 										} else if (param1 == 3) {
 											// 3: Reboot autopilot and keep it in the bootloader until upgraded.
+#if defined(CONFIG_BOARDCTL_RESET)
 											px4_reboot_request(REBOOT_TO_BOOTLOADER, 0);
+#endif
 										}
 									}
 								}
