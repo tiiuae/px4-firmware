@@ -71,6 +71,8 @@ public:
 
 	bool Start();
 	void Stop();
+	void Pause() { _paused = true; }
+	void Resume() { _paused = false; }
 
 	void PrintStatus();
 
@@ -144,6 +146,8 @@ private:
 	AlphaFilter<float> _delta_baro_gnss_lpf{};
 	float _baro_gnss_offset_t1{NAN};
 	uint64_t _t_first_gnss_sample{0};
+
+	bool _paused{false};
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::SENS_BARO_QNH>) _param_sens_baro_qnh,
