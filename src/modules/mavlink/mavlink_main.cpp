@@ -1558,7 +1558,7 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		// Note: streams requiring low latency come first
 		configure_stream_local("TIMESYNC", 10.0f);
 		configure_stream_local("CAMERA_TRIGGER", unlimited_rate);
-		configure_stream_local("HIGHRES_IMU", 50.0f);
+		configure_stream_local("HIGHRES_IMU", 200.0f);
 		configure_stream_local("LOCAL_POSITION_NED", 30.0f);
 		configure_stream_local("ATTITUDE", 100.0f);
 		configure_stream_local("ALTITUDE", 10.0f);
@@ -2339,12 +2339,13 @@ Mavlink::task_main(int argc, char *argv[])
 
 #if defined(CONFIG_MAVLINK_UORB_POLL)
 	int uorb_poll_error_counter = 0;
+
 #endif
 
 	while (!should_exit()) {
 		/* main loop */
 #if defined(CONFIG_MAVLINK_UORB_POLL)
-		int uorb_poll_ret = _stream_poller->poll(MAIN_LOOP_DELAY);
+		int uorb_poll_ret = _stream_poller->poll(MAIN_LOOP_DELAY, _instance_id);
 
 		if (uorb_poll_ret < 0) {
 			/* this is seriously bad - should be an emergency */

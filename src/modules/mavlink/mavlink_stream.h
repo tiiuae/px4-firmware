@@ -46,6 +46,34 @@
 #include <px4_platform_common/module_params.h>
 #include <containers/List.hpp>
 #include <uORB/topics/uORBTopics.hpp>
+#include <drivers/drv_hrt.h>
+
+#define POLL_DUMP_PERIOD_US 10000000; // 10s
+
+struct PollTimes {
+	size_t idx{0};
+	hrt_abstime times[16] {0};
+	hrt_abstime min{0};
+	hrt_abstime max{0};
+
+	hrt_abstime pre{0};
+	hrt_abstime post{0};
+
+	hrt_abstime next_dump{0};
+
+	hrt_abstime d_under_1000{0};
+	hrt_abstime d1000_2000{0};
+	hrt_abstime d2000_3000{0};
+	hrt_abstime d3000_4000{0};
+	hrt_abstime d4000_5000{0};
+	hrt_abstime d5000_6000{0};
+	hrt_abstime d6000_7000{0};
+	hrt_abstime d7000_8000{0};
+	hrt_abstime d8000_9000{0};
+	hrt_abstime d9000_10000{0};
+	hrt_abstime d_over_10000{0};
+	hrt_abstime d_count{0};
+};
 
 class Mavlink;
 
@@ -191,12 +219,81 @@ public:
 	/**
 	 * Poll all streams for updates
 	 */
-	int poll(const hrt_abstime timeout);
+	int poll(const hrt_abstime timeout, int mav_instance);
 
 	/**
 	 * Acknowledge all orb data for next poll
 	 */
 	void ack_all();
+
+	inline void calc_poll_times(PollTimes &t)
+	{
+		hrt_abstime delta = t.post - t.pre;
+
+		if (t.min == 0) {
+			t.min = delta;
+
+			for (int i = 0; i < 10; i++) {
+				t.times[i] = delta;
+			}
+		}
+
+		if (delta < t.min) {
+			t.min = delta;
+		}
+
+		if (delta > t.max) {
+			t.max = delta;
+		}
+
+		t.times[t.idx] = delta;
+		t.idx = (t.idx + 1) % 16;
+
+		if (delta > 10000) {
+			t.d_over_10000++;
+
+		} else if (delta > 9000) {
+			t.d9000_10000++;
+
+		} else if (delta > 8000) {
+			t.d8000_9000++;
+
+		} else if (delta > 7000) {
+			t.d7000_8000++;
+
+		} else if (delta > 6000) {
+			t.d6000_7000++;
+
+		} else if (delta > 5000) {
+			t.d5000_6000++;
+
+		} else if (delta > 4000) {
+			t.d4000_5000++;
+
+		} else if (delta > 3000) {
+			t.d3000_4000++;
+
+		} else if (delta > 2000) {
+			t.d2000_3000++;
+
+		} else if (delta > 1000) {
+			t.d1000_2000++;
+
+		} else {
+			t.d_under_1000++;
+		}
+
+		t.d_count++;
+	}
+
+	void clear_times(PollTimes &t)
+	{
+		t.min = 0;
+		t.max = 0;
+		t.idx = 0;
+	}
+
+	void dump_times(PollTimes &t);
 
 private:
 
@@ -234,6 +331,7 @@ private:
 	int			_capacity;
 	int			_count;
 
+	PollTimes _poll_times;
 };
 
 #endif /* CONFIG_MAVLINK_UORB_POLL */

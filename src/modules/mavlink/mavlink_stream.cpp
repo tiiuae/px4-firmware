@@ -328,6 +328,17 @@ MavlinkStreamPoll::set_interval(uint16_t stream_id, int interval_ms)
 		}
 	}
 
+	for (int j = 0; j < _count; j++) {
+		// set HIGHRES_IMU to first fd (poll only that one)
+		if (224 == (int)_orbs[j].orb_id) {
+			//PX4_INFO("set_interval: fd 224 (%d)", j);
+			//orb_set_interval(_orbs[j].fd, 1);
+			_fds[0].fd = _orbs[j].fd;
+			_fds[0].events = POLLIN;
+			_fds[0].revents = 0;
+		}
+	}
+
 	return PX4_OK;
 }
 
@@ -335,15 +346,30 @@ MavlinkStreamPoll::set_interval(uint16_t stream_id, int interval_ms)
  * Perform orb polling
  */
 int
-MavlinkStreamPoll::poll(const hrt_abstime timeout)
+MavlinkStreamPoll::poll(const hrt_abstime timeout, int mav_instance)
 {
+	int ret;
 	int timeout_ms = timeout / 1000;
 
 	if (timeout_ms <= 0) {
 		timeout_ms = 1;
 	}
 
-	return px4_poll(_fds, _count, timeout_ms);
+	_poll_times.pre = hrt_absolute_time();
+	ret = px4_poll(_fds, 1, timeout_ms);
+	_poll_times.post = hrt_absolute_time();
+
+	if (mav_instance == 1) {
+		calc_poll_times(_poll_times);
+
+		if (_poll_times.next_dump < _poll_times.post) {
+			dump_times(_poll_times);
+			_poll_times.next_dump = _poll_times.post + POLL_DUMP_PERIOD_US;
+			clear_times(_poll_times);
+		}
+	}
+
+	return ret;
 }
 
 /**
@@ -356,4 +382,39 @@ MavlinkStreamPoll::ack_all()
 		orb_ack(_orbs[i].fd);
 	}
 }
+
+void MavlinkStreamPoll::dump_times(PollTimes &t)
+{
+	hrt_abstime avg = 0;
+
+	for (int i = 0; i < 16; i++) {
+		avg += t.times[i];
+	}
+
+	avg /= 16;
+	PX4_INFO("#################################");
+	PX4_INFO("POLL TIMES:");
+	PX4_INFO("poll times: min/max [%lu, %lu], avg: %lu", t.min, t.max, avg);
+	PX4_INFO("    deviation:");
+	PX4_INFO("      < 1000: %lf %%", ((double)t.d_under_1000 * 100.0) / (double) t.d_count);
+	PX4_INFO("      - 2000: %lf %%", ((double)t.d1000_2000 * 100.0) / (double) t.d_count);
+	PX4_INFO("      - 3000: %lf %%", ((double)t.d2000_3000 * 100.0) / (double) t.d_count);
+	PX4_INFO("      - 4000: %lf %%", ((double)t.d3000_4000 * 100.0) / (double) t.d_count);
+	PX4_INFO("      - 5000: %lf %%", ((double)t.d4000_5000 * 100.0) / (double) t.d_count);
+	PX4_INFO("      - 6000: %lf %%", ((double)t.d5000_6000 * 100.0) / (double) t.d_count);
+	PX4_INFO("      - 7000: %lf %%", ((double)t.d6000_7000 * 100.0) / (double) t.d_count);
+	PX4_INFO("      - 8000: %lf %%", ((double)t.d7000_8000 * 100.0) / (double) t.d_count);
+	PX4_INFO("      - 9000: %lf %%", ((double)t.d8000_9000 * 100.0) / (double) t.d_count);
+	PX4_INFO("      - 10000: %lf %%", ((double)t.d9000_10000 * 100.0) / (double) t.d_count);
+	PX4_INFO("      > 10000: %lf %%", ((double)t.d_over_10000 * 100.0) / (double) t.d_count);
+	PX4_INFO("    times: [%lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu",
+		 t.times[0], t.times[1], t.times[2], t.times[3], t.times[4],
+		 t.times[5], t.times[6], t.times[7]);
+	PX4_INFO("            %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu]",
+		 t.times[8], t.times[9], t.times[10], t.times[11], t.times[12],
+		 t.times[13], t.times[14], t.times[15]);
+	PX4_INFO("#################################");
+	PX4_INFO(" ");
+}
+
 #endif /* CONFIG_MAVLINK_UORB_POLL */
