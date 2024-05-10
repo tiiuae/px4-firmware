@@ -91,3 +91,9 @@
 [submodule "boards/ssrc/saluki-nxp93"]
 	path = boards/ssrc/saluki-nxp93
 	url = git@github.com:tiiuae/saluki-nxp93.git
+[submodule "src/modules/px4_fw_update_client"]
+	path = src/modules/px4_fw_update_client
+	url = git@github.com:tiiuae/px4-fw-update-client.git
+[submodule "src/lib/secure_udp"]
+	path = src/lib/secure_udp
+	url = git@github.com:tiiuae/px4-lib-secure-udp.git
