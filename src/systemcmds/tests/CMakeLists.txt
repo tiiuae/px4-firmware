@@ -34,7 +34,6 @@
 set(srcs
 	test_atomic_bitset.cpp
 	test_bitset.cpp
-	test_bson.cpp
 	test_dataman.cpp
 	test_file.c
 	test_file2.c
@@ -64,6 +63,12 @@ set(srcs
 	test_cli.c
 	tests_main.c
 	)
+
+if(CONFIG_BUILD_FLAT)
+	list(APPEND srcs
+		test_bson.cpp
+		)
+endif()
 
 if(${PX4_PLATFORM} STREQUAL "nuttx")
 	list(APPEND srcs
