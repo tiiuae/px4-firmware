@@ -118,7 +118,7 @@ void UavcanEscController::esc_status_sub_cb(const uavcan::ReceivedDataStructure<
 		esc_report_s &esc_report = _esc_status.esc[msg.esc_index];
 		esc_report.timestamp = hrt_absolute_time();
 		esc_report.esc_voltage = msg.voltage;
-		esc_report.esc_current = fabsf(msg.current);
+		esc_report.esc_current = 0.0f; // currently with Myxa ESC, the reported current is not reliable
 		esc_report.esc_temperature = msg.temperature + atmosphere::kAbsoluteNullCelsius; // Kelvin to Celsius
 		// esc_report.motor_temperature is filled in the extended status callback
 		esc_report.esc_rpm = msg.rpm;
