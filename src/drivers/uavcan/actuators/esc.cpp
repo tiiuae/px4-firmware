@@ -140,7 +140,7 @@ UavcanEscController::esc_status_sub_cb(const uavcan::ReceivedDataStructure<uavca
 		ref.timestamp       = hrt_absolute_time();
 		ref.esc_address = msg.getSrcNodeID().get();
 		ref.esc_voltage     = msg.voltage;
-		ref.esc_current     = fabsf(msg.current);
+		ref.esc_current     = 0.0f; // currently with Myxa ESC, the reported current is not reliable
 		ref.esc_temperature = msg.temperature + atmosphere::kAbsoluteNullCelsius; // Kelvin to Celsius
 		ref.esc_rpm         = msg.rpm;
 		ref.esc_errorcount  = msg.error_count;
