@@ -3,29 +3,34 @@
 usage() {
   set +x
   echo ""
-	echo " usage: $0 <output-dir> <build-target>"
-	echo "   output-dir : directory for output artifacts"
-	echo "   build-target : supported build targets:"
+  echo " usage: $0 <output-dir> <build-target>"
+  echo "   output-dir : directory for output artifacts"
+  echo "   build-target : supported build targets:"
   echo "     px4fwupdater"
   echo "     pixhawk"
+  echo "     fmu-v6xrt"
   echo "     saluki-v1_default"
-  echo "     saluki-v1_protected"
-  echo "     saluki-v1_amp"
-  echo "     saluki-v1_bootloader"
   echo "     saluki-v2_default"
   echo "     saluki-v2_amp"
-  echo "     saluki-v2_bootloader"
-  echo "     saluki-v2_protected"
-  echo "     saluki-v2_kernel"
+  echo "     saluki-v2_flat"
+  echo "     saluki-v2_custom_keys"
   echo "     saluki-pi_default"
   echo "     saluki-pi_amp"
-  echo "     saluki-pi_bootloader"
-  echo "     saluki-pi_protected"
+  echo "     saluki-pi_flat"
+  echo "     saluki-pi_custom_keys"
   echo "     saluki-v3_default"
   echo "     saluki-v3_amp"
+  echo "     saluki-v3_flat"
+  echo "     saluki-v3_custom_keys"
+  echo "     saluki-nxp93_flat"
   echo
   exit 1
 }
+if [ -z ${SIGNING_ARGS+x} ]; then
+  SIGNING_ARGS=""
+else
+  echo "using custom signing keys: ${SIGNING_ARGS}"
+fi
 
 dest_dir="${1:-}"
 target="${2:-}"
@@ -43,7 +48,7 @@ mkdir -p ${dest_dir}
 pushd ${script_dir}
 
 build_env="docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --pull -f ./packaging/Dockerfile.build_env -t ${iname_env} ."
-build_cmd_fw="docker run --rm -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
+build_cmd_fw="docker run --rm -e SIGNING_ARGS=${SIGNING_ARGS} -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
 build_cmd_px4fwupdater="${script_dir}/packaging/build_px4fwupdater.sh -v ${version} -i ${dest_dir}"
 
 # Generate build_env
@@ -51,79 +56,59 @@ if [ "${target}" != px4fwupdater ]; then
   $build_env
 fi
 
+json_output="{\"type\":\"px4-firmware\",\
+              \"hw\":\"${target}\","
 case $target in
-  "px4fwupdater")
+  px4fwupdater)
     $build_cmd_px4fwupdater
     ;;
-  "pixhawk")
+  pixhawk)
     $build_cmd_fw px4_fmu-v5x_ssrc
     cp ${script_dir}/build/px4_fmu-v5x_ssrc/px4_fmu-v5x_ssrc.px4 ${dest_dir}/px4_fmu-v5x_ssrc-${version}.px4
     ;;
-  "saluki-v1_default")
-    $build_cmd_fw ssrc_saluki-v1_default
-    cp ${script_dir}/build/ssrc_saluki-v1_default/ssrc_saluki-v1_default.px4 ${dest_dir}/ssrc_saluki-v1_default-${version}.px4
+  fmu-v6xrt)
+    $build_cmd_fw px4_fmu-v6xrt_bootloader
+    $build_cmd_fw px4_fmu-v6xrt_ssrc
+    cp ${script_dir}/build/px4_fmu-v6xrt_bootloader/px4_fmu-v6xrt_bootloader.elf ${dest_dir}/px4_fmu-v6xrt_bootloader-${version}.elf
+    cp ${script_dir}/build/px4_fmu-v6xrt_ssrc/px4_fmu-v6xrt_ssrc.px4 ${dest_dir}/px4_fmu-v6xrt_ssrc-${version}.px4
     ;;
-  "saluki-v1_protected")
-    $build_cmd_fw ssrc_saluki-v1_protected
-    cp ${script_dir}/build/ssrc_saluki-v1_protected/ssrc_saluki-v1_protected.px4 ${dest_dir}/ssrc_saluki-v1_protected-${version}.px4
+  # on custom keys case we build _default target but SIGNING_ARGS env variable is set above in build_cmd_fw
+  *_custom_keys)
+    #set build target to match the output name of the targe
+    build_target="ssrc_${target}"
+    # as the targets has to be built with default names, we need to have separate env target name for build scripts
+    build_target_env=$(echo ${build_target}|sed 's/custom_keys/default/g')
+
+    $build_cmd_fw ${build_target_env}
+    cp ${script_dir}/build/${build_target_env}/${build_target_env}.px4 ${dest_dir}/${build_target}-${version}.px4
+    cp ${script_dir}/build/${build_target_env}/${build_target_env}_kernel.elf ${dest_dir}/${build_target}_kernel-${version}.elf
+    json_output+="\"filename\":\"${build_target}-${version}.px4\","
+    px4_build_time=$(grep PX4_BUILD_TIME ${script_dir}/build/${build_target_env}/src/lib/version/build_git_version.h|awk '{print $3}')
+    json_output+="\"px4_build_time\":\"${px4_build_time}\"}"
     ;;
-  "saluki-v1_amp")
-    $build_cmd_fw ssrc_saluki-v1_amp
-    cp ${script_dir}/build/ssrc_saluki-v1_amp/ssrc_saluki-v1_amp.bin ${dest_dir}/ssrc_saluki-v1_amp-${version}.bin
+  # handle all normal ssrc targets
+  saluki-*)
+    build_target="ssrc_${target}"
+    $build_cmd_fw ${build_target}
+
+    elf_target=${build_target}_kernel.elf
+    # in flat builds kernel.elf has a different name
+    if [[ ${build_target} == *flat ]]; then
+      elf_target=${build_target}.elf
+    fi
+
+    cp ${script_dir}/build/${build_target}/${build_target}.px4 ${dest_dir}/${build_target}-${version}.px4
+    cp ${script_dir}/build/${build_target}/${elf_target} ${dest_dir}/${build_target}_kernel-${version}.elf
+    json_output+="\"filename\":\"${build_target}-${version}.px4\","
+    px4_build_time=$(grep PX4_BUILD_TIME ${script_dir}/build/${build_target}/src/lib/version/build_git_version.h|awk '{print $3}')
+    json_output+="\"px4_build_time\":\"${px4_build_time}\"}"
     ;;
-  "saluki-v1_bootloader")
-    $build_cmd_fw ssrc_saluki-v1_bootloader
-    cp ${script_dir}/build/ssrc_saluki-v1_bootloader/ssrc_saluki-v1_bootloader.elf ${dest_dir}/ssrc_saluki-v1_bootloader-${version}.elf
-    ;;
-  "saluki-v2_default")
-    $build_cmd_fw ssrc_saluki-v2_default
-    cp ${script_dir}/build/ssrc_saluki-v2_default/ssrc_saluki-v2_default.px4 ${dest_dir}/ssrc_saluki-v2_default-${version}.px4
-    ;;
-  "saluki-v2_protected")
-    $build_cmd_fw ssrc_saluki-v2_protected
-    cp ${script_dir}/build/ssrc_saluki-v2_protected/ssrc_saluki-v2_protected.px4 ${dest_dir}/ssrc_saluki-v2_protected-${version}.px4
-    ;;
-  "saluki-v2_amp")
-    $build_cmd_fw ssrc_saluki-v2_amp
-    cp ${script_dir}/build/ssrc_saluki-v2_amp/ssrc_saluki-v2_amp.bin ${dest_dir}/ssrc_saluki-v2_amp-${version}.bin
-    ;;
-  "saluki-v2_bootloader")
-    $build_cmd_fw ssrc_saluki-v2_bootloader
-    cp ${script_dir}/build/ssrc_saluki-v2_bootloader/ssrc_saluki-v2_bootloader.elf ${dest_dir}/ssrc_saluki-v2_bootloader-${version}.elf
-    ;;
-  "saluki-v2_kernel")
-    $build_cmd_fw ssrc_saluki-v2_kernel
-    cp ${script_dir}/build/ssrc_saluki-v2_kernel/ssrc_saluki-v2_kernel.px4 ${dest_dir}/ssrc_saluki-v2_kernel-${version}.px4
-    cp ${script_dir}/build/ssrc_saluki-v2_kernel/ssrc_saluki-v2_kernel.bin ${dest_dir}/ssrc_saluki-v2_kernel-${version}.bin
-    cp ${script_dir}/build/ssrc_saluki-v2_kernel/ssrc_saluki-v2_kernel_kernel.elf ${dest_dir}/ssrc_saluki-v2_kernel-${version}.elf
-    ;;
-  "saluki-v3_default")
-    $build_cmd_fw ssrc_saluki-v3_default
-    cp ${script_dir}/build/ssrc_saluki-v3_default/ssrc_saluki-v3_default.px4 ${dest_dir}/ssrc_saluki-v3_default-${version}.px4
-    ;;
-  "saluki-v3_amp")
-    $build_cmd_fw ssrc_saluki-v3_amp
-    cp ${script_dir}/build/ssrc_saluki-v3_amp/ssrc_saluki-v3_amp.bin ${dest_dir}/ssrc_saluki-v3_amp-${version}.bin
-    ;;
-  "saluki-pi_default")
-    $build_cmd_fw ssrc_saluki-pi_default
-    cp ${script_dir}/build/ssrc_saluki-pi_default/ssrc_saluki-pi_default.px4 ${dest_dir}/ssrc_saluki-pi_default-${version}.px4
-    ;;
-  "saluki-pi_protected")
-    $build_cmd_fw ssrc_saluki-pi_protected
-    cp ${script_dir}/build/ssrc_saluki-pi_protected/ssrc_saluki-pi_protected.px4 ${dest_dir}/ssrc_saluki-pi_protected-${version}.px4
-    ;;
-  "saluki-pi_amp")
-    $build_cmd_fw ssrc_saluki-pi_amp
-    cp ${script_dir}/build/ssrc_saluki-pi_amp/ssrc_saluki-pi_amp.bin ${dest_dir}/ssrc_saluki-pi_amp-${version}.bin
-    ;;
-  "saluki-pi_bootloader")
-    $build_cmd_fw ssrc_saluki-pi_bootloader
-    cp ${script_dir}/build/ssrc_saluki-pi_bootloader/ssrc_saluki-pi_bootloader.elf ${dest_dir}/ssrc_saluki-pi_bootloader-${version}.elf
-    ;;
-   *)
+  *)
     usage
     ;;
 esac
+
+# save json output to target directory
+echo $json_output > ${dest_dir}/ssrc_${target}-${version}.json
 
 echo "Done"
