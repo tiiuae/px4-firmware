@@ -196,6 +196,7 @@ function(add_nuttx_dir nuttx_lib nuttx_lib_dir kernel extra target)
 		${CMAKE_CURRENT_SOURCE_DIR}/nuttx/${nuttx_lib_dir}/*.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/nuttx/${nuttx_lib_dir}/*.cxx
 		${CMAKE_CURRENT_SOURCE_DIR}/nuttx/${nuttx_lib_dir}/*.h
+		${CMAKE_CURRENT_SOURCE_DIR}/nuttx/${nuttx_lib_dir}/*.S
 	)
 
 	# Route kernel pass for mm/libc/libxx to kbin/; user pass uses bin/ for the
