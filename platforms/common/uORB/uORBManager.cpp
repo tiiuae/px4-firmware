@@ -44,7 +44,7 @@
 #include <px4_platform_common/posix.h>
 #include <px4_platform_common/tasks.h>
 #include <px4_platform_common/px4_work_queue/WorkQueueManager.hpp>
-
+#include <debug.h>
 #include "uORBDeviceNode.hpp"
 #include "uORBUtils.hpp"
 #include "uORBManager.hpp"
@@ -383,9 +383,18 @@ int uORB::Manager::orb_get_interval(orb_sub_t handle, unsigned *interval)
 	return PX4_OK;
 }
 
+int debug_now;
+struct timespec debug_ts;
+int debug_ticks;
+
 int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeout)
 {
 	SubscriptionPollable *sub;
+	static int stat_sleep = 0;
+	static int stat_nosleep = 0;
+	static int count_cumul = 0;
+	static int timeouts = 0;
+	static int sig_wkups = 0;
 
 	// Get a poll semaphore from the global pool
 	int8_t lock_idx = g_sem_pool.reserve();
@@ -399,11 +408,18 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 	bool err = false;
 	int count = 0;
 
+	static hrt_abstime cumul_construct = 0;
+	irqstate_t flags = px4_enter_critical_section();
+	hrt_abstime t3 = hrt_absolute_time();
+
 	for (unsigned i = 0; i < nfds; i++) {
 		fds[i].revents = 0;
 
 		if ((fds[i].events & POLLIN) == POLLIN) {
 			sub = static_cast<SubscriptionPollable *>(fds[i].fd);
+
+			if (!sub->valid()) {_alert("NOT VALID??\n"); }
+
 			sub->registerPoll(lock_idx);
 
 			if (sub->updated()) {
@@ -413,15 +429,24 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 		}
 	}
 
+	cumul_construct += hrt_elapsed_time(&t3);
+	px4_leave_critical_section(flags);
+
+	static hrt_abstime t1 = hrt_absolute_time();
 	// If none of the orbs were updated before registration, go to sleep.
 	// If some orb was updated after registration, but not yet refelected in "updated", the semaphore is already released. So there is no race in here.
 
-	if (count == 0) {
+	struct timespec to = {0, 0};
 
+	if (count == 0) {
+		stat_sleep++;
 		// First advertiser will wake us up, or it might have happened already
 		// during registration above
 
 		int ret;
+		hrt_abstime now;
+		struct timespec ts_now;
+		hrt_abstime t2 = hrt_absolute_time();
 
 		if (timeout < 0) {
 			// Wait event until interrupted by a signal
@@ -429,24 +454,54 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 
 		} else {
 			// Wait event for a maximum timeout time
-			struct timespec to;
 #if defined(CONFIG_ARCH_BOARD_PX4_SITL)
 			px4_clock_gettime(CLOCK_MONOTONIC, &to);
 #else
 			px4_clock_gettime(CLOCK_REALTIME, &to);
 #endif
-			hrt_abstime now = ts_to_abstime(&to);
+			ts_now = to;
+			now = ts_to_abstime(&to);
 			abstime_to_ts(&to, now + (hrt_abstime)timeout * 1000);
+			hrt_abstime elapsed = hrt_elapsed_time(&t2);
+			debug_now = 1;
 			ret = g_sem_pool.take_timedwait(lock_idx, &to);
+			debug_now = 0;
+
+			if (ret != 0 && errno == ETIMEDOUT) {
+				timeouts++;
+
+				if (hrt_elapsed_time(&t2) < (hrt_abstime)timeout * 1000) {
+					_alert("ERR: elapsed %lu, timeout %d\n", elapsed, (hrt_abstime)timeout * 1000);
+					_alert("start: %lu end %lu\n", now, now + (hrt_abstime)timeout * 1000);
+					_alert("now %u s %lu ns, timeout %u s %lu ns\n", ts_now.tv_sec, ts_now.tv_nsec, to.tv_sec, to.tv_nsec);
+
+					{
+						sclock_t start, end;
+						clock_time2ticks(&ts_now, &start);
+						clock_time2ticks(&to, &end);
+						_alert("ticks start %d end %d\n", start, end);
+					}
+
+				}
+			}
+
+			if (ret != 0 && errno == EINTR) {
+				sig_wkups++;
+			}
 		}
 
 		if (ret != 0 && errno != ETIMEDOUT && errno != EINTR) {
 			PX4_ERR("poll on %d timeout %d FAIL errno %d\n", lock_idx, timeout, errno);
 			err = true;
 		}
+
+	} else {
+		stat_nosleep++;
 	}
 
 	count = 0;
+	flags = px4_enter_critical_section();
+	t3 = hrt_absolute_time();
 
 	for (unsigned i = 0; i < nfds; i++) {
 		if ((fds[i].events & POLLIN) == POLLIN) {
@@ -458,6 +513,26 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 				count++;
 			}
 		}
+	}
+
+	px4_leave_critical_section(flags);
+	static hrt_abstime cumul_teardown = 0;
+	cumul_teardown += hrt_elapsed_time(&t3);
+
+	count_cumul += count;
+
+	if (hrt_elapsed_time(&t1) > 1000000) {
+		t1 = hrt_absolute_time();
+		//          _alert("sleep %d, nosleep %d count %d timeouts %d, signal wakeups %d, last to %u s %lu ns, teardown %lu\n",stat_sleep, stat_nosleep, count_cumul, timeouts, sig_wkups, to.tv_sec, to.tv_nsec, cumul_teardown / (stat_sleep + stat_nosleep));
+		_alert("sleep %d, nosleep %d count %d timeouts %d, construct %lu, teardown %lu\n", stat_sleep, stat_nosleep,
+		       count_cumul, timeouts, cumul_construct / (stat_sleep + stat_nosleep), cumul_teardown / (stat_sleep + stat_nosleep));
+		stat_sleep = 0;
+		stat_nosleep = 0;
+		count_cumul = 0;
+		timeouts = 0;
+		sig_wkups = 0;
+		cumul_construct = 0;
+		cumul_teardown = 0;
 	}
 
 	// release the semaphore
