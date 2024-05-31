@@ -366,7 +366,7 @@ MavlinkStreamPoll::poll(const hrt_abstime timeout)
 
 	pthread_mutex_lock(&_mtx);
 
-	ret = px4_poll(_fds, _count, 100);
+	ret = px4_poll(_fds, _count, timeout_ms);
 
 	pthread_mutex_unlock(&_mtx);
 

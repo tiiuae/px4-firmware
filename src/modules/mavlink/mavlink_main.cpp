@@ -1558,7 +1558,7 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		// Note: streams requiring low latency come first
 		configure_stream_local("TIMESYNC", 10.0f);
 		configure_stream_local("CAMERA_TRIGGER", unlimited_rate);
-		configure_stream_local("HIGHRES_IMU", 200.0f);
+		configure_stream_local("HIGHRES_IMU", 50.0f);
 		configure_stream_local("LOCAL_POSITION_NED", 30.0f);
 		configure_stream_local("ATTITUDE", 100.0f);
 		configure_stream_local("ALTITUDE", 10.0f);
@@ -2981,7 +2981,7 @@ Mavlink::start(int argc, char *argv[])
 	// when the started task exits.
 	px4_task_spawn_cmd("mavlink_main",
 			   SCHED_DEFAULT,
-			   255, //SCHED_PRIORITY_DEFAULT,
+			   SCHED_PRIORITY_DEFAULT,
 			   PX4_STACK_ADJUSTED(2896) + MAVLINK_NET_ADDED_STACK,
 			   (px4_main_t)&Mavlink::start_helper,
 			   (char *const *)argv);
