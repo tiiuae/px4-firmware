@@ -382,7 +382,9 @@ MavlinkStreamPoll::ack_all()
 	pthread_mutex_lock(&_mtx);
 
 	for (int i = 0; i < _count; i++) {
-		orb_ack(_orbs[i].fd);
+		if (_fds[i].revents & POLLIN) {
+			orb_ack(_orbs[i].fd);
+		}
 	}
 
 	pthread_mutex_unlock(&_mtx);
