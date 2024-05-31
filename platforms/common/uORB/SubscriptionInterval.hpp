@@ -105,10 +105,9 @@ public:
 	 */
 	void ack()
 	{
-		_subscription.ack();
-		const hrt_abstime now = hrt_absolute_time();
-		// shift last update time forward, but don't let it get further behind than the interval
-		_last_update = math::constrain(_last_update + _interval_us, now - _interval_us, now);
+		if (advertised()) {
+			Manager::orb_data_ack(_subscription._node, _subscription._last_generation, _last_update);
+		}
 	}
 
 	/**
@@ -132,14 +131,7 @@ public:
 	 */
 	bool copy(void *dst)
 	{
-		if (_subscription.copy(dst)) {
-			const hrt_abstime now = hrt_absolute_time();
-			// shift last update time forward, but don't let it get further behind than the interval
-			_last_update = math::constrain(_last_update + _interval_us, now - _interval_us, now);
-			return true;
-		}
-
-		return false;
+		return Manager::orb_data_copy(_subscription._node, dst, _subscription._last_generation, _last_update, false);
 	}
 
 	bool		valid() const { return _subscription.valid(); }

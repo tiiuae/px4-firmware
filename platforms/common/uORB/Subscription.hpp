@@ -140,18 +140,8 @@ public:
 			subscribe();
 		}
 
-		return valid() ? Manager::orb_data_copy(_node, dst, _last_generation, true) : false;
-	}
-
-	void ack()
-	{
-		if (!valid()) {
-			subscribe();
-		}
-
-		if (valid()) {
-			Manager::orb_data_ack(_node, _last_generation);
-		}
+		hrt_abstime dummy;
+		return valid() ? Manager::orb_data_copy(_node, dst, _last_generation, dummy, true) : false;
 	}
 
 	/**
@@ -164,7 +154,8 @@ public:
 			subscribe();
 		}
 
-		return valid() ? Manager::orb_data_copy(_node, dst, _last_generation, false) : false;
+		hrt_abstime dummy;
+		return valid() ? Manager::orb_data_copy(_node, dst, _last_generation, dummy, false) : false;
 	}
 
 	/**
@@ -181,6 +172,7 @@ public:
 
 protected:
 
+	friend class SubscriptionInterval;
 	friend class SubscriptionCallback;
 	friend class SubscriptionPollable;
 	friend class SubscriptionCallbackWorkItem;

@@ -360,12 +360,12 @@ public:
 
 	static uint8_t orb_get_queue_size(const orb_advert_t &node_handle) {return node(node_handle)->get_queue_size();}
 
-	static void orb_data_ack(orb_advert_t &node_handle, unsigned &generation)
+	static void orb_data_ack(orb_advert_t &node_handle, unsigned &generation, hrt_abstime &last_update)
 	{
-		node(node_handle)->ack(generation);
+		node(node_handle)->ack(generation, last_update);
 	}
 
-	static bool orb_data_copy(orb_advert_t &node_handle, void *dst, unsigned &generation,
+	static bool orb_data_copy(orb_advert_t &node_handle, void *dst, unsigned &generation, hrt_abstime &last_update,
 				  bool only_if_updated)
 	{
 		if (!orb_advert_valid(node_handle) ||
@@ -373,7 +373,7 @@ public:
 			return false;
 		}
 
-		return node(node_handle)->copy(dst, node_handle, generation);
+		return node(node_handle)->copy(dst, node_handle, generation, last_update);
 	}
 
 #ifndef CONFIG_BUILD_FLAT

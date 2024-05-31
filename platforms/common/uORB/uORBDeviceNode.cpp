@@ -506,7 +506,7 @@ void uORB::DeviceNode::remap_data(orb_advert_t &handle, size_t new_size, bool pu
 	 * @return bool
 	 *   Returns true if the data was copied.
 	 */
-bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generation)
+bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generation, hrt_abstime &update_time)
 {
 	if (dst == nullptr || !_data_valid) {
 		return false;
@@ -551,6 +551,8 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 		++generation;
 	}
 
+	update_time = _last_update;
+
 	unlock();
 
 	return true;
@@ -579,6 +581,8 @@ uORB::DeviceNode::write(const char *buffer, const orb_metadata *meta, orb_advert
 
 	/* wrap-around happens after ~49 days, assuming a publisher rate of 1 kHz */
 	unsigned generation = _generation.fetch_add(1);
+	hrt_abstime now = hrt_absolute_time();
+	_last_update = now;
 
 	memcpy(((uint8_t *)node_data(handle)) + o_size * (generation % _queue_size), buffer, o_size);
 
@@ -592,7 +596,7 @@ uORB::DeviceNode::write(const char *buffer, const orb_metadata *meta, orb_advert
 	while (callbacks.handle_valid(cb)) {
 		EventWaitItem *item = callbacks.peek(cb);
 
-		if (item->interval_us == 0 || hrt_elapsed_time(&item->last_update) >= item->interval_us) {
+		if (item->interval_us == 0 || now - item->last_update >= item->interval_us) {
 
 #ifdef CONFIG_BUILD_FLAT
 

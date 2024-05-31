@@ -217,9 +217,9 @@ public:
 	 * @return bool
 	 *   Returns true if the data was copied.
 	 */
-	bool copy(void *dst, orb_advert_t &handle, unsigned &generation);
+	bool copy(void *dst, orb_advert_t &handle, unsigned &generation, hrt_abstime &update_time);
 
-	void ack(unsigned &generation) { generation = _generation.load(); }
+	void ack(unsigned &generation, hrt_abstime &update_time) { lock(); generation = _generation.load(); update_time = _last_update; unlock(); }
 
 	static bool register_callback(orb_advert_t &node_handle, SubscriptionCallback *callback_sub, int8_t poll_lock,
 				      hrt_abstime last_update, uint32_t interval_us, uorb_cb_handle_t &cb_handle)
@@ -358,6 +358,8 @@ private:
 	void		lock() { do {} while (px4_sem_wait(&_lock) != 0); }
 	void		unlock() { px4_sem_post(&_lock); }
 	px4_sem_t	_lock; /**< lock to protect access to all class members */
+
+	hrt_abstime _last_update;
 
 #ifdef CONFIG_BUILD_FLAT
 	char *_devname;
