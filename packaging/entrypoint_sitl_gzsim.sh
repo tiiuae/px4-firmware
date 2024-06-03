@@ -16,6 +16,10 @@ case $PX4_VEHICLE_TYPE in
     export PX4_SYS_AUTOSTART=4004
     export PX4_GZ_MODEL=standard_vtol
     ;;
+  strivermini)
+    export PX4_SYS_AUTOSTART=4430
+    export PX4_GZ_MODEL=strivermini
+    ;;
   fw)
     export PX4_SYS_AUTOSTART=4003
     export PX4_GZ_MODEL=rc_cessna
