@@ -74,22 +74,15 @@ param set-default SIM_GZ_EC_FUNC4 104
 param set-default SIM_GZ_EC_MIN4 10
 param set-default SIM_GZ_EC_MAX4 1500
 
-param set-default SIM_GZ_EC_FUNC5 201
+param set-default SIM_GZ_EC_FUNC5 105
 param set-default SIM_GZ_EC_MIN5 0
 param set-default SIM_GZ_EC_MAX5 3500
 
-# param set-default SIM_GZ_EC_FUNC6 202
-# param set-default SIM_GZ_EC_FUNC7 203
-# param set-default SIM_GZ_EC_FUNC8 204
-# param set-default SIM_GZ_EC_FUNC9 205
-# param set-default SIM_GZ_EC_FUNC10 105
-
-# param set-default SIM_GZ_SV_FUNC1 201
+param set-default SIM_GZ_SV_FUNC1 201
 param set-default SIM_GZ_SV_FUNC2 202
 param set-default SIM_GZ_SV_FUNC3 203
 param set-default SIM_GZ_SV_FUNC4 204
 param set-default SIM_GZ_SV_FUNC5 205
-param set-default SIM_GZ_SV_FUNC6 105
 
 # Fixed wing specific
 param set-default FW_MAN_R_MAX 60.0
