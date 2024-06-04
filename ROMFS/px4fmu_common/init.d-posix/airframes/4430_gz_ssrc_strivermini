@@ -17,11 +17,6 @@
 # @output AUX4 Elevator 2
 # @output AUX5 Rudder
 # @output AUX6 Throttle
-#
-# @board px4_fmu-v2 exclude
-# @board bitcraze_crazyflie exclude
-# @board holybro_kakutef7 exclude
-#
 
 . ${R}etc/init.d/rc.vtol_defaults
 PX4_SIMULATOR=${PX4_SIMULATOR:=gz}
@@ -81,19 +76,6 @@ param set-default SIM_GZ_SV_FUNC3 203
 param set-default SIM_GZ_SV_FUNC4 204
 param set-default SIM_GZ_SV_FUNC5 205
 param set-default SIM_GZ_SV_FUNC6 105
-
-param set-default COM_RC_IN_MODE 1
-
-# Airspeed parameters
-param set-default ASPD_PRIMARY 1
-param set-default ASPD_DO_CHECKS 15
-param set-default FW_AIRSPD_MAX 22.0
-param set-default FW_AIRSPD_MIN 15.0
-param set-default FW_AIRSPD_STALL 12.0
-param set-default FW_AIRSPD_TRIM 18.0
-
-# Return mode return altitude
-param set-default RTL_RETURN_ALT 30.0
 
 # Fixed wing specific
 param set-default FW_MAN_R_MAX 60.0
