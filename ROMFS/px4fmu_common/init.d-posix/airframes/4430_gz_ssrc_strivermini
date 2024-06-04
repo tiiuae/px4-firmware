@@ -31,6 +31,10 @@ param set-default SENS_EN_BAROSIM 1
 param set-default SENS_EN_MAGSIM 1
 param set-default SENS_EN_ARSPDSIM 1
 
+param set-default FD_ACT_EN 0
+param set-default FD_ACT_MOT_TOUT 500
+param set-default COM_PREARM_MODE 2
+
 # Control allocator parameters
 param set-default CA_AIRFRAME 2
 param set-default CA_ROTOR_COUNT 5
@@ -116,3 +120,5 @@ param set-default VT_FW_MIN_ALT 5
 # QuadChute angle limits
 param set-default VT_FW_QC_P 35
 param set-default VT_FW_QC_R 60
+
+param set-default FD_ESCS_EN 0
