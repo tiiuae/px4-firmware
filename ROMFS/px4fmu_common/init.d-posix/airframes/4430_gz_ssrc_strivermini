@@ -50,17 +50,15 @@ param set-default CA_ROTOR3_PY 0.42
 param set-default CA_ROTOR3_KM -0.05
 param set-default CA_ROTOR4_AX 1.0
 param set-default CA_ROTOR4_AZ 0.0
-param set-default CA_SV_CS_COUNT 5
-param set-default CA_SV_CS0_TYPE 1
+param set-default CA_SV_CS_COUNT 4
 param set-default CA_SV_CS0_TRQ_R -0.5
-param set-default CA_SV_CS1_TYPE 2
+param set-default CA_SV_CS0_TYPE 1
 param set-default CA_SV_CS1_TRQ_R 0.5
+param set-default CA_SV_CS1_TYPE 2
+param set-default CA_SV_CS2_TRQ_P 1.0
 param set-default CA_SV_CS2_TYPE 3
-param set-default CA_SV_CS2_TRQ_P 0.5
-param set-default CA_SV_CS3_TYPE 3
-param set-default CA_SV_CS3_TRQ_P 0.5
-param set-default CA_SV_CS4_TYPE 4
-param set-default CA_SV_CS4_TRQ_Y 1.0
+param set-default CA_SV_CS3_TRQ_Y 1.0
+param set-default CA_SV_CS3_TYPE 4
 
 param set-default SIM_GZ_EC_FUNC1 101
 param set-default SIM_GZ_EC_MIN1 10
@@ -114,11 +112,11 @@ param set-default VT_F_TRANS_THR 1
 # VTOL takeoff
 param set-default VTO_LOITER_ALT 20
 
-# QuadChute altitude (transition to quad mode as a failsafe)
-param set-default VT_FW_MIN_ALT 5
+# # QuadChute altitude (transition to quad mode as a failsafe)
+# param set-default VT_FW_MIN_ALT 5
 
-# QuadChute angle limits
-param set-default VT_FW_QC_P 35
-param set-default VT_FW_QC_R 60
+# # QuadChute angle limits
+# param set-default VT_FW_QC_P 35
+# param set-default VT_FW_QC_R 60
 
 param set-default FD_ESCS_EN 0
