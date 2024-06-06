@@ -512,8 +512,11 @@ public:
 	void set_signing_key_dirty() { _signing_key_dirty.store(true); }
 	void check_signing_key_dirty() { if (_signing_key_dirty.load()) { _signing_key_dirty.store(false); _sign_control.reload_key(); } }
 
+	int set_stream_interval(MavlinkStream *stream, int interval);
 
 private:
+	MavlinkStreamPoll	_stream_poller;
+
 	MavlinkReceiver 	_receiver;
 
 	MavlinkSignControl	_sign_control{};
