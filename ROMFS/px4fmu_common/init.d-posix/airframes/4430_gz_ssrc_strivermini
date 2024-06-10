@@ -100,6 +100,14 @@ param set-default FW_MAN_R_MAX 60.0
 param set-default FW_RR_IMAX 0.4000
 param set-default FW_YR_IMAX 0.4000
 
+param set-default FW_YR_FF 0.5
+param set-default FW_YR_P 0.6
+param set-default FW_YR_I 0.5
+
+param set-default FW_RR_FF 0.5
+param set-default FW_RR_P 0.3
+param set-default FW_RR_I 0.5
+
 # Airspeed parameters
 param set-default ASPD_PRIMARY 1
 # param set-default ASPD_DO_CHECKS 15
@@ -129,6 +137,7 @@ param set-default VT_F_TRANS_THR 1
 # VTOL takeoff
 param set-default VTO_LOITER_ALT 20
 
+param set-default MC_AIRMODE 1
 param set-default MC_ROLLRATE_P 0.3
 param set-default MC_YAW_P 1.6
 
