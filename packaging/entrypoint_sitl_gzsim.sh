@@ -33,6 +33,7 @@ export PX4_GZ_MODEL_NAME=$DRONE_DEVICE_ID
 export PX4_GZ_WORLD=${PX4_GZ_WORLD:-default}
 export GZ_PARTITION=sim
 export GZ_IP=${GZ_IP:-127.0.0.1}
+export GZ_RELAY=${GZ_RELAY:-127.0.0.1}
 
 source /opt/ros/humble/setup.sh
 
