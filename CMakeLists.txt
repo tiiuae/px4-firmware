@@ -158,6 +158,7 @@ define_property(GLOBAL PROPERTY PX4_SRC_FILES
 #
 
 include(px4_add_module)
+include(px4_add_rust_module)
 set(config_module_list)
 set(config_kernel_list)
 
