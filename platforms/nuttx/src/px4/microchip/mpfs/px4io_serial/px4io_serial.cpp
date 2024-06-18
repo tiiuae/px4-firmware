@@ -253,6 +253,10 @@ ArchPX4IOSerial::_bus_exchange(IOPacket *_packet)
 
 	perf_begin(_pc_txns);
 
+	/* Disable the RX interrupt */
+
+	putreg32(0, PX4IO_SERIAL_BASE + MPFS_UART_IER_OFFSET);
+
 	/* Clear fifos */
 
 	putreg32((UART_FCR_RFIFOR | UART_FCR_XFIFOR), PX4IO_SERIAL_BASE + MPFS_UART_FCR_OFFSET);
@@ -261,21 +265,15 @@ ArchPX4IOSerial::_bus_exchange(IOPacket *_packet)
 
 	putreg32(0, PX4IO_SERIAL_BASE + MPFS_UART_RFT_OFFSET);
 
-	/* Enable received data available interrupt */
-
-	putreg32(UART_IER_ERBFI, PX4IO_SERIAL_BASE + MPFS_UART_IER_OFFSET);
-
 	/* Write package to tx fifo */
-
-	/* Don't allow interrupts during the UART fifo fill; any delay here could timeout the px4io */
-
-	irqstate_t flags = px4_enter_critical_section();
 
 	for (size_t i = 0; i < send_size; i++) {
 		putreg32(packet[i], PX4IO_SERIAL_BASE + MPFS_UART_THR_OFFSET);
 	}
 
-	px4_leave_critical_section(flags);
+	/* Enable received data available interrupt */
+
+	putreg32(UART_IER_ERBFI, PX4IO_SERIAL_BASE + MPFS_UART_IER_OFFSET);
 
 	/* Wait for response, max 10 ms */
 
