@@ -42,6 +42,18 @@ if(MAVSDK_FOUND)
             -Werror
             -Wno-error=deprecated-declarations
     )
+
+    add_executable(mavsdk_preparing
+    mavsdk_preparing.cpp
+    )
+
+    target_link_libraries(mavsdk_preparing
+        MAVSDK::mavsdk
+        ${CMAKE_THREAD_LIBS_INIT}
+    )
+
+    target_include_directories(mavsdk_tests PUBLIC ${CMAKE_BINARY_DIR}/..)
+
 else()
     message("MAVSDK C++ not found, skipping mavsdk_tests build..")
 endif()

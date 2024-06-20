@@ -81,6 +81,7 @@ px4_add_romfs_files(
 	4006_gz_px4vision
 	4401_gz_ssrc_fog_x
 	4440_gz_ssrc_skywalker_x8
+	4444_gz_skywalker_x8
 	50005_gz_ssrc_scout_mini_rover
 
 	6011_gazebo-classic_typhoon_h480

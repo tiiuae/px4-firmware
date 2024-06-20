@@ -10,11 +10,16 @@ import threading
 import errno
 from typing import Any, Dict, List, TextIO, Optional
 
+PX4_SITL_GZ_SIM_PATH = "Tools/simulation/gz"
 PX4_SITL_GAZEBO_PATH = "Tools/simulation/gazebo-classic/sitl_gazebo-classic"
 
 PX4_GAZEBO_MODELS = PX4_SITL_GAZEBO_PATH + "/models"
 PX4_GAZEBO_WORLDS = PX4_SITL_GAZEBO_PATH + "/worlds"
 
+PX4_GZ_SIM_MODELS = PX4_SITL_GZ_SIM_PATH + "/models"
+PX4_GZ_SIM_MODELS_EXTRA = PX4_SITL_GZ_SIM_PATH + "/gz-models"
+PX4_GZ_SIM_WORLDS = PX4_SITL_GZ_SIM_PATH + "/worlds"
+PX4_GZ_SIM_PLUGIN = "build_gz-sim_plugins"
 
 class Runner:
     def __init__(self,
@@ -48,6 +53,12 @@ class Runner:
         if self.verbose:
             print("Running: {}".format(" ".join([self.cmd] + self.args)))
 
+        if self.name == "mavsdk_tests":
+            if self.env["HIL_MODE"] == "hitl":
+                delay = 10
+                print("Waiting ", delay, " seconds for connection to be established...  ")
+                time.sleep(10)
+                print("Running test...")
         atexit.register(self.stop)
 
         if self.verbose:
@@ -152,7 +163,8 @@ class Runner:
 class Px4Runner(Runner):
     def __init__(self, workspace_dir: str, log_dir: str,
                  model: str, case: str, speed_factor: float,
-                 debugger: str, verbose: bool, build_dir: str):
+                 debugger: str, verbose: bool, build_dir: str,
+                 gazebo_type: str = "gazebo"):
         super().__init__(log_dir, model, case, verbose)
         self.name = "px4"
         self.cmd = os.path.join(workspace_dir, build_dir, "bin/px4")
@@ -166,7 +178,13 @@ class Px4Runner(Runner):
                 os.path.join(workspace_dir, "test_data"),
                 "-d"
             ]
-        self.env["PX4_SIM_MODEL"] = "gazebo-classic_" + self.model
+        if gazebo_type == "gz_sim":
+            gz_model = "gz_" + self.model
+            self.env["PX4_GZ_STANDALONE"] = "1"
+        else:
+            gz_model = "gazebo-classic_" + self.model
+
+        self.env["PX4_SIM_MODEL"] = gz_model
         self.env["PX4_SIM_SPEED_FACTOR"] = str(speed_factor)
         self.debugger = debugger
         self.clear_rootfs()
@@ -221,7 +239,8 @@ class GzserverRunner(Runner):
                  case: str,
                  speed_factor: float,
                  verbose: bool,
-                 build_dir: str):
+                 build_dir: str,
+                 world_name: str):
         super().__init__(log_dir, model, case, verbose)
         self.name = "gzserver"
         self.cwd = workspace_dir
@@ -234,7 +253,7 @@ class GzserverRunner(Runner):
         self.args = ["-o0", "-e0", "gzserver", "--verbose",
                      os.path.join(workspace_dir,
                                   PX4_GAZEBO_WORLDS,
-                                  "empty.world")]
+                                  world_name)]
 
     def has_started_ok(self) -> bool:
         # Wait until gzerver has started and connected to gazebo master.
@@ -331,6 +350,56 @@ class GzclientRunner(Runner):
         self.cmd = "gzclient"
         self.args = ["--verbose"]
 
+class GzHarmonicServer(Runner):
+    def __init__(self,
+                 workspace_dir: str,
+                 log_dir: str,
+                 model: str,
+                 case: str,
+                 speed_factor: float,
+                 verbose: bool,
+                 build_dir: str,
+                 world_name: str):
+        super().__init__(log_dir, model, case, verbose)
+        self.name = "gz-sim server"
+        self.cwd = workspace_dir
+        self.env["PX4_GZ_MODELS"] = \
+            os.path.join(workspace_dir, PX4_GZ_SIM_MODELS) + ":" +\
+            os.path.join(workspace_dir, PX4_GZ_SIM_MODELS_EXTRA)
+        print("++++++++++++++++++++++++++++++++++++++++++++++")
+        print(self.env["PX4_GZ_MODELS"])
+        self.env["PX4_GZ_WORLDS"] = \
+            os.path.join(workspace_dir, PX4_GZ_SIM_WORLDS)
+        self.env["GZ_SIM_RESOURCE_PATH"] =  \
+            self.env["PX4_GZ_WORLDS"] + ":" + self.env["PX4_GZ_MODELS"]
+        self.env["GZ_SIM_SYSTEM_PLUGIN_PATH"] =  \
+            os.path.join(workspace_dir, build_dir, PX4_GZ_SIM_PLUGIN)
+
+        if os.path.isfile(os.path.join(workspace_dir,
+                                       PX4_GZ_SIM_WORLDS,
+                                       world_name)):
+
+            word_path = os.path.join(workspace_dir,
+                                      PX4_GZ_SIM_WORLDS,
+                                      world_name)
+        else:
+            raise Exception("Word was not found")
+
+        self.cmd = "gz"
+        self.args = ["sim", "--verbose=1", "-r", "-s", word_path]
+
+class GzHarmonicClientRunner(Runner):
+    def __init__(self,
+                 workspace_dir: str,
+                 log_dir: str,
+                 model: str,
+                 case: str,
+                 verbose: bool):
+        super().__init__(log_dir, model, case, verbose)
+        self.name = "gz-sim client"
+        self.cwd = workspace_dir
+        self.cmd = "gz"
+        self.args = ["sim", "-g", "--verbose"]
 
 class TestRunner(Runner):
     def __init__(self,
@@ -341,11 +410,17 @@ class TestRunner(Runner):
                  mavlink_connection: str,
                  speed_factor: float,
                  verbose: bool,
-                 build_dir: str):
+                 build_dir: str,
+                 hitl_mode: bool = False):
         super().__init__(log_dir, model, case, verbose)
         self.name = "mavsdk_tests"
         self.cwd = workspace_dir
         self.cmd = "nice"
+        if (hitl_mode):
+            self.env["HIL_MODE"] = "hitl"
+        else:
+            self.env["HIL_MODE"] = "sitl"
+
         self.args = ["-5",
                      os.path.join(
                          workspace_dir,

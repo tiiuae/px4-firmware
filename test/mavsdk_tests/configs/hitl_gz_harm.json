@@ -1,0 +1,15 @@
+{
+    "mode": "hitl",
+    "simulator": "gz_sim",
+    "mavlink_connection": "udp://:14540",
+    "tests":
+    [
+        {
+            "model": "x500_hitl",
+            "vehicle": "x500_hitl",
+            "test_filter": "[multicopter],[offboard][offboard_attitude]",
+            "timeout_min": 10,
+            "word": "default_hitl.sdf"
+        }
+    ]
+}
