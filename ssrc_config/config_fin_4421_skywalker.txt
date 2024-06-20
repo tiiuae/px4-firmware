@@ -1,0 +1,7 @@
+param set BAT1_N_CELLS 4
+param set BAT1_V_CHARGED 4.2
+param set SENS_EN_SDP3X 1
+param set SENS_EN_MS4525DO 0
+param set RC_MAP_FLTMODE 5
+param set COM_FLTMODE4 6
+param set COM_FLTMODE6 8
