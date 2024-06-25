@@ -80,6 +80,7 @@ px4_add_romfs_files(
 	4005_gz_x500_vision
 	4006_gz_px4vision
 	4401_gz_ssrc_fog_x
+	4430_gz_ssrc_strivermini
 	4440_gz_ssrc_skywalker_x8
 	50005_gz_ssrc_scout_mini_rover
 
