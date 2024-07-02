@@ -1,5 +1,7 @@
 #!/bin/bash -eux
 
+
+
 usage() {
   set +x
   echo ""
