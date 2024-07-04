@@ -3,7 +3,7 @@
 # PX4 FMUv6X-RT specific board MAVLink startup script.
 #------------------------------------------------------------------------------
 
-set REMOTE_IPADDR "192.168.200.100"
+set REMOTE_IPADDR "192.168.202.254"
 
 # Start the IP link
 netconfig
