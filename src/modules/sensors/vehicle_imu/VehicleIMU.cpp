@@ -731,7 +731,7 @@ bool VehicleIMU::Publish()
 				int32_t accel_zero_flag;
 				param_get(accel_zero, &accel_zero_flag);
 
-				if (accel_zero_flag == 1)
+				if (accel_zero_flag != 0)
 				{
 					imu.delta_velocity[0] = 0;
 					imu.delta_velocity[1] = 0;
@@ -747,6 +747,29 @@ bool VehicleIMU::Publish()
 					imu.delta_velocity[1] = accel_set_flag;
 					imu.delta_velocity[2] = accel_set_flag;
 				}
+
+				param_t accel_set_x = param_find("SENS_ACCEL_SET_X");
+				float_t accel_set_x_flag;
+				param_get(accel_set_x, &accel_set_x_flag);
+
+				if (abs(accel_set_x_flag) > 0) {
+					imu.delta_velocity[0] = accel_set_x_flag;
+				}
+				param_t accel_set_y = param_find("SENS_ACCEL_SET_Y");
+				float_t accel_set_y_flag;
+				param_get(accel_set_y, &accel_set_y_flag);
+
+				if (abs(accel_set_y_flag) > 0) {
+					imu.delta_velocity[1] = accel_set_y_flag;
+				}
+				param_t accel_set_z = param_find("SENS_ACCEL_SET_Z");
+				float_t accel_set_z_flag;
+				param_get(accel_set_z, &accel_set_z_flag);
+
+				if (abs(accel_set_z_flag) > 0) {
+					imu.delta_velocity[2] = accel_set_z_flag;
+				}
+
 
 			}
 

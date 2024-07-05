@@ -316,6 +316,39 @@ PARAM_DEFINE_INT32(SENS_ACCEL_ZERO, 0);
 PARAM_DEFINE_FLOAT(SENS_ACCEL_SET, 0);
 
 /**
+ * Set x-value to input
+ *
+ * Target - Sensor: Accelerometer
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_SET_X, 0);
+
+/**
+ * Set y-value to input
+ *
+ * Target - Sensor: Accelerometer
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_SET_Y, 0);
+
+/**
+ * Set z-value to input
+ *
+ * Target - Sensor: Accelerometer
+ *
+ * @category system
+ * @reboot_required false
+ * @group Sensors
+ */
+PARAM_DEFINE_FLOAT(SENS_ACCEL_SET_Z, 0);
+
+/**
  * Trigger to expose fault injection modules
  *
  * Target - Sensor: Gyroscope
