@@ -44,6 +44,13 @@
 #include "mavlink_stream.h"
 #include "mavlink_main.h"
 
+/**
+ * If stream rate is set to unlimited, set the rate to 50 Hz. To get higher
+ * rates, it needs to be set explicitly.
+ */
+
+const uint32_t MavlinkStreamUnlimitedInterval = 20000;
+
 MavlinkStream::MavlinkStream(Mavlink *mavlink) :
 	_mavlink(mavlink)
 {
@@ -128,3 +135,152 @@ MavlinkStream::update(const hrt_abstime &t)
 
 	return -1;
 }
+
+MavlinkStreamPoll::MavlinkStreamPoll()
+{
+	px4_sem_init(&_poll_sem, 1, 0);
+#if defined(__PX4_NUTTX)
+	sem_setprotocol(&_poll_sem, SEM_PRIO_NONE);
+#endif
+
+	pthread_mutex_init(&_mtx, nullptr);
+}
+
+MavlinkStreamPoll::~MavlinkStreamPoll()
+{
+	// This removes and deletes every object in the list
+	_reqs.clear();
+
+	px4_sem_destroy(&_poll_sem);
+	pthread_mutex_destroy(&_mtx);
+}
+
+void MavlinkStreamPoll::recalculate_roots_and_start(MavStreamPollReq *req)
+{
+	// Now go through the ordered _reqs list, to see if this timer needs to
+	// be started, and if some others can be stopped
+
+	bool is_root = true;
+	uint32_t interval_us = req->interval_us();
+
+	for (auto r : _reqs) {
+		if (r->interval_us() <= interval_us) {
+			if (r->is_root() && interval_us % r->interval_us() == 0) {
+				is_root = false;
+			}
+
+		} else {
+			if (is_root && r->is_root() && r->interval_us() % interval_us == 0) {
+				r->stop_interval();
+			}
+		}
+	}
+
+	// If this was a new root interval, start the hrt
+
+	if (is_root) {
+		req->start_interval(hrt_callback, &_poll_sem);
+	}
+}
+
+int
+MavlinkStreamPoll::register_poll(uint16_t stream_id, uint32_t interval_us)
+{
+	// Streans with interval 0 are disabled and don't need to be registered here
+
+	if (interval_us == 0) {
+		return OK;
+	}
+
+	MavStreamPollReq *req = new MavStreamPollReq(stream_id, interval_us);
+
+	if (req == nullptr) {
+		return -ENOMEM;
+	}
+
+	pthread_mutex_lock(&_mtx);
+
+	recalculate_roots_and_start(req);
+	_reqs.add_sorted(req);
+
+
+	pthread_mutex_unlock(&_mtx);
+	return OK;
+}
+
+int
+MavlinkStreamPoll::unregister_poll(uint16_t stream_id)
+{
+	pthread_mutex_lock(&_mtx);
+
+	for (auto req : _reqs) {
+		if (req->stream_id() == stream_id) {
+			_reqs.remove(req);
+
+			if (req->is_root()) {
+				// This interval may be driving other streams. Re-calculate root clocks for all the
+				// remaining requests
+
+				for (auto r : _reqs) {
+					recalculate_roots_and_start(r);
+				}
+
+				req->stop_interval();
+			}
+
+			delete (req);
+			break;
+		}
+	}
+
+	pthread_mutex_unlock(&_mtx);
+
+	return OK;
+}
+
+int
+MavlinkStreamPoll::set_interval(uint16_t stream_id, int interval_us)
+{
+	unregister_poll(stream_id);
+
+	if (interval_us < 0) {
+		interval_us = MavlinkStreamUnlimitedInterval;
+	}
+
+	return register_poll(stream_id, interval_us);
+}
+
+/**
+ * Perform orb polling
+ */
+int
+MavlinkStreamPoll::poll(const hrt_abstime timeout_us)
+{
+	int ret;
+
+	// Wait event for a maximum timeout time
+
+	struct timespec to;
+#if defined(CONFIG_ARCH_BOARD_PX4_SITL)
+	px4_clock_gettime(CLOCK_MONOTONIC, &to);
+#else
+	px4_clock_gettime(CLOCK_REALTIME, &to);
+#endif
+	hrt_abstime now = ts_to_abstime(&to);
+	abstime_to_ts(&to, now + timeout_us);
+
+	ret = px4_sem_timedwait(&_poll_sem, &to);
+
+	if (ret < 0) {
+		ret = -errno;
+	}
+
+	return ret;
+}
+
+void
+MavlinkStreamPoll::hrt_callback(void *arg)
+{
+	px4_sem_post((px4_sem_t *)arg);
+}
+

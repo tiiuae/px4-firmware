@@ -58,7 +58,25 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <px4_platform_common/sem.h>
+#if defined(__PX4_NUTTX)
+# include <nuttx/irq.h>
+#endif // __PX4_NUTTX
+
+/* With RISC-V the compiler / __atomic_always_lock_free lies about the atomicy
+ * of subword size variables. It is unclear whether this is intentional, or a
+ * bug.
+ *
+ * We know for a fact that subword atomics exist, so overload the the GCC macro
+ * here.
+ *
+ * More on this subject can be found here:
+ * https://github.com/riscv-collab/riscv-gcc/issues/15
+ */
+
+#ifdef CONFIG_ARCH_RISCV
+#undef __atomic_always_lock_free
+#define __atomic_always_lock_free(size, ptr) ((size) <= sizeof(uintptr_t))
+#endif
 
 namespace px4
 {
@@ -73,31 +91,26 @@ public:
 	// IRQ handlers. This might not be required everywhere though.
 	static_assert(__atomic_always_lock_free(sizeof(T), 0), "atomic is not lock-free for the given type T");
 #endif // __PX4_POSIX
-	atomic()
-	{
-		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			px4_sem_init(&_lock, 0, 1);
-		}
-	}
-	explicit atomic(T value) : _value(value)
-	{
-		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			px4_sem_init(&_lock, 0, 1);
-		}
-	}
+
+	atomic() = default;
+	explicit atomic(T value) : _value(value) {}
 
 	/**
 	 * Atomically read the current value
 	 */
 	inline T load() const
 	{
+#if defined(__PX4_NUTTX)
+
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			take_lock();
+			irqstate_t flags = enter_critical_section();
 			T val = _value;
-			release_lock();
+			leave_critical_section(flags);
 			return val;
 
-		} else {
+		} else
+#endif // __PX4_NUTTX
+		{
 			return __atomic_load_n(&_value, __ATOMIC_SEQ_CST);
 		}
 	}
@@ -107,12 +120,16 @@ public:
 	 */
 	inline void store(T value)
 	{
-		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			take_lock();
-			_value = value;
-			release_lock();
+#if defined(__PX4_NUTTX)
 
-		} else {
+		if (!__atomic_always_lock_free(sizeof(T), 0)) {
+			irqstate_t flags = enter_critical_section();
+			_value = value;
+			leave_critical_section(flags);
+
+		} else
+#endif // __PX4_NUTTX
+		{
 			__atomic_store(&_value, &value, __ATOMIC_SEQ_CST);
 		}
 	}
@@ -123,14 +140,18 @@ public:
 	 */
 	inline T fetch_add(T num)
 	{
+#if defined(__PX4_NUTTX)
+
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			take_lock();
+			irqstate_t flags = enter_critical_section();
 			T ret = _value;
 			_value += num;
-			release_lock();
+			leave_critical_section(flags);
 			return ret;
 
-		} else {
+		} else
+#endif // __PX4_NUTTX
+		{
 			return __atomic_fetch_add(&_value, num, __ATOMIC_SEQ_CST);
 		}
 	}
@@ -141,14 +162,18 @@ public:
 	 */
 	inline T fetch_sub(T num)
 	{
+#if defined(__PX4_NUTTX)
+
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			take_lock();
+			irqstate_t flags = enter_critical_section();
 			T ret = _value;
 			_value -= num;
-			release_lock();
+			leave_critical_section(flags);
 			return ret;
 
-		} else {
+		} else
+#endif // __PX4_NUTTX
+		{
 			return __atomic_fetch_sub(&_value, num, __ATOMIC_SEQ_CST);
 		}
 	}
@@ -159,14 +184,18 @@ public:
 	 */
 	inline T fetch_and(T num)
 	{
+#if defined(__PX4_NUTTX)
+
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			take_lock();
+			irqstate_t flags = enter_critical_section();
 			T val = _value;
 			_value &= num;
-			release_lock();
+			leave_critical_section(flags);
 			return val;
 
-		} else {
+		} else
+#endif // __PX4_NUTTX
+		{
 			return __atomic_fetch_and(&_value, num, __ATOMIC_SEQ_CST);
 		}
 	}
@@ -177,14 +206,18 @@ public:
 	 */
 	inline T fetch_xor(T num)
 	{
+#if defined(__PX4_NUTTX)
+
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			take_lock();
+			irqstate_t flags = enter_critical_section();
 			T val = _value;
 			_value ^= num;
-			release_lock();
+			leave_critical_section(flags);
 			return val;
 
-		} else {
+		} else
+#endif // __PX4_NUTTX
+		{
 			return __atomic_fetch_xor(&_value, num, __ATOMIC_SEQ_CST);
 		}
 	}
@@ -195,14 +228,18 @@ public:
 	 */
 	inline T fetch_or(T num)
 	{
+#if defined(__PX4_NUTTX)
+
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			take_lock();
+			irqstate_t flags = enter_critical_section();
 			T val = _value;
 			_value |= num;
-			release_lock();
+			leave_critical_section(flags);
 			return val;
 
-		} else {
+		} else
+#endif // __PX4_NUTTX
+		{
 			return __atomic_fetch_or(&_value, num, __ATOMIC_SEQ_CST);
 		}
 	}
@@ -213,14 +250,18 @@ public:
 	 */
 	inline T fetch_nand(T num)
 	{
+#if defined(__PX4_NUTTX)
+
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			take_lock();
+			irqstate_t flags = enter_critical_section();
 			T ret = _value;
 			_value = ~(_value & num);
-			release_lock();
+			leave_critical_section(flags);
 			return ret;
 
-		} else {
+		} else
+#endif // __PX4_NUTTX
+		{
 			return __atomic_fetch_nand(&_value, num, __ATOMIC_SEQ_CST);
 		}
 	}
@@ -235,48 +276,37 @@ public:
 	 */
 	inline bool compare_exchange(T *expected, T desired)
 	{
+#if defined(__PX4_NUTTX)
+
 		if (!__atomic_always_lock_free(sizeof(T), 0)) {
-			take_lock();
+			irqstate_t flags = enter_critical_section();
 
 			if (_value == *expected) {
 				_value = desired;
-				release_lock();
+				leave_critical_section(flags);
 				return true;
 
 			} else {
 				*expected = _value;
-				release_lock();
+				leave_critical_section(flags);
 				return false;
 			}
 
-		} else {
+		} else
+#endif // __PX4_NUTTX
+		{
 			return __atomic_compare_exchange(&_value, expected, &desired, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 		}
 	}
 
 private:
 	T _value {};
-
-	inline void take_lock() const { do {} while (px4_sem_wait(&_lock) != 0); }
-	inline void release_lock() const { px4_sem_post(&_lock); }
-	mutable px4_sem_t _lock;
 };
 
 using atomic_int = atomic<int>;
 using atomic_int32_t = atomic<int32_t>;
-
-/* On riscv64-unknown-elf atomic<bool> is  not quaranteed to be lock-free
- * It is unclear whether it is really required.
- * An optimal solution could be atomic_flag, but it doesn't seem to be available
- * Just use atomic ints for now, to be safe
-*/
-#if !defined(CONFIG_ARCH_RISCV)
 using atomic_bool = atomic<bool>;
-#else
-using atomic_bool = atomic<int>;
-#endif
 
 } /* namespace px4 */
 
 #endif /* __cplusplus */
-
