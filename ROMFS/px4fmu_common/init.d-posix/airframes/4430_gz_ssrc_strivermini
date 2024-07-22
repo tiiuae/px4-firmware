@@ -56,10 +56,8 @@ param set-default CA_ROTOR4_KM 0.05
 param set-default CA_SV_CS_COUNT 5
 param set-default CA_SV_CS0_TYPE 1
 param set-default CA_SV_CS0_TRQ_R -0.5
-param set-default CA_SV_CS0_TRIM -0.5
 param set-default CA_SV_CS1_TYPE 2
 param set-default CA_SV_CS1_TRQ_R 0.5
-param set-default CA_SV_CS1_TRIM 0.5
 param set-default CA_SV_CS2_TYPE 3
 param set-default CA_SV_CS2_TRQ_P 1.0
 param set-default CA_SV_CS2_TRIM 0.1
@@ -152,13 +150,16 @@ param set-default MC_ROLLRATE_I 0.2
 param set-default MC_PITCHRATE_P 0.14
 param set-default MC_PITCHRATE_I 0.2
 param set-default MC_YAW_P 2.0
+param set-default MC_YAW_WEIGHT 0.5
 param set-default MC_YAWRATE_P 0.2
 param set-default MC_YAWRATE_I 0.1
+param set-default MC_YAWRATE_MAX 120.0
 
 param set-default MPC_XY_P 0.95
 param set-default MPC_XY_VEL_P_ACC 1.8
 param set-default MPC_XY_VEL_I_ACC 0.4
 param set-default MPC_XY_VEL_D_ACC 0.2
+param set-default MPC_YAW_MODE 4
 
 param set-default NAV_ACC_RAD 10.0
 
