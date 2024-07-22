@@ -29,9 +29,6 @@
 [submodule "Tools/flightgear_bridge"]
 	path = Tools/simulation/flightgear/flightgear_bridge
 	url = https://github.com/PX4/PX4-FlightGear-Bridge.git
-[submodule "Tools/simulation/jsbsim/jsbsim_bridge"]
-	path = Tools/simulation/jsbsim/jsbsim_bridge
-	url = https://github.com/PX4/px4-jsbsim-bridge.git
 [submodule "src/drivers/cyphal/libcanard"]
 	path = src/drivers/cyphal/libcanard
 	url = https://github.com/opencyphal/libcanard.git
@@ -91,3 +88,6 @@
 [submodule "boards/ssrc/common"]
 	path = boards/ssrc/common
 	url = git@github.com:tiiuae/px4_boards_ssrc.git
+[submodule "boards/ssrc/saluki-nxp93"]
+	path = boards/ssrc/saluki-nxp93
+	url = git@github.com:tiiuae/saluki-nxp93.git

@@ -50,6 +50,9 @@
 #ifndef PX4_BL_VERSION
 #define PX4_BL_VERSION NULL
 #endif
+#ifndef PX4_ACCEL_VERSION
+#define PX4_ACCEL_VERSION NULL
+#endif
 
 /* string constants for version commands */
 static const char sz_ver_hw_str[] 	= "hw";
@@ -188,6 +191,11 @@ extern "C" __EXPORT int ver_main(int argc, char *argv[])
 						printf("Bootloader version: %s\n", bl_version);
 					}
 
+					const char *accel_version = PX4_ACCEL_VERSION;
+
+					if (accel_version) {
+						printf("Accelerator version: %s\n", accel_version);
+					}
 				}
 
 				fwver = px4_firmware_vendor_version();
@@ -226,9 +234,9 @@ extern "C" __EXPORT int ver_main(int argc, char *argv[])
 			}
 
 			if (show_all || !strncmp(argv[1], sz_ver_bdate_str, sizeof(sz_ver_bdate_str))) {
-				PX4_INFO_RAW("Build datetime: %s %s\n", __DATE__, __TIME__);
+				time_t timestamp = px4_build_timestamp();
+				PX4_INFO_RAW("Build date: %s\n", asctime(gmtime(&timestamp)));
 				ret = 0;
-
 			}
 
 			if (show_all || !strncmp(argv[1], sz_ver_buri_str, sizeof(sz_ver_buri_str))) {
