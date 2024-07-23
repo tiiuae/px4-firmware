@@ -5,11 +5,11 @@
     "tests":
     [
         {
-            "model": "x500_hitl",
-            "vehicle": "x500_hitl",
+            "model": "x500",
+            "vehicle": "x500",
+            "model_file": "model_hitl",
             "test_filter": "[multicopter],[offboard][offboard_attitude]",
-            "timeout_min": 10,
-            "word": "default_hitl.sdf"
+            "timeout_min": 10
         }
     ]
 }

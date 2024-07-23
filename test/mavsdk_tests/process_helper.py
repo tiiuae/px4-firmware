@@ -159,6 +159,16 @@ class Runner:
     def time_elapsed_s(self) -> float:
         return time.time() - self.start_time
 
+    def update_gz_sim_enviement(self, workspace_dir, build_dir):
+        self.env["PX4_GZ_MODELS"] = \
+            os.path.join(workspace_dir, PX4_GZ_SIM_MODELS)
+        self.env["PX4_GZ_WORLDS"] = \
+            os.path.join(workspace_dir, PX4_GZ_SIM_WORLDS)
+        self.env["GZ_SIM_RESOURCE_PATH"] =  \
+            self.env["PX4_GZ_WORLDS"] + ":" + self.env["PX4_GZ_MODELS"]
+        self.env["GZ_SIM_SYSTEM_PLUGIN_PATH"] =  \
+            os.path.join(workspace_dir, build_dir, PX4_GZ_SIM_PLUGIN)
+
 
 class Px4Runner(Runner):
     def __init__(self, workspace_dir: str, log_dir: str,
@@ -363,30 +373,48 @@ class GzHarmonicServer(Runner):
         super().__init__(log_dir, model, case, verbose)
         self.name = "gz-sim server"
         self.cwd = workspace_dir
-        self.env["PX4_GZ_MODELS"] = \
-            os.path.join(workspace_dir, PX4_GZ_SIM_MODELS) + ":" +\
-            os.path.join(workspace_dir, PX4_GZ_SIM_MODELS_EXTRA)
-        print("++++++++++++++++++++++++++++++++++++++++++++++")
-        print(self.env["PX4_GZ_MODELS"])
-        self.env["PX4_GZ_WORLDS"] = \
-            os.path.join(workspace_dir, PX4_GZ_SIM_WORLDS)
-        self.env["GZ_SIM_RESOURCE_PATH"] =  \
-            self.env["PX4_GZ_WORLDS"] + ":" + self.env["PX4_GZ_MODELS"]
-        self.env["GZ_SIM_SYSTEM_PLUGIN_PATH"] =  \
-            os.path.join(workspace_dir, build_dir, PX4_GZ_SIM_PLUGIN)
+        self. update_gz_sim_enviement(workspace_dir, build_dir)
 
-        if os.path.isfile(os.path.join(workspace_dir,
-                                       PX4_GZ_SIM_WORLDS,
-                                       world_name)):
-
-            word_path = os.path.join(workspace_dir,
+        word_path = os.path.join(workspace_dir,
                                       PX4_GZ_SIM_WORLDS,
-                                      world_name)
-        else:
-            raise Exception("Word was not found")
+                                      world_name + '.sdf')
+
+        if not os.path.isfile(word_path):
+            raise Exception("Word was not found: ", word_path)
 
         self.cmd = "gz"
         self.args = ["sim", "--verbose=1", "-r", "-s", word_path]
+
+class GzHarmonicModelSpawnRunner(Runner):
+    def __init__(self,
+                 workspace_dir: str,
+                 log_dir: str,
+                 model: str,
+                 case: str,
+                 verbose: bool,
+                 build_dir: str,
+                 world_name: str,
+                 model_file: str):
+        super().__init__(log_dir, model, case, verbose)
+        self.name = "gzmodelspawn"
+        self.cwd = workspace_dir
+        self.update_gz_sim_enviement(workspace_dir, build_dir)
+
+        model_path = os.path.join(workspace_dir,
+                                      PX4_GZ_SIM_MODELS,
+                                      self.model, model_file + '.sdf')
+
+        if not os.path.isfile(model_path):
+            raise Exception("Model not found:", model_path)
+
+        self.cmd = "gz"
+        self.args = ["service",
+                     "-s", '/world/' + world_name +'/create',
+          '--reqtype', 'gz.msgs.EntityFactory',
+          '--reptype', 'gz.msgs.Boolean',
+          '--timeout', '1000',
+          '--req', 'sdf_filename: "{}", name: "{}" pose: {{position: {{x: 1.01, y: 0.98, z: 0.83}}}}'.format(
+          model_path, f'{self.model}')]
 
 class GzHarmonicClientRunner(Runner):
     def __init__(self,

@@ -576,7 +576,7 @@ class Tester:
             if "word" in test:
                 world_name = test['word']
             else:
-                world_name = 'default.sdf'
+                world_name = 'default'
 
             gzserver_runner = ph.GzHarmonicServer(
                 os.getcwd(),
@@ -588,6 +588,24 @@ class Tester:
                 self.build_dir,
                 world_name)
             self.active_runners.append(gzserver_runner)
+
+            if self.config['mode'] == 'hitl':
+                if "model_file" in test:
+                    model_file = test['model_file']
+                else:
+                    model_file = 'model'
+
+                gzmodelspawn_runner = ph.GzHarmonicModelSpawnRunner(
+                    os.getcwd(),
+                    log_dir,
+                    test['vehicle'],
+                    case,
+                    self.verbose,
+                    self.build_dir,
+                    world_name,
+                    model_file)
+                self.active_runners.append(gzmodelspawn_runner)
+
             if self.gui:
                 gzclient_runner = ph.GzHarmonicClientRunner(
                     os.getcwd(),
