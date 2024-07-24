@@ -1,0 +1,14 @@
+{
+    "mode": "hitl",
+    "simulator": "gz_sim",
+    "mavlink_connection": "udp://:14540",
+    "tests":
+    [
+        {
+            "model": "standard_vtol",
+            "vehicle": "standard_vtol",
+            "test_filter": "[vtol]",
+            "timeout_min": 10
+        }
+    ]
+}

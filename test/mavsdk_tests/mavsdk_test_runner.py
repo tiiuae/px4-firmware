@@ -56,7 +56,7 @@ def main() -> NoReturn:
     parser.add_argument("--build-dir", type=str,
                         default='build/px4_sitl_default/',
                         help="relative path where the built files are stored")
-    parser.add_argument("--connection", type=str, default="serial",
+    parser.add_argument("--connection", type=str, default="ethernet",
                         help="the type of connection: serial or ethernet. Using only for --hitl")
     args = parser.parse_args()
 

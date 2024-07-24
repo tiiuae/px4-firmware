@@ -38,3 +38,11 @@ param set-default HIL_ACT_FUNC4 104
 param set-default CBRK_SUPPLY_CHK 894281
 # - without safety switch
 param set-default CBRK_IO_SAFETY 22027
+
+#added for hitl testing with basic x500
+sensor_gps_sim start
+sensor_mag_sim start
+sensor_baro_sim start
+sensor_airspeed_sim start
+
+param set-default SYS_FAILURE_EN 1
