@@ -1,0 +1,14 @@
+[package]
+name = "rust_mod"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+log = "0.4"
+px4_nuttx = { path = "../../../lib/rust_px4_nuttx" }
+px4_nuttx_macros = { path = "../../../lib/rust_px4_nuttx/px4_nuttx_macros" }
