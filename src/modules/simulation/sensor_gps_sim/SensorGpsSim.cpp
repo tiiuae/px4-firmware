@@ -43,6 +43,7 @@ SensorGpsSim::SensorGpsSim() :
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default)
 {
+	gps_drift_timestep = 0;
 }
 
 SensorGpsSim::~SensorGpsSim()
@@ -174,6 +175,70 @@ void SensorGpsSim::Run()
 		sensor_gps.spoofing_state = 0;
 		sensor_gps.vel_ned_valid = true;
 		sensor_gps.satellites_used = _sim_gps_used.get();
+
+// Adding faults to the gps
+		param_t gps_fault = param_find("SENS_GPS_FAULT");
+		int32_t gps_fault_flag;
+		param_get(gps_fault, &gps_fault_flag);
+
+		if (gps_fault_flag == 1) {
+			param_t gps_noise = param_find("SENS_GPS_NOISE");
+			float_t gps_noise_flag;
+			param_get(gps_noise, &gps_noise_flag);
+
+			if (abs(gps_noise_flag) > 0) {
+				sensor_gps.lat += sensor_gps.lat * (double)(generate_wgn() * gps_noise_flag);
+				sensor_gps.lon += sensor_gps.lon * (double)(generate_wgn() * gps_noise_flag);
+				sensor_gps.alt += sensor_gps.alt * (double)(generate_wgn() * gps_noise_flag);
+				sensor_gps.alt_ellipsoid += sensor_gps.alt_ellipsoid * (double)(generate_wgn() * gps_noise_flag);
+			}
+
+			param_t gps_bias_shift = param_find("SENS_GPS_SHIF");
+			float_t gps_bias_shift_flag;
+			param_get(gps_bias_shift, &gps_bias_shift_flag);
+
+			if (abs(gps_bias_shift_flag) > 0) {
+				sensor_gps.lat += sensor_gps.lat * static_cast<double>(gps_bias_shift_flag);
+				sensor_gps.lon += sensor_gps.lon * static_cast<double>(gps_bias_shift_flag);
+				sensor_gps.alt += sensor_gps.alt * static_cast<double>(gps_bias_shift_flag);
+				sensor_gps.alt_ellipsoid += sensor_gps.alt_ellipsoid * static_cast<double>(gps_bias_shift_flag);
+			}
+
+			param_t gps_bias_scale = param_find("SENS_GPS_SCAL");
+			float_t gps_bias_scale_flag;
+			param_get(gps_bias_scale, &gps_bias_scale_flag);
+
+			if (abs(gps_bias_scale_flag) > 0) {
+				sensor_gps.lat *= static_cast<double>(gps_bias_scale_flag);
+				sensor_gps.lon *= static_cast<double>(gps_bias_scale_flag);
+				sensor_gps.alt *= static_cast<double>(gps_bias_scale_flag);
+				sensor_gps.alt_ellipsoid *= static_cast<double>(gps_bias_scale_flag);
+			}
+
+			param_t gps_drift = param_find("SENS_GPS_DRIFT");
+			float_t gps_drift_flag;
+			param_get(gps_drift, &gps_drift_flag);
+
+			if (abs(gps_drift_flag) > 0) {
+				sensor_gps.lat += 0.01 * static_cast<double>(gps_drift_flag) * gps_drift_timestep / 1000000;
+				sensor_gps.lon += 0.01 * static_cast<double>(gps_drift_flag) * gps_drift_timestep / 1000000;
+				sensor_gps.alt += 0.01 * static_cast<double>(gps_drift_flag) * gps_drift_timestep / 1000000;
+				sensor_gps.alt_ellipsoid += 0.01 * static_cast<double>(gps_drift_flag) * gps_drift_timestep / 1000000;
+
+				gps_drift_timestep += 1;
+			}
+
+			param_t gps_zero = param_find("SENS_GPS_ZERO");
+			int32_t gps_zero_flag;
+			param_get(gps_zero, &gps_zero_flag);
+
+			if (gps_zero_flag == 1) {
+				sensor_gps.lat = 0;
+				sensor_gps.lon = 0;
+				sensor_gps.alt = 0;
+				sensor_gps.alt_ellipsoid = 0;
+			}
+		}
 
 		sensor_gps.timestamp = hrt_absolute_time();
 		_sensor_gps_pub.publish(sensor_gps);

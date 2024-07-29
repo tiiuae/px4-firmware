@@ -47,6 +47,7 @@ SensorBaroSim::SensorBaroSim() :
 SensorBaroSim::~SensorBaroSim()
 {
 	perf_free(_loop_perf);
+	baro_drift_timestep = 0;
 }
 
 bool SensorBaroSim::init()
@@ -168,6 +169,51 @@ void SensorBaroSim::Run()
 			sensor_baro.pressure = pressure;
 			sensor_baro.temperature = temperature;
 			sensor_baro.timestamp = hrt_absolute_time();
+
+			// Adding faults to the barometer
+			param_t baro_fault = param_find("SENS_BARO_FAULT");
+			int32_t baro_fault_flag;
+			param_get(baro_fault, &baro_fault_flag);
+
+			if (baro_fault_flag == 1) {
+				param_t baro_noise = param_find("SENS_BARO_NOISE");
+				float_t baro_noise_flag;
+				param_get(baro_noise, &baro_noise_flag);
+
+				if (abs(baro_noise_flag) > 0) {
+					sensor_baro.pressure += sensor_baro.pressure * generate_wgn() * baro_noise_flag;
+					sensor_baro.temperature += sensor_baro.temperature * generate_wgn() * baro_noise_flag;
+				}
+
+				param_t baro_bias_shift = param_find("SENS_BARO_SHIF");
+				float_t baro_bias_shift_flag;
+				param_get(baro_bias_shift, &baro_bias_shift_flag);
+
+				if (abs(baro_bias_shift_flag) > 0) {
+					sensor_baro.pressure += sensor_baro.pressure * baro_bias_shift_flag;
+					sensor_baro.temperature += sensor_baro.temperature * baro_bias_shift_flag;
+				}
+
+				param_t baro_bias_scale = param_find("SENS_BARO_SCAL");
+				float_t baro_bias_scale_flag;
+				param_get(baro_bias_scale, &baro_bias_scale_flag);
+
+				if (abs(baro_bias_scale_flag) > 0) {
+					sensor_baro.pressure *= sensor_baro.pressure * baro_bias_scale_flag;
+					sensor_baro.temperature *= sensor_baro.temperature * baro_bias_scale_flag;
+				}
+
+				param_t baro_drift = param_find("SENS_BARO_DRIFT");
+				float_t baro_drift_flag;
+				param_get(baro_drift, &baro_drift_flag);
+
+				if (abs(baro_drift_flag) > 0) {
+					sensor_baro.pressure += 0.01f * baro_drift_flag * baro_drift_timestep / 1000000;
+					sensor_baro.temperature += 0.01f * baro_drift_flag * baro_drift_timestep / 1000000;
+					baro_drift_timestep += 1;
+				}
+			}
+
 			_sensor_baro_pub.publish(sensor_baro);
 
 
