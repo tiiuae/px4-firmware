@@ -146,6 +146,42 @@ uint32_t version_tag_to_number(const char *tag)
 	return version_number;
 }
 
+uint32_t version_tag_to_git_top(const char *tag)
+{
+	uint32_t git_top = 0;
+	size_t dash_count = 0;
+
+	// git tag top exists between the 2nd and 3rh dash
+	for( size_t i = 0; i < strlen(tag); i++ ) {
+		// if dash_count is 2, we are reading the git top
+		if (dash_count == 2) {
+			// next dash means the end of the git top
+			if (tag[i] == '-') {
+				break;
+			}
+
+			// we are expecting a digit, otherwise there is something wrong
+			if (tag[i] >= '0' && tag[i] <= '9') {
+				// shift possibly existing git top to the left by 1 digit
+				git_top = git_top * 10;
+				git_top += (tag[i] - '0');
+				continue;
+			}
+			else {
+				return 0;
+			}
+		}
+
+		// looking for the 2nd dash which marks beginning of git top
+		if (tag[i] == '-') {
+			dash_count++;
+			continue;
+		}
+	}
+
+	return git_top;
+}
+
 uint32_t px4_firmware_version(void)
 {
 	return version_tag_to_number(PX4_GIT_TAG_STR);
@@ -240,6 +276,11 @@ uint32_t version_tag_to_vendor_version_number(const char *tag)
 uint32_t px4_firmware_vendor_version(void)
 {
 	return version_tag_to_vendor_version_number(PX4_GIT_TAG_STR);
+}
+
+uint32_t px4_firmware_git_top_number(void)
+{
+	return version_tag_to_git_top(PX4_GIT_TAG_STR);
 }
 
 const char *px4_firmware_git_branch(void)

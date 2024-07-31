@@ -117,6 +117,19 @@ const char *px4_build_uri(void);
 __EXPORT uint32_t version_tag_to_number(const char *tag);
 
 /**
+ * Find a git tag top number from version tag string
+ * @param tag version tag in one of the following forms:
+ *            - vendor: v1.4.0-0.2.0
+ *            - dev: v1.4.0-rc3-7-g7e282f57
+ *            - rc: v1.4.0-rc4
+ *            - beta: v1.4.0-beta1
+ *            - release: v1.4.0
+ *            - linux: 7.9.3
+ * @return git tag top uint32_t number
+ */
+__EXPORT uint32_t version_tag_to_git_top(const char *tag);
+
+/**
  * get the PX4 Firmware version
  * @return version in the form 0xAABBCCTT (AA: Major, BB: Minor, CC: Patch, TT Type @see FIRMWARE_TYPE)
  */
@@ -140,6 +153,12 @@ __EXPORT uint32_t version_tag_to_vendor_version_number(const char *tag);
  * @return version in the form 0xAABBCCTT (AA: Major, BB: Minor, CC: Patch, TT Type @see FIRMWARE_TYPE)
  */
 __EXPORT uint32_t px4_firmware_vendor_version(void);
+
+/**
+ * get the PX4 Firmware vendor version git tag top number
+ * @return number of git commits after git tag
+ */
+__EXPORT uint32_t px4_firmware_git_top_number(void);
 
 /**
  * get the board version (last 8 bytes should be silicon ID, if any)
