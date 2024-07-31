@@ -102,6 +102,12 @@ if tag_or_branch is None:
     if not tag_or_branch.startswith('release-'):
         tag_or_branch = 'master'
 
+# count commits since last tag
+latest_tag = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0'],
+                                     stderr=subprocess.STDOUT).decode('utf-8').strip()
+git_tag_top = subprocess.check_output(['git', 'rev-list', '--count', latest_tag + '..HEAD'],
+                                      stderr=subprocess.STDOUT).decode('utf-8').strip()
+
 # build timestamp in epoch format
 build_timestamp = subprocess.check_output('date -u +%s'.split(),
                                           stderr=subprocess.STDOUT).decode('utf-8').strip()
@@ -114,6 +120,7 @@ header += f"""
 #define PX4_GIT_OEM_VERSION_STR  "{oem_tag}"
 
 #define PX4_GIT_TAG_OR_BRANCH_NAME "{tag_or_branch}" // special variable: git tag, release or master branch
+#define PX4_GIT_VERSION_TOP {git_tag_top}
 #define PX4_BUILD_TIME {build_timestamp}
 """
 
