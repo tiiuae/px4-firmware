@@ -2077,8 +2077,56 @@ MavlinkReceiver::handle_message_heartbeat(mavlink_message_t *msg)
 		mavlink_msg_heartbeat_decode(msg, &hb);
 
 		const bool same_system = (msg->sysid == mavlink_system.sysid);
+		const bool redundant_fc = same_system && msg->compid >= MAV_COMP_ID_AUTOPILOT1
+					  && msg->compid < MAV_COMP_ID_AUTOPILOT1 + 4; // TODO: MAX_REDUNDANT_AUTOPILOTS
 
-		if (same_system || hb.type == MAV_TYPE_GCS) {
+		if (redundant_fc) {
+			int fc_idx = msg->compid - MAV_COMP_ID_AUTOPILOT1;
+
+			_redundant_status[fc_idx].system_id = msg->sysid;
+			_redundant_status[fc_idx].component_id = msg->compid;
+
+
+			/* publish the redundant status topic */
+
+			uint8_t arming_state;
+
+			switch (hb.system_status) {
+			case MAV_STATE_ACTIVE:
+			case MAV_STATE_CRITICAL:
+				arming_state = vehicle_status_s::ARMING_STATE_ARMED;
+				break;
+
+			case MAV_STATE_STANDBY:
+				arming_state = vehicle_status_s::ARMING_STATE_STANDBY;
+				break;
+
+			case MAV_STATE_EMERGENCY:
+			case MAV_STATE_FLIGHT_TERMINATION:
+				arming_state = vehicle_status_s::ARMING_STATE_STANDBY_ERROR;
+				break;
+
+			case MAV_STATE_POWEROFF:
+				arming_state = vehicle_status_s::ARMING_STATE_SHUTDOWN;
+				break;
+
+			default:
+				arming_state = vehicle_status_s::ARMING_STATE_INIT;
+				break;
+			}
+
+			_redundant_status[fc_idx].arming_state = arming_state;
+
+			_redundant_status[fc_idx].calibration_enabled = hb.system_status == MAV_STATE_CALIBRATING;
+
+			_redundant_status[fc_idx].hil_state = hb.base_mode & MAV_MODE_FLAG_HIL_ENABLED ? vehicle_status_s::HIL_STATE_ON :
+							      vehicle_status_s::HIL_STATE_OFF;
+
+			_redundant_status[fc_idx].timestamp = hrt_absolute_time();
+
+			_redundant_status_pub[fc_idx].publish(_redundant_status[fc_idx]);
+
+		} else if (same_system || hb.type == MAV_TYPE_GCS) {
 
 			camera_status_s camera_status{};
 
