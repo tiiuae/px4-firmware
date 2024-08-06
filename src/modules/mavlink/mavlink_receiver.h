@@ -334,6 +334,8 @@ private:
 	uORB::Publication<vehicle_odometry_s>			_mocap_odometry_pub{ORB_ID(vehicle_mocap_odometry)};
 	uORB::Publication<vehicle_odometry_s>			_visual_odometry_pub{ORB_ID(vehicle_visual_odometry)};
 	uORB::Publication<vehicle_rates_setpoint_s>		_rates_sp_pub{ORB_ID(vehicle_rates_setpoint)};
+	uORB::Publication<vehicle_status_s>			_redundant_status_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_status0), ORB_ID(redundant_status1)};
+	vehicle_status_s					_redundant_status[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {};
 
 #if !defined(CONSTRAINED_FLASH)
 	uORB::Publication<debug_array_s>			_debug_array_pub {ORB_ID(debug_array)};
