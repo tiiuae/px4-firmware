@@ -136,3 +136,9 @@ bool rc_calibration_in_progress
 bool calibration_enabled
 
 bool pre_flight_checks_pass		# true if all checks necessary to arm pass
+
+# Maximum number of redundant (backup) flight controllers
+uint8 MAX_REDUNDANT_CONTROLLERS = 2
+
+# TOPICS vehicle_status
+# TOPICS redundant_status0 redundant_status1
