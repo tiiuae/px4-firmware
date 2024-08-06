@@ -83,3 +83,8 @@ if [ -n "$PX4_EXPORT_DIR" ]; then
     # move temp json file to the final json file
     mv ${TEMP_JSON} $PX4_EXPORT_DIR/${SALUKI_FILE_INFO_JSON}
 fi
+
+# when px4 update is complete, it will generate -updates.txt file mathing with px4 filename
+# for example: ssrc_saluki-v3_default-1.14.0-12.0.0-66-g97a3fa5c5f-updates.txt
+# monitor for the -updates.txt files and exit if it is valid
+inotifyd validate_updates_txt.sh ${PX4_EXPORT_DIR}:n
