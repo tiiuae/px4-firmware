@@ -1,9 +1,15 @@
 #!/bin/bash
 
+GZ_SIM_SYSTEM_PLUGIN_PATH=$(pwd)/build/px4_sitl_default/build_gz-sim_plugins/
+PX4_GZ_MODELS=$(pwd)/Tools/simulation/gz/models
+PX4_GZ_WORLDS=$(pwd)/Tools/simulation/gz/worlds
+
 #example for run
 #./Tools/simulation/gz/hitl_run.sh x500/model_hitl.sdf
 
 MODEL_PATH=$1
+
+
 
 if [ -z $MODEL_PATH ]; then
     echo "You should specify a path to the using model"
