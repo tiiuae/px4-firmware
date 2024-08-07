@@ -1,0 +1,12 @@
+menuconfig MODULES_REDUNDANCY
+	bool "Redundant FCs present"
+	default n
+	---help---
+		Enable support for FC redundancy, i.e. multiple FCs on the drone
+
+menuconfig USER_REDUNDANCY
+	bool "Redundancy running as userspace module"
+	default y
+	depends on BOARD_PROTECTED && MODULES_REDUNDANCY
+	---help---
+		Put redundancy in userspace memory
