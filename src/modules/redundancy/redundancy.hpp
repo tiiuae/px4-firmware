@@ -68,11 +68,12 @@ private:
 	uORB::Subscription _redundant_status_sub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_status0), ORB_ID(redundant_status1)};
 	vehicle_status_s _status[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS];
 
-	uORB::Subscription _landed_sub{ORB_ID(vehicle_land_detected)};;
+	uORB::Subscription _landed_sub{ORB_ID(vehicle_land_detected)};
 	vehicle_land_detected_s _landed;
 
 	uORB::Publication<vehicle_command_s> _pub_vehicle_command{ORB_ID(vehicle_command)};
 
+	bool _autopilot_timeout[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {};
 	int _n_autopilots;
 	int _controller_idx;
 	int _auto_disarm_min_time;

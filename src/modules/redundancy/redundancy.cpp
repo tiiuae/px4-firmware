@@ -177,10 +177,14 @@ void Redundancy::manage_spare_disarming()
 		landed--;
 	}
 
-	/* We have been landed the needed time, allowed to disarm as soon as primary is disarmed */
+	/* We have been landed the needed time, allowed to disarm as soon as primary is disarmed.
+	 * Primary FC timeout is handled as if it was disarmed. This enables auto-disarm
+	 * in case primary FC is completely died
+	 */
 
 	if (landed == 0 && armed &&
-	    _status[PRIMARY_FC_IDX].arming_state != vehicle_status_s::ARMING_STATE_ARMED) {
+	    (_status[PRIMARY_FC_IDX].arming_state != vehicle_status_s::ARMING_STATE_ARMED ||
+	     _autopilot_timeout[PRIMARY_FC_IDX])) {
 		PX4_INFO("Disarming as landed and primary disarmed");
 		force_disarm();
 		landed = -1;
@@ -200,6 +204,8 @@ void Redundancy::manage_spare()
 
 void Redundancy::Run()
 {
+	hrt_abstime now = hrt_absolute_time();
+
 	_landed_sub.copy(&_landed);
 
 	for (int i = 0; i < _n_autopilots; i++) {
@@ -210,6 +216,14 @@ void Redundancy::Run()
 		} else {
 			// This controller
 			_vehicle_status_sub.copy(&_status[i]);
+		}
+
+		if (_status[i].timestamp < now + 1_s) {
+			if (!_autopilot_timeout[i]) {
+				PX4_ERR("Controller %d timed out!\n", i);
+			}
+
+			_autopilot_timeout[i] = true;
 		}
 	}
 
