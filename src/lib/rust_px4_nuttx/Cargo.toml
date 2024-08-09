@@ -1,0 +1,12 @@
+[package]
+name = "px4_nuttx"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+embedded-io = "0.6.1"
+no-std-net = "0.6.0"
+px4_nuttx_macros = { path = "./px4_nuttx_macros" }

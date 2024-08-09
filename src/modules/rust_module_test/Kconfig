@@ -1,0 +1,12 @@
+menuconfig MODULES_RUST_MODULE_TEST
+	bool "rust_module_test"
+	default n
+	---help---
+		Enable rust module test
+
+menuconfig USER_RUST_MODULE_TEST
+	bool "rust module test in user"
+	default y
+	depends on BOARD_PROTECTED && MODULES_RUST_MODULE_TEST
+	---help---
+		Put rust module test in userspace memory
