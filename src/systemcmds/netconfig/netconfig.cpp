@@ -42,6 +42,7 @@
 #include <netinet/in.h>
 #include <netutils/netlib.h>
 #include <lib/parameters/param.h>
+#include <uORB/topics/vehicle_status.h>
 
 __BEGIN_DECLS
 __EXPORT int  netconfig_main(int argc, char *argv[]);
@@ -51,25 +52,43 @@ int netconfig_main(int argc, char *argv[])
 {
 	struct in_addr addr;
 	int32_t mav_id;
+	int32_t mav_comp_id;
+	int32_t ip0;
+	int32_t ip1;
 	const char ifname[] = CONFIG_NETCONFIG_IFNAME;
 
 	param_get(param_find("MAV_SYS_ID"), &mav_id);
+	param_get(param_find("MAV_COMP_ID"), &mav_comp_id);
 
-	if (mav_id < 1) {
+	if (mav_id < 1 || mav_comp_id < 1 || mav_comp_id > vehicle_status_s::MAX_REDUNDANT_CONTROLLERS) {
 		return PX4_ERROR;
 	}
 
-	/* IP: CONFIG_NETCONFIG_IPSUBNET + mav_id */
+	/* IP: CONFIG_NETCONFIG_IPSUBNET + mav_id + mav_comp_id */
 
-	addr.s_addr = CONFIG_NETCONFIG_IPSUBNET;
+	addr.s_addr = CONFIG_NETCONFIG_IPSUBNET & 0xffff;
 
-	mav_id += 100;
+	/* Autopilot IP examples:
+	   MAV_ID 1:
+	   x.x.200.101 : primary FC1 (comp_id 1)
+	   x.x.200.102 : redundant FC2 (comp_id 2)
+	   x.x.200.103 : redundant FC3 (comp_id 3)
+	   x.x.200,104 : redundant FC4 (comp_id 4)
+	   MAV_ID 2:
+	   x.x.201.101 : primary FC1 (comp_id 1)
+	   x.x.201.102 : redundant FC2 (comp_id 2)
+	   x.x.201.103 : redundant FC3 (comp_id 3)
+	   x.x.201,104 : redundant FC4 (comp_id 4)
+	*/
 
-	if (mav_id > 253) {
+	ip1 = 200 + mav_id - 1;
+	ip0 = 100 + mav_comp_id;
+
+	if (ip0 > 253 || ip1 > 253) {
 		return PX4_ERROR;
 	}
 
-	addr.s_addr |= ((uint32_t)mav_id << 24);
+	addr.s_addr |= (ip0 << 24) | (ip1 << 16);
 	netlib_set_ipv4addr(ifname, &addr);
 
 	/* GW */
