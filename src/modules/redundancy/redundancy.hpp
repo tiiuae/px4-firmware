@@ -45,7 +45,7 @@
 
 #define PRIMARY_FC_IDX 0 //MAV_COMP_ID_AUTOPILOT1 - 1
 
-class Redundancy final : public ModuleBase<Redundancy>, public ModuleParams, public px4::ScheduledWorkItem
+class Redundancy final : public ModuleBase<Redundancy>, public px4::ScheduledWorkItem
 {
 public:
 	Redundancy();
@@ -73,9 +73,11 @@ private:
 
 	uORB::Publication<vehicle_command_s> _pub_vehicle_command{ORB_ID(vehicle_command)};
 
-	int _controller_idx{};
+	int _n_autopilots;
+	int _controller_idx;
+	int _auto_disarm_min_time;
 
-	int init();
+	int init(int spare_autopilots);
 
 	bool send_vehicle_command(uint16_t cmd, float param1, float param2);
 
@@ -87,5 +89,4 @@ private:
 	void manage_primary_arming();
 	void manage_spare_arming();
 	void manage_spare_disarming();
-
 };

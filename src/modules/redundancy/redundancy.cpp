@@ -43,7 +43,6 @@ using namespace time_literals;
 const unsigned REDUNDANCY_INTERVAL_MS = 10_ms;
 
 Redundancy::Redundancy() :
-	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::nav_and_controllers)
 {
 }
@@ -97,10 +96,16 @@ void Redundancy::manage_primary_arming()
 		redundant_controllers_arming = 0;
 	}
 
-	/* If spare controllers didn't arm in time. If counter is > wait_max, and spare is not armed, it means that the spare has disarmed (mid flight). */
+	bool spares_armed = true;
 
-	if (_status[PRIMARY_FC_IDX + 1].arming_state != vehicle_status_s::ARMING_STATE_ARMED
-	    && redundant_controllers_arming == wait_max) {
+	for (int i = 1; i < _n_autopilots; i++) {
+		if (_status[PRIMARY_FC_IDX + i].arming_state != vehicle_status_s::ARMING_STATE_ARMED) {
+			spares_armed = false;
+		}
+	}
+
+	if (!spares_armed &&
+	    redundant_controllers_arming == wait_max) {
 		PX4_ERR("Spare controller not functional, disarming!");
 
 		force_disarm();
@@ -109,14 +114,14 @@ void Redundancy::manage_primary_arming()
 	/* Armed; wait for secondary FCs to arm */
 
 	if (armed && redundant_controllers_arming < wait_max) {
-		/* TODO: check all the configured redundant controllers */
+		/* Check that all the configured redundant controllers are armed */
 
-		if (_status[PRIMARY_FC_IDX + 1].arming_state == vehicle_status_s::ARMING_STATE_ARMED) {
+		if (spares_armed) {
 			PX4_INFO("Spare controllers armed OK");
 
 			/* Set the counter to wait_max + 1. This prevents
 			 * disarming the primary in case the secondary disarms
-			 * during flights (the if clause above).
+			 * during flight
 			 */
 
 			redundant_controllers_arming = wait_max + 1;
@@ -143,8 +148,15 @@ void Redundancy::manage_spare_arming()
 void Redundancy::manage_spare_disarming()
 {
 	static bool armed = false;
-	const int landed_max = 4_s / REDUNDANCY_INTERVAL_MS;
 	static int landed = -1;
+
+	/* Auto-disarm for spare controllers disabled? */
+
+	if (_auto_disarm_min_time < 0) {
+		return;
+	}
+
+	const int landed_max = _auto_disarm_min_time * 1000000 / REDUNDANCY_INTERVAL_MS;
 
 	/* Auto-disarm in 4 seconds after landing if primary is
 	 * disarmed. TODO: Separate parameter for redundant FC auto disarm delay
@@ -190,7 +202,7 @@ void Redundancy::Run()
 {
 	_landed_sub.copy(&_landed);
 
-	for (int i = 0; i < vehicle_status_s::MAX_REDUNDANT_CONTROLLERS; i++) {
+	for (int i = 0; i < _n_autopilots; i++) {
 		if (i != _controller_idx) {
 			// Some other controller
 			_redundant_status_sub[i].copy(&_status[i]);
@@ -216,14 +228,20 @@ void Redundancy::Run()
 	ScheduleDelayed(REDUNDANCY_INTERVAL_MS);
 }
 
-int Redundancy::init()
+int Redundancy::init(int32_t spare_autopilots)
 {
 	int ret;
 	int32_t mav_comp_id;
 	ret = param_get(param_find("MAV_COMP_ID"), &mav_comp_id);
 
-	if (ret == PX4_OK && mav_comp_id > 0 && mav_comp_id <= vehicle_status_s::MAX_REDUNDANT_CONTROLLERS) {
-		_controller_idx = mav_comp_id - 1; // - MAV_COMP_ID_AUTOPILOT1
+	_controller_idx = mav_comp_id - 1;  // - MAV_COMP_ID_AUTOPILOT1
+	_n_autopilots = spare_autopilots + 1; // primary + spares
+
+	if (param_get(param_find("FT_DISARM_TO"), &_auto_disarm_min_time) != PX4_OK) {
+		_auto_disarm_min_time = -1;
+	}
+
+	if (ret == PX4_OK && _controller_idx >= 0 && _controller_idx <= _n_autopilots) {
 
 		ScheduleNow();
 
@@ -238,19 +256,25 @@ int Redundancy::init()
 
 int Redundancy::task_spawn(int argc, char *argv[])
 {
-	Redundancy *instance = new Redundancy();
+	Redundancy *instance = NULL;
+
+	int32_t spare_autopilots;
+
+	if (param_get(param_find("FT_N_SPARE_FCS"), &spare_autopilots) && spare_autopilots > 0
+	    && spare_autopilots < vehicle_status_s::MAX_REDUNDANT_CONTROLLERS) {
+		instance = new Redundancy();
+	}
 
 	if (instance) {
 		_object.store(instance);
 		_task_id = task_id_is_work_queue;
 
-		return instance->init();
+		return instance->init(spare_autopilots);
 
 	} else {
 		PX4_ERR("alloc failed");
 	}
 
-	delete instance;
 	_object.store(nullptr);
 	_task_id = -1;
 
