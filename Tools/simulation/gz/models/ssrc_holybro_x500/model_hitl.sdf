@@ -10,16 +10,8 @@
       <poseSubTopic>/pose/info</poseSubTopic>
       <mavlink_addr>192.168.200.101</mavlink_addr>
       <mavlink_udp_local_port>14561</mavlink_udp_local_port>
-      <mavlink_udp_remote_port>14560</mavlink_udp_remote_port>
-      <mavlink_tcp_port>4560</mavlink_tcp_port>
-      <use_tcp>0</use_tcp>
-    </plugin>
-    <plugin filename="libmavlink_hitl_gazebosim.so" name="mavlink_interface::GazeboMavlinkInterface">
-      <robotNamespace/>
-      <imuSubTopic>/link/base_link/sensor/imu_sensor/imu</imuSubTopic>
-      <poseSubTopic>/pose/info</poseSubTopic>
-      <mavlink_addr>192.168.200.102</mavlink_addr>
-      <mavlink_udp_local_port>14562</mavlink_udp_local_port>
+      <secondary_mavlink_addr>192.168.200.102</secondary_mavlink_addr>
+      <secondary_mavlink_udp_local_port>14562</secondary_mavlink_udp_local_port>
       <mavlink_udp_remote_port>14560</mavlink_udp_remote_port>
       <mavlink_tcp_port>4560</mavlink_tcp_port>
       <use_tcp>0</use_tcp>
