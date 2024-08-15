@@ -8,6 +8,7 @@
 
 # Set HITL related flag
 param set SYS_HITL 1
+param set MAV_HITL_SHOME 0
 param set SENS_EN_GPSSIM 1
 param set SENS_EN_BAROSIM 1
 param set SENS_EN_MAGSIM 1
@@ -23,15 +24,15 @@ param set NAV_RCL_ACT 0
 param set COM_RC_IN_MODE 1
 
 # EKF2
-param set EKF2_MULTI_IMU 3
+param set EKF2_MULTI_IMU 1
 
-# Sensor
-param set CAL_ACC0_ID  1310988
-param set CAL_GYRO0_ID 1310988
-param set CAL_ACC1_ID  1310996
-param set CAL_GYRO1_ID 1310996
-param set CAL_ACC2_ID  1311004
-param set CAL_GYRO2_ID 1311004
-param set CAL_MAG1_ID 197388
-param set CAL_MAG1_PRIO 50
+# Need mavlink version 2
+param set MAV_PROTO_VER 2
 
+# Disable PX4 IO if enabled
+# In HITL PX4 IO publishes actuator outputs, but
+# it is also published by PWMSIM. Disble PX4IO for now
+# to avoid this. NOTE: Thus breaks safety button and
+# RC controller in HITL!
+
+param set SYS_USE_IO 0
