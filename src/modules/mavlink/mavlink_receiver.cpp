@@ -316,6 +316,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_actuator_output_status(msg);
 		break;
 
+	case MAVLINK_MSG_ID_ESC_STATUS:
+		handle_message_esc_status(msg);
+		break;
+
 	default:
 		break;
 	}
@@ -3129,6 +3133,29 @@ MavlinkReceiver::handle_message_actuator_output_status(mavlink_message_t *msg)
 
 		_redundant_actuator_outputs_pub[fc_idx].publish(actuator_outputs);
 	}
+}
+
+void
+MavlinkReceiver::handle_message_esc_status(mavlink_message_t *msg)
+{
+	static constexpr int batch_size = MAVLINK_MSG_ESC_STATUS_FIELD_RPM_LEN;
+	mavlink_esc_status_t esc_status_msg;
+	mavlink_msg_esc_status_decode(msg, &esc_status_msg);
+	esc_status_s esc_status{};
+
+	esc_status.timestamp = hrt_absolute_time();
+
+	/* Status is sent in batches, esc_idx is the actual esc index, idx is the index within the received batch */
+
+	size_t esc_idx = esc_status_msg.index;
+
+	for (int idx = 0; idx < batch_size && esc_idx < sizeof(esc_status.esc) / sizeof(esc_status.esc[0]); idx++, esc_idx++) {
+		esc_status.esc[esc_idx].esc_rpm = esc_status_msg.rpm[idx];
+		esc_status.esc[esc_idx].esc_voltage = esc_status_msg.voltage[idx];
+		esc_status.esc[esc_idx].esc_current = esc_status_msg.current[idx];
+	}
+
+	_esc_status_pub.publish(esc_status);
 }
 
 void
