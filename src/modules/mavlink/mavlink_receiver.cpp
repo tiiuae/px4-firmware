@@ -312,6 +312,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_gimbal_device_attitude_status(msg);
 		break;
 
+	case MAVLINK_MSG_ID_ACTUATOR_OUTPUT_STATUS:
+		handle_message_actuator_output_status(msg);
+		break;
+
 	default:
 		break;
 	}
@@ -3076,6 +3080,29 @@ MavlinkReceiver::handle_message_gimbal_device_attitude_status(mavlink_message_t 
 	gimbal_attitude_status.received_from_mavlink = true;
 
 	_gimbal_device_attitude_status_pub.publish(gimbal_attitude_status);
+}
+
+void
+MavlinkReceiver::handle_message_actuator_output_status(mavlink_message_t *msg)
+{
+	int fc_idx = msg->compid - MAV_COMP_ID_AUTOPILOT1;
+	mavlink_actuator_output_status_t actuator_output_status_msg;
+	mavlink_msg_actuator_output_status_decode(msg, &actuator_output_status_msg);
+	actuator_outputs_s actuator_outputs{};
+
+	if (fc_idx < vehicle_status_s::MAX_REDUNDANT_CONTROLLERS) {
+		actuator_outputs.timestamp = hrt_absolute_time();
+		actuator_outputs.noutputs = actuator_output_status_msg.active;
+		static constexpr size_t mavlink_actuator_output_status_size = sizeof(actuator_output_status_msg.actuator) / sizeof(
+					actuator_output_status_msg.actuator[0]);
+		static constexpr size_t actuator_outputs_size = sizeof(actuator_outputs.output) / sizeof(actuator_outputs.output[0]);
+
+		for (size_t i = 0; i < math::min(mavlink_actuator_output_status_size, actuator_outputs_size); i++) {
+			actuator_outputs.output[i] = actuator_output_status_msg.actuator[i];
+		}
+
+		_redundant_actuator_outputs_pub[fc_idx].publish(actuator_outputs);
+	}
 }
 
 void
