@@ -145,3 +145,6 @@
 [submodule "src/modules/moi_agent"]
 	path = src/modules/moi_agent
 	url = git@github.com:tiiuae/px4_moi_agent.git
+[submodule "src/modules/redundancy"]
+	path = src/modules/redundancy
+	url = git@github.com:tiiuae/px4_redundancy.git
