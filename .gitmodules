@@ -94,3 +94,6 @@
 [submodule "Tools/simulation/gz/plugins/px4-gzsim-plugins"]
 	path = Tools/simulation/gz/plugins/px4-gzsim-plugins
 	url = https://github.com/tiiuae/px4-gzsim-plugins.git
+[submodule "src/modules/redundancy"]
+	path = src/modules/redundancy
+	url = git@github.com:tiiuae/px4_redundancy.git
