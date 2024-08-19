@@ -112,3 +112,6 @@
 [submodule "src/drivers/imx9_keystore"]
 	path = src/drivers/imx9_keystore
 	url = git@github.com:tiiuae/imx9_keystore.git
+[submodule "src/modules/redundancy"]
+	path = src/modules/redundancy
+	url = git@github.com:tiiuae/px4_redundancy.git
