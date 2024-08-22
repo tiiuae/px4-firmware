@@ -70,6 +70,7 @@
 #include <uORB/topics/collision_report.h>
 #include <uORB/topics/differential_pressure.h>
 #include <uORB/topics/distance_sensor.h>
+#include <uORB/topics/esc_status.h>
 #include <uORB/topics/follow_target.h>
 #include <uORB/topics/generator_status.h>
 #include <uORB/topics/gimbal_manager_set_attitude.h>
@@ -111,6 +112,7 @@
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/vehicle_trajectory_bezier.h>
 #include <uORB/topics/vehicle_trajectory_waypoint.h>
+#include <uORB/topics/vehicle_status.h>
 
 #if !defined(CONSTRAINED_FLASH)
 # include <uORB/topics/debug_array.h>
@@ -202,6 +204,8 @@ private:
 	void handle_message_gimbal_manager_set_manual_control(mavlink_message_t *msg);
 	void handle_message_gimbal_device_information(mavlink_message_t *msg);
 	void handle_message_gimbal_device_attitude_status(mavlink_message_t *msg);
+	void handle_message_actuator_output_status(mavlink_message_t *msg);
+	void handle_message_esc_status(mavlink_message_t *msg);
 
 #if !defined(CONSTRAINED_FLASH)
 	void handle_message_debug(mavlink_message_t *msg);
@@ -322,6 +326,10 @@ private:
 	uORB::Publication<vehicle_rates_setpoint_s>		_rates_sp_pub{ORB_ID(vehicle_rates_setpoint)};
 	uORB::Publication<vehicle_trajectory_bezier_s>		_trajectory_bezier_pub{ORB_ID(vehicle_trajectory_bezier)};
 	uORB::Publication<vehicle_trajectory_waypoint_s>	_trajectory_waypoint_pub{ORB_ID(vehicle_trajectory_waypoint)};
+	uORB::Publication<vehicle_status_s>			_redundant_status_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_status0), ORB_ID(redundant_status1)};
+	vehicle_status_s					_redundant_status[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {};
+	uORB::Publication<actuator_outputs_s>			_redundant_actuator_outputs_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs1)};
+	uORB::Publication<esc_status_s>				_esc_status_pub{ORB_ID(esc_status)};
 
 #if !defined(CONSTRAINED_FLASH)
 	uORB::Publication<debug_array_s>			_debug_array_pub {ORB_ID(debug_array)};
