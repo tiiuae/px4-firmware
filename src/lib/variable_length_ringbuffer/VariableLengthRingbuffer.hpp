@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2023 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,43 +31,81 @@
  *
  ****************************************************************************/
 
-/**
- * @file FlightManualAltitudeSmoothVel.hpp
- *
- * Flight task for manual controlled altitude using the velocity smoothing library
- */
+
 
 #pragma once
 
-#include "FlightTaskManualAltitude.hpp"
-#include <motion_planning/ManualVelocitySmoothingZ.hpp>
+#include <stdint.h>
+#include <lib/ringbuffer/Ringbuffer.hpp>
 
-class FlightTaskManualAltitudeSmoothVel : public FlightTaskManualAltitude
+
+// FIFO ringbuffer implementation for packets of variable length.
+//
+// The variable length is implemented using a 4 byte header
+// containing a the length.
+//
+// The buffer is not thread-safe.
+
+class VariableLengthRingbuffer
 {
 public:
-	FlightTaskManualAltitudeSmoothVel() = default;
-	virtual ~FlightTaskManualAltitudeSmoothVel() = default;
+	/* @brief Constructor
+	 *
+	 * @note Does not allocate automatically.
+	 */
+	VariableLengthRingbuffer() = default;
 
-	bool activate(const trajectory_setpoint_s &last_setpoint) override;
+	/*
+	 * @brief Destructor
+	 *
+	 * Automatically calls deallocate.
+	 */
+	~VariableLengthRingbuffer();
 
-protected:
-	virtual void _updateSetpoints() override;
+	/* @brief Allocate ringbuffer
+	 *
+	 * @note The variable length requires 4 bytes
+	 * of overhead per packet.
+	 *
+	 * @param buffer_size Number of bytes to allocate on heap.
+	 *
+	 * @returns false if allocation fails.
+	 */
+	bool allocate(size_t buffer_size);
 
-	/** Reset position or velocity setpoints in case of EKF reset event */
-	void _ekfResetHandlerPositionZ(float delta_z) override;
-	void _ekfResetHandlerVelocityZ(float delta_vz) override;
+	/*
+	 * @brief Deallocate ringbuffer
+	 *
+	 * @note only required to deallocate and reallocate again.
+	 */
+	void deallocate();
 
-	void _updateTrajConstraints();
-	void _setOutputState();
+	/*
+	 * @brief Copy packet into ringbuffer
+	 *
+	 * @param packet Pointer to packet to copy from.
+	 * @param packet_len Length of packet.
+	 *
+	 * @returns true if packet could be copied into buffer.
+	 */
+	bool push_back(const uint8_t *packet, size_t packet_len);
 
-	ManualVelocitySmoothingZ _smoothing; ///< Smoothing in z direction
-
-	DEFINE_PARAMETERS_CUSTOM_PARENT(FlightTaskManualAltitude,
-					(ParamFloat<px4::params::MPC_JERK_MAX>) _param_mpc_jerk_max,
-					(ParamFloat<px4::params::MPC_ACC_UP_MAX>) _param_mpc_acc_up_max,
-					(ParamFloat<px4::params::MPC_ACC_DOWN_MAX>) _param_mpc_acc_down_max
-				       )
+	/*
+	 * @brief Get packet from ringbuffer
+	 *
+	 * @note max_buf_len needs to be bigger equal to any pushed packet.
+	 *
+	 * @param buf Pointer to where next packet can be copied into.
+	 * @param max_buf_len Max size of buf
+	 *
+	 * @returns 0 if packet is bigger than max_len or buffer is empty.
+	 */
+	size_t pop_front(uint8_t *buf, size_t max_buf_len);
 
 private:
-	bool _terrain_hold_previous{false}; /**< true when vehicle was controlling height above a static ground position in the previous iteration */
+	struct Header {
+		uint32_t len;
+	};
+
+	Ringbuffer _ringbuffer {};
 };
