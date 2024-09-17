@@ -63,7 +63,7 @@ int netconfig_main(int argc, char *argv[])
 
 	addr.s_addr = CONFIG_NETCONFIG_IPSUBNET;
 
-	mav_id += 100;
+	mav_id += 0;
 
 	if (mav_id > 253) {
 		return PX4_ERROR;
