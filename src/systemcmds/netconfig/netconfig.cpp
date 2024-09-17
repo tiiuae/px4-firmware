@@ -51,6 +51,7 @@ int netconfig_main(int argc, char *argv[])
 {
 	struct in_addr addr;
 	int32_t mav_id;
+	int32_t last_digit;
 	const char ifname[] = CONFIG_NETCONFIG_IFNAME;
 
 	param_get(param_find("MAV_SYS_ID"), &mav_id);
@@ -62,14 +63,16 @@ int netconfig_main(int argc, char *argv[])
 	/* IP: CONFIG_NETCONFIG_IPSUBNET + mav_id */
 
 	addr.s_addr = CONFIG_NETCONFIG_IPSUBNET;
+	last_digit = (addr.s_addr >> 24) & 0xff;
+	addr.s_addr &= 0x00ffffff;
 
-	mav_id += 100;
+	last_digit += mav_id;
 
-	if (mav_id > 253) {
+	if (last_digit > 253) {
 		return PX4_ERROR;
 	}
 
-	addr.s_addr |= ((uint32_t)mav_id << 24);
+	addr.s_addr |= ((uint32_t)last_digit << 24);
 	netlib_set_ipv4addr(ifname, &addr);
 
 	/* GW */
