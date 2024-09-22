@@ -50,7 +50,6 @@
 #include <errno.h>
 
 #include <nuttx/can.h>
-#include <netpacket/can.h>
 
 #define MODULE_NAME "UAVCAN_SOCKETCAN"
 
