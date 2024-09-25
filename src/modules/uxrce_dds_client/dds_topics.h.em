@@ -199,15 +199,18 @@ static void on_topic_update(uxrSession *session, uxrObjectId object_id, uint16_t
 
 bool RcvTopicsPubs::init(uxrSession *session, uxrStreamId reliable_out_stream_id, uxrStreamId reliable_in_stream_id, uxrStreamId best_effort_in_stream_id, uxrObjectId participant_id, const char *client_namespace)
 {
+	bool ret = true;
 @[    for idx, sub in enumerate(subscriptions + subscriptions_multi)]@
 	{
 			uint16_t queue_depth = orb_get_queue_size(ORB_ID(@(sub['simple_base_type']))) * 2; // use a bit larger queue size than internal
 			uint32_t message_version = get_message_version<@(sub['simple_base_type'])_s>();
-			create_data_reader(session, reliable_out_stream_id, best_effort_in_stream_id, participant_id, @(idx), client_namespace, "@(sub['topic'])", message_version, "@(sub['dds_type'])", queue_depth);
+			if (!create_data_reader(session, reliable_out_stream_id, best_effort_in_stream_id, participant_id, @(idx), client_namespace, "@(sub['topic'])", message_version, "@(sub['dds_type'])", queue_depth)) {
+				ret = false;
+			}
 	}
 @[    end for]@
 
 	uxr_set_topic_callback(session, on_topic_update, this);
 
-	return true;
+	return ret;
 }
