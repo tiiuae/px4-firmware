@@ -33,10 +33,30 @@ param set EKF2_MULTI_IMU 1
 ####################################
 
 # HITL PWM functions
-param set-default HIL_ACT_FUNC1 101
-param set-default HIL_ACT_FUNC2 102
-param set-default HIL_ACT_FUNC3 103
-param set-default HIL_ACT_FUNC4 104
+param set HIL_ACT_FUNC1 101
+param set HIL_ACT_FUNC2 102
+param set HIL_ACT_FUNC3 103
+param set HIL_ACT_FUNC4 104
+
+param set HIL_ACT_MIN1 1000
+param set HIL_ACT_MIN2 1000
+param set HIL_ACT_MIN3 1000
+param set HIL_ACT_MIN4 1000
+
+param set HIL_ACT_MAX1 2000
+param set HIL_ACT_MAX2 2000
+param set HIL_ACT_MAX3 2000
+param set HIL_ACT_MAX4 2000
+
+param set HIL_ACT_DIS1 900
+param set HIL_ACT_DIS2 900
+param set HIL_ACT_DIS3 900
+param set HIL_ACT_DIS4 900
+
+param set HIL_ACT_FAIL1 600
+param set HIL_ACT_FAIL2 600
+param set HIL_ACT_FAIL3 600
+param set HIL_ACT_FAIL4 600
 
 param set-default CA_ROTOR0_PX 0.175
 param set-default CA_ROTOR0_PY 0.175
