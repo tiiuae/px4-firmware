@@ -64,6 +64,7 @@ int netconfig_main(int argc, char *argv[])
 
 	addr.s_addr = CONFIG_NETCONFIG_IPSUBNET;
 	last_digit = (addr.s_addr >> 24) & 0xff;
+	addr.s_addr &= 0x00ffffff;
 
 	last_digit += mav_id;
 
