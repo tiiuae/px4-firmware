@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2023 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2023 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,62 +31,76 @@
  *
  ****************************************************************************/
 
-#include "ICM45686.hpp"
 
-#include <px4_platform_common/getopt.h>
-#include <px4_platform_common/module.h>
 
-void ICM45686::print_usage()
+
+#include "VariableLengthRingbuffer.hpp"
+
+#include <assert.h>
+#include <string.h>
+
+
+VariableLengthRingbuffer::~VariableLengthRingbuffer()
 {
-	PRINT_MODULE_USAGE_NAME("icm45686", "driver");
-	PRINT_MODULE_USAGE_SUBCATEGORY("imu");
-	PRINT_MODULE_USAGE_COMMAND("start");
-	PRINT_MODULE_USAGE_PARAMS_I2C_SPI_DRIVER(false, true);
-	PRINT_MODULE_USAGE_PARAM_INT('R', 0, 0, 35, "Rotation", true);
-	PRINT_MODULE_USAGE_PARAM_INT('C', 0, 0, 35000, "Input clock frequency (Hz)", true);
-	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
+	deallocate();
 }
 
-extern "C" int icm45686_main(int argc, char *argv[])
+bool VariableLengthRingbuffer::allocate(size_t buffer_size)
 {
-	int ch;
-	using ThisDriver = ICM45686;
-	BusCLIArguments cli{false, true};
-	cli.default_spi_frequency = SPI_SPEED;
+	return _ringbuffer.allocate(buffer_size);
+}
 
-	while ((ch = cli.getOpt(argc, argv, "C:R:")) != EOF) {
-		switch (ch) {
-		case 'C':
-			cli.custom1 = atoi(cli.optArg());
-			break;
+void VariableLengthRingbuffer::deallocate()
+{
+	_ringbuffer.deallocate();
+}
 
-		case 'R':
-			cli.rotation = (enum Rotation)atoi(cli.optArg());
-			break;
-		}
+bool VariableLengthRingbuffer::push_back(const uint8_t *packet, size_t packet_len)
+{
+	if (packet_len == 0 || packet == nullptr) {
+		// Nothing to add, we better don't try.
+		return false;
 	}
 
-	const char *verb = cli.optArg();
+	size_t space_required = packet_len + sizeof(Header);
 
-	if (!verb) {
-		ThisDriver::print_usage();
-		return -1;
+	if (space_required > _ringbuffer.space_available()) {
+		return false;
 	}
 
-	BusInstanceIterator iterator(MODULE_NAME, cli, DRV_IMU_DEVTYPE_ICM45686);
+	Header header{static_cast<uint32_t>(packet_len)};
+	bool result = _ringbuffer.push_back(reinterpret_cast<const uint8_t * >(&header), sizeof(header));
+	assert(result);
 
-	if (!strcmp(verb, "start")) {
-		return ThisDriver::module_start(cli, iterator);
+	result = _ringbuffer.push_back(packet, packet_len);
+	assert(result);
+
+	// In case asserts are commented out to prevent unused warnings.
+	(void)result;
+
+	return true;
+}
+
+size_t VariableLengthRingbuffer::pop_front(uint8_t *buf, size_t buf_max_len)
+{
+	if (buf == nullptr) {
+		// User needs to supply a valid pointer.
+		return 0;
 	}
 
-	if (!strcmp(verb, "stop")) {
-		return ThisDriver::module_stop(iterator);
+	// Check next header
+	Header header;
+
+	if (_ringbuffer.pop_front(reinterpret_cast<uint8_t *>(&header), sizeof(header)) < sizeof(header)) {
+		return 0;
 	}
 
-	if (!strcmp(verb, "status")) {
-		return ThisDriver::module_status(iterator);
-	}
+	// We can't fit the packet into the user supplied buffer.
+	// This should never happen as the user has to supply a big // enough buffer.
+	assert(static_cast<uint32_t>(header.len) <= buf_max_len);
 
-	ThisDriver::print_usage();
-	return -1;
+	size_t bytes_read = _ringbuffer.pop_front(buf, header.len);
+	assert(bytes_read == header.len);
+
+	return bytes_read;
 }
