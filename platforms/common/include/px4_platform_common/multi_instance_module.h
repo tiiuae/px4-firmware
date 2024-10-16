@@ -434,6 +434,7 @@ public:
 		if (object) {
 			PX4_INFO("");
 			PX4_INFO("instance '%s':", node->_name);
+			PX4_INFO("========");
 			ret = object->print_status();
 			if (ret < 0) {
 				PX4_INFO("    status error");
