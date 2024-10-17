@@ -223,8 +223,8 @@ public:
 				telem_status[i] & TELEM_STATUS_READ_ERR) {
 
 					if (!(old_res & OrbBase::STATUS_TEST_FAIL)) {
-						PX4_ERR("%s: test failure [0x%x, 0x%x, 0x%x, 0x%x]",
-						this->_name, telem_status[0], telem_status[1], telem_status[2], telem_status[3]);
+						PX4_ERR("%s: test failure [0x%x, 0x%x, 0x%x]",
+						this->_name, telem_status[0], telem_status[1], telem_status[2]);
 					}
 
 					this->_result |= OrbBase::STATUS_TEST_FAIL;
@@ -235,7 +235,7 @@ public:
 		return this->_result;
 	}
 
-	static constexpr int TELEM_UART_COUNT = 4;
+	static constexpr int TELEM_UART_COUNT = 3;
 
 	static constexpr int TELEM_STATUS_OK 			= 0x2;
 	static constexpr int TELEM_STATUS_WRITE_ERR 	= 0x4;

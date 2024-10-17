@@ -54,7 +54,7 @@ using namespace time_literals;
 
 #define MIN(a, b)					((a) <= (b) ? (a) : (b))
 
-#define TELEM_UART_COUNT		4
+#define TELEM_UART_COUNT		3
 #define LOOPBACK_TEST_DATA_LEN  50
 
 #define STATUS_UNINITIALIZED		0x0
@@ -156,7 +156,6 @@ static void usage(const char *reason)
 	PRINT_MODULE_USAGE_ARG("<dev1>", "First UART device", false);
 	PRINT_MODULE_USAGE_ARG("<dev2>", "Second UART device", false);
 	PRINT_MODULE_USAGE_ARG("<dev3>", "Third UART device", false);
-	PRINT_MODULE_USAGE_ARG("<dev4>", "Fourth UART device", false);
 	PRINT_MODULE_USAGE_COMMAND_DESCR("send", "Send string to UART");
 	PRINT_MODULE_USAGE_ARG("<dev>", "Uart device", false);
 	PRINT_MODULE_USAGE_COMMAND_DESCR("recv", "Receive string from UART");

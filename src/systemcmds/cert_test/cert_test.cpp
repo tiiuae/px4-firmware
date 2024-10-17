@@ -200,7 +200,7 @@ static void start_actuator_test()
 
 static BgProcExec* start_telem_test()
 {
-	const char *cmd_argv[] = {0, "-t", "uart_chain_loopback", "/dev/ttyS1", "/dev/ttyS3", "/dev/ttyS5", "/dev/ttyS4", nullptr};
+	const char *cmd_argv[] = {0, "-t", "uart_chain_loopback", "/dev/ttyS1", "/dev/ttyS3", "/dev/ttyS4", nullptr};
 
 	BgProcExec *telem_test = new BgProcExec("telem_test", "telem_test", cmd_argv, true);
 	return telem_test;
