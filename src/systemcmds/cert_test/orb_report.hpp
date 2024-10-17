@@ -182,7 +182,7 @@ public:
 
 		OrbDeviceReport<adc_report_s, SIZE>::get_result();
 
-		if (raw_data[0] < 2000 || raw_data[0] > 4000 ||
+		if (raw_data[0] < 500 ||
 			raw_data[1] > 100 ||
 			raw_data[2] < 2000 || raw_data[2] > 4000 ||
 			raw_data[3] < 2000 || raw_data[3] > 4000 ) {
