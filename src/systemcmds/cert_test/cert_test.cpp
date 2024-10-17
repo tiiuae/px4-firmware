@@ -124,7 +124,7 @@ static void* can_test_thread(void *args)
 	BgProcExec *can_test2 = new BgProcExec("cansend", "cansend", cmd_argv2, false);
 
 	while (!stop_test) {
-		if (!can_test1->rerun()) {
+		if (!can_test1->rerun(nullptr)) {
 			if (!(thread_test.cansend_status & OrbBase::STATUS_NOT_RUNNING)) {
 				PX4_ERR("cansend process creation failed");
 			}
@@ -132,7 +132,7 @@ static void* can_test_thread(void *args)
 			continue;
 		}
 
-		if (!can_test2->rerun()) {
+		if (!can_test2->rerun(nullptr)) {
 			if (!(thread_test.cansend_status & OrbBase::STATUS_NOT_RUNNING)) {
 				PX4_ERR("cansend process creation failed");
 			}
@@ -186,7 +186,16 @@ static int start_can_test(pthread_t *can_thread)
 static void start_actuator_test()
 {
 	const char *cmd_argv[] = {0, "set", "-m", "1", "-v", "0.25", nullptr};
-	thread_test.actuator = new BgProcExec("actuator_test", "actuator_test", cmd_argv, true);
+
+	if (thread_test.actuator != nullptr) {
+		if (thread_test.actuator->rerun(cmd_argv)) {
+			PX4_INFO("actuator test re-launched");
+		} else {
+			PX4_ERR("actuator test re-launch failed");
+		}
+	} else {
+		thread_test.actuator = new BgProcExec("actuator_test", "actuator_test", cmd_argv, true);
+	}
 }
 
 static BgProcExec* start_telem_test()
@@ -258,6 +267,12 @@ static int cert_test_task(int argc, char **argv)
 
 	while(!stop_test) {
 		cert_test->update();
+
+		if (thread_test.actuator->get_pid(false) < 0) {
+			PX4_INFO("Try to re-launch actuator test...");
+			start_actuator_test();
+		}
+
 		px4_sleep(1);
 	}
 

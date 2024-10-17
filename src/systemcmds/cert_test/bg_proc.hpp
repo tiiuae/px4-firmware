@@ -62,10 +62,14 @@ public:
 		PX4_INFO("%s (%d) killed", _name, _bg_task);
 	}
 
-	bool rerun()
+	bool rerun(const char **cmd_argv)
 	{
 		while (get_pid(false) != -1) {
 			pthread_yield();
+		}
+
+		if (cmd_argv) {
+			_cmd_argv = cmd_argv;
 		}
 
 		_bg_task = px4_exec(_cmd, (char *const *)_cmd_argv, nullptr, 0);
