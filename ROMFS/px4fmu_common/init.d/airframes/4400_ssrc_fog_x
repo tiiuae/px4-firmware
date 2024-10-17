@@ -74,7 +74,7 @@ param set-default BAT2_V_CHARGED 4.2
 param set-default BAT2_V_DIV 18.1
 param set-default BAT2_R_INTERNAL 0.0011
 param set-default BAT2_V_EMPTY 3.5000
-param set-default BAT2_SOURCE 0
+param set-default BAT2_SOURCE -1
 param set-default BAT2_CAPACITY 6000
 
 # Enable LL40LS in i2c
