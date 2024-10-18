@@ -64,9 +64,11 @@
 [submodule "boards/ssrc/saluki-v2"]
 	path = boards/ssrc/saluki-v2
 	url = ../saluki-v2.git
+	branch = mrs-saluki
 [submodule "boards/ssrc/saluki-pi"]
 	path = boards/ssrc/saluki-pi
 	url = ../saluki-pi.git
+	branch = mrs-saluki
 [submodule "boards/ssrc/saluki-v3"]
 	path = boards/ssrc/saluki-v3
 	url = ../saluki-v3.git
