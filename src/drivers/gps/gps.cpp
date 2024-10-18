@@ -390,6 +390,11 @@ int GPS::callback(GPSCallbackType type, void *data1, int data2, void *user)
 
 	timespec rtc_system_time;
 
+	if (gps->should_exit()) {
+		// exit immediately if requested
+		return -1;
+	}
+
 	switch (type) {
 	case GPSCallbackType::readDeviceData: {
 			int timeout;
