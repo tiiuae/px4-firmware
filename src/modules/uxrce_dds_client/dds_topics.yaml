@@ -24,6 +24,9 @@ publications:
   - topic: /fmu/out/timesync_status
     type: px4_msgs::msg::TimesyncStatus
 
+  - topic: /fmu/out/hover_thrust_estiamate
+    type: px4_msgs::msg::HoverThrustEstimate
+
   # - topic: /fmu/out/vehicle_angular_velocity
   #   type: px4_msgs::msg::VehicleAngularVelocity
 
