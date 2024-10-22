@@ -74,6 +74,9 @@ publications:
   - topic: /fmu/out/estimator_gps_status
     type: px4_msgs::msg::EstimatorGpsStatus
 
+  - topic: /fmu/out/actuator_outputs
+    type: px4_msgs::msg::ActuatorOutputs
+
 subscriptions:
 
   - topic: /fmu/in/offboard_control_mode
