@@ -18,9 +18,6 @@ publications:
   - topic: /fmu/out/vehicle_air_data
     type: px4_msgs::msg::VehicleAirData
 
-  - topic: /fmu/out/sensor_mag
-    type: px4_msgs::msg::SensorMag
-
   - topic: /fmu/out/timesync_status
     type: px4_msgs::msg::TimesyncStatus
 
