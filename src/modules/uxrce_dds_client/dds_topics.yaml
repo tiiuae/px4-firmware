@@ -13,9 +13,16 @@ publications:
 
   - topic: /fmu/out/sensor_combined
     type: px4_msgs::msg::SensorCombined
+    rate: 200
+
+  - topic: /fmu/out/vehicle_air_data
+    type: px4_msgs::msg::VehicleAirData
 
   - topic: /fmu/out/timesync_status
     type: px4_msgs::msg::TimesyncStatus
+
+  - topic: /fmu/out/hover_thrust_estiamate
+    type: px4_msgs::msg::HoverThrustEstimate
 
   # - topic: /fmu/out/vehicle_angular_velocity
   #   type: px4_msgs::msg::VehicleAngularVelocity
@@ -72,6 +79,9 @@ publications:
 
   - topic: /fmu/out/estimator_gps_status
     type: px4_msgs::msg::EstimatorGpsStatus
+
+  - topic: /fmu/out/actuator_outputs
+    type: px4_msgs::msg::ActuatorOutputs
 
 subscriptions:
 
