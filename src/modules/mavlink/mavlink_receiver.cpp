@@ -2401,8 +2401,9 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 
 		gps.satellites_used = hil_gps.satellites_visible;
 
-		gps.heading = NAN;
-		gps.heading_offset = NAN;
+		gps.heading = ((hil_gps.yaw == 0) ? (float)NAN : matrix::wrap_2pi(math::radians(
+					hil_gps.yaw * 1e-2f))); // cdeg -> rad
+		gps.heading_offset = ((hil_gps.yaw == 0) ? (float)NAN : 0.0f);
 
 		gps.timestamp = hrt_absolute_time();
 
