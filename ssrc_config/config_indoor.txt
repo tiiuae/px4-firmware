@@ -64,3 +64,6 @@ param set COM_FLTMODE4 2
 param set COM_FLTMODE6 11
 param set RC_MAP_FLTMODE 5
 param set RC_MAP_KILL_SW 7
+
+# fmo-adapter: get mocap gps data from hilgps messages
+param set MAV_USEHILGPS 1
