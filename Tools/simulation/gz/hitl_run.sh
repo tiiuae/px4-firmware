@@ -20,8 +20,8 @@ fi
 source $(pwd)/build/px4_sitl_default/rootfs/gz_env.sh
 
 if [ ! -f $GZ_SIM_SYSTEM_PLUGIN_PATH/libmavlink_hitl_gazebosim.so ]; then
-    echo "You should build gz-sim"
-    echo "make px4_sitl gz-sim"
+    echo "You should build gzsim-plugins"
+    echo "make px4_sitl gzsim-plugins"
     exit
 fi
 
