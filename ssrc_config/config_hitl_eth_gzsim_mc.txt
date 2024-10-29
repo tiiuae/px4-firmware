@@ -10,10 +10,11 @@ param set SYS_AUTOCONFIG 0
 
 # Set HITL related flag
 param set SYS_HITL 1
-param set MAV_HITL_SHOME 1
 param set SENS_EN_GPSSIM 1
 param set SENS_EN_BAROSIM 1
 param set SENS_EN_MAGSIM 1
+# HOME position taken from px4 default (not from sim world)
+param set MAV_HITL_SHOME 0
 
 # Disable safety switch
 param set COM_PREARM_MODE 0
@@ -33,40 +34,27 @@ param set EKF2_MULTI_IMU 1
 ####################################
 
 # HITL PWM functions
-param set-default HIL_ACT_FUNC1 101
-param set-default HIL_ACT_FUNC2 102
-param set-default HIL_ACT_FUNC3 103
-param set-default HIL_ACT_FUNC4 104
+param set HIL_ACT_FUNC1 101
+param set HIL_ACT_FUNC2 102
+param set HIL_ACT_FUNC3 103
+param set HIL_ACT_FUNC4 104
 
-param set-default CA_ROTOR0_PX 0.175
-param set-default CA_ROTOR0_PY 0.175
-param set-default CA_ROTOR0_KM  0.05
+param set HIL_ACT_MIN1 1000
+param set HIL_ACT_MIN2 1000
+param set HIL_ACT_MIN3 1000
+param set HIL_ACT_MIN4 1000
 
-param set-default CA_ROTOR1_PX -0.175
-param set-default CA_ROTOR1_PY -0.175
-param set-default CA_ROTOR1_KM  0.05
+param set HIL_ACT_MAX1 2000
+param set HIL_ACT_MAX2 2000
+param set HIL_ACT_MAX3 2000
+param set HIL_ACT_MAX4 2000
 
-param set-default CA_ROTOR2_PX 0.175
-param set-default CA_ROTOR2_PY -0.175
-param set-default CA_ROTOR2_KM -0.05
+param set HIL_ACT_DIS1 900
+param set HIL_ACT_DIS2 900
+param set HIL_ACT_DIS3 900
+param set HIL_ACT_DIS4 900
 
-param set-default CA_ROTOR3_PX -0.175
-param set-default CA_ROTOR3_PY 0.175
-param set-default CA_ROTOR3_KM -0.05
-
-# extra
-param set-default MPC_THR_HOVER 0.60
-param set COM_RCL_EXCEPT 4
-param set NAV_DLL_ACT 0
-param set NAV_RCL_ACT 0
-param set MAV_0_BROADCAST 1
-param set IMU_GYRO_CUTOFF 60
-param set IMU_DGYRO_CUTOFF 30
-param set MC_ROLLRATE_P 0.14
-param set MC_PITCHRATE_P 0.14
-param set MC_ROLLRATE_I 0.3
-param set MC_PITCHRATE_I 0.3
-param set MC_ROLLRATE_D 0.004
-param set MC_PITCHRATE_D 0.004
-param set BAT_N_CELLS 4
-param set SDLOG_MODE 0
+param set HIL_ACT_FAIL1 600
+param set HIL_ACT_FAIL2 600
+param set HIL_ACT_FAIL3 600
+param set HIL_ACT_FAIL4 600
