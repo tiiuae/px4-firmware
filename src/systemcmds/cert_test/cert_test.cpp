@@ -75,32 +75,27 @@ static int setup_sigaction(void)
 	return 0;
 }
 
+static const char *PARAM_SET_CFG[] = {
+	"SYS_AUTOSTART", "4400",
+	"SENS_EN_SDP3X", "1",
+	"SDLOG_MODE", "2",
+	"SDLOG_ALGORITHM", "0",
+	nullptr, nullptr,
+};
+
 static int setup_params()
 {
 	PX4_INFO("Setup device params.");
 
-	const char *cmd_argv[] = {0, "set", "SYS_AUTOSTART", "4400", nullptr};
+	const char *cmd_argv[] = {0, "set", "", "", nullptr};
 
-	BgProcExec cmd {"param set", "param", cmd_argv, false};
-	px4_sleep(1);
+	for (int i = 0; PARAM_SET_CFG[i] != nullptr; i += 2) {
+		cmd_argv[2] = PARAM_SET_CFG[i];
+		cmd_argv[3] = PARAM_SET_CFG[i + 1];
 
-	cmd_argv[2] = "SENS_EN_SDP3X";
-	cmd_argv[3] = "1";
-
-	cmd = BgProcExec {"param set", "param", cmd_argv, false};
-	px4_sleep(1);
-
-	cmd_argv[2] = "SDLOG_MODE";
-	cmd_argv[3] = "2";
-
-	cmd = BgProcExec {"param set", "param", cmd_argv, false};
-	px4_sleep(1);
-
-	cmd_argv[2] = "SDLOG_ALGORITHM";
-	cmd_argv[3] = "0";
-
-	cmd = BgProcExec {"param set", "param", cmd_argv, false};
-	px4_sleep(1);
+		BgProcExec cmd {"param set", "param", cmd_argv, false};
+		px4_sleep(1);
+	}
 
 	px4_sleep(2);
 	PX4_INFO("Reboting...");
@@ -108,7 +103,7 @@ static int setup_params()
 	cmd_argv[1] = "-b";
 	cmd_argv[2] = "-c";
 	cmd_argv[3] = nullptr;
-	cmd = BgProcExec {"reboot", "reboot", cmd_argv, false};
+	BgProcExec cmd {"reboot", "reboot", cmd_argv, false};
 
 	return 0;
 }
