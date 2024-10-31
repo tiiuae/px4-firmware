@@ -90,8 +90,10 @@ private:
 	uORB::Subscription _rover_thrust_sub;
 	uORB::Subscription _rover_torque_sub;
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
-	uORB::Publication<esc_status_s> _esc_status_pub{ORB_ID(esc_status)};
-
+	// TODO: find a way to determine if Gazebo provides esc telemetry */
+#if 0
+	uORB::Publication<esc_status_s> _esc_status_pub {ORB_ID(esc_status)};
+#endif
 	int32_t _output_functions[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS] {};
 
 	bool _is_rover{false};
@@ -99,6 +101,8 @@ private:
 	float _rover_thrust_control{0.0f};
 	float _rover_torque_control{0.0f};
 
+	// TODO: find a way to determine if Gazebo provides esc telemetry */
+#if 0
 	void send_esc_telemetry(mavlink_hil_actuator_controls_t &hil_act_control, vehicle_status_s &vehicle_status)
 	{
 		esc_status_s esc_status{};
@@ -129,6 +133,7 @@ private:
 
 		_esc_status_pub.publish(esc_status);
 	}
+#endif
 
 	bool updateRoverCmdVel()
 	{
@@ -242,10 +247,14 @@ private:
 
 			mavlink_msg_hil_actuator_controls_send_struct(_mavlink->get_channel(), &msg);
 
+			// TODO: find a way to determine if gazebo sends esc telemetry
+#if 0
+
 			if (!_is_rover) {
 				send_esc_telemetry(msg, status);
 			}
 
+#endif
 			return true;
 		}
 
