@@ -108,40 +108,48 @@ static int setup_params()
 	return 0;
 }
 
+static const char *CAN_SEQ[] = {
+	"can0", "123#10101010",
+	"can0", "123#5A5A5A5A",
+	"can1", "123#10101010",
+	"can1", "123#5A5A5A5A",
+	nullptr, nullptr,
+	};
+
 static void* can_test_thread(void *args)
 {
 	PX4_INFO("can test thread started");
 
-	const char *cmd_argv1[] = {0, "can0", "123#10101010",  nullptr};
-	BgProcExec *can_test1 = new BgProcExec("cansend", "cansend", cmd_argv1, false);
-
-	const char *cmd_argv2[] = {0, "can0", "123#5A5A5A5A", nullptr};
-	BgProcExec *can_test2 = new BgProcExec("cansend", "cansend", cmd_argv2, false);
+	const char *cmd_argv[] = {0, "can0", "123#10101010",  nullptr};
+	BgProcExec *can_test = new BgProcExec("cansend", "cansend", cmd_argv, false);
 
 	while (!stop_test) {
-		if (!can_test1->rerun(nullptr)) {
+		bool failure = false;
+
+		for (int i = 0; CAN_SEQ[i] != nullptr; i += 2) {
+			cmd_argv[1] = CAN_SEQ[i];
+			cmd_argv[2] = CAN_SEQ[i + 1];
+
+			if (can_test->rerun(cmd_argv)) {
+				continue;
+			}
+
 			if (!(thread_test.cansend_status & OrbBase::STATUS_NOT_RUNNING)) {
 				PX4_ERR("cansend process creation failed");
 			}
+
 			thread_test.cansend_status = OrbBase::STATUS_NOT_RUNNING;
-			continue;
+			failure = true;
 		}
 
-		if (!can_test2->rerun(nullptr)) {
-			if (!(thread_test.cansend_status & OrbBase::STATUS_NOT_RUNNING)) {
-				PX4_ERR("cansend process creation failed");
-			}
-			thread_test.cansend_status = OrbBase::STATUS_NOT_RUNNING;
-			continue;
+		if (!failure) {
+			thread_test.cansend_status = OrbBase::STATUS_OK;
 		}
-
-		thread_test.cansend_status = OrbBase::STATUS_OK;
 	}
 
 	thread_test.cansend_status = OrbBase::STATUS_INIT;
 
-	delete can_test1;
-	delete can_test2;
+	delete can_test;
 
 	return NULL;
 }
@@ -157,6 +165,13 @@ static int start_can_test(pthread_t *can_thread)
 		return 1;
 	} else {
 		PX4_INFO("Enable can0");
+	}
+
+	if (netlib_ifup("can1") == -1) {
+		PX4_ERR("netlib_ifup can1");
+		return 1;
+	} else {
+		PX4_INFO("Enable can1");
 	}
 
 	if (pthread_attr_init(&th_attr)) {
