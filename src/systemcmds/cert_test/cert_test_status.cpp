@@ -33,10 +33,14 @@
 
 #include "cert_test_status.hpp"
 
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "test_logger.hpp"
 
-CertTestStatus::CertTestStatus(BgProcExec *actuator, uint32_t &cansend_status, bool verbose) :
+CertTestStatus::CertTestStatus(BgProcExec *actuator, uint32_t &cansend_status, TestLogger *log, bool verbose) :
 	_actuator(actuator),
 	_cansend_status(cansend_status),
+	_log(log),
 	_verbose(verbose)
 {
 	_status_pub.advertise();
@@ -93,16 +97,16 @@ void CertTestStatus::update()
 		struct timespec ts = {0};
 		abstime_to_ts(&ts, hrt_absolute_time());
 		PX4_INFO("");
-		PX4_INFO("status (uptime %ds)", ts.tv_sec);
-		PX4_INFO("    mag:        0x%x (0x%x)", _report.sensor_mag[0], _report.sensor_mag[1]);
-		PX4_INFO("    baro:       0x%x (0x%x)", _report.sensor_baro[0], _report.sensor_baro[1]);
-		PX4_INFO("    accel:      0x%x (0x%x)", _report.sensor_accel[0], _report.sensor_accel[1]);
-		PX4_INFO("    gyro:       0x%x (0x%x)", _report.sensor_gyro[0], _report.sensor_gyro[1]);
-		PX4_INFO("    airspeed:   0x%x (0x%x)", _report.sensor_airspeed[0], _report.sensor_airspeed[1]);
-		PX4_INFO("    adc:        0x%x (0x%x)", _report.adc_report[0], _report.adc_report[1]);
-		PX4_INFO("    uart:       0x%x (0x%x)", _report.telem_test[0], _report.telem_test[1]);
-		PX4_INFO("    actuator:   0x%x (0x%x)", _report.actuator_test[0], _report.actuator_test[1]);
-		PX4_INFO("    cansend:    0x%x (0x%x)", _report.cansend[0], _report.cansend[1]);
+		_log->log(_log->INFO, "status (uptime %ds)", ts.tv_sec);
+		_log->log(_log->INFO, "    mag:        0x%x (0x%x)", _report.sensor_mag[0], _report.sensor_mag[1]);
+		_log->log(_log->INFO, "    baro:       0x%x (0x%x)", _report.sensor_baro[0], _report.sensor_baro[1]);
+		_log->log(_log->INFO, "    accel:      0x%x (0x%x)", _report.sensor_accel[0], _report.sensor_accel[1]);
+		_log->log(_log->INFO, "    gyro:       0x%x (0x%x)", _report.sensor_gyro[0], _report.sensor_gyro[1]);
+		_log->log(_log->INFO, "    airspeed:   0x%x (0x%x)", _report.sensor_airspeed[0], _report.sensor_airspeed[1]);
+		_log->log(_log->INFO, "    adc:        0x%x (0x%x)", _report.adc_report[0], _report.adc_report[1]);
+		_log->log(_log->INFO, "    uart:       0x%x (0x%x)", _report.telem_test[0], _report.telem_test[1]);
+		_log->log(_log->INFO, "    actuator:   0x%x (0x%x)", _report.actuator_test[0], _report.actuator_test[1]);
+		_log->log(_log->INFO, "    cansend:    0x%x (0x%x)", _report.cansend[0], _report.cansend[1]);
 
 		_sent_time = hrt_absolute_time();
 	}

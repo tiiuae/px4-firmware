@@ -36,6 +36,7 @@
 #include <px4_platform_common/defines.h>
 #include <drivers/drv_hrt.h>
 #include <uORB/SubscriptionMultiArray.hpp>
+#include "test_logger.hpp"
 
 class OrbBase
 {
@@ -53,17 +54,18 @@ template<class T, int SIZE>
 class OrbReport : public OrbBase
 {
 public:
-	OrbReport(const char *name, ORB_ID id, uint64_t timeout, bool verbose) :
+	OrbReport(const char *name, ORB_ID id, uint64_t timeout, TestLogger *log, bool verbose) :
 		_name(name),
 		_sub(id),
 		_timeout(timeout),
+		_logger(log),
 		_verbose(verbose)
 	{
 		_report = new T[SIZE];
 		memset(_report, 0, sizeof(T) * SIZE);
 
 		if (_report == nullptr) {
-			PX4_ERR("%s: failed to allocate memory for report", _name);
+			_logger->log(TestLogger::ERR, "%s: failed to allocate memory for report", _name);
 		}
 	}
 
@@ -75,7 +77,7 @@ public:
 	void get_latest()
 	{
 		if (_report == nullptr) {
-			PX4_ERR("%s: report not allocated", _name);
+			_logger->log(TestLogger::ERR, "%s: report not allocated", _name);
 			return;
 		}
 
@@ -95,13 +97,13 @@ public:
 		_result = STATUS_INIT;
 
 		if (_report == nullptr) {
-			PX4_ERR("%s: report not allocated", _name);
+			_logger->log(TestLogger::ERR, "%s: report not allocated", _name);
 			return _result;
 		}
 
 		if (_sub.advertised_count() != _sub.size()) {
 			if (!(old_res & STATUS_INV_INSTANCE)) {
-				PX4_ERR("%s: invalid instance count %d",_name, _sub.advertised_count());
+				_logger->log(TestLogger::ERR, "%s: invalid instance count %d",_name, _sub.advertised_count());
 			}
 			_result |= STATUS_INV_INSTANCE;
 			return _result;
@@ -110,7 +112,7 @@ public:
 		for (int i = 0; i < _sub.size(); i++) {
 			if (hrt_absolute_time() - _report[i].timestamp > _timeout) {
 				if (!(old_res & STATUS_NOT_UPDATED)) {
-					PX4_ERR("%s: timeout ts %ld", _name, _report[i].timestamp);
+					_logger->log(TestLogger::ERR, "%s: timeout ts %ld", _name, _report[i].timestamp);
 				}
 				_result |= STATUS_NOT_UPDATED;
 				return _result;
@@ -133,6 +135,8 @@ protected:
 
 	uint64_t _timeout;
 
+	TestLogger *_logger;
+
 	bool _verbose = false;
 
 	uint32_t _result = 0;
@@ -142,8 +146,8 @@ template<class T, int SIZE>
 class OrbDeviceReport : public OrbReport<T, SIZE>
 {
 public:
-	OrbDeviceReport(const char *name, ORB_ID id, uint64_t timeout, bool verbose) :
-		OrbReport<T, SIZE>(name, id, timeout, verbose)
+	OrbDeviceReport(const char *name, ORB_ID id, uint64_t timeout, TestLogger *log, bool verbose) :
+		OrbReport<T, SIZE>(name, id, timeout, log, verbose)
 	{}
 
 	~OrbDeviceReport() = default;
@@ -157,7 +161,7 @@ public:
 		if(this->_result & OrbBase::STATUS_NOT_UPDATED && !(old_res & OrbBase::STATUS_NOT_UPDATED)) {
 			for (int i = 0; i < this->_sub.size(); i++) {
 				if (hrt_absolute_time() - this->_report[i].timestamp > this->_timeout) {
-					PX4_ERR("timeout dev 0x%x", this->_report[i].device_id);
+					this->_logger->log(TestLogger::ERR, "timeout dev 0x%x", this->_report[i].device_id);
 				}
 			}
 		}
@@ -169,8 +173,8 @@ template<int SIZE>
 class OrbAdcReport : public OrbDeviceReport<adc_report_s, SIZE>
 {
 public:
-	OrbAdcReport(const char *name, ORB_ID id, uint64_t timeout, bool verbose) :
-		OrbDeviceReport<adc_report_s, SIZE>(name, id, timeout, verbose)
+	OrbAdcReport(const char *name, ORB_ID id, uint64_t timeout, TestLogger *log, bool verbose) :
+		OrbDeviceReport<adc_report_s, SIZE>(name, id, timeout, log, verbose)
 	{}
 
 	~OrbAdcReport() = default;
@@ -188,7 +192,7 @@ public:
 			raw_data[3] < 2000 || raw_data[3] > 4000 ) {
 
 			if (!(old_res & OrbBase::STATUS_INV_VALUE)) {
-				PX4_ERR("%s: invalid value [%d, %d, %d, %d]",
+				this->_logger->log(TestLogger::ERR, "%s: invalid value [%d, %d, %d, %d]",
 					this->_name, raw_data[0], raw_data[1], raw_data[2], raw_data[3]);
 			}
 
@@ -204,8 +208,8 @@ template<int SIZE>
 class OrbTelemReport : public OrbReport<telem_test_status_s, SIZE>
 {
 public:
-	OrbTelemReport(const char *name, ORB_ID id, uint64_t timeout, bool verbose) :
-		OrbReport<telem_test_status_s, SIZE>(name, id, timeout, verbose)
+	OrbTelemReport(const char *name, ORB_ID id, uint64_t timeout, TestLogger *log, bool verbose) :
+		OrbReport<telem_test_status_s, SIZE>(name, id, timeout, log, verbose)
 	{}
 
 	~OrbTelemReport() = default;
@@ -223,8 +227,8 @@ public:
 				telem_status[i] & TELEM_STATUS_READ_ERR) {
 
 					if (!(old_res & OrbBase::STATUS_TEST_FAIL)) {
-						PX4_ERR("%s: test failure [0x%x, 0x%x, 0x%x]",
-						this->_name, telem_status[0], telem_status[1], telem_status[2]);
+						this->_logger->log(TestLogger::ERR, "%s: test failure [0x%x, 0x%x, 0x%x]",
+							this->_name, telem_status[0], telem_status[1], telem_status[2]);
 					}
 
 					this->_result |= OrbBase::STATUS_TEST_FAIL;

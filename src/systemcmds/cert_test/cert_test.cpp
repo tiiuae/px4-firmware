@@ -46,6 +46,7 @@
 
 #include "orb_report.hpp"
 #include "bg_proc.hpp"
+#include "test_logger.hpp"
 
 struct thread_test_info {
 	BgProcExec *actuator;
@@ -53,6 +54,8 @@ struct thread_test_info {
 };
 
 static struct thread_test_info thread_test;
+
+static TestLogger *logger;
 
 static int stop_test = 0;
 
@@ -87,13 +90,22 @@ static int setup_params()
 {
 	PX4_INFO("Setup device params.");
 
+	TestLogger *px4log = new TestLogger();
+	if (!px4log) {
+		PX4_ERR("log creation failed");
+		return 1;
+	}
+	px4log->init();
+
 	const char *cmd_argv[] = {0, "set", "", "", nullptr};
 
 	for (int i = 0; PARAM_SET_CFG[i] != nullptr; i += 2) {
 		cmd_argv[2] = PARAM_SET_CFG[i];
 		cmd_argv[3] = PARAM_SET_CFG[i + 1];
 
-		BgProcExec cmd {"param set", "param", cmd_argv, false};
+		PX4_INFO("Setting param %s to %s", cmd_argv[2], cmd_argv[3]);
+
+		BgProcExec cmd {"param set", "param", cmd_argv, BgProcExec::NO_KILL, px4log};
 		px4_sleep(1);
 	}
 
@@ -103,7 +115,9 @@ static int setup_params()
 	cmd_argv[1] = "-b";
 	cmd_argv[2] = "-c";
 	cmd_argv[3] = nullptr;
-	BgProcExec cmd {"reboot", "reboot", cmd_argv, false};
+	BgProcExec cmd {"reboot", "reboot", cmd_argv, BgProcExec::NO_KILL, px4log};
+
+	delete px4log;
 
 	return 0;
 }
@@ -118,10 +132,10 @@ static const char *CAN_SEQ[] = {
 
 static void* can_test_thread(void *args)
 {
-	PX4_INFO("can test thread started");
+	logger->log(TestLogger::INFO, "can test thread started");
 
 	const char *cmd_argv[] = {0, "can0", "123#10101010",  nullptr};
-	BgProcExec *can_test = new BgProcExec("cansend", "cansend", cmd_argv, false);
+	BgProcExec *can_test = new BgProcExec("cansend", "cansend", cmd_argv, BgProcExec::NO_KILL, logger);
 
 	while (!stop_test) {
 		bool failure = false;
@@ -135,7 +149,7 @@ static void* can_test_thread(void *args)
 			}
 
 			if (!(thread_test.cansend_status & OrbBase::STATUS_NOT_RUNNING)) {
-				PX4_ERR("cansend process creation failed");
+				logger->log(TestLogger::ERR, "cansend process creation failed");
 			}
 
 			thread_test.cansend_status = OrbBase::STATUS_NOT_RUNNING;
@@ -161,32 +175,32 @@ static int start_can_test(pthread_t *can_thread)
 	thread_test.cansend_status = OrbBase::STATUS_INIT;
 
 	if (netlib_ifup("can0") == -1) {
-		PX4_ERR("netlib_ifup can0");
+		logger->log(TestLogger::ERR, "netlib_ifup can0");
 		return 1;
 	} else {
-		PX4_INFO("Enable can0");
+		logger->log(TestLogger::INFO, "Enable can0");
 	}
 
 	if (netlib_ifup("can1") == -1) {
-		PX4_ERR("netlib_ifup can1");
+		logger->log(TestLogger::ERR, "netlib_ifup can1");
 		return 1;
 	} else {
-		PX4_INFO("Enable can1");
+		logger->log(TestLogger::INFO, "Enable can1");
 	}
 
 	if (pthread_attr_init(&th_attr)) {
-		PX4_ERR("pthread_attr_init");
+		logger->log(TestLogger::ERR, "pthread_attr_init");
 		return 1;
 	}
 
 	if (pthread_attr_setstacksize(&th_attr, 4096)) {
-		PX4_ERR("pthread_attr_setstacksize");
+		logger->log(TestLogger::ERR, "pthread_attr_setstacksize");
 		return 1;
 	}
 
 	if (pthread_create(can_thread, &th_attr, can_test_thread, nullptr))
 	{
-		PX4_ERR("pthread_create: %d", errno);
+		logger->log(TestLogger::ERR, "pthread_create: %d", errno);
 		return 1;
 	}
 
@@ -199,12 +213,12 @@ static void start_actuator_test()
 
 	if (thread_test.actuator != nullptr) {
 		if (thread_test.actuator->rerun(cmd_argv)) {
-			PX4_INFO("actuator test re-launched");
+			logger->log(TestLogger::INFO, "actuator test re-launched");
 		} else {
-			PX4_ERR("actuator test re-launch failed");
+			logger->log(TestLogger::ERR, "actuator test re-launch failed");
 		}
 	} else {
-		thread_test.actuator = new BgProcExec("actuator_test", "actuator_test", cmd_argv, true);
+		thread_test.actuator = new BgProcExec("actuator_test", "actuator_test", cmd_argv, BgProcExec::KILL, logger);
 	}
 }
 
@@ -212,7 +226,7 @@ static BgProcExec* start_telem_test()
 {
 	const char *cmd_argv[] = {0, "-t", "uart_chain_loopback", "/dev/ttyS1", "/dev/ttyS3", "/dev/ttyS4", nullptr};
 
-	BgProcExec *telem_test = new BgProcExec("telem_test", "telem_test", cmd_argv, true);
+	BgProcExec *telem_test = new BgProcExec("telem_test", "telem_test", cmd_argv, BgProcExec::KILL, logger);
 	return telem_test;
 }
 
@@ -220,7 +234,7 @@ static void stop_mavlink_uart()
 {
 	const char *cmd_argv[] = {0, "stop", "-d", "/dev/ttyS1", nullptr};
 
-	BgProcExec *mavlink_uart = new BgProcExec("stop mavlink uart", "mavlink", cmd_argv, false);
+	BgProcExec *mavlink_uart = new BgProcExec("stop mavlink uart", "mavlink", cmd_argv, BgProcExec::NO_KILL, logger);
 	px4_sleep(3);
 	delete mavlink_uart;
 }
@@ -253,6 +267,17 @@ static int cert_test_task(int argc, char **argv)
 		}
 	}
 
+	logger = new TestLogger("[cert_test]", "cert");
+	if (!logger) {
+		PX4_ERR("log creation failed");
+		return 1;
+	}
+
+	if (logger->init()) {
+		PX4_ERR("log init failed");
+		return 1;
+	}
+
 	start_actuator_test();
 
 	stop_mavlink_uart();
@@ -265,9 +290,9 @@ static int cert_test_task(int argc, char **argv)
 
 	px4_sleep(10);
 
-	PX4_INFO("start status reporting");
+	logger->log(TestLogger::INFO, "start status reporting");
 
-	CertTestStatus *cert_test = new CertTestStatus(thread_test.actuator, thread_test.cansend_status, verbose);
+	CertTestStatus *cert_test = new CertTestStatus(thread_test.actuator, thread_test.cansend_status, logger, verbose);
 
 	if (!thread_test.actuator ||
 		!telem_test ||
@@ -279,7 +304,7 @@ static int cert_test_task(int argc, char **argv)
 		cert_test->update();
 
 		if (thread_test.actuator->get_pid(false) < 0) {
-			PX4_INFO("Try to re-launch actuator test...");
+			logger->log(TestLogger::INFO, "Try to re-launch actuator test...");
 			start_actuator_test();
 		}
 
@@ -294,6 +319,7 @@ static int cert_test_task(int argc, char **argv)
 	delete thread_test.actuator;
 	delete telem_test;
 	delete cert_test;
+	delete logger;
 
 	PX4_INFO("cert test EXIT");
 

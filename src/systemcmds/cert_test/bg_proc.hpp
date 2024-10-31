@@ -34,19 +34,25 @@
 #pragma once
 
 #include <px4_platform_common/module.h>
+#include "test_logger.hpp"
 
 class BgProcExec
 {
 public:
-	BgProcExec(const char *name, const char *cmd, const char **cmd_argv, bool send_sigterm) :
+	BgProcExec(const char *name,
+				const char *cmd,
+				const char **cmd_argv,
+				bool send_sigterm,
+				TestLogger *log) :
 		_name(name),
 		_cmd(cmd),
 		_cmd_argv(cmd_argv),
-		_send_sigterm(send_sigterm)
+		_send_sigterm(send_sigterm),
+		_log(log)
 	{
 		_bg_task = px4_exec(_cmd, (char *const *)_cmd_argv, nullptr, 0);
 
-		PX4_INFO("%s started (%d)", _name, _bg_task);
+		_log->log(_log->INFO, "%s started (%d)", _name, _bg_task);
 	}
 
 	~BgProcExec()
@@ -56,10 +62,10 @@ public:
 		}
 
 		if (kill(_bg_task, SIGTERM)) {
-			PX4_ERR("sending SIGTERM to %s failed: %d", _name, errno);
+			_log->log(_log->ERR, "sending SIGTERM to %s failed: %d", _name, errno);
 			return;
 		}
-		PX4_INFO("%s (%d) killed", _name, _bg_task);
+		_log->log(_log->INFO, "%s (%d) killed", _name, _bg_task);
 	}
 
 	bool rerun(const char **cmd_argv)
@@ -89,12 +95,15 @@ public:
 
 		if (!dtcb)
 		{
-			if (verbose) PX4_ERR("%s process not found", _name);
+			if (verbose) _log->log(_log->ERR, "%s process not found", _name);
 			return -1;
 		}
 
 		return _bg_task;
 	}
+
+	static constexpr bool KILL = true;
+	static constexpr bool NO_KILL = false;
 
 private:
 	px4_task_t _bg_task = -1;
@@ -103,4 +112,5 @@ private:
 	const char *_cmd;
 	const char **_cmd_argv;
 	bool _send_sigterm;
+	TestLogger *_log;
 };
