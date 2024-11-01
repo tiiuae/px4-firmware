@@ -166,6 +166,8 @@ public:
 			return;
 		}
 
+		fsync(_fd);
+
 		pthread_mutex_unlock(_mutex);
 	}
 
