@@ -159,6 +159,8 @@ static void* can_test_thread(void *args)
 		if (!failure) {
 			thread_test.cansend_status = OrbBase::STATUS_OK;
 		}
+
+		px4_usleep(1000);
 	}
 
 	thread_test.cansend_status = OrbBase::STATUS_INIT;
