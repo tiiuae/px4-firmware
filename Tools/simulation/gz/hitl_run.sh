@@ -45,5 +45,5 @@ spawn_model() {
 
 spawn_model &
 
-WORD_PATH="${PX4_GZ_WORLDS}/default.sdf"
+WORD_PATH="${PX4_GZ_WORLDS}/abu_dhabi_world.sdf"
 gz sim ${WORD_PATH} -r
