@@ -36,6 +36,8 @@
 #include <px4_platform_common/defines.h>
 #include <drivers/drv_hrt.h>
 #include <uORB/SubscriptionMultiArray.hpp>
+#include <uORB/topics/adc_report.h>
+#include <uORB/topics/telem_test_status.h>
 #include "test_logger.hpp"
 
 class OrbBase

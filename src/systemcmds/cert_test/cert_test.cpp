@@ -47,13 +47,7 @@
 #include "orb_report.hpp"
 #include "bg_proc.hpp"
 #include "test_logger.hpp"
-
-struct thread_test_info {
-	BgProcExec *actuator;
-	uint32_t cansend_status;
-};
-
-static struct thread_test_info thread_test;
+#include "can_test.hpp"
 
 static TestLogger *logger;
 
@@ -122,106 +116,21 @@ static int setup_params()
 	return 0;
 }
 
-static const char *CAN_SEQ[] = {
-	"can0", "123#10101010",
-	"can0", "123#5A5A5A5A",
-	"can1", "123#10101010",
-	"can1", "123#5A5A5A5A",
-	nullptr, nullptr,
-	};
-
-static void* can_test_thread(void *args)
-{
-	logger->log(TestLogger::INFO, "can test thread started");
-
-	const char *cmd_argv[] = {0, "can0", "123#10101010",  nullptr};
-	BgProcExec *can_test = new BgProcExec("cansend", "cansend", cmd_argv, BgProcExec::NO_KILL, logger);
-
-	while (!stop_test) {
-		bool failure = false;
-
-		for (int i = 0; CAN_SEQ[i] != nullptr; i += 2) {
-			cmd_argv[1] = CAN_SEQ[i];
-			cmd_argv[2] = CAN_SEQ[i + 1];
-
-			if (can_test->rerun(cmd_argv)) {
-				continue;
-			}
-
-			if (!(thread_test.cansend_status & OrbBase::STATUS_NOT_RUNNING)) {
-				logger->log(TestLogger::ERR, "cansend process creation failed");
-			}
-
-			thread_test.cansend_status = OrbBase::STATUS_NOT_RUNNING;
-			failure = true;
-		}
-
-		if (!failure) {
-			thread_test.cansend_status = OrbBase::STATUS_OK;
-		}
-
-		px4_usleep(1000);
-	}
-
-	thread_test.cansend_status = OrbBase::STATUS_INIT;
-
-	delete can_test;
-
-	return NULL;
-}
-
-static int start_can_test(pthread_t *can_thread)
-{
-	pthread_attr_t th_attr;
-
-	thread_test.cansend_status = OrbBase::STATUS_INIT;
-
-	if (netlib_ifup("can0") == -1) {
-		logger->log(TestLogger::ERR, "netlib_ifup can0");
-		return 1;
-	} else {
-		logger->log(TestLogger::INFO, "Enable can0");
-	}
-
-	if (netlib_ifup("can1") == -1) {
-		logger->log(TestLogger::ERR, "netlib_ifup can1");
-		return 1;
-	} else {
-		logger->log(TestLogger::INFO, "Enable can1");
-	}
-
-	if (pthread_attr_init(&th_attr)) {
-		logger->log(TestLogger::ERR, "pthread_attr_init");
-		return 1;
-	}
-
-	if (pthread_attr_setstacksize(&th_attr, 4096)) {
-		logger->log(TestLogger::ERR, "pthread_attr_setstacksize");
-		return 1;
-	}
-
-	if (pthread_create(can_thread, &th_attr, can_test_thread, nullptr))
-	{
-		logger->log(TestLogger::ERR, "pthread_create: %d", errno);
-		return 1;
-	}
-
-	return 0;
-}
-
-static void start_actuator_test()
+static BgProcExec* start_actuator_test(BgProcExec *actuator)
 {
 	const char *cmd_argv[] = {0, "set", "-m", "1", "-v", "0.25", nullptr};
 
-	if (thread_test.actuator != nullptr) {
-		if (thread_test.actuator->rerun(cmd_argv)) {
-			logger->log(TestLogger::INFO, "actuator test re-launched");
-		} else {
-			logger->log(TestLogger::ERR, "actuator test re-launch failed");
-		}
-	} else {
-		thread_test.actuator = new BgProcExec("actuator_test", "actuator_test", cmd_argv, BgProcExec::KILL, logger);
+	if (actuator == nullptr) {
+		return new BgProcExec("actuator_test", "actuator_test", cmd_argv, BgProcExec::KILL, logger);
 	}
+
+	if (actuator->rerun(cmd_argv)) {
+		logger->log(TestLogger::INFO, "actuator test re-launched");
+	} else {
+		logger->log(TestLogger::ERR, "actuator test re-launch failed");
+	}
+
+	return actuator;
 }
 
 static BgProcExec* start_telem_test()
@@ -247,7 +156,6 @@ static int cert_test_task(int argc, char **argv)
 	int myoptind = 1;
 	int ch;
 	const char *myoptarg = nullptr;
-	pthread_t can_thread = -1;
 
 	PX4_INFO("cert_test starting");
 
@@ -280,13 +188,14 @@ static int cert_test_task(int argc, char **argv)
 		return 1;
 	}
 
-	start_actuator_test();
+	BgProcExec *actuator = start_actuator_test(nullptr);
 
 	stop_mavlink_uart();
 
 	BgProcExec *telem_test = start_telem_test();
 
-	if (start_can_test(&can_thread)) {
+	CanTest *can_test = new CanTest(logger);
+	if (can_test->start()) {
 		stop_test = 1;
 	}
 
@@ -294,31 +203,30 @@ static int cert_test_task(int argc, char **argv)
 
 	logger->log(TestLogger::INFO, "start status reporting");
 
-	CertTestStatus *cert_test = new CertTestStatus(thread_test.actuator, thread_test.cansend_status, logger, verbose);
+	CertTestStatus *cert_test = new CertTestStatus(actuator, can_test, logger, verbose);
 
-	if (!thread_test.actuator ||
+	if (!actuator ||
 		!telem_test ||
 		!cert_test) {
 		stop_test = 1;
+		logger->log(TestLogger::ERR, "Test init failed [%p, %p, %p]", actuator, telem_test, cert_test);
 	}
 
 	while(!stop_test) {
 		cert_test->update();
 
-		if (thread_test.actuator->get_pid(false) < 0) {
+		if (actuator->get_pid(false) < 0) {
 			logger->log(TestLogger::INFO, "Try to re-launch actuator test...");
-			start_actuator_test();
+			start_actuator_test(actuator);
 		}
 
 		px4_sleep(1);
 	}
 
-	if (pthread_join(can_thread, NULL))
-	{
-		PX4_ERR("can_thread join: %d", errno);
-	}
+	logger->log(TestLogger::INFO, "shutting down");
 
-	delete thread_test.actuator;
+	delete actuator;
+	delete can_test;
 	delete telem_test;
 	delete cert_test;
 	delete logger;

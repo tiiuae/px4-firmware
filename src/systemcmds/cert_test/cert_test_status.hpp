@@ -53,13 +53,14 @@
 #include "orb_report.hpp"
 #include "bg_proc.hpp"
 #include "test_logger.hpp"
+#include "can_test.hpp"
 
 using namespace time_literals;
 
 class CertTestStatus
 {
 public:
-	CertTestStatus(BgProcExec *actuator, uint32_t &cansend_status, TestLogger *log, bool verbose);
+	CertTestStatus(BgProcExec *actuator, CanTest *can_test, TestLogger *log, bool verbose);
 
 	~CertTestStatus() = default;
 
@@ -80,7 +81,7 @@ private:
 	static constexpr int ERR_RECORD 	= 1;
 
 	BgProcExec *_actuator;
-	uint32_t &_cansend_status;
+	CanTest *_can_test;
 	TestLogger *_log;
 
 	bool _verbose = false;

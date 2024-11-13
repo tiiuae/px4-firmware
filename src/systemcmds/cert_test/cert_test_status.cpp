@@ -37,9 +37,9 @@
 #include <fcntl.h>
 #include "test_logger.hpp"
 
-CertTestStatus::CertTestStatus(BgProcExec *actuator, uint32_t &cansend_status, TestLogger *log, bool verbose) :
+CertTestStatus::CertTestStatus(BgProcExec *actuator, CanTest *can_test, TestLogger *log, bool verbose) :
 	_actuator(actuator),
-	_cansend_status(cansend_status),
+	_can_test(can_test),
 	_log(log),
 	_verbose(verbose)
 {
@@ -86,7 +86,7 @@ void CertTestStatus::update()
 		_report.actuator_test[LATEST] = OrbBase::STATUS_OK;
 	}
 
-	_report.cansend[LATEST] = _cansend_status;
+	_report.cansend[LATEST] = _can_test->status;
 	_report.cansend[ERR_RECORD] |= (_report.cansend[LATEST] & ~(OrbBase::STATUS_OK));
 
 	_status_pub.publish(_report);

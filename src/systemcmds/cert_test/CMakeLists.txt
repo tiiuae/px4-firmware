@@ -38,5 +38,6 @@ px4_add_module(
 	SRCS
 		cert_test.cpp
 		cert_test_status.cpp
+		can_test.cpp
 	DEPENDS
 	)
