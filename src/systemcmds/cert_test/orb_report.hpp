@@ -50,6 +50,10 @@ public:
 	static constexpr uint32_t STATUS_INV_VALUE		= 0x8;
 	static constexpr uint32_t STATUS_TEST_FAIL		= 0x10;
 	static constexpr uint32_t STATUS_NOT_RUNNING	= 0x20;
+	static constexpr uint32_t STATUS_INV_CONFIG		= 0x40;
+
+	virtual void get_latest() = 0;
+	virtual uint32_t get_result() = 0;
 };
 
 template<class T, int SIZE>
@@ -105,7 +109,8 @@ public:
 
 		if (_sub.advertised_count() != _sub.size()) {
 			if (!(old_res & STATUS_INV_INSTANCE)) {
-				_logger->log(TestLogger::ERR, "%s: invalid instance count %d",_name, _sub.advertised_count());
+				_logger->log(TestLogger::ERR, "%s: invalid instance count %d/%d",
+					_name, _sub.size(), _sub.advertised_count());
 			}
 			_result |= STATUS_INV_INSTANCE;
 			return _result;
@@ -154,12 +159,13 @@ public:
 
 	~OrbDeviceReport() = default;
 
-	uint32_t get_result()
+	virtual uint32_t get_result()
 	{
 		uint32_t old_res = this->_result;
 
 		OrbReport<T, SIZE>::get_result();
 
+		// get_result() above does not print device_id
 		if(this->_result & OrbBase::STATUS_NOT_UPDATED && !(old_res & OrbBase::STATUS_NOT_UPDATED)) {
 			for (int i = 0; i < this->_sub.size(); i++) {
 				if (hrt_absolute_time() - this->_report[i].timestamp > this->_timeout) {
@@ -175,35 +181,82 @@ template<int SIZE>
 class OrbAdcReport : public OrbDeviceReport<adc_report_s, SIZE>
 {
 public:
-	OrbAdcReport(const char *name, ORB_ID id, uint64_t timeout, TestLogger *log, bool verbose) :
-		OrbDeviceReport<adc_report_s, SIZE>(name, id, timeout, log, verbose)
-	{}
+	struct ch_limits {
+		struct adc_limit {
+			uint32_t device_id;
+			int32_t ch_0[2];
+			int32_t ch_1[2];
+			int32_t ch_2[2];
+			int32_t ch_3[2];
+		};
+
+		struct adc_limit adc[SIZE];
+	};
+
+	OrbAdcReport(const char *name, ORB_ID id, uint64_t timeout, const struct ch_limits &limits, TestLogger *log, bool verbose) :
+		OrbDeviceReport<adc_report_s, SIZE>(name, id, timeout, log, verbose),
+		_limits(limits)
+	{
+		if (this->_verbose) {
+			for (int i = 0; i < SIZE; i++) {
+				this->_logger->log(TestLogger::INFO, "device %d ADC limits [%d]: %d/%d, %d/%d, %d/%d, %d/%d",
+					limits.adc[i].device_id, i,
+					limits.adc[i].ch_0[0], limits.adc[i].ch_0[1],
+					limits.adc[i].ch_1[0], limits.adc[i].ch_1[1],
+					limits.adc[i].ch_2[0], limits.adc[i].ch_2[1],
+					limits.adc[i].ch_3[0], limits.adc[i].ch_3[1]);
+			}
+		}
+	}
 
 	~OrbAdcReport() = default;
 
-	uint32_t get_result()
+	virtual uint32_t get_result()
 	{
 		uint32_t old_res = this->_result;
-		int32_t *raw_data = this->_report->raw_data;
 
 		OrbDeviceReport<adc_report_s, SIZE>::get_result();
 
-		if (raw_data[0] < 500 ||
-			raw_data[1] > 100 ||
-			raw_data[2] < 2000 || raw_data[2] > 4000 ||
-			raw_data[3] < 2000 || raw_data[3] > 4000 ) {
+		for (int i = 0; i < this->_sub.size(); i++) {
+			int32_t *raw_data = this->_report[i].raw_data;
+			const struct ch_limits::adc_limit *value_limit = &_limits.adc[i];
 
-			if (!(old_res & OrbBase::STATUS_INV_VALUE)) {
-				this->_logger->log(TestLogger::ERR, "%s: invalid value [%d, %d, %d, %d]",
-					this->_name, raw_data[0], raw_data[1], raw_data[2], raw_data[3]);
+			if (value_limit->device_id != this->_report[i].device_id) {
+				if (!(old_res & OrbBase::STATUS_INV_CONFIG)) {
+					this->_logger->log(TestLogger::ERR, "%s: invalid device_id %d",
+						this->_name, this->_report[i].device_id);
+				}
+
+				this->_result |= OrbBase::STATUS_INV_CONFIG;
+				this->_result &= ~(OrbBase::STATUS_OK);
+				return this->_result;
 			}
 
-			this->_result |= OrbBase::STATUS_INV_VALUE;
-			this->_result &= ~(OrbBase::STATUS_OK);
+			if (this->_verbose) {
+				this->_logger->log(TestLogger::INFO, "%s: %d [%d, %d, %d, %d]",
+					this->_name, this->_report[i].device_id,
+					raw_data[0], raw_data[1], raw_data[2], raw_data[3]);
+			}
+
+			if (raw_data[0] < value_limit->ch_0[0] || raw_data[0] > value_limit->ch_0[1] ||
+				raw_data[1] < value_limit->ch_1[0] || raw_data[1] > value_limit->ch_1[1] ||
+				raw_data[2] < value_limit->ch_2[0] || raw_data[2] > value_limit->ch_2[1] ||
+				raw_data[3] < value_limit->ch_3[0] || raw_data[3] > value_limit->ch_3[1]) {
+
+				if (!(old_res & OrbBase::STATUS_INV_VALUE)) {
+					this->_logger->log(TestLogger::ERR, "%s: invalid value [%d, %d, %d, %d]",
+						this->_name, raw_data[0], raw_data[1], raw_data[2], raw_data[3]);
+				}
+
+				this->_result |= OrbBase::STATUS_INV_VALUE;
+				this->_result &= ~(OrbBase::STATUS_OK);
+			}
 		}
 
 		return this->_result;
 	}
+private:
+	const struct ch_limits &_limits;
 };
 
 template<int SIZE>
@@ -216,7 +269,7 @@ public:
 
 	~OrbTelemReport() = default;
 
-	uint32_t get_result()
+	virtual uint32_t get_result()
 	{
 		uint32_t old_res = this->_result;
 		uint32_t *telem_status = this->_report->status;

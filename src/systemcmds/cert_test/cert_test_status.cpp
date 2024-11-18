@@ -37,7 +37,8 @@
 #include <fcntl.h>
 #include "test_logger.hpp"
 
-CertTestStatus::CertTestStatus(BgProcExec *actuator, CanTest *can_test, TestLogger *log, bool verbose) :
+CertTestStatus::CertTestStatus(uint32_t hw, BgProcExec *actuator, CanTest *can_test, TestLogger *log, bool verbose) :
+	_saluki_hw(hw),
 	_actuator(actuator),
 	_can_test(can_test),
 	_log(log),
@@ -50,33 +51,18 @@ void CertTestStatus::update()
 {
 	_report.timestamp = hrt_absolute_time();
 
-	_mag_report.get_latest();
-	_report.sensor_mag[LATEST] = _mag_report.get_result();
-	_report.sensor_mag[ERR_RECORD] |= (_report.sensor_mag[LATEST] & ~(OrbBase::STATUS_OK));
+	for (int i = 0; _orb_report[i].orb != nullptr; i++) {
+		const struct orb_report_wrapper *report = &_orb_report[i];
 
-	_baro_report.get_latest();
-	_report.sensor_baro[LATEST] = _baro_report.get_result();
-	_report.sensor_baro[ERR_RECORD] |= (_report.sensor_baro[LATEST] & ~(OrbBase::STATUS_OK));
+		if (report->saluki_hw != SALUKI_HW_ANY &&
+			report->saluki_hw != _saluki_hw) {
+			continue;
+		}
 
-	_accel_report.get_latest();
-	_report.sensor_accel[LATEST] = _accel_report.get_result();
-	_report.sensor_accel[ERR_RECORD] |= (_report.sensor_accel[LATEST] & ~(OrbBase::STATUS_OK));
-
-	_gyro_report.get_latest();
-	_report.sensor_gyro[LATEST] = _gyro_report.get_result();
-	_report.sensor_gyro[ERR_RECORD] |= (_report.sensor_gyro[LATEST] & ~(OrbBase::STATUS_OK));
-
-	_airspeed_report.get_latest();
-	_report.sensor_airspeed[LATEST] = _airspeed_report.get_result();
-	_report.sensor_airspeed[ERR_RECORD] |= (_report.sensor_airspeed[LATEST] & ~(OrbBase::STATUS_OK));
-
-	_adc_report.get_latest();
-	_report.adc_report[LATEST] = _adc_report.get_result();
-	_report.adc_report[ERR_RECORD] |= (_report.adc_report[LATEST] & ~(OrbBase::STATUS_OK));
-
-	_telem_test.get_latest();
-	_report.telem_test[LATEST] = _telem_test.get_result();
-	_report.telem_test[ERR_RECORD] |= (_report.telem_test[LATEST] & ~(OrbBase::STATUS_OK));
+		report->orb->get_latest();
+		report->status[LATEST] = report->orb->get_result();
+		report->status[ERR_RECORD] |= (report->status[LATEST] & ~(OrbBase::STATUS_OK));
+	}
 
 	int pid = _actuator->get_pid(true);
 	if (pid < 0) {
@@ -107,6 +93,9 @@ void CertTestStatus::update()
 		_log->log(_log->INFO, "    uart:       0x%x (0x%x)", _report.telem_test[0], _report.telem_test[1]);
 		_log->log(_log->INFO, "    actuator:   0x%x (0x%x)", _report.actuator_test[0], _report.actuator_test[1]);
 		_log->log(_log->INFO, "    cansend:    0x%x (0x%x)", _report.cansend[0], _report.cansend[1]);
+		if (_saluki_hw == SALUKI_HW_FMU2) {
+			_log->log(_log->INFO, "    px4io:      0x%x (0x%x)", _report.px4io_status[0], _report.px4io_status[1]);
+		}
 
 		_sent_time = hrt_absolute_time();
 	}

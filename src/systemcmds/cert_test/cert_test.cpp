@@ -49,6 +49,8 @@
 #include "test_logger.hpp"
 #include "can_test.hpp"
 
+#include "test_config.hpp"
+
 static TestLogger *logger;
 
 static int stop_test = 0;
@@ -72,15 +74,22 @@ static int setup_sigaction(void)
 	return 0;
 }
 
-static const char *PARAM_SET_CFG[] = {
-	"SYS_AUTOSTART", "4400",
-	"SENS_EN_SDP3X", "1",
-	"SDLOG_MODE", "2",
-	"SDLOG_ALGORITHM", "0",
-	nullptr, nullptr,
+struct param_set {
+	uint32_t saluki_hw;
+	const char *name;
+	const char *value;
 };
 
-static int setup_params()
+static struct param_set PARAM_SET_CFG[] = {
+	{SALUKI_HW_ANY,		"SYS_AUTOSTART",		"4400"},
+	{SALUKI_HW_ANY,		"SENS_EN_SDP3X",		"1"},
+	{SALUKI_HW_ANY,		"SDLOG_MODE",			"2"},
+	{SALUKI_HW_ANY,		"SDLOG_ALGORITHM",		"0"},
+	{SALUKI_HW_FMU2,	"PWM_AUX_FUNC1",		"105"},
+	{SALUKI_HW_ANY,		nullptr, nullptr},
+};
+
+static int setup_params(uint32_t saluki_hw)
 {
 	PX4_INFO("Setup device params.");
 
@@ -93,9 +102,14 @@ static int setup_params()
 
 	const char *cmd_argv[] = {0, "set", "", "", nullptr};
 
-	for (int i = 0; PARAM_SET_CFG[i] != nullptr; i += 2) {
-		cmd_argv[2] = PARAM_SET_CFG[i];
-		cmd_argv[3] = PARAM_SET_CFG[i + 1];
+	for (int i = 0; PARAM_SET_CFG[i].name != nullptr; i++) {
+		if (PARAM_SET_CFG[i].saluki_hw != SALUKI_HW_ANY &&
+			PARAM_SET_CFG[i].saluki_hw != saluki_hw) {
+			continue;
+		}
+
+		cmd_argv[2] = PARAM_SET_CFG[i].name;
+		cmd_argv[3] = PARAM_SET_CFG[i].value;
 
 		PX4_INFO("Setting param %s to %s", cmd_argv[2], cmd_argv[3]);
 
@@ -156,6 +170,8 @@ static int cert_test_task(int argc, char **argv)
 	int myoptind = 1;
 	int ch;
 	const char *myoptarg = nullptr;
+	uint32_t saluki_hw = SALUKI_HW_V2;
+	bool run_setup = false;
 
 	PX4_INFO("cert_test starting");
 
@@ -163,18 +179,29 @@ static int cert_test_task(int argc, char **argv)
 		return 1;
 	}
 
-	while ((ch = px4_getopt(argc, argv, "vs", &myoptind, &myoptarg)) != EOF) {
+	while ((ch = px4_getopt(argc, argv, "vsc:", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 'v':
 			verbose = true;
 			break;
 
 		case 's':
-			return setup_params();
+			run_setup = true;
+			break;
+
+		case 'c':
+			if (strcmp(myoptarg, "saluki_fmu2") == 0) {
+				saluki_hw = SALUKI_HW_FMU2;
+			}
+			break;
 
 		default:
 			PX4_ERR("Unknown option");
 		}
+	}
+
+	if (run_setup) {
+		return setup_params(saluki_hw);
 	}
 
 	logger = new TestLogger("[cert_test]", "cert");
@@ -203,7 +230,7 @@ static int cert_test_task(int argc, char **argv)
 
 	logger->log(TestLogger::INFO, "start status reporting");
 
-	CertTestStatus *cert_test = new CertTestStatus(actuator, can_test, logger, verbose);
+	CertTestStatus *cert_test = new CertTestStatus(saluki_hw, actuator, can_test, logger, verbose);
 
 	if (!actuator ||
 		!telem_test ||

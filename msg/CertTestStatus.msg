@@ -8,3 +8,4 @@ uint32[2] adc_report
 uint32[2] telem_test
 uint32[2] actuator_test
 uint32[2] cansend
+uint32[2] px4io_status

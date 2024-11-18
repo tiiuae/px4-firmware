@@ -49,18 +49,20 @@
 #include <uORB/topics/sensor_baro.h>
 #include <uORB/topics/adc_report.h>
 #include <uORB/topics/airspeed.h>
+#include <uORB/topics/px4io_status.h>
 
 #include "orb_report.hpp"
 #include "bg_proc.hpp"
 #include "test_logger.hpp"
 #include "can_test.hpp"
+#include "test_config.hpp"
 
 using namespace time_literals;
 
 class CertTestStatus
 {
 public:
-	CertTestStatus(BgProcExec *actuator, CanTest *can_test, TestLogger *log, bool verbose);
+	CertTestStatus(uint32_t hw, BgProcExec *actuator, CanTest *can_test, TestLogger *log, bool verbose);
 
 	~CertTestStatus() = default;
 
@@ -70,16 +72,16 @@ private:
 	static constexpr hrt_abstime REPORT_INTERVAL = 10_s;
 
 	static constexpr hrt_abstime LISTENER_TIMEOUT = 3_s;
-	static constexpr int MAG_INSTANCES = 1;
+
+	static constexpr int SINGLE_INSTANCE = 1;
 	static constexpr int BARO_INSTANCES = 2;
 	static constexpr int IMU_INSTANCES = 3;
-	static constexpr int AIRSPEED_INSTANCES = 1;
-	static constexpr int ADC_INSTANCES = 1;
-	static constexpr int TELEM_INSTANCES = 1;
+	static constexpr int ADC_FMU2_INSTANCES = 2;
 
 	static constexpr int LATEST 		= 0;
 	static constexpr int ERR_RECORD 	= 1;
 
+	uint32_t _saluki_hw;
 	BgProcExec *_actuator;
 	CanTest *_can_test;
 	TestLogger *_log;
@@ -92,8 +94,8 @@ private:
 
 	uORB::Publication<cert_test_status_s> _status_pub{ORB_ID(cert_test_status)};
 
-	OrbDeviceReport<sensor_mag_s, MAG_INSTANCES> _mag_report =
-		OrbDeviceReport<sensor_mag_s, MAG_INSTANCES>("sensor_mag",
+	OrbDeviceReport<sensor_mag_s, SINGLE_INSTANCE> _mag_report =
+		OrbDeviceReport<sensor_mag_s, SINGLE_INSTANCE>("sensor_mag",
 							ORB_ID::sensor_mag,
 							LISTENER_TIMEOUT,
 							_log,
@@ -120,26 +122,93 @@ private:
 							_log,
 							_verbose);
 
-	OrbReport<airspeed_s, AIRSPEED_INSTANCES> _airspeed_report =
-		OrbReport<airspeed_s, AIRSPEED_INSTANCES>("airspeed",
+	OrbReport<airspeed_s, SINGLE_INSTANCE> _airspeed_report =
+		OrbReport<airspeed_s, SINGLE_INSTANCE>("airspeed",
 							ORB_ID::airspeed,
 							LISTENER_TIMEOUT,
 							_log,
 							_verbose);
 
-	OrbAdcReport<ADC_INSTANCES> _adc_report =
-		OrbAdcReport<ADC_INSTANCES>("adc_report",
+	const OrbAdcReport<SINGLE_INSTANCE>::ch_limits adc_limits = {
+		{
+			{
+				9455625,
+				{500, INT32_MAX},
+				{INT32_MIN, 100},
+				{2000, 4000},
+				{2000, 4000},
+			},
+		}
+	};
+
+	const OrbAdcReport<ADC_FMU2_INSTANCES>::ch_limits adc_limits_fmu2 = {
+		{
+			{
+				9455625,
+				{1400, 3400},
+				{INT32_MIN, 100},
+				{1300, 3300},
+				{12000, 14000},
+			},
+			{
+				9455881,
+				{8400, 9200},
+				{8400, 9200},
+				{8400, 9200},
+				{8400, 9200},
+			},
+		}
+	};
+
+	OrbAdcReport<SINGLE_INSTANCE> _adc_report =
+		OrbAdcReport<SINGLE_INSTANCE>("adc_report",
 							ORB_ID::adc_report,
 							LISTENER_TIMEOUT,
+							adc_limits,
 							_log,
 							_verbose);
 
-	OrbTelemReport<TELEM_INSTANCES> _telem_test =
-		OrbTelemReport<TELEM_INSTANCES>("telem_test_status",
+	OrbAdcReport<ADC_FMU2_INSTANCES> _adc_report_fmu2 =
+		OrbAdcReport<ADC_FMU2_INSTANCES>("adc_report",
+							ORB_ID::adc_report,
+							LISTENER_TIMEOUT,
+							adc_limits_fmu2,
+							_log,
+							_verbose);
+
+	OrbTelemReport<SINGLE_INSTANCE> _telem_test =
+		OrbTelemReport<SINGLE_INSTANCE>("telem_test_status",
 								ORB_ID::telem_test_status,
 								LISTENER_TIMEOUT,
 								_log,
 								_verbose);
+
+	OrbReport<px4io_status_s, SINGLE_INSTANCE> _px4io_report =
+		OrbReport<px4io_status_s, SINGLE_INSTANCE>("px4io_status",
+							ORB_ID::px4io_status,
+							LISTENER_TIMEOUT,
+							_log,
+							_verbose);
+
+	struct orb_report_wrapper {
+		uint32_t saluki_hw;
+		OrbBase *orb;
+		uint32_t *status;
+	};
+
+	const struct orb_report_wrapper _orb_report[20] = {
+		{SALUKI_HW_ANY,		&_mag_report, _report.sensor_mag},
+		{SALUKI_HW_ANY,		&_baro_report, _report.sensor_baro},
+		{SALUKI_HW_ANY,		&_accel_report, _report.sensor_accel},
+		{SALUKI_HW_ANY,		&_gyro_report, _report.sensor_gyro},
+		{SALUKI_HW_ANY,		&_airspeed_report, _report.sensor_airspeed},
+		{SALUKI_HW_V2,		&_adc_report, _report.adc_report},
+		{SALUKI_HW_FMU2,	&_adc_report_fmu2, _report.adc_report},
+		{SALUKI_HW_ANY,		&_telem_test, _report.telem_test},
+		{SALUKI_HW_FMU2,	&_px4io_report, _report.px4io_status},
+		{0, nullptr, nullptr},
+	};
+
 };
 
 
