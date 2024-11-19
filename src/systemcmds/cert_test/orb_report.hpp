@@ -43,6 +43,8 @@
 class OrbBase
 {
 public:
+	static constexpr int SINGLE_INSTANCE			= 1;
+
 	static constexpr uint32_t STATUS_INIT			= 0x0;
 	static constexpr uint32_t STATUS_OK				= 0x1;
 	static constexpr uint32_t STATUS_NOT_UPDATED	= 0x2;
@@ -259,12 +261,11 @@ private:
 	const struct ch_limits &_limits;
 };
 
-template<int SIZE>
-class OrbTelemReport : public OrbReport<telem_test_status_s, SIZE>
+class OrbTelemReport : public OrbReport<telem_test_status_s, OrbBase::SINGLE_INSTANCE>
 {
 public:
 	OrbTelemReport(const char *name, ORB_ID id, uint64_t timeout, TestLogger *log, bool verbose) :
-		OrbReport<telem_test_status_s, SIZE>(name, id, timeout, log, verbose)
+		OrbReport<telem_test_status_s, OrbBase::SINGLE_INSTANCE>(name, id, timeout, log, verbose)
 	{}
 
 	~OrbTelemReport() = default;
@@ -274,7 +275,7 @@ public:
 		uint32_t old_res = this->_result;
 		uint32_t *telem_status = this->_report->status;
 
-		OrbReport<telem_test_status_s, SIZE>::get_result();
+		OrbReport<telem_test_status_s, OrbBase::SINGLE_INSTANCE>::get_result();
 
 		for (int i = 0; i < TELEM_UART_COUNT; i++) {
 			if (!(telem_status[i] & TELEM_STATUS_OK) ||
@@ -294,10 +295,30 @@ public:
 		return this->_result;
 	}
 
+	virtual bool error_record()
+	{
+		for (int i = 0; i < TELEM_UART_COUNT; i++) {
+			if (this->_report->status[i] & TELEM_ERROR_TYPE_MASK) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	static constexpr int TELEM_UART_COUNT = 3;
 
+	static constexpr int TELEM_STATUS_IDLE 			= 0x1;
 	static constexpr int TELEM_STATUS_OK 			= 0x2;
+
+	// Active error indicators. Rest of bits are error record for active and
+	// recovered errors.
 	static constexpr int TELEM_STATUS_WRITE_ERR 	= 0x4;
 	static constexpr int TELEM_STATUS_READ_ERR 		= 0x8;
+
+	static constexpr int TELEM_ERROR_TYPE_MASK		= ~(TELEM_STATUS_IDLE |
+														TELEM_STATUS_OK |
+														TELEM_STATUS_WRITE_ERR |
+														TELEM_STATUS_READ_ERR);
 };
 

@@ -64,6 +64,11 @@ void CertTestStatus::update()
 		report->status[ERR_RECORD] |= (report->status[LATEST] & ~(OrbBase::STATUS_OK));
 	}
 
+	// set error record also for telem test already recovered errors
+	if (_telem_test.error_record()) {
+		_report.telem_test[ERR_RECORD] |= OrbBase::STATUS_TEST_FAIL;
+	}
+
 	int pid = _actuator->get_pid(true);
 	if (pid < 0) {
 		_report.actuator_test[LATEST] = OrbBase::STATUS_INIT | OrbBase::STATUS_NOT_RUNNING;

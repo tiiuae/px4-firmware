@@ -73,7 +73,6 @@ private:
 
 	static constexpr hrt_abstime LISTENER_TIMEOUT = 3_s;
 
-	static constexpr int SINGLE_INSTANCE = 1;
 	static constexpr int BARO_INSTANCES = 2;
 	static constexpr int IMU_INSTANCES = 3;
 	static constexpr int ADC_FMU2_INSTANCES = 2;
@@ -94,8 +93,8 @@ private:
 
 	uORB::Publication<cert_test_status_s> _status_pub{ORB_ID(cert_test_status)};
 
-	OrbDeviceReport<sensor_mag_s, SINGLE_INSTANCE> _mag_report =
-		OrbDeviceReport<sensor_mag_s, SINGLE_INSTANCE>("sensor_mag",
+	OrbDeviceReport<sensor_mag_s, OrbBase::SINGLE_INSTANCE> _mag_report =
+		OrbDeviceReport<sensor_mag_s, OrbBase::SINGLE_INSTANCE>("sensor_mag",
 							ORB_ID::sensor_mag,
 							LISTENER_TIMEOUT,
 							_log,
@@ -122,14 +121,14 @@ private:
 							_log,
 							_verbose);
 
-	OrbReport<airspeed_s, SINGLE_INSTANCE> _airspeed_report =
-		OrbReport<airspeed_s, SINGLE_INSTANCE>("airspeed",
+	OrbReport<airspeed_s, OrbBase::SINGLE_INSTANCE> _airspeed_report =
+		OrbReport<airspeed_s, OrbBase::SINGLE_INSTANCE>("airspeed",
 							ORB_ID::airspeed,
 							LISTENER_TIMEOUT,
 							_log,
 							_verbose);
 
-	const OrbAdcReport<SINGLE_INSTANCE>::ch_limits adc_limits = {
+	const OrbAdcReport<OrbBase::SINGLE_INSTANCE>::ch_limits adc_limits = {
 		{
 			{
 				9455625,
@@ -160,8 +159,8 @@ private:
 		}
 	};
 
-	OrbAdcReport<SINGLE_INSTANCE> _adc_report =
-		OrbAdcReport<SINGLE_INSTANCE>("adc_report",
+	OrbAdcReport<OrbBase::SINGLE_INSTANCE> _adc_report =
+		OrbAdcReport<OrbBase::SINGLE_INSTANCE>("adc_report",
 							ORB_ID::adc_report,
 							LISTENER_TIMEOUT,
 							adc_limits,
@@ -176,15 +175,15 @@ private:
 							_log,
 							_verbose);
 
-	OrbTelemReport<SINGLE_INSTANCE> _telem_test =
-		OrbTelemReport<SINGLE_INSTANCE>("telem_test_status",
-								ORB_ID::telem_test_status,
-								LISTENER_TIMEOUT,
-								_log,
-								_verbose);
+	OrbTelemReport _telem_test =
+		OrbTelemReport("telem_test_status",
+						ORB_ID::telem_test_status,
+						LISTENER_TIMEOUT,
+						_log,
+						_verbose);
 
-	OrbReport<px4io_status_s, SINGLE_INSTANCE> _px4io_report =
-		OrbReport<px4io_status_s, SINGLE_INSTANCE>("px4io_status",
+	OrbReport<px4io_status_s, OrbBase::SINGLE_INSTANCE> _px4io_report =
+		OrbReport<px4io_status_s, OrbBase::SINGLE_INSTANCE>("px4io_status",
 							ORB_ID::px4io_status,
 							LISTENER_TIMEOUT,
 							_log,
