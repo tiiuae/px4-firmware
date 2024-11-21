@@ -121,14 +121,16 @@ public:
 		for (int i = 0; i < _sub.size(); i++) {
 			if (hrt_absolute_time() - _report[i].timestamp > _timeout) {
 				if (!(old_res & STATUS_NOT_UPDATED)) {
-					_logger->log(TestLogger::ERR, "%s: timeout ts %ld", _name, _report[i].timestamp);
+					_logger->log(TestLogger::ERR, "%s [%d]: timeout ts %ld", _name, i, _report[i].timestamp);
 				}
 				_result |= STATUS_NOT_UPDATED;
-				return _result;
+				continue;
 			}
 		}
 
-		_result |= STATUS_OK;
+		if (!(_result & STATUS_NOT_UPDATED)) {
+			_result |= STATUS_OK;
+		}
 
 		return _result;
 	}
@@ -171,7 +173,7 @@ public:
 		if(this->_result & OrbBase::STATUS_NOT_UPDATED && !(old_res & OrbBase::STATUS_NOT_UPDATED)) {
 			for (int i = 0; i < this->_sub.size(); i++) {
 				if (hrt_absolute_time() - this->_report[i].timestamp > this->_timeout) {
-					this->_logger->log(TestLogger::ERR, "timeout dev 0x%x", this->_report[i].device_id);
+					this->_logger->log(TestLogger::ERR, "%s [i]: timeout dev 0x%x", this->_name, i, this->_report[i].device_id);
 				}
 			}
 		}
