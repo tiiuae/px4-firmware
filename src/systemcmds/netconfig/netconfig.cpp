@@ -59,6 +59,9 @@ static const char sz_nc_set_drip_str[]  = "set_drip";
 static const char sz_nc_get_mask_str[]  = "get_mask";
 static const char sz_nc_set_mask_str[]  = "set_mask";
 
+static int32_t mav_id;
+static int32_t mav_comp_id;
+
 static void usage(const char *reason)
 {
 	if (reason != nullptr) {
@@ -71,6 +74,7 @@ static void usage(const char *reason)
 	PRINT_MODULE_USAGE_COMMAND_DESCR("-h", "Usage info");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("init", "Initialize network");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("get_ipv4", "Get current ipv4 address");
+	PRINT_MODULE_USAGE_ARG("[fc idx]", "optional index of the redundant FC in the drone (same as MAV_COMP_ID)", false);
 	PRINT_MODULE_USAGE_COMMAND_DESCR("set_ipv4", "Set current ipv4 address");
 	PRINT_MODULE_USAGE_ARG("<addr>", "address as string (e.g. '192.168.0.1')", false);
 	PRINT_MODULE_USAGE_COMMAND_DESCR("get_drip", "Get drip (gateway) address");
@@ -88,13 +92,22 @@ void netconfig_print_addr(struct in_addr *addr)
 	printf("%s", addr_str);
 }
 
-int netconfig_get_ipv4()
+int netconfig_get_ipv4(int fc_idx)
 {
 	struct in_addr addr;
 	const char ifname[] = CONFIG_NETCONFIG_IFNAME;
 	int ret = netlib_get_ipv4addr(ifname, &addr);
+	uint32_t ip;
 
 	if (ret == 0) {
+		if (fc_idx != mav_comp_id) {
+			/* Set the redundant FC index bits */
+
+			ip = addr.s_addr & ~(0x3 << 30);
+			ip |= (((fc_idx - 1) & 0x3) << 30);
+			addr.s_addr = ip;
+		}
+
 		netconfig_print_addr(&addr);
 		return PX4_OK;
 	}
@@ -182,17 +195,8 @@ int netconfig_set_mask(char *addr_str)
 int netconfig_init()
 {
 	struct in_addr addr;
-	int32_t mav_id;
-	int32_t mav_comp_id;
 	int32_t ip;
 	const char ifname[] = CONFIG_NETCONFIG_IFNAME;
-
-	param_get(param_find("MAV_SYS_ID"), &mav_id);
-	param_get(param_find("MAV_COMP_ID"), &mav_comp_id);
-
-	if (mav_id < 1 || mav_id > 63 || mav_comp_id < 1 || mav_comp_id > 4) {
-		return PX4_ERROR;
-	}
 
 	/* IP: CONFIG_NETCONFIG_IPSUBNET 3 bytes
 	 * last byte:
@@ -239,6 +243,17 @@ int netconfig_init()
 
 int netconfig_main(int argc, char *argv[])
 {
+	int fc_idx;
+
+	param_get(param_find("MAV_SYS_ID"), &mav_id);
+	param_get(param_find("MAV_COMP_ID"), &mav_comp_id);
+
+	if (mav_id < 1 || mav_id > 63 || mav_comp_id < 1 || mav_comp_id > 4) {
+		return PX4_ERROR;
+	}
+
+	fc_idx = mav_comp_id;
+
 	if (argc >= 2) {
 		if (!strncmp(argv[1], sz_nc_help_str, sizeof(sz_nc_help_str))) {
 			usage("");
@@ -248,7 +263,11 @@ int netconfig_main(int argc, char *argv[])
 			return netconfig_init();
 
 		} else if (!strncmp(argv[1], sz_nc_get_ipv4_str, sizeof(sz_nc_get_ipv4_str))) {
-			return netconfig_get_ipv4();
+			if (argc >= 3) {
+				fc_idx = (int)strtol(argv[2], nullptr, 0);
+			}
+
+			return netconfig_get_ipv4(fc_idx);
 
 		} else if (!strncmp(argv[1], sz_nc_get_drip_str, sizeof(sz_nc_set_drip_str))) {
 			return netconfig_get_drip();
