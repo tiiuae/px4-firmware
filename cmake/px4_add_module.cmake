@@ -291,7 +291,9 @@ function(px4_add_module)
 		set(RUST_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/target)
 		add_custom_target(rust_build_${MODULE} ALL
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${RUST_MOD}
-			COMMAND cargo build ${CMAKE_RUST_COMPILER_FLAGS} --release --target-dir ${RUST_TARGET_DIR}
+			DEPENDS ${CMAKE_BINARY_DIR}/uORB/topics/uORBTopics.hpp
+			DEPENDS rust_bindings
+			COMMAND CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} cargo build ${CMAKE_RUST_COMPILER_FLAGS} --release --target-dir ${RUST_TARGET_DIR}
 			)
 
 		# Before linking (PRE_LINK), replace the original stub library with Rust build output library
@@ -301,6 +303,7 @@ function(px4_add_module)
 
 		# Link Rust library to the PX4 module
 		target_link_libraries(${MODULE} PRIVATE ${RUST_LIB})
+		add_dependencies(${MODULE} rust_bindings)
 	endif()
 
 endfunction()
