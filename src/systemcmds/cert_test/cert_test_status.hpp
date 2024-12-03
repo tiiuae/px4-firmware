@@ -73,9 +73,10 @@ private:
 
 	static constexpr hrt_abstime LISTENER_TIMEOUT = 3_s;
 
-	static constexpr int BARO_INSTANCES = 2;
-	static constexpr int IMU_INSTANCES = 3;
-	static constexpr int ADC_FMU2_INSTANCES = 2;
+	static constexpr int BARO_INSTANCES			= 2;
+	static constexpr int IMU_INSTANCES			= 3;
+	static constexpr int IMU_INSTANCES_FMU2		= 4;
+	static constexpr int ADC_FMU2_INSTANCES		= 2;
 
 	static constexpr int LATEST 		= 0;
 	static constexpr int ERR_RECORD 	= 1;
@@ -114,8 +115,22 @@ private:
 							_log,
 							_verbose);
 
+	OrbDeviceReport<sensor_accel_s, IMU_INSTANCES_FMU2> _accel_report_fmu2 =
+		OrbDeviceReport<sensor_accel_s, IMU_INSTANCES_FMU2>("sensor_accel",
+							ORB_ID::sensor_accel,
+							LISTENER_TIMEOUT,
+							_log,
+							_verbose);
+
 	OrbDeviceReport<sensor_gyro_s, IMU_INSTANCES> _gyro_report =
 		OrbDeviceReport<sensor_gyro_s, IMU_INSTANCES>("sensor_gyro",
+							ORB_ID::sensor_gyro,
+							LISTENER_TIMEOUT,
+							_log,
+							_verbose);
+
+	OrbDeviceReport<sensor_gyro_s, IMU_INSTANCES_FMU2> _gyro_report_fmu2 =
+		OrbDeviceReport<sensor_gyro_s, IMU_INSTANCES_FMU2>("sensor_gyro",
 							ORB_ID::sensor_gyro,
 							LISTENER_TIMEOUT,
 							_log,
@@ -198,8 +213,10 @@ private:
 	const struct orb_report_wrapper _orb_report[20] = {
 		{SALUKI_HW_ANY,		&_mag_report, _report.sensor_mag},
 		{SALUKI_HW_ANY,		&_baro_report, _report.sensor_baro},
-		{SALUKI_HW_ANY,		&_accel_report, _report.sensor_accel},
-		{SALUKI_HW_ANY,		&_gyro_report, _report.sensor_gyro},
+		{SALUKI_HW_V2,		&_accel_report, _report.sensor_accel},
+		{SALUKI_HW_FMU2,	&_accel_report_fmu2, _report.sensor_accel},
+		{SALUKI_HW_V2,		&_gyro_report, _report.sensor_gyro},
+		{SALUKI_HW_FMU2,	&_gyro_report_fmu2, _report.sensor_gyro},
 		{SALUKI_HW_ANY,		&_airspeed_report, _report.sensor_airspeed},
 		{SALUKI_HW_V2,		&_adc_report, _report.adc_report},
 		{SALUKI_HW_FMU2,	&_adc_report_fmu2, _report.adc_report},
