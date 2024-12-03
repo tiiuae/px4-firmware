@@ -1,0 +1,12 @@
+menuconfig SYSTEMCMDS_TEE_TEST
+	bool "tee_test"
+	default y
+	---help---
+		Enable support for tee_test
+
+menuconfig USER_TEE_TEST
+	bool "tee_test running as userspace module"
+	default y
+	depends on BOARD_PROTECTED && SYSTEMCMDS_TEE_TEST
+	---help---
+		Put tee_test in userspace memory

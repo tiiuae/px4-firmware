@@ -55,7 +55,8 @@
 #define _PLATFORMIOCBASE			IOCTL_IDX_TO_BASE(4)
 #define _EVENTSIOCBASE			IOCTL_IDX_TO_BASE(5)
 #define _STATECTRLIOCBASE		IOCTL_IDX_TO_BASE(6)
-#define MAX_IOCTL_PTRS 7
+#define _TEEIOCBASE			IOCTL_IDX_TO_BASE(7)
+#define MAX_IOCTL_PTRS 8
 
 /* The PLATFORMIOCLAUNCH IOCTL is used to launch kernel side modules
  * from the user side code
