@@ -31,6 +31,7 @@
 #
 ############################################################################
 
+add_subdirectory(rust_px4_nuttx EXCLUDE_FROM_ALL)
 add_subdirectory(adsb EXCLUDE_FROM_ALL)
 add_subdirectory(airspeed EXCLUDE_FROM_ALL)
 add_subdirectory(avoidance EXCLUDE_FROM_ALL)
