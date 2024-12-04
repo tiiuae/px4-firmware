@@ -173,7 +173,7 @@ public:
 		if(this->_result & OrbBase::STATUS_NOT_UPDATED && !(old_res & OrbBase::STATUS_NOT_UPDATED)) {
 			for (int i = 0; i < this->_sub.size(); i++) {
 				if (hrt_absolute_time() - this->_report[i].timestamp > this->_timeout) {
-					this->_logger->log(TestLogger::ERR, "%s [i]: timeout dev 0x%x", this->_name, i, this->_report[i].device_id);
+					this->_logger->log(TestLogger::ERR, "%s [%d]: timeout dev 0x%x", this->_name, i, this->_report[i].device_id);
 				}
 			}
 		}
