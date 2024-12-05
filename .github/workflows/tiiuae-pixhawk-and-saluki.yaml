@@ -164,6 +164,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: px4-firmware
+          submodules: recursive
+          token: ${{ secrets.GH_REPO_TOKEN }}
           fetch-depth: 0
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -196,6 +198,8 @@ jobs:
       - name: fetch fpga files
         run: |
           set -eux
+
+          pip install check-jsonschema
 
           echo "fetching fpga files from ${{ env.saluki_fpga_repo }}"
           px4-firmware/Tools/fetch-fpga-files.sh ${{ env.saluki_fpga_repo }}:${{ needs.variables.outputs.saluki_v2_fpga_version }} saluki_v2 ${{ env.FPGA_DIR }}/saluki-v2
@@ -234,6 +238,9 @@ jobs:
 
           # combine saluki file info json with fpga json and px4 json files to one file
           python px4-firmware/Tools/compile_px4_build_info.py saluki_file_info.json bin ${{ env.BUILD_DIR }}/fpga-file-info.json build_basic_info.json
+
+          # check saluki_file_info.json is valid json
+          check-jsonschema --schemafile px4-firmware/Tools/saluki_packaging/saluki_file_info-schema.json saluki_file_info.json
 
       - name: Firmware flasher - Build and push
         uses: docker/build-push-action@v5
