@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<sdf version="1.6">
+  <model name="flat_strip">
+    <static>true</static>
+    <link name="body">
+      <pose>0 0 0 1.5708 0 3.14</pose>
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>meshes/flat_strip.obj</uri>
+          </mesh>
+        </geometry>
+      </visual>
+      <collision name="collision">
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>meshes/flat_strip.obj</uri>
+          </mesh>
+        </geometry>
+      </collision>
+    </link>
+  </model>
+</sdf>

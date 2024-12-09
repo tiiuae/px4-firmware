@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<sdf version="1.6">
+  <model name="stop_sign">
+    <static>true</static>
+    <link name="body">
+      <pose>1 1 0 1.5708 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <scale>0.25 0.25 0.25</scale>
+            <uri>meshes/stop_sign.obj</uri>
+          </mesh>
+        </geometry>
+      </visual>
+      <collision name="collision">
+        <geometry>
+          <mesh>
+            <scale>0.25 0.25 0.25</scale>
+            <uri>meshes/stop_sign.obj</uri>
+          </mesh>
+        </geometry>
+      </collision>
+    </link>
+  </model>
+</sdf>

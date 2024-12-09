@@ -1,0 +1,31 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="abu_dhabi">
+    <static>true</static>
+    <link name="terrain">
+      <visual name="visual">
+        <geometry>
+          <mesh><uri>meshes/terrain.dae</uri></mesh>
+        </geometry>
+      </visual>
+      <collision name="collision">
+        <geometry>
+          <mesh><uri>meshes/terrain.dae</uri></mesh>
+        </geometry>
+      </collision>
+    </link>
+    <link name="buildings">
+      <visual name="visual">
+        <geometry>
+          <mesh><uri>meshes/buildings.dae</uri></mesh>
+        </geometry>
+      </visual>
+      <collision name="collision">
+        <geometry>
+          <mesh><uri>meshes/buildings.dae</uri></mesh>
+        </geometry>
+      </collision>
+    </link>
+  </model>
+</sdf>
+<!-- vim: set et fenc=utf-8 ff=unix sts=0 sw=2 ts=2 : -->
