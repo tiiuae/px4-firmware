@@ -584,7 +584,6 @@ class Tester:
                 log_dir,
                 test['vehicle'],
                 case,
-                self.get_max_speed_factor(test),
                 self.verbose,
                 self.build_dir)
             self.active_runners.append(gzserver_runner)
