@@ -364,7 +364,6 @@ class GzHarmonicServer(Runner):
                  log_dir: str,
                  model: str,
                  case: str,
-                 speed_factor: float,
                  verbose: bool,
                  build_dir: str):
         super().__init__(log_dir, model, case, verbose)
@@ -440,16 +439,18 @@ class TestRunner(Runner):
         self.name = "mavsdk_tests"
         self.cwd = workspace_dir
         self.cmd = "nice"
+
+        self.args = ["-5",
+             os.path.join(
+                 workspace_dir,
+                 build_dir,
+                 "mavsdk_tests/mavsdk_tests"),
+             "--url", mavlink_connection]
+
         if (hitl_mode):
             self.env["HIL_MODE"] = "hitl"
         else:
             self.env["HIL_MODE"] = "sitl"
+            self.args += ["--speed-factor", str(speed_factor)]
+        self.args += [case]
 
-        self.args = ["-5",
-                     os.path.join(
-                         workspace_dir,
-                         build_dir,
-                         "mavsdk_tests/mavsdk_tests"),
-                     "--url", mavlink_connection,
-                     "--speed-factor", str(speed_factor),
-                     case]

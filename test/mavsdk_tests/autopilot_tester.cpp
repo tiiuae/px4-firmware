@@ -38,6 +38,7 @@
 #include <thread>
 #include <unistd.h>
 #include <cmath>
+#include <random>
 
 std::string connection_url {"udp://"};
 std::optional<float> speed_factor {std::nullopt};
@@ -204,6 +205,11 @@ void AutopilotTester::wait_until_hovering()
 	wait_for_landed_state(Telemetry::LandedState::InAir, std::chrono::seconds(45));
 }
 
+void AutopilotTester::wait_until_hovering(std::chrono::seconds timeout)
+{
+	wait_for_landed_state(Telemetry::LandedState::InAir, std::chrono::seconds(timeout));
+}
+
 void AutopilotTester::wait_until_altitude(float rel_altitude_m, std::chrono::seconds timeout)
 {
 	auto prom = std::promise<void> {};
@@ -244,6 +250,62 @@ void AutopilotTester::prepare_straight_mission(MissionOptions mission_options)
 	mission_plan.mission_items.push_back(create_mission_item({2 * mission_options.leg_length_m, 0}, mission_options, ct));
 	mission_plan.mission_items.push_back(create_mission_item({3 * mission_options.leg_length_m, 0}, mission_options, ct));
 	mission_plan.mission_items.push_back(create_mission_item({4 * mission_options.leg_length_m, 0}, mission_options, ct));
+
+	_mission->set_return_to_launch_after_mission(mission_options.rtl_at_end);
+
+	REQUIRE(_mission->upload_mission(mission_plan) == Mission::Result::Success);
+}
+
+
+
+
+CoordinateTransformation::LocalCoordinate get_random_coordinate(double distance)
+{
+    std::random_device dev{};
+    std::default_random_engine engine(dev());
+    std::uniform_real_distribution <double> one_dimension(-distance, distance);
+    std::uniform_int_distribution<int> another_dimension(0, 1);
+
+    const int sign = another_dimension(engine) == 0 ? 1 : -1;
+
+    CoordinateTransformation::LocalCoordinate res{};
+    res.east_m = one_dimension(engine);
+    res.north_m = sign * std::sqrt(std::pow(distance, 2) - std::pow(res.east_m, 2));
+    return res;
+}
+
+CoordinateTransformation::LocalCoordinate operator+(CoordinateTransformation::LocalCoordinate lh,
+						    CoordinateTransformation::LocalCoordinate rh)
+{
+	CoordinateTransformation::LocalCoordinate res{};
+	res.east_m = lh.east_m + rh.east_m;
+	res.north_m = lh.north_m + rh.north_m;
+	return res;
+}
+
+void AutopilotTester::prepare_next_random_waypoint_of_mission(MissionOptions mission_options)
+{
+	static CoordinateTransformation::LocalCoordinate last_point{};
+	const auto ct = get_coordinate_transformation();
+
+	Mission::MissionPlan mission_plan {};
+	const auto res = get_random_coordinate(mission_options.leg_length_m);
+	last_point = last_point + res;
+	mission_plan.mission_items.push_back(create_mission_item(last_point, mission_options, ct));
+
+	_mission->set_return_to_launch_after_mission(mission_options.rtl_at_end);
+
+	REQUIRE(_mission->upload_mission(mission_plan) == Mission::Result::Success);
+}
+
+void AutopilotTester::prepare_next_random_waypoint_of_round_area_mission(MissionOptions mission_options)
+{
+	const auto ct = get_coordinate_transformation();
+
+	Mission::MissionPlan mission_plan {};
+	const auto res = get_random_coordinate(mission_options.leg_length_m);
+	mission_plan.mission_items.push_back(create_mission_item(res, mission_options, ct));
+
 
 	_mission->set_return_to_launch_after_mission(mission_options.rtl_at_end);
 
@@ -764,17 +826,12 @@ void AutopilotTester::report_speed_factor()
 {
 	// We check the exit flag more often than the speed factor.
 	unsigned counter = 0;
-
-	while (!_should_exit) {
+	const bool print_speed_factor_output = speed_factor.has_value();
+	while (!_should_exit && print_speed_factor_output) {
 		if (counter++ % 10 == 0) {
 			if (_info != nullptr) {
-				std::cout << "Current speed factor: " << _info->get_speed_factor().second ;
-
-				if (speed_factor.has_value()) {
-					std::cout << " (set: " << speed_factor.value() << ')';
-				}
-
-				std::cout << std::endl;
+				std::cout << "Current speed factor: " << _info->get_speed_factor().second
+				          << " (set: " << speed_factor.value() << ')' << std::endl;
 			}
 		}
 

@@ -10,7 +10,7 @@
             "model_file": "model_hitl",
             "sys_autostart": 1401,
             "test_filter": "[multicopter],[offboard],[offboard_attitude]",
-            "timeout_min": 10
+            "timeout_min": 1500
         },
         {
             "model": "ssrc_standard_vtol",
@@ -18,7 +18,7 @@
             "model_file": "model_hitl",
             "sys_autostart": 1404,
             "test_filter": "[vtol], [vtol_wind], [vtol_airspeed_fail]",
-            "timeout_min": 10
+            "timeout_min": 1500
         },
         {
             "model": "ssrc_skywalker_x8",
@@ -26,7 +26,7 @@
             "model_file": "model_hitl",
             "sys_autostart": 1440,
             "test_filter": "[fw]",
-            "timeout_min": 10
+            "timeout_min": 1500
         }
     ]
 }

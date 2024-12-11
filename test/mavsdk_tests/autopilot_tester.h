@@ -115,10 +115,13 @@ public:
 	void transition_to_multicopter();
 	void wait_until_disarmed(std::chrono::seconds timeout_duration = std::chrono::seconds(60));
 	void wait_until_hovering(); // TODO: name suggests, that function waits for drone velocity to be zero and not just drone in the air
+	void wait_until_hovering(std::chrono::seconds timeout);
 	void wait_until_altitude(float rel_altitude_m, std::chrono::seconds timeout);
 	void wait_until_speed_lower_than(float speed, std::chrono::seconds timeout);
 	void prepare_square_mission(MissionOptions mission_options);
 	void prepare_straight_mission(MissionOptions mission_options);
+	void prepare_next_random_waypoint_of_mission(MissionOptions mission_options);
+	void prepare_next_random_waypoint_of_round_area_mission(MissionOptions mission_options);
 	void execute_mission();
 	void execute_mission_and_lose_gps();
 	void execute_mission_and_lose_mag();

@@ -33,7 +33,7 @@
 
 #include "autopilot_tester.h"
 
-TEST_CASE("Fly fix wing mission", "[fw]")
+TEST_CASE("Fly fixed wing mission", "[fw]")
 {
 	AutopilotTester::MissionOptions mission_options;
 
