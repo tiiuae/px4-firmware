@@ -115,3 +115,6 @@
 [submodule "Tools/packaging"]
 	path = Tools/saluki_packaging
 	url = git@github.com:tiiuae/saluki_low_level_sw_build.git
+[submodule "src/lib/attestation/libatt"]
+	path = src/lib/attestation/libatt
+	url = git@github.com:tiiuae/libatt.git

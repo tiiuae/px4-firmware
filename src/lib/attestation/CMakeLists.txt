@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2024 Technology Innovation Institute. All rights reserved.
+#   Copyright (c) 2021 Technology Innovation Institute. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -30,12 +30,29 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
-px4_add_module(
-	MODULE systemcmds__tee_test
-	MAIN tee_test
-	SRCS
-		tee_test.c
-		tee_prover.c
-	DEPENDS
-		libatt
+
+px4_add_git_submodule(TARGET git_libatt PATH "libatt")
+
+px4_add_library(libatt)
+
+target_compile_definitions(libatt
+	PUBLIC
+		LIBATT_CONFIG_H="${CMAKE_CURRENT_LIST_DIR}/libatt_config.h"
 	)
+
+target_include_directories(libatt
+	PUBLIC
+		libatt/include
+	)
+
+target_sources(libatt
+	PRIVATE
+		libatt/tlv.c
+		libatt/ree/net_helpers.c
+		libatt/ree/agent_helpers.c
+	)
+
+# just so it ends up as 'libatt'
+set_target_properties(libatt PROPERTIES OUTPUT_NAME att)
+
+target_link_libraries(libatt PRIVATE tee)
