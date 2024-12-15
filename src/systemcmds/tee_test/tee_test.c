@@ -50,12 +50,13 @@
 #include <ree/logging.h>
 
 const tlv_tag_t DEF_MEAS[] = {ATT_TAG_M_VEN_DESC,
-                              ATT_TAG_M_VEN_PROV_CA_SHA256,
-                              ATT_TAG_M_VEN_PLAT_KEY_SHA256,
-                              ATT_TAG_M_INST_AK_SHA256,
-                              ATT_TAG_M_INST_DAC_SHA256,
-                              ATT_TAG_M_INST_CFG_DESC,
-                              ATT_TAG_M_INST_COMP_TYPE_DESC};
+			      ATT_TAG_M_VEN_PROV_CA_SHA256,
+			      ATT_TAG_M_VEN_PLAT_KEY_SHA256,
+			      ATT_TAG_M_INST_AK_SHA256,
+			      ATT_TAG_M_INST_DAC_SHA256,
+			      ATT_TAG_M_INST_CFG_DESC,
+			      ATT_TAG_M_INST_COMP_TYPE_DESC
+			     };
 
 static int create_challenge(tlv_t *chall, const tlv_tag_t *meas, int num_meas)
 {
@@ -140,25 +141,30 @@ int tee_test_main(int argc, char *argv[])
 	printf("tee_test: prover_init():  %d\n", prover_init());
 	printf("tee_test: prover_session_state(0): %d\n", prover_session_state(0));
 	printf("tee_test: prover_session_init(0, 1): %d\n", prover_session_init(0, 1));
+
 	if (!initialized) {
-	printf("tee_test: prover_session_state(0): %d\n", prover_session_state(0));
-	printf("tee_test: prover_session_state(1): %d\n", prover_session_state(1));
-	// printf("tee_test: prover_session_send(0,): %d\n", prover_session_send(0, (uint8_t *)str1, str1_sz, NULL, NULL));
-	initialized = 1;
+		printf("tee_test: prover_session_state(0): %d\n", prover_session_state(0));
+		printf("tee_test: prover_session_state(1): %d\n", prover_session_state(1));
+		// printf("tee_test: prover_session_send(0,): %d\n", prover_session_send(0, (uint8_t *)str1, str1_sz, NULL, NULL));
+		initialized = 1;
 	}
+
 	challenge = (tlv_t *)tee_alloc(ATT_MAX_CHALLENGE_LEN);
+
 	if (!challenge) {
 		printf("tee_test: tee_alloc(%ld) failed\n", ATT_MAX_CHALLENGE_LEN);
 		return 1;
 	}
 
 	challenge->len = ATT_MAX_CHALLENGE_LEN - TLV_HEADER_LEN;
+
 	if ((ret = create_challenge(challenge, meas, num_meas)) != 0) {
 		printf("tee_test: create_challenge() error: %d\n", ret);
 		return ret;
 	}
 
 	report = (tlv_t *)tee_alloc(ATT_MAX_REPORT_LEN);
+
 	if (!report) {
 		printf("tee_test: tee_alloc(%d) failed\n", ATT_MAX_REPORT_LEN);
 		return 1;
@@ -168,8 +174,8 @@ int tee_test_main(int argc, char *argv[])
 	// libatt_dump(challenge, "[challenge] ");
 
 	printf("tee_test: prover_challenge(): %d\n", prover_challenge(
-		(uint8_t *)challenge, ATT_MAX_CHALLENGE_LEN,
-		(uint8_t *)report, ATT_MAX_REPORT_LEN));
+			(uint8_t *)challenge, ATT_MAX_CHALLENGE_LEN,
+			(uint8_t *)report, ATT_MAX_REPORT_LEN));
 
 	printf("tee_test: prover_session_init(0, 1): %d\n", prover_session_init(0, 1));
 
@@ -187,6 +193,7 @@ int tee_test_main(int argc, char *argv[])
 	if ((ret = tee_free(challenge, ATT_MAX_CHALLENGE_LEN)) != 0) {
 		printf("tee_free(challenge): %d\n", ret);
 	}
+
 	if ((ret = tee_free(report, ATT_MAX_REPORT_LEN)) != 0) {
 		printf("tee_free(report): %d\n", ret);
 	}

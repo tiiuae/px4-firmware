@@ -35,7 +35,6 @@ px4_add_module(
 	MAIN tee_test
 	SRCS
 		tee_test.c
-		tee_prover.c
 	DEPENDS
 		libatt
 	)

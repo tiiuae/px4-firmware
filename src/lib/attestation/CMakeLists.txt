@@ -50,6 +50,7 @@ target_sources(libatt
 		libatt/tlv.c
 		libatt/ree/net_helpers.c
 		libatt/ree/agent_helpers.c
+		tee_prover.c
 	)
 
 # just so it ends up as 'libatt'

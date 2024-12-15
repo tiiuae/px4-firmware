@@ -38,7 +38,59 @@
 
 #include <prover/prover.h>
 
-#define NEW_CALL(fid, ...) { \
+/*
+ * TEE-based heap implementation
+ */
+
+/* We don't support tee_extend() yet, so provide a fixed size mem pool that
+ * <<should>> be enough for most known applications */
+#define ATT_HEAP_SIZE (32 * 1024)
+
+static void *g_tee_mempool = NULL;
+static struct mm_heap_s *g_tee_heap = NULL;
+
+void *att_malloc(size_t size)
+{
+	if (!g_tee_mempool || !g_tee_heap) {
+		return NULL;
+	}
+
+	return mm_malloc(g_tee_heap, size);
+}
+
+void *att_realloc(void *ptr, size_t new_size)
+{
+	if (!g_tee_mempool || !g_tee_heap) {
+		return NULL;
+	}
+
+	return mm_realloc(g_tee_heap, ptr, new_size);
+}
+
+void *att_calloc(size_t nelem, size_t elsize)
+{
+	if (!g_tee_mempool || !g_tee_heap) {
+		return NULL;
+	}
+
+	return mm_calloc(g_tee_heap, nelem, elsize);
+}
+
+void att_free(void *ptr)
+{
+	if (!g_tee_mempool || !g_tee_heap) {
+		return;
+	}
+
+	mm_free(g_tee_heap, ptr);
+}
+
+/*
+ * TEE-based prover implementation
+ */
+
+// *INDENT-OFF*
+#define NEW_CALL(fid) { \
 		.funcid = (fid), \
 		.out = 0, \
 		.a[0] = {.v = 0, .size = 0}, \
