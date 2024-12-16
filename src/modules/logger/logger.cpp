@@ -536,7 +536,8 @@ bool Logger::initialize_topics()
 		return false;
 	}
 
-	if ((sdlog_profile & SDLogProfileMask::RAW_IMU_ACCEL_FIFO) || (sdlog_profile & SDLogProfileMask::RAW_IMU_GYRO_FIFO)) {
+	//if ((sdlog_profile & SDLogProfileMask::RAW_IMU_ACCEL_FIFO) || (sdlog_profile & SDLogProfileMask::RAW_IMU_GYRO_FIFO)) {
+	{
 		// if we are logging high-rate FIFO, reduce the logging interval & increase process priority to avoid missing samples
 		PX4_INFO("Logging FIFO data: increasing task prio and logging rate");
 		_log_interval = 800;
