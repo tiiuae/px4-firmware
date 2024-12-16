@@ -37,10 +37,12 @@ px4_add_library(libatt)
 
 target_compile_definitions(libatt
 	PUBLIC
-		LIBATT_CONFIG_H="${CMAKE_CURRENT_LIST_DIR}/libatt_config.h"
+		LIBATT_CONFIG_H="${CMAKE_CURRENT_LIST_DIR}/include/libatt_config.h"
 	)
 
 target_include_directories(libatt
+	PRIVATE
+		include
 	PUBLIC
 		libatt/include
 	)
@@ -48,7 +50,7 @@ target_include_directories(libatt
 target_sources(libatt
 	PRIVATE
 		libatt/tlv.c
-		libatt/ree/net_helpers.c
+		libatt/util.c
 		libatt/ree/agent_helpers.c
 		tee_prover.c
 	)

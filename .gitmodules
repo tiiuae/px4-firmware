@@ -118,3 +118,6 @@
 [submodule "src/lib/attestation/libatt"]
 	path = src/lib/attestation/libatt
 	url = git@github.com:tiiuae/libatt.git
+[submodule "src/modules/attestation_agent"]
+	path = src/modules/attestation_agent
+	url = git@github.com:tiiuae/px4_attestation_agent.git

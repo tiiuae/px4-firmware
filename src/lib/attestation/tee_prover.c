@@ -36,6 +36,9 @@
 #include <pfsoc/prover_ecall.h>
 #include <tee.h>
 
+#include <nuttx/mm/mm.h>
+#include <att_malloc.h>
+
 #include <prover/prover.h>
 
 /*
@@ -100,6 +103,7 @@ void att_free(void *ptr)
 		.a[4] = {.v = 0, .size = 0}, \
 		.a[5] = {.v = 0, .size = 0} \
 	}
+// *INDENT-ON*
 
 #define INVOKE(args) \
 	int ret = tee_call(&(args)); \
@@ -110,6 +114,19 @@ void att_free(void *ptr)
 
 int prover_init(void)
 {
+	/* First, let's set up a TEE-suitable heap */
+
+	tee_free(g_tee_mempool, ATT_HEAP_SIZE);
+	g_tee_mempool = tee_alloc(ATT_HEAP_SIZE);
+
+	if (!g_tee_mempool) {
+		return PRV_ERR_OOM;
+	}
+
+	g_tee_heap = mm_initialize("attestation_heap", g_tee_mempool, ATT_HEAP_SIZE);
+
+	/* Invoke the actual prover_init() now */
+
 	teeioc_call_t args = NEW_CALL(SBI_EXT_PRV_INIT);
 
 	INVOKE(args);
@@ -120,6 +137,12 @@ void prover_destroy(void)
 	teeioc_call_t args = NEW_CALL(SBI_EXT_PRV_DESTROY);
 
 	tee_call(&args);
+
+	/* Clean up our TEE mem pool (tee_free() wipes as well) */
+
+	tee_free(g_tee_mempool, ATT_HEAP_SIZE);
+	g_tee_mempool = NULL;
+	g_tee_heap = NULL;
 }
 
 int prover_session_state(uint32_t session_id)
@@ -149,7 +172,7 @@ void prover_session_close(uint32_t session_id, uint8_t *out, size_t *out_len)
 	args.a[0].v = session_id;
 
 	args.a[1].p = out;
-	args.a[1].size = (out_len ? *out_len : 1);
+	args.a[1].is_ptr = 1;
 
 	args.a[2].p = out_len;
 	args.a[2].size = sizeof(size_t);
@@ -166,13 +189,13 @@ int prover_session_recv(uint32_t session_id, const uint8_t *in, size_t *in_len,
 	args.a[0].v = session_id;
 
 	args.a[1].p = (uint8_t *)in;
-	args.a[1].size = (in_len ? *in_len : 1);
+	args.a[1].is_ptr = 1;
 
 	args.a[2].p = in_len;
 	args.a[2].size = sizeof(size_t);
 
 	args.a[3].p = out;
-	args.a[3].size = (out_len ? *out_len : 1);
+	args.a[3].is_ptr = 1;
 
 	args.a[4].p = out_len;
 	args.a[4].size = sizeof(size_t);
@@ -194,10 +217,10 @@ int prover_session_send(uint32_t session_id, const uint8_t *appdata,
 	args.a[1].size = appdata_len;
 
 	args.a[2].p = out;
-	args.a[2].size = (out_len ? *out_len : 1);
+	args.a[2].is_ptr = 1;
 
 	args.a[3].p = out_len;
-	args.a[3].size = sizeof(out_len);
+	args.a[3].size = sizeof(size_t);
 
 	INVOKE(args);
 }
