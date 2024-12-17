@@ -83,7 +83,7 @@
 static pthread_mutex_t mavlink_module_mutex = PTHREAD_MUTEX_INITIALIZER;
 events::EventBuffer *Mavlink::_event_buffer = nullptr;
 
-Mavlink *mavlink_module_instances[MAVLINK_COMM_NUM_BUFFERS] {};
+static Mavlink *mavlink_module_instances[MAVLINK_COMM_NUM_BUFFERS] {0};
 
 void mavlink_send_uart_bytes(mavlink_channel_t chan, const uint8_t *ch, int length) { mavlink_module_instances[chan]->send_bytes(ch, length); }
 void mavlink_start_uart_send(mavlink_channel_t chan, int length) { mavlink_module_instances[chan]->send_start(length); }
@@ -160,6 +160,7 @@ Mavlink::~Mavlink()
 	}
 
 	if (_instance_id >= 0) {
+		PX4_INFO("Delete module instance %d", _instance_id);
 		mavlink_module_instances[_instance_id] = nullptr;
 	}
 
@@ -1764,6 +1765,7 @@ Mavlink::task_main(int argc, char *argv[])
 	// If stdin, stdout and/or stderr file descriptors (0, 1, 2)
 	// are not open when mavlink module starts (as might be the case for USB auto-start),
 	// use default /dev/null so that these numbers are not used by other other files.
+
 	if (fcntl(0, F_GETFD) == -1) {
 		int tmp = open("/dev/null", O_RDONLY);
 
@@ -2053,6 +2055,8 @@ Mavlink::task_main(int argc, char *argv[])
 		}
 	}
 
+	fflush(stdout);
+
 	if (err_flag) {
 		usage();
 		return PX4_ERROR;
@@ -2231,6 +2235,25 @@ Mavlink::task_main(int argc, char *argv[])
 
 	while (!should_exit()) {
 		/* main loop */
+
+		struct pollfd pfd {};
+		pfd.fd = _uart_fd;
+		pfd.events = POLLIN;
+
+		int ret_pol = poll(&pfd, 1, -1);
+
+		if (ret_pol < 0) {
+			PX4_ERR("Poll failed\n");
+
+		} else if (pfd.revents & POLLHUP) {
+			PX4_INFO("Uart hangup\n");
+
+			/* Wait stop command */
+			while (!should_exit());
+
+			_uart_fd = -1;
+			goto exit;
+		}
 
 		int mavlink_poll_ret = _stream_poller->poll(MAIN_LOOP_DELAY);
 
@@ -2551,10 +2574,13 @@ Mavlink::task_main(int argc, char *argv[])
 		perf_end(_loop_perf);
 	}
 
+exit:
 	_receiver.stop();
 
-	delete _subscribe_to_stream;
-	_subscribe_to_stream = nullptr;
+	if (_subscribe_to_stream) {
+		delete[] _subscribe_to_stream;
+		_subscribe_to_stream = nullptr;
+	}
 
 	/* delete streams */
 	_streams.clear();
@@ -2581,6 +2607,12 @@ Mavlink::task_main(int argc, char *argv[])
 	pthread_mutex_destroy(&_message_buffer_mutex);
 
 	PX4_INFO("exiting channel %i", (int)_channel);
+
+	/* HACK, prevent instance delete when usb uart has been removed */
+	if (_uart_fd == -1) {
+		PX4_INFO("Not to delete this instance %d ", _instance_id);
+		mavlink_module_instances[_instance_id] = nullptr;
+	}
 
 	_task_running.store(false);
 
@@ -3048,7 +3080,8 @@ Mavlink::stop_command(int argc, char *argv[])
 				while ((iterations < 1000) && inst->running()) {
 					inst->request_stop();
 					iterations++;
-					px4_usleep(1000);
+					/* Increas time to handle that USB uart case*/
+					px4_usleep(4000);
 				}
 
 				if (inst->running()) {
