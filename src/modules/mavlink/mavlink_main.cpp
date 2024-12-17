@@ -2232,6 +2232,20 @@ Mavlink::task_main(int argc, char *argv[])
 	while (!should_exit()) {
 		/* main loop */
 
+		struct pollfd pfd;
+		pfd.fd = _uart_fd;
+		pfd.events = POLLIN;
+
+		int ret_pol = poll(&pfd, 1, -1);
+		if (ret_pol < 0) {
+			PX4_ERR("Poll failed\n");
+		}
+		else if (pfd.revents & POLLHUP) {
+			PX4_INFO("Uart hangup\n");
+			close_shell();
+			break;
+		}
+
 		int mavlink_poll_ret = _stream_poller->poll(MAIN_LOOP_DELAY);
 
 		if (mavlink_poll_ret < 0 && mavlink_poll_ret != -ETIMEDOUT) {
