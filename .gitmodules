@@ -115,3 +115,15 @@
 [submodule "Tools/packaging"]
 	path = Tools/saluki_packaging
 	url = git@github.com:tiiuae/saluki_low_level_sw_build.git
+[submodule "src/lib/noise_transport_core"]
+	path = src/lib/noise_transport_core
+	url = git@github.com:tiiuae/noise_transport_core.git
+[submodule "src/lib/noise_transport_px4_lib"]
+	path = src/lib/noise_transport_px4_lib
+	url = git@github.com:tiiuae/noise_transport_px4_lib.git
+[submodule "src/lib/rust_px4_nuttx_lib"]
+	path = src/lib/rust_px4_nuttx_lib
+	url = git@github.com:tiiuae/rust_px4_nuttx_lib.git
+[submodule "src/modules/noise_transport_px4_proxy"]
+	path = src/modules/noise_transport_px4_proxy
+	url = git@github.com:tiiuae/noise_transport_px4_proxy.git
