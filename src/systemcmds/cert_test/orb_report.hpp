@@ -203,8 +203,8 @@ public:
 	{
 		if (this->_verbose) {
 			for (int i = 0; i < SIZE; i++) {
-				this->_logger->log(TestLogger::INFO, "device %d ADC limits [%d]: %d/%d, %d/%d, %d/%d, %d/%d",
-					limits.adc[i].device_id, i,
+				this->_logger->log(TestLogger::INFO, "device %d %s limits [%d]: %d/%d, %d/%d, %d/%d, %d/%d",
+					limits.adc[i].device_id, this->_name, i,
 					limits.adc[i].ch_0[0], limits.adc[i].ch_0[1],
 					limits.adc[i].ch_1[0], limits.adc[i].ch_1[1],
 					limits.adc[i].ch_2[0], limits.adc[i].ch_2[1],
@@ -248,8 +248,16 @@ public:
 				raw_data[3] < value_limit->ch_3[0] || raw_data[3] > value_limit->ch_3[1]) {
 
 				if (!(old_res & OrbBase::STATUS_INV_VALUE)) {
-					this->_logger->log(TestLogger::ERR, "%s: invalid value [%d, %d, %d, %d]",
-						this->_name, raw_data[0], raw_data[1], raw_data[2], raw_data[3]);
+					this->_logger->log(TestLogger::ERR, "%s %d: invalid value [%d, %d, %d, %d]",
+						this->_name, this->_report[i].device_id,
+						raw_data[0], raw_data[1], raw_data[2], raw_data[3]);
+
+					this->_logger->log(TestLogger::ERR, "%s %d: limits [%d/%d, %d/%d, %d/%d, %d/%d]",
+						this->_name, this->_report[i].device_id,
+						value_limit->ch_0[0], value_limit->ch_0[1],
+						value_limit->ch_1[0], value_limit->ch_1[1],
+						value_limit->ch_2[0], value_limit->ch_2[1],
+						value_limit->ch_3[0], value_limit->ch_3[1]);
 				}
 
 				this->_result |= OrbBase::STATUS_INV_VALUE;

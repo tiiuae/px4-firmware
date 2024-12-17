@@ -183,7 +183,7 @@ private:
 							_verbose);
 
 	OrbAdcReport<ADC_FMU2_INSTANCES> _adc_report_fmu2 =
-		OrbAdcReport<ADC_FMU2_INSTANCES>("adc_report",
+		OrbAdcReport<ADC_FMU2_INSTANCES>("adc_report_fmu2",
 							ORB_ID::adc_report,
 							LISTENER_TIMEOUT,
 							adc_limits_fmu2,

@@ -197,6 +197,7 @@ static int cert_test_task(int argc, char **argv)
 
 		default:
 			PX4_ERR("Unknown option");
+			return 0;
 		}
 	}
 
