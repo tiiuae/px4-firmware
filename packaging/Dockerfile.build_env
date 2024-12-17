@@ -1,6 +1,8 @@
 # px4-firmware builder environment
 FROM ghcr.io/tiiuae/px4-firmware-builder-base:latest
 
+RUN apt-get update && apt-get install -y --no-install-recommends libclang1
+
 ARG UID=1000
 ARG GID=1000
 
@@ -17,6 +19,10 @@ USER builder
 # Define Rust compiler
 ENV RUSTUP_HOME=/opt/rust CARGO_HOME=/home/builder/.cargo
 ENV PATH=$PATH:/opt/rust/bin
+
+# Rust bindgen
+RUN cargo install bindgen-cli
+ENV PATH=$PATH:/home/builder/.cargo/bin
 
 VOLUME /px4-firmware/sources
 WORKDIR /px4-firmware/sources
