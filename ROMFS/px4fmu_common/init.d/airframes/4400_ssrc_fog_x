@@ -37,6 +37,13 @@ param set-default CA_ROTOR3_PX -0.175
 param set-default CA_ROTOR3_PY 0.175
 param set-default CA_ROTOR3_KM -0.05
 
+# Some slew rate is needed for ESCs if using
+# high frequency control loops (e.g. with ADIS imus)
+param set-default CA_R0_SLEW 0.1
+param set-default CA_R1_SLEW 0.1
+param set-default CA_R2_SLEW 0.1
+param set-default CA_R3_SLEW 0.1
+
 # PWM functions
 param set-default PWM_MAIN_FUNC1 101
 param set-default PWM_MAIN_FUNC2 102
