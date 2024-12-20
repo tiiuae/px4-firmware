@@ -127,5 +127,11 @@
         "terminal.integrated.scrollback": 15000,
         "yaml.schemas": {
                 "${workspaceFolder}/validation/module_schema.yaml": "${workspaceFolder}/src/modules/*/module.yaml"
-        }
+        },
+        "rust-analyzer.linkedProjects": [
+                "src/modules/noise_transport_px4_proxy/noise_transport_proxy_rust_mod/Cargo.toml",
+                "src/lib/noise_transport_px4_lib/noise_transport_px4_rust/Cargo.toml",
+        ],
+        "rust-analyzer.check.allTargets": false,
+
 }
