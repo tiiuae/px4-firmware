@@ -251,7 +251,7 @@ jobs:
           check-jsonschema --schemafile px4-firmware/Tools/saluki_packaging/saluki_file_info-schema.json saluki_file_info.json
 
       - name: Firmware flasher - Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: true
           context: .
@@ -403,7 +403,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Firmware flasher - Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: true
           context: .
