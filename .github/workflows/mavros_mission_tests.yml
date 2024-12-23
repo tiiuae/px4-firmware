@@ -132,7 +132,7 @@ jobs:
           lcov --directory build/px4_sitl_default --base-directory build/px4_sitl_default --gcov-tool gcov --capture -o coverage/lcov.info
     - name: Upload coverage information to Codecov
       if: contains(matrix.config.build_type, 'Coverage')
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: mavros_mission
