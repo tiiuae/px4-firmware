@@ -42,6 +42,8 @@
 
 std::string connection_url {"udp://"};
 std::optional<float> speed_factor {std::nullopt};
+std::string config_file_test {"config_test.json"};
+
 
 AutopilotTester::AutopilotTester() :
 	_real_time_report_thread([this]()
@@ -283,7 +285,7 @@ CoordinateTransformation::LocalCoordinate operator+(CoordinateTransformation::Lo
 	return res;
 }
 
-void AutopilotTester::prepare_next_random_waypoint_of_mission(MissionOptions mission_options)
+Mission::MissionItem AutopilotTester::prepare_next_random_waypoint_of_mission(MissionOptions mission_options)
 {
 	static CoordinateTransformation::LocalCoordinate last_point{};
 	const auto ct = get_coordinate_transformation();
@@ -296,9 +298,10 @@ void AutopilotTester::prepare_next_random_waypoint_of_mission(MissionOptions mis
 	_mission->set_return_to_launch_after_mission(mission_options.rtl_at_end);
 
 	REQUIRE(_mission->upload_mission(mission_plan) == Mission::Result::Success);
+	return mission_plan.mission_items.back();
 }
 
-void AutopilotTester::prepare_next_random_waypoint_of_round_area_mission(MissionOptions mission_options)
+Mission::MissionItem AutopilotTester::prepare_next_random_waypoint_of_round_area_mission(MissionOptions mission_options)
 {
 	const auto ct = get_coordinate_transformation();
 
@@ -310,6 +313,7 @@ void AutopilotTester::prepare_next_random_waypoint_of_round_area_mission(Mission
 	_mission->set_return_to_launch_after_mission(mission_options.rtl_at_end);
 
 	REQUIRE(_mission->upload_mission(mission_plan) == Mission::Result::Success);
+	return mission_plan.mission_items.back();
 }
 
 void AutopilotTester::execute_mission()

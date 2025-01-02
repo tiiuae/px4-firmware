@@ -34,7 +34,6 @@
 #include "autopilot_tester.h"
 #include <chrono>
 
-
 TEST_CASE("Takeoff and Land", "[multicopter][vtol]")
 {
 	AutopilotTester tester;
@@ -96,59 +95,6 @@ TEST_CASE("Fly straight Multicopter Mission", "[multicopter]")
 	tester.arm();
 	tester.execute_mission();
 	tester.wait_until_hovering();
-	tester.execute_rtl();
-	std::chrono::seconds until_disarmed_timeout = std::chrono::seconds(180);
-	tester.wait_until_disarmed(until_disarmed_timeout);
-}
-
-TEST_CASE("Fly a long mission for checking reliability", "[multicopter]")
-{
-	const int number_of_waypoints = 100;
-	AutopilotTester tester;
-	tester.connect(connection_url);
-	tester.wait_until_ready();
-
-	AutopilotTester::MissionOptions mission_options;
-	mission_options.rtl_at_end = false;
-	mission_options.fly_through = true;
-	mission_options.leg_length_m = 100;
-
-	tester.arm();
-	for (int i = 0; i < number_of_waypoints; i++)
-	{
-		tester.prepare_next_random_waypoint_of_mission(mission_options);
-		tester.execute_mission();
-		tester.wait_until_hovering(std::chrono::seconds(45));
-		std::cout << "<====> waypoint " << i << std::endl;
-	}
-
-	tester.execute_rtl();
-	//TODO: Delay should be calculate. The drone can fly to far away.
-        std::chrono::seconds until_disarmed_timeout = std::chrono::seconds(180);
-	tester.wait_until_disarmed(until_disarmed_timeout);
-}
-
-TEST_CASE("Fly a long mission for checking reliability in a round area", "[multicopter]")
-{
-	const int number_of_waypoints = 100;
-	AutopilotTester tester;
-	tester.connect(connection_url);
-	tester.wait_until_ready();
-
-	AutopilotTester::MissionOptions mission_options;
-	mission_options.rtl_at_end = false;
-	mission_options.fly_through = true;
-	mission_options.leg_length_m = 100;
-
-	tester.arm();
-	for (int i = 0; i < number_of_waypoints; i++)
-	{
-		tester.prepare_next_random_waypoint_of_round_area_mission(mission_options);
-		tester.execute_mission();
-		tester.wait_until_hovering(std::chrono::seconds(45));
-		std::cout << "<====> waypoint " << i << std::endl;
-	}
-
 	tester.execute_rtl();
 	std::chrono::seconds until_disarmed_timeout = std::chrono::seconds(180);
 	tester.wait_until_disarmed(until_disarmed_timeout);
