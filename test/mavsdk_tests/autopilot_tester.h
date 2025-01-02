@@ -55,6 +55,7 @@
 
 extern std::string connection_url;
 extern std::optional<float> speed_factor;
+extern std::string config_file_test;
 
 using namespace mavsdk;
 using namespace mavsdk::geometry;
@@ -120,8 +121,8 @@ public:
 	void wait_until_speed_lower_than(float speed, std::chrono::seconds timeout);
 	void prepare_square_mission(MissionOptions mission_options);
 	void prepare_straight_mission(MissionOptions mission_options);
-	void prepare_next_random_waypoint_of_mission(MissionOptions mission_options);
-	void prepare_next_random_waypoint_of_round_area_mission(MissionOptions mission_options);
+	Mission::MissionItem prepare_next_random_waypoint_of_mission(MissionOptions mission_options);
+	Mission::MissionItem prepare_next_random_waypoint_of_round_area_mission(MissionOptions mission_options);
 	void execute_mission();
 	void execute_mission_and_lose_gps();
 	void execute_mission_and_lose_mag();

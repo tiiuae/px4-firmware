@@ -13,6 +13,11 @@ find_package(MAVSDK "${MAVSDK_VERSION}" REQUIRED)
 find_package(Threads REQUIRED)
 
 if(MAVSDK_FOUND)
+
+    include(FetchContent)
+    FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+    FetchContent_MakeAvailable(json)
+
     add_executable(mavsdk_tests
         test_main.cpp
         autopilot_tester.cpp
@@ -28,12 +33,14 @@ if(MAVSDK_FOUND)
         test_multicopter_manual.cpp
         test_vtol_mission.cpp
         test_fw_mission.cpp
+        test_reliability_mission.cpp
         # test_multicopter_follow_me.cpp
     )
 
     target_link_libraries(mavsdk_tests
         MAVSDK::mavsdk
         ${CMAKE_THREAD_LIBS_INIT}
+        nlohmann_json::nlohmann_json
     )
 
     target_compile_options(mavsdk_tests

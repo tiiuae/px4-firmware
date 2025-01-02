@@ -162,6 +162,8 @@ class Tester:
         self.start_time = datetime.datetime.now()
         self.log_fd: Any[TextIO] = None
         self.connection = connection
+        self.hilt_preparing = os.path.join(os.getcwd(), self.build_dir, "mavsdk_tests/mavsdk_preparing")
+        self.HARDREBOOT_IS_REQUIRED = 2
 
     @staticmethod
     def wildcard_match(pattern: str, potential_match: str) -> bool:
@@ -220,11 +222,11 @@ class Tester:
         return False
 
     def reboot_using_ethernen(self):
-        return self.send_command_to_px4("./build/px4_sitl_default/mavsdk_tests/mavsdk_preparing",
+        return self.send_command_to_px4(self.hilt_preparing,
                                                 ["--url",  self.config['mavlink_connection'], "--command", "reboot"], False)
 
     def check_connection_px4_ethernet(self):
-        return self.send_command_to_px4("./build/px4_sitl_default/mavsdk_tests/mavsdk_preparing",
+        return self.send_command_to_px4(self.hilt_preparing,
                                                 ["--url",  self.config['mavlink_connection'], "--command", "check"], False)
 
     def check_connection_px4_serial(self):
@@ -234,7 +236,6 @@ class Tester:
         return self.send_command_to_px4("ver mcu")
 
     def set_sys_autostart(self, value):
-        time.sleep(5)
         res = False
         if (self.connection == "serial"):
             res = self.set_sys_autostart_px4_serial(value)
@@ -252,7 +253,7 @@ class Tester:
 
 
     def set_sys_autostart_px4_ethernet(self, value):
-        return self.send_command_to_px4("./build/px4_sitl_default/mavsdk_tests/mavsdk_preparing",
+        return self.send_command_to_px4(self.hilt_preparing,
                                                 ["--url",  self.config['mavlink_connection'], "--command", "set_sys_autostart", str(value)], False)
 
     def set_sys_autostart_px4_serial(self, value):
@@ -318,7 +319,7 @@ class Tester:
             print("The device has successfully rebooted")
         else:
             print("Reboot failed")
-            exit(-1)
+            exit(self.HARDREBOOT_IS_REQUIRED)
 
 
 
@@ -433,6 +434,7 @@ class Tester:
             if self.config['mode'] == 'hitl':
                 if 'sys_autostart' in test:
                     if not self.set_sys_autostart(test['sys_autostart']):
+                        sys.exit(self.HARDREBOOT_IS_REQUIRED)
                         return False
 
             test_i = 0
@@ -654,7 +656,7 @@ class Tester:
                 self.collect_runner_output()
                 self.stop_combined_log()
                 self.stop_runners()
-                sys.exit(1)
+                sys.exit(self.HARDREBOOT_IS_REQUIRED)
 
         abort = False
         for runner in self.active_runners:
