@@ -645,11 +645,7 @@ size_t LogWriterFile::LogFileBuffer::get_read_ptr(void **ptr, bool *is_part)
 
 bool LogWriterFile::LogFileBuffer::start_log(const char *filename)
 {
-#if defined(PX4_CRYPTO)
-	_fd = ::open(filename, O_APPEND | O_WRONLY, PX4_O_MODE_666);
-#else
 	_fd = ::open(filename, O_CREAT | O_WRONLY, PX4_O_MODE_666);
-#endif
 
 	_had_write_error.store(false);
 
