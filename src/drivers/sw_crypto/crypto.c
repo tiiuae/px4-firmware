@@ -63,6 +63,49 @@ extern void libtomcrypt_init(void);
 #define OAEP_MAX_RSA_MODLEN 256 /* RSA2048 */
 #define OAEP_MAX_MSGLEN (OAEP_MAX_RSA_MODLEN - 2 * SHA256_HASHLEN - 2)
 
+/* crypto_(un)lock_aead*/
+/* Implementation of Monocypher crypto_lock_aead and crypto_unlock_aead requires these */
+#define WIPE_BUFFER(buffer) crypto_wipe(buffer, sizeof(buffer))
+static const uint8_t zero[128] = {0};
+static size_t align(size_t x, size_t pow_2)
+{
+	return (~x + 1) & (pow_2 - 1);
+}
+
+static void store32_le(uint8_t out[4], uint32_t in)
+{
+	out[0] = in & 0xff;
+	out[1] = (in >> 8) & 0xff;
+	out[2] = (in >> 16) & 0xff;
+	out[3] = (in >> 24) & 0xff;
+}
+
+static void store64_le(uint8_t out[8], uint64_t in)
+{
+	store32_le(out, (uint32_t) in);
+	store32_le(out + 4, in >> 32);
+}
+static void lock_auth(uint8_t mac[16],
+		      const uint8_t auth_key[32],
+		      const uint8_t *ad,
+		      size_t ad_size,
+		      const uint8_t *cipher_text,
+		      size_t text_size)
+{
+	uint8_t sizes[16]; // Not secret, not wiped
+	store64_le(sizes + 0, ad_size);
+	store64_le(sizes + 8, text_size);
+	crypto_poly1305_ctx poly_ctx; // auto wiped...
+	crypto_poly1305_init(&poly_ctx, auth_key);
+	crypto_poly1305_update(&poly_ctx, ad, ad_size);
+	crypto_poly1305_update(&poly_ctx, zero, align(ad_size, 16));
+	crypto_poly1305_update(&poly_ctx, cipher_text, text_size);
+	crypto_poly1305_update(&poly_ctx, zero, align(text_size, 16));
+	crypto_poly1305_update(&poly_ctx, sizes, 16);
+	crypto_poly1305_final(&poly_ctx, mac); // ...here
+}
+/* crypto_(un)lock_aead*/
+
 /*
  * For now, this is just a dummy up/down counter for tracking open/close calls
  */
@@ -287,9 +330,9 @@ bool crypto_signature_check(crypto_session_handle_t handle,
 }
 
 bool crypto_encrypt_data(crypto_session_handle_t handle,
-			 uint8_t key_idx,
+			 const uint8_t key_idx,
 			 const uint8_t *message,
-			 size_t message_size,
+			 const size_t message_size,
 			 uint8_t *cipher,
 			 size_t *cipher_size,
 			 uint8_t *mac,
@@ -320,14 +363,23 @@ bool crypto_encrypt_data(crypto_session_handle_t handle,
 			uint8_t *key = (uint8_t *) crypto_get_key_ptr(handle.keystore_handle, key_idx, &key_sz);
 			chacha20_context_t *context = handle.context;
 
-			if (key_sz == 32 && *cipher_size >= message_size) {
-				context->ctr = crypto_xchacha20_ctr(cipher,
-								    message,
-								    message_size,
-								    key,
-								    context->nonce,
-								    context->ctr);
+			if (key_sz == 32 && *mac_size >= 16 && *cipher_size >= message_size) {
+				// Encrypt the data
+				uint8_t sub_key[32];
+				uint8_t auth_key[64]; // "Wasting" the whole Chacha block is faster
+				crypto_hchacha20(sub_key, key, context->nonce);
+				crypto_chacha20(auth_key, 0, 64, sub_key, context->nonce + 16);
+				context->ctr = crypto_chacha20_ctr(cipher,
+								   message,
+								   message_size,
+								   sub_key,
+								   context->nonce + 16,
+								   context->ctr);
+				lock_auth(mac, auth_key, NULL, 0, cipher, message_size);
+				WIPE_BUFFER(sub_key);
+				WIPE_BUFFER(auth_key);
 				*cipher_size = message_size;
+				*mac_size = 16;
 				ret = true;
 			}
 		}
@@ -551,9 +603,9 @@ bool crypto_renew_nonce(crypto_session_handle_t handle, const uint8_t *nonce, si
 bool crypto_decrypt_data(crypto_session_handle_t handle,
 			 uint8_t key_index,
 			 const uint8_t *cipher,
-			 size_t cipher_size,
+			 const size_t cipher_size,
 			 const uint8_t *mac,
-			 size_t mac_size,
+			 const size_t mac_size,
 			 uint8_t *message,
 			 size_t *message_size)
 {
@@ -582,17 +634,35 @@ bool crypto_decrypt_data(crypto_session_handle_t handle,
 			uint8_t *key = (uint8_t *) crypto_get_key_ptr(handle.keystore_handle, key_index, &key_sz);
 			chacha20_context_t *context = handle.context;
 
-			if (key_sz == 32 && *message_size >= cipher_size) {
-				context->ctr = crypto_xchacha20_ctr(message,
-								    cipher,
-								    cipher_size,
-								    key,
-								    context->nonce,
-								    context->ctr);
-				*message_size = cipher_size;
-				ret = true;
+			if (key_sz == 32 && mac_size == 16 && *message_size >= cipher_size) {
+				uint8_t sub_key[32];
+				uint8_t auth_key[64]; // "Wasting" the whole Chacha block is faster
+				crypto_hchacha20(sub_key, key, context->nonce);
+				crypto_chacha20(auth_key, 0, 64, sub_key, context->nonce + 16);
+				uint8_t real_mac[16];
+				lock_auth(real_mac, auth_key, NULL, 0, cipher, cipher_size);
+				WIPE_BUFFER(auth_key);
+
+				if (crypto_verify16(mac, real_mac)) {
+					WIPE_BUFFER(sub_key);
+					WIPE_BUFFER(real_mac);
+					ret = false;
+
+				} else {
+					context->ctr = crypto_chacha20_ctr(message,
+									   cipher,
+									   cipher_size,
+									   sub_key,
+									   context->nonce + 16,
+									   context->ctr);
+					WIPE_BUFFER(sub_key);
+					WIPE_BUFFER(real_mac);
+					ret = true;
+					*message_size = cipher_size;
+				}
 			}
 		}
+
 		break;
 
 	default:
