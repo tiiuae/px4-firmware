@@ -68,21 +68,6 @@ static sq_queue_t callout_inflight;
 
 static spinlock_t g_hrt_ioctl_lock = SP_UNLOCKED;
 
-/* Check if entry is in list */
-
-static bool entry_inlist(sq_queue_t *queue, sq_entry_t *item)
-{
-	sq_entry_t *queued;
-
-	sq_for_every(queue, queued) {
-		if (queued == item) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
 /* Find (pop) first entry for user from queue, the queue must be locked prior */
 
 static struct usr_hrt_call *pop_user(sq_queue_t *queue, const px4_hrt_handle_t handle)
@@ -143,8 +128,6 @@ static struct usr_hrt_call *dup_entry(const px4_hrt_handle_t handle, struct hrt_
 		e = (void *)sq_remfirst(&callout_freelist);
 	}
 
-	spin_unlock_irqrestore_wo_note(&g_hrt_ioctl_lock, flags);
-
 	if (!e) {
 		/* Allocate a new kernel side item for the user call */
 
@@ -152,7 +135,6 @@ static struct usr_hrt_call *dup_entry(const px4_hrt_handle_t handle, struct hrt_
 	}
 
 	if (e) {
-
 		/* Store the user side callout function and argument to the user's handle */
 		entry->callout = callout;
 		entry->arg = arg;
@@ -165,14 +147,14 @@ static struct usr_hrt_call *dup_entry(const px4_hrt_handle_t handle, struct hrt_
 		e->usr_entry = entry;
 
 		/* Add this to the callout_queue list */
-		flags = spin_lock_irqsave_wo_note(&g_hrt_ioctl_lock);
-		sq_addfirst(&e->list_item, &callout_queue);
-		spin_unlock_irqrestore_wo_note(&g_hrt_ioctl_lock, flags);
 
+		sq_addfirst(&e->list_item, &callout_queue);
 	} else {
 		PX4_ERR("out of memory");
 
 	}
+
+	spin_unlock_irqrestore_wo_note(&g_hrt_ioctl_lock, flags);
 
 	return e;
 }
@@ -181,12 +163,13 @@ void hrt_usr_call(void *arg)
 {
 	// This is called from hrt interrupt
 	struct usr_hrt_call *e = (struct usr_hrt_call *)arg;
+	irqstate_t flags = spin_lock_irqsave_wo_note(&g_hrt_ioctl_lock);
 
-	// Make sure the event is not already in flight
-	if (!entry_inlist(&callout_inflight, (sq_entry_t *)e)) {
-		sq_addfirst(&e->list_item, &callout_inflight);
-		px4_sem_post(e->entry.callout_sem);
-	}
+	sq_addfirst(&e->list_item, &callout_inflight);
+
+	spin_unlock_irqrestore_wo_note(&g_hrt_ioctl_lock, flags);
+
+	px4_sem_post(e->entry.callout_sem);
 }
 
 int hrt_ioctl(unsigned int cmd, unsigned long arg);
