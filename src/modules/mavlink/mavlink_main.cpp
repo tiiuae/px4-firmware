@@ -284,6 +284,10 @@ Mavlink::~Mavlink()
 	}
 
 
+	_telemetry_status_pub.unadvertise();
+	_event_sub.unsubscribe();
+	_vehicle_command_sub.unsubscribe();
+
 	perf_free(_loop_perf);
 	perf_free(_loop_interval_perf);
 	perf_free(_send_byte_error_perf);
