@@ -374,7 +374,7 @@ bool crypto_encrypt_data(crypto_session_handle_t handle,
 								   message_size,
 								   sub_key,
 								   context->nonce + 16,
-								   context->ctr);
+								   context->ctr + 1);
 				lock_auth(mac, auth_key, NULL, 0, cipher, message_size);
 				WIPE_BUFFER(sub_key);
 				WIPE_BUFFER(auth_key);
@@ -654,7 +654,7 @@ bool crypto_decrypt_data(crypto_session_handle_t handle,
 									   cipher_size,
 									   sub_key,
 									   context->nonce + 16,
-									   context->ctr);
+									   context->ctr + 1);
 					WIPE_BUFFER(sub_key);
 					WIPE_BUFFER(real_mac);
 					ret = true;
