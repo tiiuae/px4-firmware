@@ -322,8 +322,57 @@ bool crypto_signature_check(crypto_session_handle_t handle,
 
 		break;
 
+	case CRYPTO_RSA_OAEP: {
+			rsa_key key;
+
+			initialize_tomcrypt();
+
+			if (public_key && rsa_import(public_key, keylen, &key) == CRYPT_OK) {
+				// Register hash algorithm.
+				const struct ltc_hash_descriptor *hash_desc = &sha256_desc;
+				const int hash_idx = register_hash(hash_desc);
+
+				if (hash_idx < 0) {
+					return false;
+				}
+
+				// Hash message.
+				unsigned char hash[32];
+				hash_state md;
+
+				hash_desc->init(&md);
+				hash_desc->process(&md, (const unsigned char *) message, (unsigned long) message_size);
+				hash_desc->done(&md, hash);
+
+				// Define padding scheme.
+				const int padding = LTC_PKCS_1_OAEP;
+				const unsigned long saltlen = 0;
+
+				// Verify signature.
+				int stat = 0;
+
+				if (rsa_verify_hash_ex(signature,
+						       256,
+						       hash,
+						       hash_desc->hashsize,
+						       padding,
+						       hash_idx,
+						       saltlen,
+						       &stat,
+						       &key)
+				    == CRYPT_OK
+				    && stat) {
+					ret = true;
+				}
+
+				rsa_free(&key);
+			}
+		}
+		break;
+
 	default:
 		ret = false;
+		break;
 	}
 
 	return ret;
