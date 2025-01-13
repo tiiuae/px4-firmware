@@ -39,7 +39,7 @@ jobs:
           ./clone_public.sh
           ./build.sh ../bin/ ${{ inputs.product }}
       - name: Upload ${{ inputs.product }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.0
         with:
           name: ${{ inputs.product }}
           path: bin/
