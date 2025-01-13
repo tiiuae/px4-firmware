@@ -327,44 +327,51 @@ bool crypto_signature_check(crypto_session_handle_t handle,
 
 			initialize_tomcrypt();
 
-			if (public_key && rsa_import(public_key, keylen, &key) == CRYPT_OK) {
+			if (rsa_import(public_key, keylen, &key) == CRYPT_OK) {
 				// Register hash algorithm.
 				const struct ltc_hash_descriptor *hash_desc = &sha256_desc;
 				const int hash_idx = register_hash(hash_desc);
 
-				if (hash_idx < 0) {
-					return false;
+				if (hash_idx >= 0) {
+					// Hash message.
+					unsigned char hash[32];
+					hash_state md;
+
+					if (hash_desc->init(&md) == CRYPT_OK
+					    && hash_desc->process(&md,
+								  (const unsigned char *) message,
+								  (unsigned long) message_size)
+					    == CRYPT_OK
+					    && hash_desc->done(&md, hash) == CRYPT_OK) {
+						// Define padding scheme.
+						const int padding = LTC_PKCS_1_V1_5;
+						const unsigned long saltlen = 0;
+
+						// Verify signature.
+						int stat = 0;
+
+						if (rsa_verify_hash_ex(signature,
+								       256,
+								       hash,
+								       hash_desc->hashsize,
+								       padding,
+								       hash_idx,
+								       saltlen,
+								       &stat,
+								       &key)
+						    == CRYPT_OK
+						    && stat) {
+							ret = true;
+						}
+					}
+
+					// Clean up.
+					memset(hash, 0, sizeof(hash));
+					memset(&md, 0, sizeof(md));
+					unregister_hash(hash_desc);
 				}
 
-				// Hash message.
-				unsigned char hash[32];
-				hash_state md;
-
-				hash_desc->init(&md);
-				hash_desc->process(&md, (const unsigned char *) message, (unsigned long) message_size);
-				hash_desc->done(&md, hash);
-
-				// Define padding scheme.
-				const int padding = LTC_PKCS_1_V1_5;
-				const unsigned long saltlen = 0;
-
-				// Verify signature.
-				int stat = 0;
-
-				if (rsa_verify_hash_ex(signature,
-						       256,
-						       hash,
-						       hash_desc->hashsize,
-						       padding,
-						       hash_idx,
-						       saltlen,
-						       &stat,
-						       &key)
-				    == CRYPT_OK
-				    && stat) {
-					ret = true;
-				}
-
+				// Free RSA key.
 				rsa_free(&key);
 			}
 		}
@@ -690,7 +697,7 @@ bool crypto_decrypt_data(crypto_session_handle_t handle,
 			if (key_sz == 32 && mac_size == 16 && *message_size >= cipher_size) {
 				uint8_t sub_key[32];
 				crypto_hchacha20(sub_key, key, context->nonce);
-				bool mac_verified{false};
+				bool mac_verified = false;
 
 				if (mac) {
 					uint8_t auth_key[64]; // "Wasting" the whole Chacha block is faster
