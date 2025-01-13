@@ -415,20 +415,24 @@ bool crypto_encrypt_data(crypto_session_handle_t handle,
 			if (key_sz == 32 && *mac_size >= 16 && *cipher_size >= message_size) {
 				// Encrypt the data
 				uint8_t sub_key[32];
-				uint8_t auth_key[64]; // "Wasting" the whole Chacha block is faster
 				crypto_hchacha20(sub_key, key, context->nonce);
-				crypto_chacha20(auth_key, 0, 64, sub_key, context->nonce + 16);
 				context->ctr = crypto_chacha20_ctr(cipher,
 								   message,
 								   message_size,
 								   sub_key,
 								   context->nonce + 16,
 								   context->ctr + 1);
-				lock_auth(mac, auth_key, NULL, 0, cipher, message_size);
+
+				if (mac) {
+					uint8_t auth_key[64]; // "Wasting" the whole Chacha block is faster
+					crypto_chacha20(auth_key, 0, 64, sub_key, context->nonce + 16);
+					lock_auth(mac, auth_key, NULL, 0, cipher, message_size);
+					WIPE_BUFFER(auth_key);
+					*mac_size = 16;
+				}
+
 				WIPE_BUFFER(sub_key);
-				WIPE_BUFFER(auth_key);
 				*cipher_size = message_size;
-				*mac_size = 16;
 				ret = true;
 			}
 		}
@@ -685,30 +689,35 @@ bool crypto_decrypt_data(crypto_session_handle_t handle,
 
 			if (key_sz == 32 && mac_size == 16 && *message_size >= cipher_size) {
 				uint8_t sub_key[32];
-				uint8_t auth_key[64]; // "Wasting" the whole Chacha block is faster
 				crypto_hchacha20(sub_key, key, context->nonce);
-				crypto_chacha20(auth_key, 0, 64, sub_key, context->nonce + 16);
-				uint8_t real_mac[16];
-				lock_auth(real_mac, auth_key, NULL, 0, cipher, cipher_size);
-				WIPE_BUFFER(auth_key);
+				bool mac_verified{false};
 
-				if (crypto_verify16(mac, real_mac)) {
-					WIPE_BUFFER(sub_key);
+				if (mac) {
+					uint8_t auth_key[64]; // "Wasting" the whole Chacha block is faster
+					crypto_chacha20(auth_key, 0, 64, sub_key, context->nonce + 16);
+					uint8_t real_mac[16];
+					lock_auth(real_mac, auth_key, NULL, 0, cipher, cipher_size);
+					WIPE_BUFFER(auth_key);
+
+					if (crypto_verify16(mac, real_mac)) {
+						mac_verified = true;
+					}
+
 					WIPE_BUFFER(real_mac);
-					ret = false;
+				}
 
-				} else {
+				if (!mac || mac_verified) {
 					context->ctr = crypto_chacha20_ctr(message,
 									   cipher,
 									   cipher_size,
 									   sub_key,
 									   context->nonce + 16,
 									   context->ctr + 1);
-					WIPE_BUFFER(sub_key);
-					WIPE_BUFFER(real_mac);
 					ret = true;
 					*message_size = cipher_size;
 				}
+
+				WIPE_BUFFER(sub_key);
 			}
 		}
 
