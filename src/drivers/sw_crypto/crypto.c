@@ -322,7 +322,7 @@ bool crypto_signature_check(crypto_session_handle_t handle,
 
 		break;
 
-	case CRYPTO_RSA_OAEP: {
+	case CRYPTO_RSA_SIG: {
 			rsa_key key;
 
 			initialize_tomcrypt();
@@ -345,7 +345,7 @@ bool crypto_signature_check(crypto_session_handle_t handle,
 				hash_desc->done(&md, hash);
 
 				// Define padding scheme.
-				const int padding = LTC_PKCS_1_OAEP;
+				const int padding = LTC_PKCS_1_V1_5;
 				const unsigned long saltlen = 0;
 
 				// Verify signature.
