@@ -63,7 +63,7 @@ extern void libtomcrypt_init(void);
 #define OAEP_MAX_RSA_MODLEN 256 /* RSA2048 */
 #define OAEP_MAX_MSGLEN (OAEP_MAX_RSA_MODLEN - 2 * SHA256_HASHLEN - 2)
 
-/* crypto_(un)lock_aead*/
+/* crypto_(un)lock_aead */
 /* Implementation of Monocypher crypto_lock_aead and crypto_unlock_aead requires these */
 #define WIPE_BUFFER(buffer) crypto_wipe(buffer, sizeof(buffer))
 static const uint8_t zero[128] = {0};
@@ -706,7 +706,7 @@ bool crypto_decrypt_data(crypto_session_handle_t handle,
 					lock_auth(real_mac, auth_key, NULL, 0, cipher, cipher_size);
 					WIPE_BUFFER(auth_key);
 
-					if (crypto_verify16(mac, real_mac)) {
+					if (!crypto_verify16(mac, real_mac)) {
 						mac_verified = true;
 					}
 
