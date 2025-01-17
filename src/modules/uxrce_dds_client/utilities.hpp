@@ -160,6 +160,9 @@ static bool create_data_reader(uxrSession *session, uxrStreamId reliable_out_str
 		PX4_ERR("create entities failed: %s %i %i %i", topic_name,
 			status[0], status[1], status[2]);
 		return false;
+
+	} else {
+		PX4_INFO("successfully created %s data reader, topic id: %d", topic_name, topic_id.id);
 	}
 
 	uxrDeliveryControl delivery_control{};
