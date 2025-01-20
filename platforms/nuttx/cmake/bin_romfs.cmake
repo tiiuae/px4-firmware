@@ -82,6 +82,8 @@ function(make_bin_romfs)
 
 	# Strip the elf files to reduce romfs image size
 
+	set(stripped_deps)
+
 	if (${STRIPPED} STREQUAL "y")
 		# Preserve the files with debug symbols
 
@@ -97,10 +99,8 @@ function(make_bin_romfs)
 			DEPENDS ${DEPS} debug_${OUTPREFIX}
 			WORKING_DIRECTORY ${BINDIR}
 		)
-	else()
-		add_custom_command(OUTPUT ${OUTPREFIX}_stripped_bins
-			COMMAND touch ${BINDIR}
-		)
+
+		list(APPEND stripped_deps ${OUTPREFIX}_stripped_bins)
 	endif()
 
 	# Make sure we have what we need
@@ -128,7 +128,7 @@ function(make_bin_romfs)
 				${SED} 's/^unsigned char/const unsigned char/g' >${OUTPREFIX}_romfsimg.h
 		COMMAND mv ${OUTPREFIX}_romfsimg.h ${OUTDIR}/${OUTPREFIX}_romfsimg.h
 		COMMAND rm -f ${OUTPREFIX}_romfs.img
-		DEPENDS ${OUTDIR} ${DEPS} ${OUTPREFIX}_stripped_bins
+		DEPENDS ${OUTDIR} ${DEPS} ${stripped_deps}
 	)
 	add_custom_target(${OUTPREFIX}_romfsimg DEPENDS ${OUTDIR}/${OUTPREFIX}_romfsimg.h)
 
