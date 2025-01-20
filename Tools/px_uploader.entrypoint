@@ -67,6 +67,61 @@ function generate_metadata() {
     fi
 }
 
+function append_to_temp_json() {
+    file_info_to_add=$1
+    echo "appending ${file_info_to_add} to ${TEMP_JSON}"
+
+    # append file info to temporary file
+    echo ${TEMP_JSON}
+
+    # if the temp json file does not exist, create it with the file info
+    if [ ! -f ${TEMP_JSON} ]; then
+        # print the object into "files" array
+        echo ${file_info_to_add} | jq -c '{files: [.] }' >${TEMP_JSON}
+    # if the temp json file exists, append the file info to it
+    else
+        # need to use temp file for this round as jq wont overwrite the input file
+        temp_round_file=${TEMP_JSON}.round
+
+        # Read the existing JSON
+        json_content=$(cat "${TEMP_JSON}")
+
+        # Add the new object to the "files" array using jq
+        updated_json=$(echo "$json_content" | jq --argjson obj "$file_info_to_add" '.files += [$obj]')
+
+        # put the output to temp_round_file and then move it to the final temp json file
+        echo ${updated_json} >${temp_round_file}
+        mv ${temp_round_file} ${TEMP_JSON}
+    fi
+}
+
+function process_ssbl_files() {
+    # process ssbl files one by one
+    cat ${SALUKI_FILE_INFO_JSON} |jq -r '.files[] |select (.type == "bootloader" and .stage == "ssbl") | .filename'| while read file
+    do
+        echo "ssbl file: $file"
+        echo "cp commented out: cp ${file} ${PX4_EXPORT_DIR}"
+        #cp ${file} ${PX4_EXPORT_DIR}
+
+        single_file_info=$(cat ${SALUKI_FILE_INFO_JSON} |jq -r '.files[] |select (.filename == "'${file}'")')
+        echo ${single_file_info}
+
+        # filename without path
+        filebasename=$(basename $(echo $single_file_info|jq -r '.filename'))
+
+        # filename with export path
+        filename=${PX4_EXPORT_DIR}/${filebasename}
+
+        # this single file with updated path
+        single_file_info=$(echo ${single_file_info} | jq -c '.filename = "'${filename}'"')
+
+        echo ${single_file_info}
+
+        append_to_temp_json ${single_file_info}
+    done
+
+}
+
 # export px4 files if the container is started with the PX4_EXPORT_DIR
 if [ -n "$PX4_EXPORT_DIR" ]; then
     echo "Exporting PX4 files to $PX4_EXPORT_DIR"
@@ -83,6 +138,8 @@ if [ -n "$PX4_EXPORT_DIR" ]; then
     for px4_file in /firmware/*.px4; do
         extract_bin_from_px4 $px4_file $PX4_EXPORT_DIR
     done
+
+    process_ssbl_files
 
     # move temp json file to the final json file
     mv ${TEMP_JSON} $PX4_EXPORT_DIR/${SALUKI_FILE_INFO_JSON}
