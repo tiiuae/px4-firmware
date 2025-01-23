@@ -42,7 +42,7 @@
 #include <prover/prover.h>
 
 /*
- * TEE-based heap implementation
+ * TEE-suitable heap implementation
  */
 
 /* We don't support tee_extend() yet, so provide a fixed size mem pool that
@@ -140,9 +140,11 @@ void prover_destroy(void)
 
 	/* Clean up our TEE mem pool (tee_free() wipes as well) */
 
+	mm_uninitialize(g_tee_heap);
+	g_tee_heap = NULL;
+
 	tee_free(g_tee_mempool, ATT_HEAP_SIZE);
 	g_tee_mempool = NULL;
-	g_tee_heap = NULL;
 }
 
 int prover_session_state(uint32_t session_id)
