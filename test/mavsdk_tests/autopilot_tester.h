@@ -123,6 +123,7 @@ public:
 	void prepare_straight_mission(MissionOptions mission_options);
 	Mission::MissionItem prepare_next_random_waypoint_of_mission(MissionOptions mission_options);
 	Mission::MissionItem prepare_next_random_waypoint_of_round_area_mission(MissionOptions mission_options);
+	Mission::MissionItem create_mission_with_one_item(Mission::MissionItem item, bool rtl_at_end);
 	void execute_mission();
 	void execute_mission_and_lose_gps();
 	void execute_mission_and_lose_mag();

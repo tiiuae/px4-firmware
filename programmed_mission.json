@@ -1,0 +1,109 @@
+{
+    "Programmed mission": {
+        "mission_items": [
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.39685028245139,
+                "longitude_deg": 8.545161467676325,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.398256096229304,
+                "longitude_deg": 8.546643206725058,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.39901816488806,
+                "longitude_deg": 8.545937976132912,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.39973336713032,
+                "longitude_deg": 8.545132490639837,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.39901914219942,
+                "longitude_deg": 8.545939866608844,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.398143124558395,
+                "longitude_deg": 8.545639373308179,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.398533992641894,
+                "longitude_deg": 8.546835919923323,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.39848570644912,
+                "longitude_deg": 8.54816260165829,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.39762595352686,
+                "longitude_deg": 8.548552357648825,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.39789429853804,
+                "longitude_deg": 8.547284301459195,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.3970234514173,
+                "longitude_deg": 8.547615970725495,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.39769972816845,
+                "longitude_deg": 8.546740204846223,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.39857633997375,
+                "longitude_deg": 8.54644351986948,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.398314199782064,
+                "longitude_deg": 8.54771442198638,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.39915017695632,
+                "longitude_deg": 8.547224618574743,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.3996540092983,
+                "longitude_deg": 8.548325158964747,
+                "relative_altitude_m": 10.0
+            },
+            {
+                "is_fly_through": true,
+                "latitude_deg": 47.39922639493817,
+                "longitude_deg": 8.547156339202544,
+                "relative_altitude_m": 10.0
+            }
+        ],
+        "rtl_at_end": false
+    }
+}

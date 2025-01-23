@@ -289,28 +289,28 @@ Mission::MissionItem AutopilotTester::prepare_next_random_waypoint_of_mission(Mi
 {
 	static CoordinateTransformation::LocalCoordinate last_point{};
 	const auto ct = get_coordinate_transformation();
-
-	Mission::MissionPlan mission_plan {};
 	const auto res = get_random_coordinate(mission_options.leg_length_m);
 	last_point = last_point + res;
-	mission_plan.mission_items.push_back(create_mission_item(last_point, mission_options, ct));
+	auto item = create_mission_item(last_point, mission_options, ct);
 
-	_mission->set_return_to_launch_after_mission(mission_options.rtl_at_end);
-
-	REQUIRE(_mission->upload_mission(mission_plan) == Mission::Result::Success);
-	return mission_plan.mission_items.back();
+	return create_mission_with_one_item(item, mission_options.rtl_at_end);
 }
 
 Mission::MissionItem AutopilotTester::prepare_next_random_waypoint_of_round_area_mission(MissionOptions mission_options)
 {
 	const auto ct = get_coordinate_transformation();
-
-	Mission::MissionPlan mission_plan {};
 	const auto res = get_random_coordinate(mission_options.leg_length_m);
-	mission_plan.mission_items.push_back(create_mission_item(res, mission_options, ct));
+	auto item = create_mission_item(res, mission_options, ct);
 
+	return create_mission_with_one_item(item, mission_options.rtl_at_end);
+}
 
-	_mission->set_return_to_launch_after_mission(mission_options.rtl_at_end);
+Mission::MissionItem AutopilotTester::create_mission_with_one_item( Mission::MissionItem item,
+                                                                    bool rtl_at_end)
+{
+	Mission::MissionPlan mission_plan {};
+	mission_plan.mission_items.push_back(item);
+	_mission->set_return_to_launch_after_mission(rtl_at_end);
 
 	REQUIRE(_mission->upload_mission(mission_plan) == Mission::Result::Success);
 	return mission_plan.mission_items.back();
