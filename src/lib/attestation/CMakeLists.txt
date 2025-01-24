@@ -33,6 +33,8 @@
 
 px4_add_git_submodule(TARGET git_libatt PATH "libatt")
 
+# User-space target
+
 px4_add_library(libatt)
 
 target_compile_definitions(libatt
@@ -59,3 +61,8 @@ target_sources(libatt
 set_target_properties(libatt PROPERTIES OUTPUT_NAME att)
 
 target_link_libraries(libatt PRIVATE tee)
+
+# Kernel-space target
+
+add_library(libkatt INTERFACE)
+target_include_directories(libkatt INTERFACE libatt/include)
