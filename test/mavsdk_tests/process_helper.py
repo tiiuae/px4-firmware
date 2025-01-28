@@ -454,3 +454,18 @@ class TestRunner(Runner):
             self.args += ["--speed-factor", str(speed_factor)]
         self.args += [case]
 
+class BootLogRunner(Runner):
+    def __init__(self,
+                 workspace_dir: str,
+                 log_dir: str,
+                 model: str,
+                 case: str,
+                 verbose: bool,
+                 device: str):
+        super().__init__(log_dir, model, case, verbose)
+        self.name = "microcom"
+        self.cwd = workspace_dir
+        self.cmd = "microcom"
+        self.args = [
+                    "-p", device,
+                    "-s", "115200"]
