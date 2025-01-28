@@ -636,6 +636,16 @@ class Tester:
             #    px4_runner.env[env_key] = str(test['env'][env_key])
             self.active_runners.append(px4_runner)
 
+        boot_log_runner = ph.BootLogRunner(
+            os.getcwd(),
+            log_dir,
+            test['model'],
+            case,
+            self.verbose,
+            "/dev/ttyUSB0"
+        )
+        self.active_runners.append(boot_log_runner)
+
         mavsdk_tests_runner = ph.TestRunner(
             os.getcwd(),
             log_dir,
