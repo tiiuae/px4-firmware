@@ -43,7 +43,7 @@ env:
   saluki_fpga_repo: "ghcr.io/tiiuae/saluki-fpga"
   saluki_pi_fpga_version: "4.21.0"
   saluki_v2_fpga_version: "4.21.0"
-  saluki_v3_fpga_version: "4.21.0"
+  saluki_v3_fpga_version: "sha-d37b045"
   saluki_fmu2_fpga_version: "4.21.0"
 
 jobs:
