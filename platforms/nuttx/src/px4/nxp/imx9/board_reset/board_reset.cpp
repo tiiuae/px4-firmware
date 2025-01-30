@@ -42,11 +42,22 @@
 #include <errno.h>
 #include <nuttx/board.h>
 #include <debug.h>
+#include "imx9_pmic.h"
 
 extern "C" void __start(void);
 
 static void board_reset_enter_bootloader()
 {
+	/* WDOG_B pin is unused in current HW design.
+	* Related configuration bits (WDOG_B_CFG) from PMIC RESET_CTRL
+	* register are borrowed for stay in bootloader reason delivery.
+	*
+	* stay in bootloader: WDOG_B_CFG 11b
+	*/
+
+	imx9_pmic_set_reset_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT |
+				 IMX9_PMIC_RESET_CTRL_WDOG_COLD_RESET_MASK);
+
 	/* Reset the whole SoC */
 
 	up_systemreset();
@@ -54,6 +65,15 @@ static void board_reset_enter_bootloader()
 
 static void board_reset_enter_bootloader_and_continue_boot()
 {
+	/* WDOG_B pin is unused in current HW design.
+	* Related configuration bits (WDOG_B_CFG) from PMIC RESET_CTRL
+	* register are borrowed for stay in bootloader reason delivery.
+	*
+	* With PMIC register power on value system will boot normally.
+	*/
+
+	imx9_pmic_set_reset_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT);
+
 	/* Reset the whole SoC */
 
 	up_systemreset();
