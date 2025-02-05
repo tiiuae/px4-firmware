@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import time
+import subprocess
 #Acroname lib
 import brainstem
 from brainstem.result import Result
@@ -58,8 +59,32 @@ class AcronameDevice(Device):
 
 @register_device("Raspi")
 class RaspiDevice(Device):
-    def reboot(self, port):
+    def __init__(self, name):
+        super().__init__(name)
+        self.turn_on_commands = [
+            ["uhubctl", "-l", "3", "-p", "1", "-a", "1"],
+            ["uhubctl", "-l", "3", "-p", "2", "-a", "1"],
+            ["uhubctl", "-l", "4", "-p", "1", "-a", "1"],
+            ["uhubctl", "-l", "4", "-p", "2", "-a", "1"]]
+        self.turn_off_commands = [
+            ["uhubctl", "-l", "3", "-p", "1", "-a", "0"],
+            ["uhubctl", "-l", "3", "-p", "2", "-a", "0"],
+            ["uhubctl", "-l", "4", "-p", "1", "-a", "0"],
+            ["uhubctl", "-l", "4", "-p", "2", "-a", "0"]]
+
+    def turn_on(self):
+        for cmd in self.turn_on_commands:
+            subprocess.run(cmd, check=True)
+
+    def turn_off(self):
+        for cmd in self.turn_off_commands:
+            subprocess.run(cmd, check=True)
+
+    def reboot(self, _):
         print(f"Rebooting though {self.name} ...")
+        self.turn_off()
+        time.sleep(0.5)
+        self.turn_on()
 
 class DeviceManager:
     def __init__(self):

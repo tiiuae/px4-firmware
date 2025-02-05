@@ -58,6 +58,8 @@ def main() -> NoReturn:
                         help="relative path where the built files are stored")
     parser.add_argument("--connection", type=str, default="ethernet",
                         help="the type of connection: serial or ethernet. Using only for --hitl")
+    parser.add_argument("--boot_log_tty", type=str, default="",
+                        help="TTY device for logging the boot process (e.g., '/dev/ttyUSB0')")
     args = parser.parse_args()
 
     with open(args.config_file) as json_file:
@@ -83,7 +85,8 @@ def main() -> NoReturn:
         args.verbose,
         args.upload,
         args.build_dir,
-        args.connection
+        args.connection,
+        args.boot_log_tty
     )
     signal.signal(signal.SIGINT, tester.sigint_handler)
 
@@ -146,7 +149,8 @@ class Tester:
                  verbose: bool,
                  upload: bool,
                  build_dir: str,
-                 connection: str):
+                 connection: str,
+                 boot_log_tty: str):
         self.config = config
         self.build_dir = build_dir
         self.active_runners: List[ph.Runner]
@@ -162,6 +166,7 @@ class Tester:
         self.start_time = datetime.datetime.now()
         self.log_fd: Any[TextIO] = None
         self.connection = connection
+        self.boot_log_tty = boot_log_tty
         self.hilt_preparing = os.path.join(os.getcwd(), self.build_dir, "mavsdk_tests/mavsdk_preparing")
         self.HARDREBOOT_IS_REQUIRED = 2
 
@@ -636,15 +641,16 @@ class Tester:
             #    px4_runner.env[env_key] = str(test['env'][env_key])
             self.active_runners.append(px4_runner)
 
-        boot_log_runner = ph.BootLogRunner(
-            os.getcwd(),
-            log_dir,
-            test['model'],
-            case,
-            self.verbose,
-            "/dev/ttyUSB0"
-        )
-        self.active_runners.append(boot_log_runner)
+        if (self.boot_log_tty):
+            boot_log_runner = ph.BootLogRunner(
+                os.getcwd(),
+                log_dir,
+                test['model'],
+                case,
+                self.verbose,
+                self.boot_log_tty
+            )
+            self.active_runners.append(boot_log_runner)
 
         mavsdk_tests_runner = ph.TestRunner(
             os.getcwd(),
