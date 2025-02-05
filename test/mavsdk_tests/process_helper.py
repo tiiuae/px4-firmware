@@ -83,7 +83,7 @@ class Runner:
     def process_output(self) -> None:
         assert self.process.stdout is not None
         while True:
-            line = self.process.stdout.readline()
+            line = self.process.stdout.readline().encode("utf-8", errors="replace").decode("utf-8")
             if not line and \
                     (self.stop_thread.is_set() or self.poll is not None):
                 break
