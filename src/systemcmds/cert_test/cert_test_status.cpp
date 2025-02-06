@@ -49,7 +49,9 @@ CertTestStatus::CertTestStatus(uint32_t hw, BgProcExec *actuator, CanTest *can_t
 
 void CertTestStatus::update()
 {
-	_report.timestamp = hrt_absolute_time();
+	_cert_status.timestamp = hrt_absolute_time();
+
+	bool log_px4io = false;
 
 	for (int i = 0; _orb_report[i].orb != nullptr; i++) {
 		const struct orb_report_wrapper *report = &_orb_report[i];
@@ -62,25 +64,29 @@ void CertTestStatus::update()
 		report->orb->get_latest();
 		report->status[LATEST] = report->orb->get_result();
 		report->status[ERR_RECORD] |= (report->status[LATEST] & ~(OrbBase::STATUS_OK));
+
+		if (report->status == _cert_status.px4io_status) {
+			log_px4io = true;
+		}
 	}
 
 	// set error record also for telem test already recovered errors
 	if (_telem_test.error_record()) {
-		_report.telem_test[ERR_RECORD] |= OrbBase::STATUS_TEST_FAIL;
+		_cert_status.telem_test[ERR_RECORD] |= OrbBase::STATUS_TEST_FAIL;
 	}
 
 	int pid = _actuator->get_pid(true);
 	if (pid < 0) {
-		_report.actuator_test[LATEST] = OrbBase::STATUS_INIT | OrbBase::STATUS_NOT_RUNNING;
-		_report.actuator_test[ERR_RECORD] |= (_report.actuator_test[LATEST] & ~(OrbBase::STATUS_OK));
+		_cert_status.actuator_test[LATEST] = OrbBase::STATUS_INIT | OrbBase::STATUS_NOT_RUNNING;
+		_cert_status.actuator_test[ERR_RECORD] |= (_cert_status.actuator_test[LATEST] & ~(OrbBase::STATUS_OK));
 	} else {
-		_report.actuator_test[LATEST] = OrbBase::STATUS_OK;
+		_cert_status.actuator_test[LATEST] = OrbBase::STATUS_OK;
 	}
 
-	_report.cansend[LATEST] = _can_test->status;
-	_report.cansend[ERR_RECORD] |= (_report.cansend[LATEST] & ~(OrbBase::STATUS_OK));
+	_cert_status.cansend[LATEST] = _can_test->status;
+	_cert_status.cansend[ERR_RECORD] |= (_cert_status.cansend[LATEST] & ~(OrbBase::STATUS_OK));
 
-	_status_pub.publish(_report);
+	_status_pub.publish(_cert_status);
 
 	if (_sent_time == 0 ||
 		hrt_absolute_time() - _sent_time > REPORT_INTERVAL) {
@@ -89,17 +95,17 @@ void CertTestStatus::update()
 		abstime_to_ts(&ts, hrt_absolute_time());
 		PX4_INFO("");
 		_log->log(_log->INFO, "status (uptime %ds)", ts.tv_sec);
-		_log->log(_log->INFO, "    mag:        0x%x (0x%x)", _report.sensor_mag[0], _report.sensor_mag[1]);
-		_log->log(_log->INFO, "    baro:       0x%x (0x%x)", _report.sensor_baro[0], _report.sensor_baro[1]);
-		_log->log(_log->INFO, "    accel:      0x%x (0x%x)", _report.sensor_accel[0], _report.sensor_accel[1]);
-		_log->log(_log->INFO, "    gyro:       0x%x (0x%x)", _report.sensor_gyro[0], _report.sensor_gyro[1]);
-		_log->log(_log->INFO, "    airspeed:   0x%x (0x%x)", _report.sensor_airspeed[0], _report.sensor_airspeed[1]);
-		_log->log(_log->INFO, "    adc:        0x%x (0x%x)", _report.adc_report[0], _report.adc_report[1]);
-		_log->log(_log->INFO, "    uart:       0x%x (0x%x)", _report.telem_test[0], _report.telem_test[1]);
-		_log->log(_log->INFO, "    actuator:   0x%x (0x%x)", _report.actuator_test[0], _report.actuator_test[1]);
-		_log->log(_log->INFO, "    cansend:    0x%x (0x%x)", _report.cansend[0], _report.cansend[1]);
-		if (_saluki_hw == SALUKI_HW_FMU2) {
-			_log->log(_log->INFO, "    px4io:      0x%x (0x%x)", _report.px4io_status[0], _report.px4io_status[1]);
+		_log->log(_log->INFO, "    mag:        0x%x (0x%x)", _cert_status.sensor_mag[0], _cert_status.sensor_mag[1]);
+		_log->log(_log->INFO, "    baro:       0x%x (0x%x)", _cert_status.sensor_baro[0], _cert_status.sensor_baro[1]);
+		_log->log(_log->INFO, "    accel:      0x%x (0x%x)", _cert_status.sensor_accel[0], _cert_status.sensor_accel[1]);
+		_log->log(_log->INFO, "    gyro:       0x%x (0x%x)", _cert_status.sensor_gyro[0], _cert_status.sensor_gyro[1]);
+		_log->log(_log->INFO, "    airspeed:   0x%x (0x%x)", _cert_status.sensor_airspeed[0], _cert_status.sensor_airspeed[1]);
+		_log->log(_log->INFO, "    adc:        0x%x (0x%x)", _cert_status.adc_report[0], _cert_status.adc_report[1]);
+		_log->log(_log->INFO, "    uart:       0x%x (0x%x)", _cert_status.telem_test[0], _cert_status.telem_test[1]);
+		_log->log(_log->INFO, "    actuator:   0x%x (0x%x)", _cert_status.actuator_test[0], _cert_status.actuator_test[1]);
+		_log->log(_log->INFO, "    cansend:    0x%x (0x%x)", _cert_status.cansend[0], _cert_status.cansend[1]);
+		if (log_px4io) {
+			_log->log(_log->INFO, "    px4io:      0x%x (0x%x)", _cert_status.px4io_status[0], _cert_status.px4io_status[1]);
 		}
 
 		_sent_time = hrt_absolute_time();

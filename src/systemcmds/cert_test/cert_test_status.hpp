@@ -75,7 +75,7 @@ private:
 
 	static constexpr int BARO_INSTANCES			= 2;
 	static constexpr int IMU_INSTANCES			= 3;
-	static constexpr int IMU_INSTANCES_FMU2		= 4;
+	static constexpr int IMU_INSTANCES_EXT_SPI	= 4;
 	static constexpr int ADC_FMU2_INSTANCES		= 2;
 
 	static constexpr int LATEST 		= 0;
@@ -90,7 +90,7 @@ private:
 
 	hrt_abstime _sent_time = 0;
 
-	cert_test_status_s _report = {0};
+	cert_test_status_s _cert_status = {0};
 
 	uORB::Publication<cert_test_status_s> _status_pub{ORB_ID(cert_test_status)};
 
@@ -115,8 +115,8 @@ private:
 							_log,
 							_verbose);
 
-	OrbDeviceReport<sensor_accel_s, IMU_INSTANCES_FMU2> _accel_report_fmu2 =
-		OrbDeviceReport<sensor_accel_s, IMU_INSTANCES_FMU2>("sensor_accel",
+	OrbDeviceReport<sensor_accel_s, IMU_INSTANCES_EXT_SPI> _accel_report_ext_spi =
+		OrbDeviceReport<sensor_accel_s, IMU_INSTANCES_EXT_SPI>("sensor_accel",
 							ORB_ID::sensor_accel,
 							LISTENER_TIMEOUT,
 							_log,
@@ -129,8 +129,8 @@ private:
 							_log,
 							_verbose);
 
-	OrbDeviceReport<sensor_gyro_s, IMU_INSTANCES_FMU2> _gyro_report_fmu2 =
-		OrbDeviceReport<sensor_gyro_s, IMU_INSTANCES_FMU2>("sensor_gyro",
+	OrbDeviceReport<sensor_gyro_s, IMU_INSTANCES_EXT_SPI> _gyro_report_ext_spi =
+		OrbDeviceReport<sensor_gyro_s, IMU_INSTANCES_EXT_SPI>("sensor_gyro",
 							ORB_ID::sensor_gyro,
 							LISTENER_TIMEOUT,
 							_log,
@@ -143,7 +143,7 @@ private:
 							_log,
 							_verbose);
 
-	const OrbAdcReport<OrbBase::SINGLE_INSTANCE>::ch_limits adc_limits = {
+	const OrbAdcReport<OrbBase::SINGLE_INSTANCE>::ch_limits adc_limits_v2 = {
 		{
 			{
 				9455625,
@@ -174,19 +174,39 @@ private:
 		}
 	};
 
-	OrbAdcReport<OrbBase::SINGLE_INSTANCE> _adc_report =
+	const OrbAdcReport<OrbBase::SINGLE_INSTANCE>::ch_limits adc_limits_nxp93 = {
+		{
+			{
+				9455633,
+				{2000, 4000},
+				{INT32_MIN, 100},
+				{2000, 4000},
+				{12000, 14000},
+			},
+		}
+	};
+
+	OrbAdcReport<OrbBase::SINGLE_INSTANCE> _adc_report_v2 =
 		OrbAdcReport<OrbBase::SINGLE_INSTANCE>("adc_report",
 							ORB_ID::adc_report,
 							LISTENER_TIMEOUT,
-							adc_limits,
+							adc_limits_v2,
 							_log,
 							_verbose);
 
 	OrbAdcReport<ADC_FMU2_INSTANCES> _adc_report_fmu2 =
-		OrbAdcReport<ADC_FMU2_INSTANCES>("adc_report_fmu2",
+		OrbAdcReport<ADC_FMU2_INSTANCES>("adc_report",
 							ORB_ID::adc_report,
 							LISTENER_TIMEOUT,
 							adc_limits_fmu2,
+							_log,
+							_verbose);
+
+	OrbAdcReport<OrbBase::SINGLE_INSTANCE> _adc_report_nxp93 =
+		OrbAdcReport<OrbBase::SINGLE_INSTANCE>("adc_report",
+							ORB_ID::adc_report,
+							LISTENER_TIMEOUT,
+							adc_limits_nxp93,
 							_log,
 							_verbose);
 
@@ -211,17 +231,29 @@ private:
 	};
 
 	const struct orb_report_wrapper _orb_report[20] = {
-		{SALUKI_HW_ANY,		&_mag_report, _report.sensor_mag},
-		{SALUKI_HW_ANY,		&_baro_report, _report.sensor_baro},
-		{SALUKI_HW_V2,		&_accel_report, _report.sensor_accel},
-		{SALUKI_HW_FMU2,	&_accel_report_fmu2, _report.sensor_accel},
-		{SALUKI_HW_V2,		&_gyro_report, _report.sensor_gyro},
-		{SALUKI_HW_FMU2,	&_gyro_report_fmu2, _report.sensor_gyro},
-		{SALUKI_HW_ANY,		&_airspeed_report, _report.sensor_airspeed},
-		{SALUKI_HW_V2,		&_adc_report, _report.adc_report},
-		{SALUKI_HW_FMU2,	&_adc_report_fmu2, _report.adc_report},
-		{SALUKI_HW_ANY,		&_telem_test, _report.telem_test},
-		{SALUKI_HW_FMU2,	&_px4io_report, _report.px4io_status},
+		{SALUKI_HW_ANY,		&_mag_report, _cert_status.sensor_mag},
+
+		{SALUKI_HW_ANY,		&_baro_report, _cert_status.sensor_baro},
+
+		{SALUKI_HW_V2,		&_accel_report, _cert_status.sensor_accel},
+		{SALUKI_HW_FMU2,	&_accel_report_ext_spi, _cert_status.sensor_accel},
+		{SALUKI_HW_NXP93,	&_accel_report_ext_spi, _cert_status.sensor_accel},
+
+		{SALUKI_HW_V2,		&_gyro_report, _cert_status.sensor_gyro},
+		{SALUKI_HW_FMU2,	&_gyro_report_ext_spi, _cert_status.sensor_gyro},
+		{SALUKI_HW_NXP93,	&_gyro_report_ext_spi, _cert_status.sensor_gyro},
+
+		{SALUKI_HW_ANY,		&_airspeed_report, _cert_status.sensor_airspeed},
+
+		{SALUKI_HW_V2,		&_adc_report_v2, _cert_status.adc_report},
+		{SALUKI_HW_FMU2,	&_adc_report_fmu2, _cert_status.adc_report},
+		{SALUKI_HW_NXP93,	&_adc_report_nxp93, _cert_status.adc_report},
+
+		{SALUKI_HW_ANY,		&_telem_test, _cert_status.telem_test},
+
+		{SALUKI_HW_FMU2,	&_px4io_report, _cert_status.px4io_status},
+		{SALUKI_HW_NXP93,	&_px4io_report, _cert_status.px4io_status},
+
 		{0, nullptr, nullptr},
 	};
 
