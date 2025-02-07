@@ -200,7 +200,8 @@ public:
 
 	const orb_metadata *get_meta() const { return get_orb_meta(_orb_id); }
 
-	size_t data_size() const { return get_meta()->o_size * get_meta()->o_queue; }
+	size_t get_size() { return get_orb_size(_orb_id); }
+	static size_t get_orb_size(ORB_ID id) { return sizeof(DeviceNode) + get_orb_meta(id)->o_size * get_orb_meta(id)->o_queue; }
 
 	ORB_ID id() const { return _orb_id; }
 
@@ -338,14 +339,7 @@ private:
 
 	void _add_subscriber(unsigned *initial_generation);
 
-	void map_data(orb_advert_t &handle, bool advertiser);
-
 	inline static DeviceNode *node(const orb_advert_t &handle) { return static_cast<DeviceNode *>(handle.node); }
-#ifdef CONFIG_BUILD_FLAT
-	inline static void *node_data(const orb_advert_t &handle) { return node(handle)->_data; }
-#else
-	inline static void *node_data(const orb_advert_t &handle) { return handle.data; }
-#endif
 
 	bool _register_callback(SubscriptionCallback *callback_sub, int8_t poll_lock, hrt_abstime last_update,
 				uint32_t interval_us, uorb_cb_handle_t &cb_handle);
@@ -361,9 +355,9 @@ private:
 
 #ifdef CONFIG_BUILD_FLAT
 	char *_devname;
-	void *_data{nullptr};
 #else
 	char _devname[NAME_MAX + 1];
 #endif
+	uint8_t _data[];
 };
 } //namespace uORB

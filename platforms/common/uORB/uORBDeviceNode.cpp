@@ -91,14 +91,15 @@ orb_advert_t uORB::DeviceNode::MappingCache::map_node(ORB_ID orb_id, uint8_t ins
 	lock();
 
 	// Not mapped yet, map it
-	void *ptr = px4_mmap(0, sizeof(uORB::DeviceNode), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+	void *ptr = px4_mmap(0, get_orb_size(orb_id), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd,
+			     0);
 
 	if (ptr != MAP_FAILED) {
 		// In NuttX flat and protected builds we can just drop the mappings
 		// to save some kernel memory. There is no MMU, and the memory is
 		// there until the shm object is unlinked
 #if defined(CONFIG_BUILD_FLAT)
-		px4_munmap(ptr, sizeof(uORB::DeviceNode));
+		px4_munmap(ptr, get_orb_size(orb_id));
 #endif
 
 		// Create a list item and add to the beginning of the list
@@ -114,54 +115,6 @@ orb_advert_t uORB::DeviceNode::MappingCache::map_node(ORB_ID orb_id, uint8_t ins
 
 	return handle;
 }
-
-#if !defined(CONFIG_BUILD_FLAT)
-orb_advert_t uORB::DeviceNode::MappingCache::map_data(orb_advert_t handle, int shm_fd, bool publisher)
-{
-	lock();
-
-	MappingCacheListItem *item = g_cache;
-
-	while (item &&
-	       handle.node != item->handle.node) {
-		item = item->next;
-	}
-
-	if (item != nullptr) {
-
-		if (shm_fd >= 0 && item->handle.data != nullptr) {
-			// Mapped already, return the mapping
-			handle = item->handle;
-
-		} else {
-			// Drop any old mapping if exists
-			if (handle.data != nullptr) {
-				px4_munmap(handle.data, node(handle)->data_size());
-			}
-
-			// Map the data
-			if (shm_fd >= 0) {
-				handle.data = px4_mmap(0, node(handle)->data_size(), publisher ? PROT_WRITE : PROT_READ, MAP_SHARED, shm_fd, 0);
-
-				if (handle.data == MAP_FAILED) {
-					handle.data = nullptr;
-					PX4_ERR("MMAP fail\n");
-
-				}
-
-			} else {
-				handle.data = nullptr;
-			}
-
-			item->handle = handle;
-		}
-	}
-
-	unlock();
-
-	return handle;
-}
-#endif
 
 bool uORB::DeviceNode::MappingCache::del(const orb_advert_t &handle)
 {
@@ -186,15 +139,7 @@ bool uORB::DeviceNode::MappingCache::del(const orb_advert_t &handle)
 			prev->next = item->next;
 		}
 
-		px4_munmap(handle.node, sizeof(DeviceNode));
-
-#ifndef CONFIG_BUILD_FLAT
-
-		if (handle.data) {
-			px4_munmap(handle.data, node(handle)->data_size());
-		}
-
-#endif
+		px4_munmap(handle.node, node(handle)->get_size());
 
 		delete (item);
 	}
@@ -265,7 +210,7 @@ orb_advert_t uORB::DeviceNode::nodeOpen(const ORB_ID id, const uint8_t instance,
 		if (shm_fd >= 0) {
 
 			// If the creation succeeded, set the size of the shm region
-			if (ftruncate(shm_fd, sizeof(uORB::DeviceNode)) != 0) {
+			if (ftruncate(shm_fd, get_orb_size(id)) != 0) {
 				::close(shm_fd);
 				shm_fd = -1;
 				PX4_ERR("truncate fail!\n");
@@ -309,15 +254,6 @@ int uORB::DeviceNode::nodeClose(orb_advert_t &handle)
 
 	if (node(handle)->_publisher_count == 0) {
 		node(handle)->_data_valid = false;
-
-		// Delete the data
-#ifdef CONFIG_BUILD_FLAT
-		free(node(handle)->_data);
-		node(handle)->_data = nullptr;
-#else
-		shm_unlink(node(handle)->get_devname() + 1);
-		MappingCache::map_data(handle, -1, false);
-#endif
 
 		// If there are no more subscribers, delete the node and its mapping
 		if (node(handle)->_subscriber_count == 0) {
@@ -434,58 +370,17 @@ uORB::DeviceNode::~DeviceNode()
 	px4_sem_destroy(&_lock);
 }
 
-/* Map the node data to the memory space of publisher or subscriber */
-
-void uORB::DeviceNode::map_data(orb_advert_t &handle, bool publisher)
-{
-	// In NuttX flat and protected builds, just malloc the data (from user heap)
-	// and store
-	// the pointer. This saves us the inodes in the
-	// kernel side. Otherwise the same logic would work
-
-#ifdef CONFIG_BUILD_FLAT
-
-	// Allocate the data by the first publisher
-	if (publisher && _data == nullptr) {
-		_data = zalloc(node(handle)->data_size());
-	}
-
-#else
-
-	// Open the data, the data shm name is the same as device node's except for leading '_'
-	int oflag = publisher ? O_RDWR | O_CREAT : O_RDONLY;
-	int shm_fd = shm_open(get_devname() + 1, oflag, 0666);
-
-	// and mmap it
-	if (shm_fd >= 0) {
-		if (publisher && handle.data == nullptr) {
-			if (ftruncate(shm_fd, node(handle)->data_size()) != 0) {
-				::close(shm_fd);
-				PX4_ERR("Setting advertise size failed\n");
-				return;
-			}
-		}
-
-		handle = MappingCache::map_data(handle, shm_fd, node(handle)->data_size(), publisher);
-
-		// Close the shm, there is no need to leave it open
-		::close(shm_fd);
-	}
-
-#endif
-}
-
 /**
-	 * Copies data and the corresponding generation
-	 * from a node to the buffer provided.
-	 *
-	 * @param dst
-	 *   The buffer into which the data is copied.
-	 * @param generation
-	 *   The generation that was copied.
-	 * @return bool
-	 *   Returns true if the data was copied.
-	 */
+        * Copies data and the corresponding generation
+        * from a node to the buffer provided.
+        *
+        * @param dst
+        *   The buffer into which the data is copied.
+        * @param generation
+        *   The generation that was copied.
+        * @return bool
+        *   Returns true if the data was copied.
+        */
 bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generation)
 {
 	if (dst == nullptr || !_data_valid) {
@@ -497,17 +392,8 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 
 	lock();
 
-	if (node_data(handle) == nullptr) {
-		map_data(handle, false);
-
-		if (node_data(handle) == nullptr) {
-			unlock();
-			return false;
-		}
-	}
-
 	if (o_queue == 1) {
-		memcpy(dst, node_data(handle), o_size);
+		memcpy(dst, _data, o_size);
 		generation = _generation.load();
 
 	} else {
@@ -526,7 +412,7 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 			generation = current_generation - o_queue;
 		}
 
-		memcpy(dst, ((uint8_t *)node_data(handle)) + (o_size * (generation % o_queue)), o_size);
+		memcpy(dst, _data + (o_size * (generation % o_queue)), o_size);
 
 		++generation;
 	}
@@ -546,19 +432,10 @@ uORB::DeviceNode::write(const char *buffer, const orb_metadata *meta, orb_advert
 	/* Perform an atomic copy. */
 	lock();
 
-	if (node_data(handle) == nullptr) {
-		map_data(handle, true);
-	}
-
-	if (node_data(handle) == nullptr) {
-		unlock();
-		return -ENOMEM;
-	}
-
 	/* wrap-around happens after ~49 days, assuming a publisher rate of 1 kHz */
 	unsigned generation = _generation.fetch_add(1);
 
-	memcpy(((uint8_t *)node_data(handle)) + o_size * (generation % o_queue), buffer, o_size);
+	memcpy(_data + o_size * (generation % o_queue), buffer, o_size);
 
 	/* Mark at least one data has been published */
 	_data_valid = true;
@@ -758,11 +635,11 @@ int16_t uORB::DeviceNode::process_add_subscription(orb_advert_t &handle)
 	uORBCommunicator::IChannel *ch = uORB::Manager::get_instance()->get_uorb_communicator();
 	const orb_metadata *meta = get_meta();
 
-	if (node_data(handle) != nullptr && ch != nullptr) { // _data will not be null if there is a publisher.
+	if (ch != nullptr) {
 		// Only send the most recent data to initialize the remote end.
 		if (_data_valid) {
 			ch->send_message(meta->o_name, meta->o_size,
-					 (uint8_t *)node_data(handle) + (meta->o_size * ((_generation.load() - 1) % meta->o_queue)));
+					 _data + (meta->o_size * ((_generation.load() - 1) % meta->o_queue)));
 		}
 	}
 
