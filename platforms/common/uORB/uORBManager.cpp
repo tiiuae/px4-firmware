@@ -215,8 +215,7 @@ int uORB::Manager::orb_exists(const struct orb_metadata *meta, int instance)
 	return PX4_ERROR;
 }
 
-orb_advert_t uORB::Manager::orb_advertise_multi(const struct orb_metadata *meta, const void *data, int *instance,
-		uint8_t queue_size)
+orb_advert_t uORB::Manager::orb_advertise_multi(const struct orb_metadata *meta, const void *data, int *instance)
 {
 #ifdef ORB_USE_PUBLISHER_RULES
 
@@ -263,7 +262,7 @@ orb_advert_t uORB::Manager::orb_advertise_multi(const struct orb_metadata *meta,
 		return ORB_ADVERT_INVALID;
 	}
 
-	orb_advert_t handle = uORB::DeviceNode::orb_advertise(static_cast<ORB_ID>(meta->o_id), group_tries, queue_size, true);
+	orb_advert_t handle = uORB::DeviceNode::orb_advertise(static_cast<ORB_ID>(meta->o_id), group_tries, true);
 
 	if (instance != nullptr) {
 		*instance = group_tries;

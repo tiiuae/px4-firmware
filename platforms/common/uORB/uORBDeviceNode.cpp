@@ -116,7 +116,7 @@ orb_advert_t uORB::DeviceNode::MappingCache::map_node(ORB_ID orb_id, uint8_t ins
 }
 
 #if !defined(CONFIG_BUILD_FLAT)
-orb_advert_t uORB::DeviceNode::MappingCache::map_data(orb_advert_t handle, int shm_fd, size_t size, bool publisher)
+orb_advert_t uORB::DeviceNode::MappingCache::map_data(orb_advert_t handle, int shm_fd, bool publisher)
 {
 	lock();
 
@@ -129,32 +129,28 @@ orb_advert_t uORB::DeviceNode::MappingCache::map_data(orb_advert_t handle, int s
 
 	if (item != nullptr) {
 
-		if (item->handle.data != nullptr && item->handle.data_size == size) {
+		if (shm_fd >= 0 && item->handle.data != nullptr) {
 			// Mapped already, return the mapping
 			handle = item->handle;
 
 		} else {
 			// Drop any old mapping if exists
 			if (handle.data != nullptr) {
-				px4_munmap(handle.data, handle.data_size);
+				px4_munmap(handle.data, node(handle)->data_size());
 			}
 
-			// Map the data with new size
-			if (shm_fd >= 0 && size > 0) {
-				handle.data = px4_mmap(0, size, publisher ? PROT_WRITE : PROT_READ, MAP_SHARED, shm_fd, 0);
+			// Map the data
+			if (shm_fd >= 0) {
+				handle.data = px4_mmap(0, node(handle)->data_size(), publisher ? PROT_WRITE : PROT_READ, MAP_SHARED, shm_fd, 0);
 
 				if (handle.data == MAP_FAILED) {
 					handle.data = nullptr;
-					handle.data_size = 0;
 					PX4_ERR("MMAP fail\n");
 
-				} else {
-					handle.data_size = size;
 				}
 
 			} else {
 				handle.data = nullptr;
-				handle.data_size = 0;
 			}
 
 			item->handle = handle;
@@ -195,7 +191,7 @@ bool uORB::DeviceNode::MappingCache::del(const orb_advert_t &handle)
 #ifndef CONFIG_BUILD_FLAT
 
 		if (handle.data) {
-			px4_munmap(handle.data, handle.data_size);
+			px4_munmap(handle.data, node(handle)->data_size());
 		}
 
 #endif
@@ -312,7 +308,6 @@ int uORB::DeviceNode::nodeClose(orb_advert_t &handle)
 	}
 
 	if (node(handle)->_publisher_count == 0) {
-		node(handle)->_queue_size = 0;
 		node(handle)->_data_valid = false;
 
 		// Delete the data
@@ -321,7 +316,7 @@ int uORB::DeviceNode::nodeClose(orb_advert_t &handle)
 		node(handle)->_data = nullptr;
 #else
 		shm_unlink(node(handle)->get_devname() + 1);
-		MappingCache::map_data(handle, -1, 0, false);
+		MappingCache::map_data(handle, -1, false);
 #endif
 
 		// If there are no more subscribers, delete the node and its mapping
@@ -343,7 +338,7 @@ int uORB::DeviceNode::nodeClose(orb_advert_t &handle)
 	return PX4_OK;
 }
 
-orb_advert_t uORB::DeviceNode::orb_advertise(const ORB_ID id, int instance, unsigned queue_size,
+orb_advert_t uORB::DeviceNode::orb_advertise(const ORB_ID id, int instance,
 		bool publisher)
 {
 	/* Open the node, if it exists or create a new one */
@@ -352,13 +347,13 @@ orb_advert_t uORB::DeviceNode::orb_advertise(const ORB_ID id, int instance, unsi
 	handle = nodeOpen(id, instance, true);
 
 	if (orb_advert_valid(handle)) {
-		node(handle)->advertise(publisher, queue_size);
+		node(handle)->advertise(publisher);
 	}
 
 	return handle;
 }
 
-int uORB::DeviceNode::advertise(bool publisher, uint8_t queue_size)
+int uORB::DeviceNode::advertise(bool publisher)
 {
 	int ret = -1;
 
@@ -367,8 +362,6 @@ int uORB::DeviceNode::advertise(bool publisher, uint8_t queue_size)
 	if (publisher) {
 		ret = ++_publisher_count;
 	}
-
-	update_queue_size(queue_size);
 
 	return ret;
 }
@@ -443,7 +436,7 @@ uORB::DeviceNode::~DeviceNode()
 
 /* Map the node data to the memory space of publisher or subscriber */
 
-void uORB::DeviceNode::remap_data(orb_advert_t &handle, size_t new_size, bool publisher)
+void uORB::DeviceNode::map_data(orb_advert_t &handle, bool publisher)
 {
 	// In NuttX flat and protected builds, just malloc the data (from user heap)
 	// and store
@@ -452,20 +445,9 @@ void uORB::DeviceNode::remap_data(orb_advert_t &handle, size_t new_size, bool pu
 
 #ifdef CONFIG_BUILD_FLAT
 
-	// Data size has changed, re-allocate (remap) by publisher
-	// The remapping may happen only on the first write,
-	// when the handle.data_size==0
-
-	if (publisher && handle.data_size == 0) {
-		free(_data);
-		_data = zalloc(new_size);
-	}
-
-	if (_data != nullptr) {
-		handle.data_size = new_size;
-
-	} else {
-		handle.data_size = 0;
+	// Allocate the data by the first publisher
+	if (publisher && _data == nullptr) {
+		_data = zalloc(node(handle)->data_size());
 	}
 
 #else
@@ -476,16 +458,15 @@ void uORB::DeviceNode::remap_data(orb_advert_t &handle, size_t new_size, bool pu
 
 	// and mmap it
 	if (shm_fd >= 0) {
-		// For the publisher, set the new data size
-		if (publisher && handle.data_size == 0) {
-			if (ftruncate(shm_fd, new_size) != 0) {
+		if (publisher && handle.data == nullptr) {
+			if (ftruncate(shm_fd, node(handle)->data_size()) != 0) {
 				::close(shm_fd);
 				PX4_ERR("Setting advertise size failed\n");
 				return;
 			}
 		}
 
-		handle = MappingCache::map_data(handle, shm_fd, new_size, publisher);
+		handle = MappingCache::map_data(handle, shm_fd, node(handle)->data_size(), publisher);
 
 		// Close the shm, there is no need to leave it open
 		::close(shm_fd);
@@ -512,12 +493,12 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 	}
 
 	size_t o_size = get_meta()->o_size;
-	size_t data_size = _queue_size * o_size;
+	size_t o_queue = get_meta()->o_queue;
 
 	lock();
 
-	if (data_size != handle.data_size) {
-		remap_data(handle, data_size, false);
+	if (node_data(handle) == nullptr) {
+		map_data(handle, false);
 
 		if (node_data(handle) == nullptr) {
 			unlock();
@@ -525,7 +506,7 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 		}
 	}
 
-	if (_queue_size == 1) {
+	if (o_queue == 1) {
 		memcpy(dst, node_data(handle), o_size);
 		generation = _generation.load();
 
@@ -540,12 +521,12 @@ bool uORB::DeviceNode::copy(void *dst, orb_advert_t &handle, unsigned &generatio
 		}
 
 		/* Compatible with normal and overflow conditions */
-		if (current_generation - generation > _queue_size) {
+		if (current_generation - generation > o_queue) {
 			/* Reader is too far behind: some messages are lost */
-			generation = current_generation - _queue_size;
+			generation = current_generation - o_queue;
 		}
 
-		memcpy(dst, ((uint8_t *)node_data(handle)) + (o_size * (generation % _queue_size)), o_size);
+		memcpy(dst, ((uint8_t *)node_data(handle)) + (o_size * (generation % o_queue)), o_size);
 
 		++generation;
 	}
@@ -560,15 +541,13 @@ ssize_t
 uORB::DeviceNode::write(const char *buffer, const orb_metadata *meta, orb_advert_t &handle)
 {
 	size_t o_size = meta->o_size;
-
-	/* If data size has changed, re-map the data */
-	size_t data_size = _queue_size * o_size;
+	size_t o_queue = meta->o_queue;
 
 	/* Perform an atomic copy. */
 	lock();
 
-	if (data_size != handle.data_size) {
-		remap_data(handle, data_size, true);
+	if (node_data(handle) == nullptr) {
+		map_data(handle, true);
 	}
 
 	if (node_data(handle) == nullptr) {
@@ -579,7 +558,7 @@ uORB::DeviceNode::write(const char *buffer, const orb_metadata *meta, orb_advert
 	/* wrap-around happens after ~49 days, assuming a publisher rate of 1 kHz */
 	unsigned generation = _generation.fetch_add(1);
 
-	memcpy(((uint8_t *)node_data(handle)) + o_size * (generation % _queue_size), buffer, o_size);
+	memcpy(((uint8_t *)node_data(handle)) + o_size * (generation % o_queue), buffer, o_size);
 
 	/* Mark at least one data has been published */
 	_data_valid = true;
@@ -711,7 +690,7 @@ orb_advert_t uORB::DeviceNode::add_subscriber(ORB_ID orb_id, uint8_t instance,
 	orb_advert_t handle;
 
 	if (advertise) {
-		handle = orb_advertise(orb_id, instance, 0, false);
+		handle = orb_advertise(orb_id, instance, false);
 
 	} else {
 		handle = nodeOpen(orb_id, instance, false);
@@ -826,25 +805,6 @@ int16_t uORB::DeviceNode::process_received_message(orb_advert_t &handle, int32_t
 	return PX4_OK;
 }
 #endif /* CONFIG_ORB_COMMUNICATOR */
-
-int uORB::DeviceNode::update_queue_size(unsigned int queue_size)
-{
-	// subscribers may advertise the node, but not set the queue_size
-	if (queue_size == 0) {
-		return PX4_OK;
-	}
-
-	queue_size = round_pow_of_two_8(queue_size);
-
-	// queue size is limited to 255 for the single reason that we use uint8 to store it
-	if (queue_size > 255) {
-		return PX4_ERROR;
-	}
-
-	_queue_size = queue_size;
-
-	return PX4_OK;
-}
 
 bool
 uORB::DeviceNode::_register_callback(uORB::SubscriptionCallback *cb_sub,

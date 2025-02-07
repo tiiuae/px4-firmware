@@ -129,7 +129,6 @@ typedef struct {
 #ifndef CONFIG_BUILD_FLAT
 	void *data;
 #endif
-	size_t data_size;
 } orb_advert_t;
 
 /**
@@ -144,9 +143,9 @@ typedef void *orb_sub_t;
 
 static inline bool orb_advert_valid(orb_advert_t handle) {return handle.node != NULL;}
 #ifndef CONFIG_BUILD_FLAT
-static const orb_advert_t ORB_ADVERT_INVALID = {NULL, NULL, 0};
+static const orb_advert_t ORB_ADVERT_INVALID = {NULL, NULL};
 #else
-static const orb_advert_t ORB_ADVERT_INVALID = {NULL, 0};
+static const orb_advert_t ORB_ADVERT_INVALID = {NULL};
 #endif
 static inline bool orb_sub_valid(orb_sub_t handle) {return handle != NULL;}
 static const orb_sub_t ORB_SUB_INVALID = NULL;

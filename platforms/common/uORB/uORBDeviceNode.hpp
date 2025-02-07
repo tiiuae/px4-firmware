@@ -105,7 +105,7 @@ public:
 	 */
 	static ssize_t    publish(const orb_metadata *meta, orb_advert_t &handle, const void *data);
 
-	static orb_advert_t orb_advertise(const ORB_ID id, int instance, unsigned queue_size, bool publisher);
+	static orb_advert_t orb_advertise(const ORB_ID id, int instance, bool publisher);
 
 	static int        orb_unadvertise(orb_advert_t &handle, bool publisher);
 
@@ -178,7 +178,7 @@ public:
 	 */
 	bool print_statistics(int max_topic_length);
 
-	uint8_t get_queue_size() const { return _queue_size; }
+	uint8_t get_queue_size() const { return get_orb_meta(_orb_id)->o_queue; }
 	/**
 	 * Get count of subscribers for this topic
 	 * @return number of active subscribers
@@ -199,6 +199,8 @@ public:
 	unsigned updates_available(unsigned generation) const { return _data_valid ? _generation.load() - generation : 0; }
 
 	const orb_metadata *get_meta() const { return get_orb_meta(_orb_id); }
+
+	size_t data_size() const { return get_meta()->o_size * get_meta()->o_queue; }
 
 	ORB_ID id() const { return _orb_id; }
 
@@ -306,7 +308,7 @@ private:
 		}
 		static orb_advert_t get(ORB_ID orb_id, uint8_t instance);
 		static orb_advert_t map_node(ORB_ID orb_id, uint8_t instance, int shm_fd);
-		static orb_advert_t map_data(orb_advert_t handle, int shm_fd, size_t size, bool publisher);
+		static orb_advert_t map_data(orb_advert_t handle, int shm_fd, bool publisher);
 		static bool del(const orb_advert_t &handle);
 
 		static void lock()
@@ -325,7 +327,7 @@ private:
 
 	DeviceNode(const ORB_ID id, const uint8_t instance, const char *path);
 
-	int advertise(bool publisher, uint8_t queue_size);
+	int advertise(bool publisher);
 	int unadvertise(bool publisher);
 
 	/**
@@ -336,7 +338,7 @@ private:
 
 	void _add_subscriber(unsigned *initial_generation);
 
-	void remap_data(orb_advert_t &handle, size_t new_size, bool advertiser);
+	void map_data(orb_advert_t &handle, bool advertiser);
 
 	inline static DeviceNode *node(const orb_advert_t &handle) { return static_cast<DeviceNode *>(handle.node); }
 #ifdef CONFIG_BUILD_FLAT

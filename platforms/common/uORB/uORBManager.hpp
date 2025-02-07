@@ -119,9 +119,9 @@ public:
 	 *      ORB_DEFINE with no corresponding ORB_DECLARE)
 	 *      this function will return nullptr and set errno to ENOENT.
 	 */
-	orb_advert_t orb_advertise(const struct orb_metadata *meta, const void *data, unsigned int queue_size = 1)
+	orb_advert_t orb_advertise(const struct orb_metadata *meta, const void *data)
 	{
-		return orb_advertise_multi(meta, data, nullptr, queue_size);
+		return orb_advertise_multi(meta, data, nullptr);
 	}
 
 	/**
@@ -154,8 +154,7 @@ public:
 	 *      ORB_DEFINE with no corresponding ORB_DECLARE)
 	 *      this function will return nullptr and set errno to ENOENT.
 	 */
-	orb_advert_t orb_advertise_multi(const struct orb_metadata *meta, const void *data, int *instance,
-					 uint8_t queue_size = 1);
+	orb_advert_t orb_advertise_multi(const struct orb_metadata *meta, const void *data, int *instance);
 
 	/**
 	 * Unadvertise a topic.
