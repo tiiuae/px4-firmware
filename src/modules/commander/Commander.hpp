@@ -33,8 +33,6 @@
 
 #pragma once
 
-#include <board_config.h>
-
 /*   Helper classes  */
 #include "failsafe/failsafe.h"
 #include "failure_detector/FailureDetector.hpp"

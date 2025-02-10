@@ -453,7 +453,7 @@ public:
 	static int8_t getThreadLock() {return _Instance->g_sem_pool.reserve();}
 
 private: // class methods
-	inline static uORB::DeviceNode *node(orb_advert_t handle) {return static_cast<uORB::DeviceNode *>(handle.node);}
+	inline static uORB::DeviceNode *node(orb_advert_t handle) {return static_cast<uORB::DeviceNode *>(handle);}
 
 	static void cleanup();
 	static int callback_thread(int argc, char *argv[]);

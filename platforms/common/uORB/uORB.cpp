@@ -99,9 +99,9 @@ uint8_t orb_get_queue_size(const struct orb_metadata *meta)
 	return 0;
 }
 
-int orb_publish(const struct orb_metadata *meta, orb_advert_t *handle, const void *data)
+int orb_publish(const struct orb_metadata *meta, orb_advert_t handle, const void *data)
 {
-	return uORB::Manager::orb_publish(meta, *handle, data);
+	return uORB::Manager::orb_publish(meta, handle, data);
 }
 
 orb_sub_t orb_subscribe(const struct orb_metadata *meta)

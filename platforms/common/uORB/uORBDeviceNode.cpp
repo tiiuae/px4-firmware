@@ -103,7 +103,7 @@ orb_advert_t uORB::DeviceNode::MappingCache::map_node(ORB_ID orb_id, uint8_t ins
 #endif
 
 		// Create a list item and add to the beginning of the list
-		handle.node = ptr;
+		handle = ptr;
 		MappingCacheListItem *item = new MappingCacheListItem{g_cache, handle};
 
 		if (item) {
@@ -125,7 +125,7 @@ bool uORB::DeviceNode::MappingCache::del(const orb_advert_t &handle)
 	MappingCacheListItem *item = g_cache;
 
 	while (item &&
-	       handle.node != item->handle.node) {
+	       handle != item->handle) {
 		prev = item;
 		item = item->next;
 	}
@@ -139,7 +139,7 @@ bool uORB::DeviceNode::MappingCache::del(const orb_advert_t &handle)
 			prev->next = item->next;
 		}
 
-		px4_munmap(handle.node, node(handle)->get_size());
+		px4_munmap(handle, node(handle)->get_size());
 
 		delete (item);
 	}

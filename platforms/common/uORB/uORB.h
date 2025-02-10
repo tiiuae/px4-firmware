@@ -124,9 +124,7 @@ int uorb_start(void);
  * ORB topic advertiser handle.
  */
 
-typedef struct {
-	void *node;
-} orb_advert_t;
+typedef void *orb_advert_t;
 
 /**
  * ORB topic subscriber handle.
@@ -138,8 +136,8 @@ typedef void *orb_sub_t;
  * Helper functions to initialize and check the handles
  */
 
-static inline bool orb_advert_valid(orb_advert_t handle) {return handle.node != NULL;}
-static const orb_advert_t ORB_ADVERT_INVALID = {NULL};
+static inline bool orb_advert_valid(orb_advert_t handle) {return handle != NULL;}
+static const orb_advert_t ORB_ADVERT_INVALID = NULL;
 
 static inline bool orb_sub_valid(orb_sub_t handle) {return handle != NULL;}
 static const orb_sub_t ORB_SUB_INVALID = NULL;
@@ -179,7 +177,7 @@ extern int orb_unadvertise(orb_advert_t handle) __EXPORT;
 /**
  * @see uORB::Manager::orb_publish()
  */
-extern int orb_publish(const struct orb_metadata *meta, orb_advert_t *handle, const void *data) __EXPORT;
+extern int orb_publish(const struct orb_metadata *meta, orb_advert_t handle, const void *data) __EXPORT;
 
 /**
  * Advertise as the publisher of a topic.
@@ -189,13 +187,13 @@ extern int orb_publish(const struct orb_metadata *meta, orb_advert_t *handle, co
  *
  * @see uORB::Manager::orb_advertise_multi() for meaning of the individual parameters
  */
-static inline int orb_publish_auto(const struct orb_metadata *meta, orb_advert_t *handle, const void *data,
+static inline int orb_publish_auto(const struct orb_metadata *meta, orb_advert_t handle, const void *data,
 				   int *instance)
 {
-	if (!orb_advert_valid(*handle)) {
-		*handle = orb_advertise_multi(meta, data, instance);
+	if (!orb_advert_valid(handle)) {
+		handle = orb_advertise_multi(meta, data, instance);
 
-		if (orb_advert_valid(*handle)) {
+		if (orb_advert_valid(handle)) {
 			return 0;
 		}
 

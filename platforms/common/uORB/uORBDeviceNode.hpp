@@ -339,7 +339,7 @@ private:
 
 	void _add_subscriber(unsigned *initial_generation);
 
-	inline static DeviceNode *node(const orb_advert_t &handle) { return static_cast<DeviceNode *>(handle.node); }
+	inline static DeviceNode *node(const orb_advert_t &handle) { return static_cast<DeviceNode *>(handle); }
 
 	bool _register_callback(SubscriptionCallback *callback_sub, int8_t poll_lock, hrt_abstime last_update,
 				uint32_t interval_us, uorb_cb_handle_t &cb_handle);
