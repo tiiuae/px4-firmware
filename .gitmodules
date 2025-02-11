@@ -118,3 +118,6 @@
 [submodule "Tools/packaging"]
 	path = Tools/saluki_packaging
 	url = git@github.com:tiiuae/saluki_low_level_sw_build.git
+[submodule "src/modules/assembly_agent"]
+	path = src/modules/assembly_agent
+	url = git@github.com:tiiuae/px4_assembly_agent.git
