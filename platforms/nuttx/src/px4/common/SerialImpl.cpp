@@ -37,6 +37,7 @@
 #include <px4_log.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <poll.h>
 #include <drivers/drv_hrt.h>
 
@@ -129,11 +130,7 @@ bool SerialImpl::configure()
 
 	default:
 		speed = _baudrate;
-#ifdef CONFIG_ARCH_CHIP_ESP32
-		PX4_WARN("Using non-standard baudrate: %u", _baudrate);
-#else
-		PX4_WARN("Using non-standard baudrate: %lu", _baudrate);
-#endif
+		PX4_WARN("Using non-standard baudrate: %" PRIu32, _baudrate);
 		break;
 	}
 
