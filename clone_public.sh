@@ -10,6 +10,7 @@ do
   [[ "${repo}" == *pfsoc_keystore ]]  || \
   [[ "${repo}" == *imx9_keystore ]]  || \
   [[ "${repo}" == *pf_crypto ]] || \
+  [[ "${repo}" == *assembly_agent ]] || \
   [[ "${repo}" == *px4_fw_update_client ]] || \
   [[ "${repo}" == *secure_udp ]] || \
   [[ "${repo}" == *rust_px4_nuttx ]] || \
