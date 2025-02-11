@@ -38,8 +38,10 @@
  */
 
 #include <px4_platform_common/px4_config.h>
+#include <px4_platform_common/shutdown.h>
 #include <errno.h>
 #include <nuttx/board.h>
+#include <hardware/mpfs_wdog.h>
 
 #include "riscv_internal.h"
 
@@ -50,6 +52,17 @@ static void board_reset_enter_bootloader()
 	/* Reset the whole SoC */
 
 	up_systemreset();
+}
+
+static void board_reset_enter_bootloader_and_continue_boot()
+{
+	/* Reset by triggering WDOG */
+
+	putreg32(WDOG_FORCE_IMMEDIATE_RESET, MPFS_WDOG0_LO_BASE + MPFS_WDOG_FORCE_OFFSET);
+
+	/* Wait for the reset */
+
+	for (; ;);
 }
 
 static void board_reset_enter_app(uintptr_t hartid)
@@ -69,8 +82,11 @@ int board_reset(int status)
 	board_on_reset(status);
 #endif
 
-	if (status == 1) {
+	if (status == REBOOT_TO_BOOTLOADER) {
 		board_reset_enter_bootloader();
+
+	} else if (status == REBOOT_TO_BOOTLOADER_CONTINUE) {
+		board_reset_enter_bootloader_and_continue_boot();
 	}
 
 	/* Just reboot via reset vector */
