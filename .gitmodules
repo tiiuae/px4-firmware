@@ -142,3 +142,6 @@
 [submodule "platforms/nuttx/NuttX/extern/apps/nxp93-attestation"]
 	path = platforms/nuttx/NuttX/extern/apps/nxp93-attestation
 	url = git@github.com:tiiuae/nxp93-attestation.git
+[submodule "src/modules/moi_agent"]
+	path = src/modules/moi_agent
+	url = git@github.com:tiiuae/px4_moi_agent.git
