@@ -17,6 +17,7 @@ do
   [[ "${repo}" == *rust_px4_nuttx ]] || \
   [[ "${repo}" == *rust_module_example ]] || \
   [[ "${repo}" == *assembly_agent ]] || \
+  [[ "${repo}" == *moi_agent ]] || \
   [[ "${repo}" == *secure_udp_proxy ]] || \
   [[ "${repo}" == *process ]] || \
   [[ "${repo}" == *nxp93-attestation ]] && continue
