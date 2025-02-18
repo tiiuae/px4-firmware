@@ -121,3 +121,6 @@
 [submodule "src/modules/assembly_agent"]
 	path = src/modules/assembly_agent
 	url = git@github.com:tiiuae/px4_assembly_agent.git
+[submodule "src/modules/moi_agent"]
+	path = src/modules/moi_agent
+	url = git@github.com:tiiuae/px4_moi_agent.git
