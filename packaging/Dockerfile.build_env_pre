@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fakeroot \
     dh-make \
     debhelper \
+    clang \
     && pip3 install kconfiglib jsonschema \
     && rm -rf /var/lib/apt/lists/*
 
