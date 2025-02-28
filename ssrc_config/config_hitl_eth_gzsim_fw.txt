@@ -39,17 +39,27 @@ param set FD_ESCS_EN 0
 # TODO: adapt gz model to remove custom HITL min, max and disarmed limit
 param set PWM_MAIN_MIN1 0
 param set PWM_MAIN_MIN2 0
+param set PWM_MAIN_MIN4 0
 
 param set PWM_MAIN_MAX1 1000
 param set PWM_MAIN_MAX2 1000
-param set PWM_MAIN_MAX4 3000
+param set PWM_MAIN_MAX4 3500
 
 param set PWM_MAIN_DIS1 500
 param set PWM_MAIN_DIS2 500
 param set PWM_MAIN_DIS4 0
 
+param set PWM_MAIN_REV 0
+
 # Change airspeed checks
 param set ASPD_DO_CHECKS 7
+
+# Disable internal magnetometer
+param set CAL_MAG0_PRIO 1
+param set CAL_MAG0_ROT 0
+param set CAL_MAG1_PRIO 100
+param set CAL_MAG1_ROT 0
+param set SENS_MAG_MODE 0
 
 # FW control
 # Pitch rate
@@ -81,5 +91,6 @@ param set FW_T_SINK_MIN 2.2
 param set RTL_RETURN_ALT 30.0
 param set RTL_DESCEND_ALT 30.0
 param set FW_LND_USETER 0
+param set FW_LAUN_AC_THLD 0.0
 param set FW_LAUN_DETCN_ON 0
 param set RWTO_TKOFF 1
