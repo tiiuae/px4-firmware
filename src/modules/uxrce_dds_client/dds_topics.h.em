@@ -96,7 +96,7 @@ void SendTopicsSubs::update(uxrSession *session, uxrStreamId reliable_out_stream
 			orb_copy(send_subscriptions[idx].orb_meta, fds[idx].fd, &topic_data);
 			if (send_subscriptions[idx].data_writer.id == UXR_INVALID_ID) {
 				// data writer not created yet
-				if (!create_data_writer(session, reliable_out_stream_id, participant_id, static_cast<ORB_ID>(send_subscriptions[idx].orb_meta->o_id), client_namespace, "@(pub['topic_name'])",
+				if (!create_data_writer(session, reliable_out_stream_id, participant_id, static_cast<ORB_ID>(send_subscriptions[idx].orb_meta->o_id), client_namespace, send_subscriptions[idx].orb_meta->o_name,
 								   send_subscriptions[idx].dds_type_name, send_subscriptions[idx].data_writer)) {
 					send_subscriptions[idx].data_writer.id = UXR_INVALID_ID;
 				}
@@ -172,7 +172,9 @@ bool RcvTopicsPubs::init(uxrSession *session, uxrStreamId reliable_out_stream_id
 @[    for idx, sub in enumerate(subscriptions + subscriptions_multi)]@
 	{
 			uint16_t queue_depth = orb_get_queue_size(ORB_ID(@(sub['simple_base_type']))) * 2; // use a bit larger queue size than internal
-			ret = create_data_reader(session, reliable_out_stream_id, best_effort_in_stream_id, participant_id, @(idx), client_namespace, "@(sub['topic_name'])", "@(sub['dds_type'])", queue_depth);
+			if (!create_data_reader(session, reliable_out_stream_id, best_effort_in_stream_id, participant_id, @(idx), client_namespace, "@(sub['topic_simple'])", "@(sub['dds_type'])", queue_depth)) {
+				ret = false;
+			}
 	}
 @[    end for]@
 
