@@ -64,6 +64,7 @@ publications:
 
   - topic: /fmu/out/vehicle_odometry
     type: px4_msgs::msg::VehicleOdometry
+    rate: 10
 
   - topic: /fmu/out/vehicle_status
     type: px4_msgs::msg::VehicleStatus
