@@ -134,7 +134,6 @@ void SendTopicsSubs::update(uxrSession *session, uxrStreamId reliable_out_stream
 			orb_copy(send_subscriptions[idx].orb_meta, fds[idx].fd, &topic_data);
 
 			if (send_subscriptions[idx].data_writer.id != UXR_INVALID_ID) {
-
 				ucdrBuffer ub;
 				uint32_t topic_size = send_subscriptions[idx].topic_size;
 				if (uxr_prepare_output_stream(session, best_effort_stream_id, send_subscriptions[idx].data_writer, &ub, topic_size) != UXR_INVALID_REQUEST_ID) {
@@ -146,7 +145,6 @@ void SendTopicsSubs::update(uxrSession *session, uxrStreamId reliable_out_stream
 				} else {
 					//PX4_ERR("Error uxr_prepare_output_stream UXR_INVALID_REQUEST_ID %s", send_subscriptions[idx].subscription.get_topic()->o_name);
 				}
-
 			} else {
 				//PX4_ERR("Error UXR_INVALID_ID %s", send_subscriptions[idx].subscription.get_topic()->o_name);
 			}
