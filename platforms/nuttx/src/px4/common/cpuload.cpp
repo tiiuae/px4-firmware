@@ -105,9 +105,9 @@ retry:
 
 	hash = HASH(pid);
 
-	/* Check if the entry is available */
+	/* Check if the entry is available or exists already (task restart case) */
 
-	if (hashtab[hash] == NULL) {
+	if (hashtab[hash] == NULL || task_info->tcb == hashtab[hash]->tcb) {
 		hashtab[hash] = task_info;
 		px4_leave_critical_section(flags);
 		return OK;
