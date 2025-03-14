@@ -520,7 +520,7 @@ bool CdcAcmAutostart::scan_buffer_for_ublox_bytes()
 bool CdcAcmAutostart::start_mavlink()
 {
 	char mavlink_mode_string[16];
-	snprintf(mavlink_mode_string, sizeof(mavlink_mode_string), "%ld", _usb_mav_mode.get());
+	snprintf(mavlink_mode_string, sizeof(mavlink_mode_string), "%" PRId32, _usb_mav_mode.get());
 
 	// Non-static argv: NuttX task_spawn copies argv into the new task stack before return.
 	char *argv[] { (char *)"mavlink", (char *)"start", (char *)"-d", (char *)USB_DEVICE_PATH,
