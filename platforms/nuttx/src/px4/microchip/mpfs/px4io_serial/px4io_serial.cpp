@@ -81,6 +81,9 @@ int ArchPX4IOSerial::init_uart()
 	modifyreg32(MPFS_SYSREG_BASE + MPFS_SYSREG_SUBBLK_CLOCK_CR_OFFSET,
 		    0, SYSREG_SUBBLK_CLOCK_CR_FIC3);
 
+	/* Release IP reset */
+
+	modifyreg32(PX4IO_RESET_REG, PX4IO_SERIAL_RESET_BIT, 0);
 
 	/* Disable interrupts */
 
