@@ -326,7 +326,45 @@ bool crypto_signature_check(crypto_session_handle_t handle,
 			}
 		}
 		break;
+	case CRYPTO_ECDSA_P384: {
+			ecc_key key;
 
+			initialize_tomcrypt();
+
+			if (ecc_import(public_key, keylen, &key) == CRYPT_OK) {
+				const int hash_idx = find_hash("sha384");
+
+				if (hash_idx >= 0) {
+					const unsigned long hash_len = 48;
+					unsigned char hash[48];
+					hash_state md;
+
+					// Hash message.
+
+					if (sha384_init(&md) == CRYPT_OK
+					    && sha384_process(&md, message, message_size) == CRYPT_OK
+					    && sha384_done(&md, hash) == CRYPT_OK)
+
+					{
+						// Verify signature.
+						int stat = 0;
+
+						if (ecc_verify_hash_rfc7518(signature, 384, hash, hash_len, &stat, &key) == CRYPT_OK
+							&& stat) {
+							ret = true;
+						}
+					}
+
+					// Clean up.
+					memset(hash, 0, sizeof(hash));
+					memset(&md, 0, sizeof(md));
+				}
+
+				// Free ECC key.
+				ecc_free(&key);
+			}
+		}
+		break;
 	default:
 		ret = false;
 		break;
