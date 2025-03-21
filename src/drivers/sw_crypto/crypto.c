@@ -41,11 +41,13 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#include <lib/crypto/libtomcrypt/src/headers/tomcrypt.h>
 #include <lib/crypto/monocypher/src/optional/monocypher-ed25519.h>
 #include <lib/crypto/crypto_utils/secure_heap.h>
 #include <px4_platform_common/crypto_backend.h>
 #include <px4_random.h>
 #include <tomcrypt.h>
+#include <debug.h>
 
 extern void libtomcrypt_init(void);
 
@@ -244,6 +246,38 @@ bool crypto_signature_gen(crypto_session_handle_t handle,
 
 		break;
 
+	case CRYPTO_ECDSA_P384: {
+			ecc_key key;
+
+			initialize_tomcrypt();
+			int ecc_ret = ecc_import_openssl(private_key, keylen, &key);
+
+			if (ecc_ret == CRYPT_OK) {
+				unsigned long hash_len = 48;
+				unsigned long signature_len = 384;
+				unsigned char hash[48];
+				prng_state md;
+
+				// Hash message.
+				if (hash_memory(find_hash("sha384"), message, message_size, hash, &hash_len) == CRYPT_OK) {
+
+					// Sign digest
+					if (ecc_sign_hash_rfc7518(hash, hash_len, signature, &signature_len, &md, 0, &key) == CRYPT_OK) {
+						ret = true;
+					}
+				}
+
+				// Clean up.
+				memset(hash, 0, sizeof(hash));
+				memset(&md, 0, sizeof(md));
+
+				// Free ECC key.
+				ecc_free(&key);
+			}
+
+		}
+		break;
+
 	default:
 		ret = false;
 	}
@@ -272,7 +306,7 @@ bool crypto_signature_check(crypto_session_handle_t handle,
 	switch (handle.algorithm) {
 	case CRYPTO_ED25519:
 		if (keylen >= 32) {
-			/* In the DER format ed25510 key the raw public key part is always the last 32 bytes.
+			/* In the DER format ed25519 key the raw public key part is always the last 32 bytes.
 			 * This simple "parsing" works for both "raw" key and DER format
 			 */
 			public_key += keylen - 32;
@@ -324,6 +358,41 @@ bool crypto_signature_check(crypto_session_handle_t handle,
 				// Free RSA key.
 				rsa_free(&key);
 			}
+		}
+		break;
+
+	case CRYPTO_ECDSA_P384: {
+			ecc_key key;
+
+			initialize_tomcrypt();
+
+
+			int ecc_ret = ecc_import_openssl(public_key, keylen, &key);
+
+			if (ecc_ret == CRYPT_OK) {
+				unsigned long hash_len = 48;
+				unsigned char hash[48];
+				hash_state md;
+
+				// Hash message.
+				if (hash_memory(find_hash("sha384"), message, message_size, hash, &hash_len) == CRYPT_OK) {
+					// Verify signature.
+					int stat = 0;
+
+					if (ecc_verify_hash_rfc7518(signature, 96, hash, hash_len, &stat, &key) == CRYPT_OK
+					    && stat) {
+						ret = true;
+					}
+				}
+
+				// Clean up.
+				memset(hash, 0, sizeof(hash));
+				memset(&md, 0, sizeof(md));
+
+				// Free ECC key.
+				ecc_free(&key);
+			}
+
 		}
 		break;
 
