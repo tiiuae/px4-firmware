@@ -163,8 +163,7 @@ int SocketCAN::Init(const char *const can_iface_name, const uint32_t can_bitrate
 	ifr.ifr_ifru.ifru_can_filter.fprio = CAN_MSGPRIO_LOW;
 
 	if (ioctl(_fd, SIOCACANSTDFILTER, &ifr) < 0) {
-		PX4_ERR("Setting RX range filter failed");
-		return -1;
+		PX4_WARN("Setting RX range filter failed. CAN range filter is not supported");
 	}
 
 	// Setup RX bit filter
@@ -174,8 +173,7 @@ int SocketCAN::Init(const char *const can_iface_name, const uint32_t can_bitrate
 	ifr.ifr_ifru.ifru_can_filter.fprio = CAN_MSGPRIO_LOW;
 
 	if (ioctl(_fd, SIOCACANSTDFILTER, &ifr) < 0) {
-		PX4_ERR("Setting RX bit filter A failed");
-		return -1;
+		PX4_WARN("Setting RX bit filter A failed. CAN bit filter is not supported");
 	}
 
 	return 0;
