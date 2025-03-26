@@ -5,7 +5,7 @@
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 const int landing_time_s = 45;
-const int flight_duration_minuses_max = 60*24*3;
+const int flight_duration_minutes_max = 60*24*7;
 const int flight_leg_length_m_max = 1000;
 
 
@@ -180,8 +180,8 @@ bool get_test_configuration(const std::string &test_case_name, int &flight_durat
 	res &= get_element(data, test_case_name, "leg", flight_leg_length_m);
 
 	if(res) {
-		flight_duration_minutes = flight_duration_minutes > flight_duration_minuses_max ?
-						flight_duration_minuses_max : flight_duration_minutes;
+		flight_duration_minutes = flight_duration_minutes > flight_duration_minutes_max ?
+						flight_duration_minutes_max : flight_duration_minutes;
 		flight_leg_length_m = flight_leg_length_m > flight_leg_length_m_max ?
 					flight_leg_length_m_max : flight_leg_length_m;
 

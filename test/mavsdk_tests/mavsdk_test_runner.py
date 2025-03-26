@@ -60,6 +60,8 @@ def main() -> NoReturn:
                         help="the type of connection: serial or ethernet. Using only for --hitl")
     parser.add_argument("--boot_log_tty", type=str, default="",
                         help="TTY device for logging the boot process (e.g., '/dev/ttyUSB0')")
+    parser.add_argument("--ulog", default=False, action='store_true',
+                        help="run logging ulog")
     args = parser.parse_args()
 
     with open(args.config_file) as json_file:
@@ -86,7 +88,8 @@ def main() -> NoReturn:
         args.upload,
         args.build_dir,
         args.connection,
-        args.boot_log_tty
+        args.boot_log_tty,
+        args.ulog
     )
     signal.signal(signal.SIGINT, tester.sigint_handler)
 
@@ -150,7 +153,8 @@ class Tester:
                  upload: bool,
                  build_dir: str,
                  connection: str,
-                 boot_log_tty: str):
+                 boot_log_tty: str,
+                 ulog: bool):
         self.config = config
         self.build_dir = build_dir
         self.active_runners: List[ph.Runner]
@@ -167,6 +171,7 @@ class Tester:
         self.log_fd: Any[TextIO] = None
         self.connection = connection
         self.boot_log_tty = boot_log_tty
+        self.ulog = ulog
         self.hilt_preparing = os.path.join(os.getcwd(), self.build_dir, "mavsdk_tests/mavsdk_preparing")
         self.HARDREBOOT_IS_REQUIRED = 2
 
@@ -651,6 +656,14 @@ class Tester:
                 self.boot_log_tty
             )
             self.active_runners.append(boot_log_runner)
+        if (self.ulog):
+            ulog_runner = ph.ULogListener(
+                os.getcwd(),
+                log_dir,
+                test['model'],
+                case,
+                self.verbose)
+            self.active_runners.append(ulog_runner)
 
         mavsdk_tests_runner = ph.TestRunner(
             os.getcwd(),
