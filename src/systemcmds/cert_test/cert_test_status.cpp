@@ -47,6 +47,16 @@ CertTestStatus::CertTestStatus(uint32_t hw, BgProcExec *actuator, CanTest *can_t
 	_status_pub.advertise();
 }
 
+CertTestStatus::CertTestStatus(uint32_t hw, BgProcExec *actuator, TestLogger *log, bool verbose) :
+	_saluki_hw(hw),
+	_actuator(actuator),
+	_can_test(nullptr),
+	_log(log),
+	_verbose(verbose)
+{
+	_status_pub.advertise();
+}
+
 void CertTestStatus::update()
 {
 	_cert_status.timestamp = hrt_absolute_time();
@@ -83,8 +93,13 @@ void CertTestStatus::update()
 		_cert_status.actuator_test[LATEST] = OrbBase::STATUS_OK;
 	}
 
-	_cert_status.cansend[LATEST] = _can_test->status;
-	_cert_status.cansend[ERR_RECORD] |= (_cert_status.cansend[LATEST] & ~(OrbBase::STATUS_OK));
+	if (_can_test == nullptr) {
+		_cert_status.cansend[LATEST] = OrbBase::STATUS_NOT_RUNNING;
+		_cert_status.cansend[ERR_RECORD] = OrbBase::STATUS_NOT_RUNNING;
+	} else {
+		_cert_status.cansend[LATEST] = _can_test->status;
+		_cert_status.cansend[ERR_RECORD] |= (_cert_status.cansend[LATEST] & ~(OrbBase::STATUS_OK));
+	}
 
 	_status_pub.publish(_cert_status);
 
@@ -103,7 +118,11 @@ void CertTestStatus::update()
 		_log->log(_log->INFO, "    adc:        0x%x (0x%x)", _cert_status.adc_report[0], _cert_status.adc_report[1]);
 		_log->log(_log->INFO, "    uart:       0x%x (0x%x)", _cert_status.telem_test[0], _cert_status.telem_test[1]);
 		_log->log(_log->INFO, "    actuator:   0x%x (0x%x)", _cert_status.actuator_test[0], _cert_status.actuator_test[1]);
-		_log->log(_log->INFO, "    cansend:    0x%x (0x%x)", _cert_status.cansend[0], _cert_status.cansend[1]);
+
+		if (_can_test != nullptr) {
+			_log->log(_log->INFO, "    cansend:    0x%x (0x%x)", _cert_status.cansend[0], _cert_status.cansend[1]);
+		}
+
 		if (log_px4io) {
 			_log->log(_log->INFO, "    px4io:      0x%x (0x%x)", _cert_status.px4io_status[0], _cert_status.px4io_status[1]);
 		}

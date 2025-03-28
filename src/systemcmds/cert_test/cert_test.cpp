@@ -206,6 +206,7 @@ static int cert_test_task(int argc, char **argv)
 	const char *myoptarg = nullptr;
 	uint32_t saluki_hw = SALUKI_HW_V2;
 	bool run_setup = false;
+	bool disable_can = false;
 
 	PX4_INFO("cert_test starting");
 
@@ -213,7 +214,7 @@ static int cert_test_task(int argc, char **argv)
 		return 1;
 	}
 
-	while ((ch = px4_getopt(argc, argv, "vsc:", &myoptind, &myoptarg)) != EOF) {
+	while ((ch = px4_getopt(argc, argv, "vsc:d", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 'v':
 			verbose = true;
@@ -229,6 +230,10 @@ static int cert_test_task(int argc, char **argv)
 			} else if (strcmp(myoptarg, "saluki_nxp93") == 0) {
 				saluki_hw = SALUKI_HW_NXP93;
 			}
+			break;
+
+		case 'd':
+			disable_can = true;
 			break;
 
 		default:
@@ -256,17 +261,28 @@ static int cert_test_task(int argc, char **argv)
 
 	BgProcExec *telem_test = start_telem_test(saluki_hw);
 
-	CanTest *can_test = new CanTest(logger);
-	if (can_test->start()) {
-		stop_test = 1;
+	CanTest *can_test = nullptr;
+
+	if (disable_can) {
+		logger->log(TestLogger::INFO, "CAN test disabled");
+	} else {
+		can_test = new CanTest(logger);
+		if (can_test->start()) {
+			stop_test = 1;
+		}
 	}
 
 	px4_sleep(10);
 
 	logger->log(TestLogger::INFO, "start status reporting");
 
-	CertTestStatus *cert_test = new CertTestStatus(saluki_hw, actuator, can_test, logger, verbose);
+	CertTestStatus *cert_test = nullptr;
 
+	if (disable_can) {
+		cert_test = new CertTestStatus(saluki_hw, actuator, logger, verbose);
+	} else {
+		cert_test = new CertTestStatus(saluki_hw, actuator, can_test, logger, verbose);
+	}
 	if (!actuator ||
 		!telem_test ||
 		!cert_test) {
