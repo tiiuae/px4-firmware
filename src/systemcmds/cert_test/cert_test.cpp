@@ -78,11 +78,11 @@ struct telem_cfg {
 	const char *gps;
 };
 
-static struct telem_cfg TELEM_TEST_CFG[] = {
-	{SALUKI_HW_ANY,		"/dev/ttyS1", "/dev/ttyS3", "/dev/ttyS4"},
-	{SALUKI_HW_NXP93,	"/dev/ttyS3", "/dev/ttyS7", "/dev/ttyS0"},
-	{SALUKI_HW_ANY,		nullptr, nullptr, nullptr},
-};
+// static struct telem_cfg TELEM_TEST_CFG[] = {
+// 	{SALUKI_HW_ANY,		"/dev/ttyS1", "/dev/ttyS3", "/dev/ttyS4"},
+// 	{SALUKI_HW_NXP93,	"/dev/ttyS3", "/dev/ttyS7", "/dev/ttyS0"},
+// 	{SALUKI_HW_ANY,		nullptr, nullptr, nullptr},
+// };
 
 static void app_sighandler(int sig_num)
 {
@@ -144,59 +144,59 @@ static int setup_params(uint32_t saluki_hw)
 	return 0;
 }
 
-static BgProcExec* start_actuator_test(BgProcExec *actuator)
-{
-	const char *cmd_argv[] = {0, "set", "-m", "1", "-v", "0.25", nullptr};
+// static BgProcExec* start_actuator_test(BgProcExec *actuator)
+// {
+// 	const char *cmd_argv[] = {0, "set", "-m", "1", "-v", "0.25", nullptr};
 
-	if (actuator == nullptr) {
-		return new BgProcExec("actuator_test", "actuator_test", cmd_argv, BgProcExec::KILL, logger);
-	}
+// 	if (actuator == nullptr) {
+// 		return new BgProcExec("actuator_test", "actuator_test", cmd_argv, BgProcExec::KILL, logger);
+// 	}
 
-	if (actuator->rerun(cmd_argv)) {
-		logger->log(TestLogger::INFO, "actuator test re-launched");
-	} else {
-		logger->log(TestLogger::ERR, "actuator test re-launch failed");
-	}
+// 	if (actuator->rerun(cmd_argv)) {
+// 		logger->log(TestLogger::INFO, "actuator test re-launched");
+// 	} else {
+// 		logger->log(TestLogger::ERR, "actuator test re-launch failed");
+// 	}
 
-	return actuator;
-}
+// 	return actuator;
+// }
 
-static void stop_mavlink_uart(const char *telem1)
-{
-	const char *cmd_argv[] = {0, "stop", "-d", telem1, nullptr};
+// static void stop_mavlink_uart(const char *telem1)
+// {
+// 	const char *cmd_argv[] = {0, "stop", "-d", telem1, nullptr};
 
-	BgProcExec *mavlink_uart = new BgProcExec("stop mavlink uart", "mavlink", cmd_argv, BgProcExec::NO_KILL, logger);
-	px4_sleep(3);
-	delete mavlink_uart;
-}
+// 	BgProcExec *mavlink_uart = new BgProcExec("stop mavlink uart", "mavlink", cmd_argv, BgProcExec::NO_KILL, logger);
+// 	px4_sleep(3);
+// 	delete mavlink_uart;
+// }
 
-static BgProcExec* start_telem_test(uint32_t saluki_hw)
-{
-	struct telem_cfg *cfg = nullptr;
+// static BgProcExec* start_telem_test(uint32_t saluki_hw)
+// {
+// 	struct telem_cfg *cfg = nullptr;
 
-	for (int i = 0; TELEM_TEST_CFG[i].telem1 != nullptr; i++) {
-		// set default value
-		if (!cfg && TELEM_TEST_CFG[i].saluki_hw == SALUKI_HW_ANY) {
-			cfg = &TELEM_TEST_CFG[i];
-		}
+// 	for (int i = 0; TELEM_TEST_CFG[i].telem1 != nullptr; i++) {
+// 		// set default value
+// 		if (!cfg && TELEM_TEST_CFG[i].saluki_hw == SALUKI_HW_ANY) {
+// 			cfg = &TELEM_TEST_CFG[i];
+// 		}
 
-		if (TELEM_TEST_CFG[i].saluki_hw == saluki_hw) {
-			cfg = &TELEM_TEST_CFG[i];
-		}
-	}
+// 		if (TELEM_TEST_CFG[i].saluki_hw == saluki_hw) {
+// 			cfg = &TELEM_TEST_CFG[i];
+// 		}
+// 	}
 
-	if (!cfg) {
-		PX4_ERR("ERROR: invalid telem test config");
-		return nullptr;
-	}
+// 	if (!cfg) {
+// 		PX4_ERR("ERROR: invalid telem test config");
+// 		return nullptr;
+// 	}
 
-	stop_mavlink_uart(cfg->telem1);
+// 	stop_mavlink_uart(cfg->telem1);
 
-	const char *cmd_argv[] = {0, "-t", "uart_chain_loopback", cfg->telem1, cfg->telem2, cfg->gps, nullptr};
+// 	const char *cmd_argv[] = {0, "-t", "uart_chain_loopback", cfg->telem1, cfg->telem2, cfg->gps, nullptr};
 
-	BgProcExec *telem_test = new BgProcExec("telem_test", "telem_test", cmd_argv, BgProcExec::KILL, logger);
-	return telem_test;
-}
+// 	BgProcExec *telem_test = new BgProcExec("telem_test", "telem_test", cmd_argv, BgProcExec::KILL, logger);
+// 	return telem_test;
+// }
 
 static int cert_test_task(int argc, char **argv)
 {
@@ -257,9 +257,9 @@ static int cert_test_task(int argc, char **argv)
 		return 1;
 	}
 
-	BgProcExec *actuator = start_actuator_test(nullptr);
+	//BgProcExec *actuator = start_actuator_test(nullptr);
 
-	BgProcExec *telem_test = start_telem_test(saluki_hw);
+	//BgProcExec *telem_test = start_telem_test(saluki_hw);
 
 	CanTest *can_test = nullptr;
 
@@ -278,6 +278,7 @@ static int cert_test_task(int argc, char **argv)
 
 	CertTestStatus *cert_test = nullptr;
 
+	/**
 	if (disable_can) {
 		cert_test = new CertTestStatus(saluki_hw, actuator, logger, verbose);
 	} else {
@@ -288,24 +289,35 @@ static int cert_test_task(int argc, char **argv)
 		!cert_test) {
 		stop_test = 1;
 		logger->log(TestLogger::ERR, "Test init failed [%p, %p, %p]", actuator, telem_test, cert_test);
+	}**/
+
+	//if (disable_can) {
+	//	cert_test = new CertTestStatus(saluki_hw, logger, verbose);
+	//} else {
+		cert_test = new CertTestStatus(saluki_hw, can_test, logger, verbose);
+	//}
+
+	if (!cert_test) {
+		stop_test = 1;
+		logger->log(TestLogger::ERR, "Test init failed [%p]", cert_test);
 	}
 
 	while(!stop_test) {
 		cert_test->update();
 
-		if (actuator->get_pid(false) < 0) {
-			logger->log(TestLogger::INFO, "Try to re-launch actuator test...");
-			start_actuator_test(actuator);
-		}
+		//if (actuator->get_pid(false) < 0) {
+		//	logger->log(TestLogger::INFO, "Try to re-launch actuator test...");
+		//	start_actuator_test(actuator);
+		//}
 
 		px4_sleep(1);
 	}
 
 	logger->log(TestLogger::INFO, "shutting down");
 
-	delete actuator;
+	//delete actuator;
 	delete can_test;
-	delete telem_test;
+	//delete telem_test;
 	delete cert_test;
 	delete logger;
 

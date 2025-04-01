@@ -79,8 +79,8 @@ private:
 	const char *CAN_SEQ[26] = {
 		"can0", "123#10101010",
 		"can0", "123#5A5A5A5A",
-		"can1", "123#10101010",
-		"can1", "123#5A5A5A5A",
+		"can0", "123#10101010",
+		"can0", "123#5A5A5A5A",
 		nullptr, nullptr,
 		};
 };

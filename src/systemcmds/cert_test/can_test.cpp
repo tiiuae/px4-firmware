@@ -75,17 +75,38 @@ void CanTest::run_test()
 {
 	_log->log(TestLogger::INFO, "CAN test thread started");
 
+	px4_usleep(1000);
+
 	const char *cmd_argv[] = {0, "can0", "123#10101010",  nullptr};
 	BgProcExec *can_test = new BgProcExec("cansend", "cansend", cmd_argv, BgProcExec::NO_KILL, _log);
 
+	// Enable if Loopback from can0 to can1 is available
+	bool verifyLoopback = true;
+	// dump exits if no frames received in 1200ms
+	const char *cmd_argv2[] = {0, "-s", "2", "-T", "1200", "can1", nullptr};
+	BgProcExec *can_test_read = new BgProcExec("candump", "candump", cmd_argv2, BgProcExec::KILL, _log);
+
 	while (!_stop_test) {
 		bool failure = false;
+
+		_log->log(TestLogger::ERR, "cansend pid %d", can_test->get_pid(true));
+		_log->log(TestLogger::ERR, "candump pid %d", can_test_read->get_pid(true));
 
 		for (int i = 0; CanTest::CAN_SEQ[i] != nullptr; i += 2) {
 			cmd_argv[1] = CanTest::CAN_SEQ[i];
 			cmd_argv[2] = CanTest::CAN_SEQ[i + 1];
 
 			if (can_test->rerun(cmd_argv)) {
+				// Check that READ test is also alive ie. no timeout
+				if (verifyLoopback) {
+					if (can_test_read->get_pid(true) == -1) {
+						_log->log(TestLogger::ERR, "candump process not found");
+						status = OrbBase::STATUS_NOT_RUNNING;
+						failure = true;
+						break;
+					}
+				}
+
 				px4_usleep(1000);
 				continue;
 			}
@@ -103,11 +124,14 @@ void CanTest::run_test()
 		}
 
 		px4_usleep(1000);
+
+		_log->log(TestLogger::ERR, "_stop_test %d", _stop_test);
 	}
 
 	status = OrbBase::STATUS_INIT;
 
 	delete can_test;
+	delete can_test_read;
 
 	return;
 }

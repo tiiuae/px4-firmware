@@ -64,6 +64,7 @@ class CertTestStatus
 public:
 	CertTestStatus(uint32_t hw, BgProcExec *actuator, CanTest *can_test, TestLogger *log, bool verbose);
 	CertTestStatus(uint32_t hw, BgProcExec *actuator, TestLogger *log, bool verbose);
+	CertTestStatus(uint32_t hw, CanTest *can_test, TestLogger *log, bool verbose);
 
 	~CertTestStatus() = default;
 

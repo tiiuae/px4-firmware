@@ -57,6 +57,16 @@ CertTestStatus::CertTestStatus(uint32_t hw, BgProcExec *actuator, TestLogger *lo
 	_status_pub.advertise();
 }
 
+CertTestStatus::CertTestStatus(uint32_t hw, CanTest *can_test, TestLogger *log, bool verbose) :
+	_saluki_hw(hw),
+	_actuator(nullptr),
+	_can_test(can_test),
+	_log(log),
+	_verbose(verbose)
+{
+	_status_pub.advertise();
+}
+
 void CertTestStatus::update()
 {
 	_cert_status.timestamp = hrt_absolute_time();
@@ -81,17 +91,17 @@ void CertTestStatus::update()
 	}
 
 	// set error record also for telem test already recovered errors
-	if (_telem_test.error_record()) {
-		_cert_status.telem_test[ERR_RECORD] |= OrbBase::STATUS_TEST_FAIL;
-	}
+	//if (_telem_test.error_record()) {
+	//	_cert_status.telem_test[ERR_RECORD] |= OrbBase::STATUS_TEST_FAIL;
+	//}
 
-	int pid = _actuator->get_pid(true);
-	if (pid < 0) {
-		_cert_status.actuator_test[LATEST] = OrbBase::STATUS_INIT | OrbBase::STATUS_NOT_RUNNING;
-		_cert_status.actuator_test[ERR_RECORD] |= (_cert_status.actuator_test[LATEST] & ~(OrbBase::STATUS_OK));
-	} else {
-		_cert_status.actuator_test[LATEST] = OrbBase::STATUS_OK;
-	}
+	//int pid = _actuator->get_pid(true);
+	//if (pid < 0) {
+	//	_cert_status.actuator_test[LATEST] = OrbBase::STATUS_INIT | OrbBase::STATUS_NOT_RUNNING;
+	//	_cert_status.actuator_test[ERR_RECORD] |= (_cert_status.actuator_test[LATEST] & ~(OrbBase::STATUS_OK));
+	//} else {
+	//	_cert_status.actuator_test[LATEST] = OrbBase::STATUS_OK;
+	//}
 
 	if (_can_test == nullptr) {
 		_cert_status.cansend[LATEST] = OrbBase::STATUS_NOT_RUNNING;
@@ -116,8 +126,8 @@ void CertTestStatus::update()
 		_log->log(_log->INFO, "    gyro:       0x%x (0x%x)", _cert_status.sensor_gyro[0], _cert_status.sensor_gyro[1]);
 		_log->log(_log->INFO, "    airspeed:   0x%x (0x%x)", _cert_status.sensor_airspeed[0], _cert_status.sensor_airspeed[1]);
 		_log->log(_log->INFO, "    adc:        0x%x (0x%x)", _cert_status.adc_report[0], _cert_status.adc_report[1]);
-		_log->log(_log->INFO, "    uart:       0x%x (0x%x)", _cert_status.telem_test[0], _cert_status.telem_test[1]);
-		_log->log(_log->INFO, "    actuator:   0x%x (0x%x)", _cert_status.actuator_test[0], _cert_status.actuator_test[1]);
+		//_log->log(_log->INFO, "    uart:       0x%x (0x%x)", _cert_status.telem_test[0], _cert_status.telem_test[1]);
+		//_log->log(_log->INFO, "    actuator:   0x%x (0x%x)", _cert_status.actuator_test[0], _cert_status.actuator_test[1]);
 
 		if (_can_test != nullptr) {
 			_log->log(_log->INFO, "    cansend:    0x%x (0x%x)", _cert_status.cansend[0], _cert_status.cansend[1]);

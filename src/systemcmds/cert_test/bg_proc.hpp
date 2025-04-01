@@ -70,6 +70,7 @@ public:
 
 	bool rerun(const char **cmd_argv)
 	{
+		_log->log(_log->ERR, "rerun %s", _name);
 		while (get_pid(false) != -1) {
 			pthread_yield();
 		}
@@ -80,11 +81,14 @@ public:
 
 		_bg_task = px4_exec(_cmd, (char *const *)_cmd_argv, nullptr, 0);
 
+		bool ret = true;
 		if (_bg_task < 0) {
-			return false;
+			ret = false;
 		}
 
-		return true;
+		_log->log(_log->ERR, "ret: %d (%d)", ret, _bg_task);
+
+		return ret;
 	}
 
 	px4_task_t get_pid(bool verbose)

@@ -56,6 +56,7 @@ set(msg_files
 	CameraStatus.msg
 	CameraTrigger.msg
 	CellularStatus.msg
+	CertTestStatus.msg
 	CollisionConstraints.msg
 	CollisionReport.msg
 	ControlAllocatorStatus.msg
@@ -188,6 +189,7 @@ set(msg_files
 	TaskStackInfo.msg
 	TecsStatus.msg
 	TelemetryStatus.msg
+	TelemTestStatus.msg
 	TiltrotorExtraControls.msg
 	TimesyncStatus.msg
 	TrajectoryBezier.msg
