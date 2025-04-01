@@ -1,0 +1,12 @@
+menuconfig SYSTEMCMDS_CERT_TEST
+	bool "cert_test"
+	default n
+	---help---
+		Enable support for certification tests
+
+menuconfig USER_CERT_TEST
+	bool "cert test running as userspace module"
+	default y
+	depends on BOARD_PROTECTED && SYSTEMCMDS_CERT_TEST
+	---help---
+		Put certification tests in userspace memory
