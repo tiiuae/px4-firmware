@@ -38,11 +38,14 @@ if [ "$#" -eq 0 ]; then
 fi
 
 BASE_COMMAND=(
-    docker run -it --rm
+    docker run --rm
     --network host
     --env DISPLAY=${DISPLAY}
+    --env PYTHONUNBUFFERED=1
+    --env MESA_GL_VERSION_OVERRIDE=4.6
     --volume /tmp/.docker.xauth:/tmp/.docker.xauth
     --volume /tmp/.X11-unix:/tmp/.X11-unix
+    --volume ./docker_logs:/px4-firmware/logs
     --privileged
 )
 
