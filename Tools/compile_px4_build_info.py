@@ -39,8 +39,8 @@ for file in px4_json_files:
     temp_data["filename"] = "/firmware/" + temp_data["filename"]
     px4_json_data.append(temp_data)
 
-print("{}: collected px4 json data".format(sys.argv[0], file))
-print(px4_json_data)
+print("Collected px4 JSON data:")
+print(json.dumps(px4_json_data, indent=4, sort_keys=True))
 
 # read fpga json file
 with open(fpga_json_file, 'r') as f:
