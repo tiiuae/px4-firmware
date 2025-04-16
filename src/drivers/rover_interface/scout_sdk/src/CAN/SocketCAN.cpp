@@ -230,8 +230,13 @@ int16_t SocketCAN::SetMaskFilter(const uint32_t value, const uint32_t mask)
 	_ifr.ifr_ifru.ifru_can_filter.ftype = CAN_FILTER_MASK;
 	_ifr.ifr_ifru.ifru_can_filter.fprio = CAN_MSGPRIO_LOW;
 
-	if (ioctl(_fd, SIOCACANEXTFILTER, &_ifr) < 0) {
-		PX4_ERR("Setting RX bit filter failed. CAN bit filter is not supported");
+	if (ioctl(_fd, SIOCDCANSTDFILTER, &_ifr) < 0) {
+		PX4_ERR("Resetting RX mask filter failed. CAN mask filter is not supported");
+		return -1;
+	}
+
+	if (ioctl(_fd, SIOCACANSTDFILTER, &_ifr) < 0) {
+		PX4_ERR("Setting RX mask filter failed. CAN mask filter is not supported");
 		return -1;
 	}
 
