@@ -62,6 +62,8 @@ def main() -> NoReturn:
                         help="TTY device for logging the boot process (e.g., '/dev/ttyUSB0')")
     parser.add_argument("--ulog", default=False, action='store_true',
                         help="run logging ulog")
+    parser.add_argument("--date_time", type=str, default="",
+                        help="timestamp for shared log folder (format: YYYY-mm-dd_HH-MM-SS)")
     args = parser.parse_args()
 
     with open(args.config_file) as json_file:
@@ -89,7 +91,8 @@ def main() -> NoReturn:
         args.build_dir,
         args.connection,
         args.boot_log_tty,
-        args.ulog
+        args.ulog,
+        args.date_time
     )
     signal.signal(signal.SIGINT, tester.sigint_handler)
 
@@ -154,7 +157,8 @@ class Tester:
                  build_dir: str,
                  connection: str,
                  boot_log_tty: str,
-                 ulog: bool):
+                 ulog: bool,
+                 date_time: str):
         self.config = config
         self.build_dir = build_dir
         self.active_runners: List[ph.Runner]
@@ -167,7 +171,10 @@ class Tester:
         self.gui = gui
         self.verbose = verbose
         self.upload = upload
-        self.start_time = datetime.datetime.now()
+        if date_time:
+            self.start_time = datetime.datetime.strptime(date_time, "%Y-%m-%d_%H-%M-%S")
+        else:
+            self.start_time = datetime.datetime.now()
         self.log_fd: Any[TextIO] = None
         self.connection = connection
         self.boot_log_tty = boot_log_tty
