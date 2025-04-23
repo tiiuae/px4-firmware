@@ -93,6 +93,11 @@
 #define HRT_INTERVAL_MIN 50UL                          // 50 microseconds
 #define HRT_INTERVAL_MAX HRT_COUNTS_TO_TIME(0xFFFFFFFF) // ~28.6s at 150MHz timer
 
+#ifndef CONFIG_SPINLOCK
+#define spin_lock_notrace(x)
+#define spin_unlock_notrace(x)
+#endif
+
 /*
  * Queue of callout entries.
  */
@@ -174,14 +179,13 @@ static int
 hrt_tim_isr(int irq, void *context, void *arg)
 {
 	uint32_t status;
-	irqstate_t flags;
 
 	status = getreg32(MPFS_MSTIMER_LO_BASE + MPFS_MSTIMER_TIM1RIS_OFFSET);
 
 	/* was this a timer tick? */
 	if (status & MPFS_MSTIMER_RIS_MASK) {
 		/* get exclusive access to hrt */
-		flags = spin_lock_irqsave_notrace(&g_hrt_lock);
+		spin_lock_notrace(&g_hrt_lock);
 
 		/* do latency calculations */
 		hrt_latency_update();
@@ -193,7 +197,7 @@ hrt_tim_isr(int irq, void *context, void *arg)
 		hrt_call_reschedule();
 
 		/* release exclusive access */
-		spin_unlock_irqrestore_notrace(&g_hrt_lock, flags);
+		spin_unlock_notrace(&g_hrt_lock);
 
 		/* clear the interrupt */
 		putreg32((MPFS_MSTIMER_RIS_MASK), MPFS_MSTIMER_LO_BASE + MPFS_MSTIMER_TIM1RIS_OFFSET);
@@ -383,7 +387,9 @@ hrt_call_invoke(void)
 		/* invoke the callout (if there is one) */
 		if (call->callout) {
 			hrtinfo("call %p: %p(%p)\n", call, call->callout, call->arg);
+			spin_unlock_notrace(&g_hrt_lock);
 			call->callout(call->arg);
+			spin_lock_notrace(&g_hrt_lock);
 		}
 
 		/* if the callout has a non-zero period, it has to be re-entered */
