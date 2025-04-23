@@ -62,7 +62,6 @@
 #include <uORB/SubscriptionInterval.hpp>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/actuator_outputs.h>
-#include <uORB/topics/airspeed.h>
 #include <uORB/topics/autotune_attitude_control_status.h>
 #include <uORB/topics/battery_status.h>
 #include <uORB/topics/camera_status.h>
@@ -293,7 +292,6 @@ private:
 	uint16_t _mavlink_status_last_packet_rx_drop_count{0};
 
 	// ORB publications
-	uORB::Publication<airspeed_s>				_airspeed_pub{ORB_ID(airspeed)};
 	uORB::Publication<battery_status_s>			_battery_pub{ORB_ID(battery_status)};
 	uORB::Publication<camera_status_s>			_camera_status_pub{ORB_ID(camera_status)};
 	uORB::Publication<cellular_status_s>			_cellular_status_pub{ORB_ID(cellular_status)};
@@ -382,6 +380,7 @@ private:
 	matrix::Vector3d _hil_velocity_prev{};
 	matrix::Vector3f _hil_euler_prev{};
 	MapProjection _hil_pos_ref{};
+	double _hil_alt_ref{};
 
 	// Allocated if needed.
 	TunePublisher *_tune_publisher{nullptr};
@@ -407,12 +406,9 @@ private:
 	hrt_abstime _heartbeat_component_uart_bridge{0};
 
 	DEFINE_PARAMETERS(
-		(ParamFloat<px4::params::BAT_CRIT_THR>)     _param_bat_crit_thr,
-		(ParamFloat<px4::params::BAT_EMERGEN_THR>)  _param_bat_emergen_thr,
-		(ParamFloat<px4::params::BAT_LOW_THR>)      _param_bat_low_thr,
-		(ParamFloat<px4::params::MAV_HITL_LAT>) _param_hil_home_lat,
-		(ParamFloat<px4::params::MAV_HITL_LON>) _param_hil_home_lon,
-		(ParamFloat<px4::params::MAV_HITL_ALT>) _param_hil_home_alt
+		(ParamFloat<px4::params::BAT_CRIT_THR>) _param_bat_crit_thr,
+		(ParamFloat<px4::params::BAT_EMERGEN_THR>) _param_bat_emergen_thr,
+		(ParamFloat<px4::params::BAT_LOW_THR>) _param_bat_low_thr
 	);
 
 	// Disallow copy construction and move assignment.

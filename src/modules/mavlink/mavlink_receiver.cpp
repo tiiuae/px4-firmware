@@ -2375,56 +2375,74 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 	mavlink_hil_gps_t hil_gps;
 	mavlink_msg_hil_gps_decode(msg, &hil_gps);
 
-	sensor_gps_s gps{};
+	if (_mavlink->get_hil_enabled()) {
+		if (!_hil_pos_ref.isInitialized()) {
+			_hil_pos_ref.initReference(hil_gps.lat * 1e-7, hil_gps.lon * 1e-7, hrt_absolute_time());
+			_hil_alt_ref = hil_gps.alt * 1e-3;
 
-	device::Device::DeviceId device_id;
-	device_id.devid_s.bus_type = device::Device::DeviceBusType::DeviceBusType_MAVLINK;
-	device_id.devid_s.bus = _mavlink->get_instance_id();
-	device_id.devid_s.address = msg->sysid;
-	device_id.devid_s.devtype = DRV_GPS_DEVTYPE_SIM;
+		} else {
+			// Publish GPS groundtruth
+			vehicle_global_position_s hil_global_position_groundtruth{};
+			hil_global_position_groundtruth.timestamp_sample = hrt_absolute_time();
+			hil_global_position_groundtruth.timestamp = hrt_absolute_time();
+			hil_global_position_groundtruth.lat = hil_gps.lat * 1e-7;
+			hil_global_position_groundtruth.lon = hil_gps.lon * 1e-7;
+			hil_global_position_groundtruth.alt = hil_gps.alt * 1e-3;
+			_gpos_groundtruth_pub.publish(hil_global_position_groundtruth);
+		}
 
-	gps.device_id = device_id.devid;
+	} else {
+		sensor_gps_s gps{};
 
-	gps.latitude_deg = hil_gps.lat * 1e-7;
-	gps.longitude_deg = hil_gps.lon * 1e-7;
-	gps.altitude_msl_m = hil_gps.alt * 1e-3;
-	gps.altitude_ellipsoid_m = hil_gps.alt * 1e-3;
+		device::Device::DeviceId device_id;
+		device_id.devid_s.bus_type = device::Device::DeviceBusType::DeviceBusType_MAVLINK;
+		device_id.devid_s.bus = _mavlink->get_instance_id();
+		device_id.devid_s.address = msg->sysid;
+		device_id.devid_s.devtype = DRV_GPS_DEVTYPE_SIM;
 
-	gps.s_variance_m_s = 0.25f;
-	gps.c_variance_rad = 0.5f;
-	gps.fix_type = hil_gps.fix_type;
+		gps.device_id = device_id.devid;
 
-	gps.eph = (float)hil_gps.eph * 1e-2f; // cm -> m
-	gps.epv = (float)hil_gps.epv * 1e-2f; // cm -> m
+		gps.latitude_deg = hil_gps.lat * 1e-7;
+		gps.longitude_deg = hil_gps.lon * 1e-7;
+		gps.altitude_msl_m = hil_gps.alt * 1e-3;
+		gps.altitude_ellipsoid_m = hil_gps.alt * 1e-3;
 
-	gps.hdop = 0; // TODO
-	gps.vdop = 0; // TODO
+		gps.s_variance_m_s = 0.25f;
+		gps.c_variance_rad = 0.5f;
+		gps.fix_type = hil_gps.fix_type;
 
-	gps.noise_per_ms = 0;
-	gps.automatic_gain_control = 0;
-	gps.jamming_indicator = 0;
-	gps.jamming_state = 0;
-	gps.spoofing_state = 0;
+		gps.eph = (float)hil_gps.eph * 1e-2f; // cm -> m
+		gps.epv = (float)hil_gps.epv * 1e-2f; // cm -> m
 
-	gps.vel_m_s = (float)(hil_gps.vel) / 100.0f; // cm/s -> m/s
-	gps.vel_n_m_s = (float)(hil_gps.vn) / 100.0f; // cm/s -> m/s
-	gps.vel_e_m_s = (float)(hil_gps.ve) / 100.0f; // cm/s -> m/s
-	gps.vel_d_m_s = (float)(hil_gps.vd) / 100.0f; // cm/s -> m/s
-	gps.cog_rad = ((hil_gps.cog == 65535) ? (float)NAN : matrix::wrap_2pi(math::radians(
-				hil_gps.cog * 1e-2f))); // cdeg -> rad
-	gps.vel_ned_valid = true;
+		gps.hdop = 0; // TODO
+		gps.vdop = 0; // TODO
 
-	gps.timestamp_time_relative = 0;
-	gps.time_utc_usec = hil_gps.time_usec;
+		gps.noise_per_ms = 0;
+		gps.automatic_gain_control = 0;
+		gps.jamming_indicator = 0;
+		gps.jamming_state = 0;
+		gps.spoofing_state = 0;
 
-	gps.satellites_used = hil_gps.satellites_visible;
+		gps.vel_m_s = (float)(hil_gps.vel) / 100.0f; // cm/s -> m/s
+		gps.vel_n_m_s = (float)(hil_gps.vn) / 100.0f; // cm/s -> m/s
+		gps.vel_e_m_s = (float)(hil_gps.ve) / 100.0f; // cm/s -> m/s
+		gps.vel_d_m_s = (float)(hil_gps.vd) / 100.0f; // cm/s -> m/s
+		gps.cog_rad = ((hil_gps.cog == 65535) ? (float)NAN : matrix::wrap_2pi(math::radians(
+					hil_gps.cog * 1e-2f))); // cdeg -> rad
+		gps.vel_ned_valid = true;
 
-	gps.heading = NAN;
-	gps.heading_offset = NAN;
+		gps.timestamp_time_relative = 0;
+		gps.time_utc_usec = hil_gps.time_usec;
 
-	gps.timestamp = hrt_absolute_time();
+		gps.satellites_used = hil_gps.satellites_visible;
 
-	_sensor_gps_pub.publish(gps);
+		gps.heading = NAN;
+		gps.heading_offset = NAN;
+
+		gps.timestamp = hrt_absolute_time();
+
+		_sensor_gps_pub.publish(gps);
+	}
 }
 
 void
@@ -2597,15 +2615,6 @@ MavlinkReceiver::handle_message_hil_state_quaternion(mavlink_message_t *msg)
 	const double dt = math::constrain((timestamp_sample - _hil_timestamp_prev) * 1e-6, 0.001, 0.1);
 	_hil_timestamp_prev = timestamp_sample;
 
-	/* airspeed */
-	airspeed_s airspeed{};
-	airspeed.timestamp_sample = timestamp_sample;
-	airspeed.indicated_airspeed_m_s = hil_state.ind_airspeed * 1e-2f;
-	airspeed.true_airspeed_m_s = hil_state.true_airspeed * 1e-2f;
-	airspeed.air_temperature_celsius = 15.f;
-	airspeed.timestamp = hrt_absolute_time();
-	_airspeed_pub.publish(airspeed);
-
 	/* Receive attitude quaternion from gz-sim and publish vehicle attitude
 	 * groundtruth and angular velocity ground truth
 	 */
@@ -2634,11 +2643,6 @@ MavlinkReceiver::handle_message_hil_state_quaternion(mavlink_message_t *msg)
 	 * fields (mmE3) with east in LAT, north in LON, up in ALT
 	 *[TODO create a new mavlink msg maybe called HIL_POSE_INFO for this]
 	 */
-
-	if (!_hil_pos_ref.isInitialized()) {
-		_hil_pos_ref.initReference((double)_param_hil_home_lat.get(), (double)_param_hil_home_lon.get(), hrt_absolute_time());
-	}
-
 	vehicle_local_position_s hil_local_position_groundtruth{};
 
 	hil_local_position_groundtruth.timestamp_sample = timestamp_sample;
@@ -2669,27 +2673,11 @@ MavlinkReceiver::handle_message_hil_state_quaternion(mavlink_message_t *msg)
 		_hil_pos_ref.getProjectionReferenceLat(); // Reference point latitude in degrees
 	hil_local_position_groundtruth.ref_lon =
 		_hil_pos_ref.getProjectionReferenceLon(); // Reference point longitude in degrees
-	hil_local_position_groundtruth.ref_alt = _param_hil_home_alt.get();
+	hil_local_position_groundtruth.ref_alt = _hil_alt_ref; // Reference altitude AMSL in meters
 	hil_local_position_groundtruth.ref_timestamp = _hil_pos_ref.getProjectionReferenceTimestamp();
 
 	hil_local_position_groundtruth.timestamp = hrt_absolute_time();
 	_lpos_groundtruth_pub.publish(hil_local_position_groundtruth);
-
-	if (_hil_pos_ref.isInitialized()) {
-		/* publish position groundtruth */
-		vehicle_global_position_s hil_global_position_groundtruth{};
-
-		hil_global_position_groundtruth.timestamp_sample = hrt_absolute_time();
-
-		_hil_pos_ref.reproject(hil_local_position_groundtruth.x,
-				       hil_local_position_groundtruth.y,
-				       hil_global_position_groundtruth.lat,
-				       hil_global_position_groundtruth.lon);
-
-		hil_global_position_groundtruth.alt = _param_hil_home_alt.get() - static_cast<float>(position(2));
-		hil_global_position_groundtruth.timestamp = hrt_absolute_time();
-		_gpos_groundtruth_pub.publish(hil_global_position_groundtruth);
-	}
 }
 
 #if !defined(CONSTRAINED_FLASH)
