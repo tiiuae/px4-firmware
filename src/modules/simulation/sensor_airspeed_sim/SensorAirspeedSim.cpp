@@ -234,7 +234,7 @@ int SensorAirspeedSim::print_usage(const char *reason)
 
 )DESCR_STR");
 
-	PRINT_MODULE_USAGE_NAME("sensor_arispeed_sim", "system");
+	PRINT_MODULE_USAGE_NAME("sensor_airspeed_sim", "system");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 
