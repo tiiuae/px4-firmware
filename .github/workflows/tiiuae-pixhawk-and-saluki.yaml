@@ -132,39 +132,6 @@ jobs:
           echo "saluki_nxp_bootloader: ${saluki_nxp_bl_container}"
           echo "jfrog_upload: ${{ github.event.inputs.jfrog-upload }}"
 
-  px4fwupdater:
-    name: build px4fwupdater
-    runs-on: ubuntu-latest
-    needs:
-      - fc_matrix
-    steps:
-      - name: Checkout px4-firmware
-        uses: actions/checkout@v4
-        with:
-          path: px4-firmware
-          fetch-depth: 0
-      - name: Download pixhawk artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: saluki-*
-          path: bin
-          merge-multiple: true
-      - name: Run px4-firmware px4fwupdater build
-        run: |
-          set -eux
-          mkdir -p bin
-          cd px4-firmware/
-          ./clone_public.sh
-          ./build.sh ../bin/ px4fwupdater
-          ls ../bin
-      - name: Upload px4fwupdater to tmp storage
-        uses: actions/upload-artifact@v4
-        with:
-          name: pixhawk
-          path: bin/
-          retention-days: 1
-          overwrite: true
-
   upload-px4fwupdater:
     name: upload px4fwupdater to docker registry
     runs-on: ubuntu-latest
@@ -174,16 +141,15 @@ jobs:
       BOOTLOADER_DIR: combine/bootloader
       NXP_BOOTLOADER: ${{ needs.variables.outputs.saluki_nxp_bootloader }}
     needs:
-      - px4fwupdater
       - variables
+      - fc_matrix
     steps:
       - name: Checkout px4-firmware
         uses: actions/checkout@v4
         with:
           path: px4-firmware
-          submodules: recursive
+          submodules: true
           token: ${{ secrets.GH_REPO_TOKEN }}
-          fetch-depth: 0
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -383,8 +349,8 @@ jobs:
     if: false
     runs-on: ubuntu-latest
     needs:
-      - px4fwupdater
       - variables
+      - fc_matrix
     steps:
       - name: Checkout px4-firmware
         uses: actions/checkout@v4
@@ -394,7 +360,7 @@ jobs:
       - name: Download pixhawk artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: pixhawk
+          pattern: saluki-*
           path: bin
       - name: Firmware flasher - Container metadata
         id: containermeta # referenced from later step
@@ -439,7 +405,6 @@ jobs:
     if: false
     runs-on: ubuntu-latest
     needs:
-      - px4fwupdater
       - fc_matrix
     steps:
       - name: Download pixhawk artifacts
