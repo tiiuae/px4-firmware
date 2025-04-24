@@ -51,6 +51,7 @@
 #include <lib/perf/perf_counter.h>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
+#include <px4_platform_common/critical_action.h>
 
 // publications
 #include <uORB/Publication.hpp>
@@ -309,6 +310,8 @@ private:
 	param_t _param_mav_sys_id{PARAM_INVALID};
 	param_t _param_mav_type{PARAM_INVALID};
 	param_t _param_rc_map_fltmode{PARAM_INVALID};
+
+	CriticalAction _crit_action;
 
 	DEFINE_PARAMETERS(
 
