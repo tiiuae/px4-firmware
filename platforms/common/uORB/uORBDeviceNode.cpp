@@ -334,7 +334,15 @@ uORB::DeviceNode::DeviceNode(const ORB_ID id, const uint8_t instance, const char
 	_orb_id(id),
 	_instance(instance)
 {
-	int ret = px4_sem_init(&_lock, 1, 1);
+
+	int ret;
+#if defined(__PX4_NUTTX)
+	/* Optimize the mutex in NuttX build */
+
+	ret = nxmutex_init((mutex_t *)&_lock);
+#else
+	ret = px4_sem_init(&_lock, 1, 1);
+#endif
 
 	if (ret != 0) {
 		PX4_DEBUG("SEM INIT FAIL: ret %d", ret);
