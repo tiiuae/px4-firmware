@@ -81,6 +81,7 @@ case $target in
 
     $build_cmd_fw ${build_target_env}
     cp ${script_dir}/build/${build_target_env}/${build_target_env}.px4 ${dest_dir}/${build_target}-${version}.px4
+    cp ${script_dir}/build/${build_target_env}/${build_target_env}.map ${dest_dir}/${build_target}-${version}.map
     cp ${script_dir}/build/${build_target_env}/${build_target_env}_kernel.elf ${dest_dir}/${build_target}_kernel-${version}.elf
     json_output+="\"filename\":\"${build_target}-${version}.px4\","
     px4_build_time=$(grep PX4_BUILD_TIME ${script_dir}/build/${build_target_env}/src/lib/version/build_git_version.h|awk '{print $3}')
@@ -98,6 +99,7 @@ case $target in
     fi
 
     cp ${script_dir}/build/${build_target}/${build_target}.px4 ${dest_dir}/${build_target}-${version}.px4
+    cp ${script_dir}/build/${build_target}/${build_target}.map ${dest_dir}/${build_target}-${version}.map
     cp ${script_dir}/build/${build_target}/${elf_target} ${dest_dir}/${build_target}_kernel-${version}.elf
     json_output+="\"filename\":\"${build_target}-${version}.px4\","
     px4_build_time=$(grep PX4_BUILD_TIME ${script_dir}/build/${build_target}/src/lib/version/build_git_version.h|awk '{print $3}')
