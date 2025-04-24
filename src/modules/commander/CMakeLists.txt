@@ -59,6 +59,7 @@ px4_add_module(
 		rc_calibration.cpp
 		Safety.cpp
 		worker_thread.cpp
+		critical_action.cpp
 	DEPENDS
 		circuit_breaker
 		failure_detector
