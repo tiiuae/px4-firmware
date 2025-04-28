@@ -31,7 +31,7 @@ else
         fi
 
         # Remove old build output
-        rm -Rf build/${arg}
+        #rm -Rf build/${arg}
         # Build
         make ${arg}
 

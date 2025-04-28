@@ -69,6 +69,7 @@
 #include <uORB/topics/collision_report.h>
 #include <uORB/topics/differential_pressure.h>
 #include <uORB/topics/distance_sensor.h>
+#include <uORB/topics/esc_status.h>
 #include <uORB/topics/follow_target.h>
 #include <uORB/topics/generator_status.h>
 #include <uORB/topics/gimbal_manager_set_attitude.h>
@@ -165,6 +166,8 @@ private:
 	void handle_message_command_int(mavlink_message_t *msg);
 	void handle_message_command_long(mavlink_message_t *msg);
 	void handle_message_distance_sensor(mavlink_message_t *msg);
+	void handle_message_esc_info(mavlink_message_t *msg);
+	void handle_message_esc_status(mavlink_message_t *msg);
 	void handle_message_follow_target(mavlink_message_t *msg);
 	void handle_message_generator_status(mavlink_message_t *msg);
 	void handle_message_set_gps_global_origin(mavlink_message_t *msg);
@@ -297,6 +300,7 @@ private:
 	uORB::Publication<cellular_status_s>			_cellular_status_pub{ORB_ID(cellular_status)};
 	uORB::Publication<collision_report_s>			_collision_report_pub{ORB_ID(collision_report)};
 	uORB::Publication<differential_pressure_s>		_differential_pressure_pub{ORB_ID(differential_pressure)};
+	uORB::Publication<esc_status_s>		_esc_status_pub{ORB_ID(esc_status)};
 	uORB::Publication<follow_target_s>			_follow_target_pub{ORB_ID(follow_target)};
 	uORB::Publication<gimbal_manager_set_attitude_s>	_gimbal_manager_set_attitude_pub{ORB_ID(gimbal_manager_set_attitude)};
 	uORB::Publication<gimbal_manager_set_manual_control_s>	_gimbal_manager_set_manual_control_pub{ORB_ID(gimbal_manager_set_manual_control)};
@@ -381,6 +385,7 @@ private:
 	matrix::Vector3f _hil_euler_prev{};
 	MapProjection _hil_pos_ref{};
 	double _hil_alt_ref{};
+	uint8_t _esc_count{0};
 
 	// Allocated if needed.
 	TunePublisher *_tune_publisher{nullptr};
