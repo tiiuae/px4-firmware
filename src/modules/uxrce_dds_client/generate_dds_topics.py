@@ -106,9 +106,10 @@ def process_message_type(msg_type, camelcase):
     if camelcase:
         simple_topic_name = msg_type['topic_simple']
         topic_name_camel_case = ''.join(part.title() for part in simple_topic_name.split('_'))
-        msg_type['topic_name'] = topic_name_camel_case
+        topic_prefix = msg_type['topic'][:-len(simple_topic_name)]
+        msg_type['topic_name'] = topic_prefix + topic_name_camel_case
     else:
-        msg_type['topic_name'] = msg_type['topic_simple']
+        msg_type['topic_name'] = msg_type['topic']
 
     # publish_interval_ms: maps the optional rate_limit (Hz) to the orb_set_interval
     # gate, which is expressed in integer milliseconds. An unlimited rate (0) also
@@ -148,6 +149,7 @@ def process_message_instance(msg_type):
             raise TypeError("`instance` must be a non negative integer")
         # add trailing instance to topic name
         msg_type['topic'] = f"{msg_type['topic']}{msg_type['instance']}"
+        msg_type['topic_name'] = f"{msg_type['topic_name']}{msg_type['instance']}"
     else:
         # if instance is not given,
         msg_type['instance'] = 0
