@@ -62,7 +62,7 @@ struct SendSubscription {
 	const struct orb_metadata *orb_meta;
 	uxrObjectId data_writer;
 	const char* dds_type_name;
-	const char* topic;
+	const char* topic_name;
 	uint32_t message_version;
 	uint32_t topic_size;
 	UcdrSerializeMethod ucdr_serialize_method;
@@ -76,7 +76,7 @@ struct SendTopicsSubs {
 			{ ORB_ID(@(pub['topic_simple'])),
 			  uxr_object_id(0, UXR_INVALID_ID),
 			  "@(pub['dds_type'])",
-			  "@(pub['topic'])",
+			  "@(pub['topic_name'])",
 			  get_message_version<@(pub['simple_base_type'])_s>(),
 			  ucdr_topic_size_@(pub['simple_base_type'])(),
 			  &ucdr_serialize_@(pub['simple_base_type']),
@@ -103,7 +103,7 @@ bool SendTopicsSubs::init(uxrSession *session, uxrStreamId reliable_out_stream_i
 			orb_set_interval(fds[idx].fd, send_subscriptions[idx].publish_interval_ms);
 		}
 
-		if (!create_data_writer(session, reliable_out_stream_id, participant_id, static_cast<ORB_ID>(send_subscriptions[idx].orb_meta->o_id), client_namespace, send_subscriptions[idx].topic,
+		if (!create_data_writer(session, reliable_out_stream_id, participant_id, static_cast<ORB_ID>(send_subscriptions[idx].orb_meta->o_id), client_namespace, send_subscriptions[idx].topic_name,
 								   send_subscriptions[idx].message_version,
 								   send_subscriptions[idx].dds_type_name, send_subscriptions[idx].data_writer)) {
 			ret = false;
@@ -202,7 +202,7 @@ bool RcvTopicsPubs::init(uxrSession *session, uxrStreamId reliable_out_stream_id
 	{
 			uint16_t queue_depth = orb_get_queue_size(ORB_ID(@(sub['simple_base_type']))) * 2; // use a bit larger queue size than internal
 			uint32_t message_version = get_message_version<@(sub['simple_base_type'])_s>();
-			if (!create_data_reader(session, reliable_out_stream_id, best_effort_in_stream_id, participant_id, @(idx), client_namespace, "@(sub['topic'])", message_version, "@(sub['dds_type'])", queue_depth)) {
+			if (!create_data_reader(session, reliable_out_stream_id, best_effort_in_stream_id, participant_id, @(idx), client_namespace, "@(sub['topic_name'])", message_version, "@(sub['dds_type'])", queue_depth)) {
 				ret = false;
 			}
 	}
