@@ -24,16 +24,14 @@ PX4_GZ_WORLD=${PX4_GZ_WORLD:=default}
 PX4_SIM_MODEL=${PX4_SIM_MODEL:=strivermini}
 
 param set-default SIM_GZ_EN 1
-if [ "$PX4_RUN_GZSIM" = "0" ]; then
-  param set-default SIM_GZ_RUN_GZSIM 0
-else
-  param set-default SIM_GZ_RUN_GZSIM 1
-fi
 
 param set-default SENS_EN_GPSSIM 1
 param set-default SENS_EN_BAROSIM 1
 param set-default SENS_EN_MAGSIM 1
 param set-default SENS_EN_ARSPDSIM 1
+
+param set-default EKF2_MULTI_IMU 3
+param set-default SENS_IMU_MODE 0
 
 param set-default FD_ACT_EN 0
 param set-default FD_ACT_MOT_TOUT 500
