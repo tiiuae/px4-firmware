@@ -104,11 +104,31 @@ if [ -n "${PX4_HOME_LAT}" ] || [ -n "${PX4_HOME_LON}" ] || [ -n "${PX4_HOME_ALT}
 		--req "surface_model: EARTH_WGS84, latitude_deg: ${PX4_HOME_LAT}, longitude_deg: ${PX4_HOME_LON}, elevation: ${PX4_HOME_ALT}" > /dev/null 2>&1
 fi
 
-# Start gz_bridge - either spawn a model or connect to existing one
+# Start gz_bridge - either spawn a model (auto-named or with custom name) or connect to existing one
 if [ -n "${PX4_SIM_MODEL#*gz_}" ] && [ -z "${PX4_GZ_MODEL_NAME}" ]; then
 	# Spawn a model
 	MODEL_NAME="${PX4_SIM_MODEL#*gz_}"
 	MODEL_NAME_INSTANCE="${MODEL_NAME}_${px4_instance}"
+	SPAWN_MODEL=1
+
+elif [ -n "${PX4_SIM_MODEL#*gz_}" ] && [ -n "${PX4_GZ_MODEL_NAME}" ]; then
+	# Spawn a model with a user-specified name
+	echo "INFO  [init] both PX4_SIM_MODEL and PX4_GZ_MODEL_NAME set, spawning model: ${PX4_SIM_MODEL#*gz_} as: ${PX4_GZ_MODEL_NAME}"
+	MODEL_NAME="${PX4_SIM_MODEL#*gz_}"
+	MODEL_NAME_INSTANCE="${PX4_GZ_MODEL_NAME}"
+	SPAWN_MODEL=1
+
+elif [ -z "${PX4_SIM_MODEL#*gz_}" ] && [ -n "${PX4_GZ_MODEL_NAME}" ]; then
+	# Connect to existing model
+	echo "INFO  [init] only PX4_GZ_MODEL_NAME set, PX4 will attach to existing model: ${PX4_GZ_MODEL_NAME}"
+	SPAWN_MODEL=0
+
+else
+	echo "ERROR [init] failed to pass either PX4_GZ_MODEL_NAME or PX4_SIM_MODEL"
+	exit 1
+fi
+
+if [ "${SPAWN_MODEL}" = "1" ]; then
 
 	sdf_pose_str=""
 
@@ -131,7 +151,7 @@ if [ -n "${PX4_SIM_MODEL#*gz_}" ] && [ -z "${PX4_GZ_MODEL_NAME}" ]; then
 		echo "INFO  [init] Gazebo model pose: ${pose_x} ${pose_y} ${pose_z} ${pose_roll} ${pose_pitch} ${pose_yaw}"
 	fi
 
-	echo "INFO  [init] Spawning Gazebo model"
+	echo "INFO  [init] Spawning Gazebo model ${MODEL_NAME} as ${MODEL_NAME_INSTANCE}"
 
 	# include the actual SDF in this one, containing the pose if given
 	sdf_str="<sdf version=\"1.6\"> <include> <uri>file://${PX4_GZ_MODELS}/${MODEL_NAME}/model.sdf</uri> ${sdf_pose_str} </include> </sdf>"
@@ -181,16 +201,12 @@ if [ -n "${PX4_SIM_MODEL#*gz_}" ] && [ -z "${PX4_GZ_MODEL_NAME}" ]; then
 		echo "INFO  [init] Camera follow offset set to ${follow_x}, ${follow_y}, ${follow_z}"
 	fi
 
-elif [ -n "${PX4_GZ_MODEL_NAME}" ]; then
-	# Connect to existing model
-	echo "INFO  [init] PX4_GZ_MODEL_NAME set, PX4 will attach to existing model"
+else
+	# Attach to already-existing model
 	if ! gz_bridge start -w "${PX4_GZ_WORLD}" -n "${PX4_GZ_MODEL_NAME}" -v "${VEHICLE_TYPE}"; then
 		echo "ERROR [init] gz_bridge failed to start and attach to existing model"
 		exit 1
 	fi
-else
-	echo "ERROR [init] failed to pass either PX4_GZ_MODEL_NAME or PX4_SIM_MODEL"
-	exit 1
 fi
 
 # NOTE: Only for rover_mecanum and spacecraft_2d. All other models have
