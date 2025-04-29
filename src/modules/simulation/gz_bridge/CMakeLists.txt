@@ -64,6 +64,8 @@ if(gz-transport_FOUND)
 			GZMixingInterfaceESC.hpp
 			GZMixingInterfaceServo.cpp
 			GZMixingInterfaceServo.hpp
+			GZMixingInterfaceWheel.cpp
+			GZMixingInterfaceWheel.hpp
 		DEPENDS
 			mixer_module
 			px4_work_queue
@@ -158,7 +160,7 @@ if(gz-transport_FOUND)
 		endforeach()
 	endforeach()
 
-	# PX4_GZ_MODELS, PX4_GZ_WORLDS, GZ_SIM_RESOURCE_PATH
+	# PX4_SIM_MODELS, PX4_GZ_WORLDS, GZ_SIM_RESOURCE_PATH
 	configure_file(gz_env.sh.in ${PX4_BINARY_DIR}/rootfs/gz_env.sh)
 
 endif()

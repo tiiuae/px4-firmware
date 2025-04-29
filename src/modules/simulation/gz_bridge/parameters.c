@@ -39,12 +39,3 @@
  * @group Simulator
  */
 PARAM_DEFINE_INT32(SIM_GZ_EN, 0);
-
-/**
- * Simulator Gazebo run enable
- *
- * @boolean
- * @reboot_required true
- * @group Simulator
- */
-PARAM_DEFINE_INT32(SIM_GZ_RUN_GZSIM, 1);
