@@ -949,7 +949,8 @@ MavlinkReceiver::handle_message_esc_status(mavlink_message_t *msg)
 	mavlink_msg_esc_status_decode(msg, &esc_status_mav);
 
 	esc_status_s esc_status{};
-	esc_status.esc_count = math::min(_esc_count, (uint8_t)MAVLINK_MSG_ESC_STATUS_FIELD_RPM_LEN);	/* currently only support quadcopter */
+	esc_status.esc_count = math::min(_esc_count,
+					 (uint8_t)MAVLINK_MSG_ESC_STATUS_FIELD_RPM_LEN);	/* currently only support quadcopter */
 
 	for (int i = 0; i < esc_status.esc_count; i++) {
 		esc_status.esc[i].timestamp = hrt_absolute_time();
