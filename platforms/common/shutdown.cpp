@@ -57,7 +57,10 @@
 #ifdef __PX4_NUTTX
 #include <nuttx/board.h>
 #include <sys/boardctl.h>
+#include <common_src/state_ctrl.h>
 #endif
+
+#include <debug.h>
 
 using namespace time_literals;
 
@@ -218,9 +221,36 @@ static void shutdown_worker(void *arg)
 	}
 }
 
+int statectrl_get_moi_state(uint8_t *state);
+
+#ifdef __PX4_NUTTX
+bool is_critical_activity()
+{
+	// Check ongoing critical activity.
+	// If moi_state read fails, just allow reboot.
+	_warn("is_critical_activity\n");
+	uint8_t state;
+	if (statectrl_get_moi_state(&state) == PX4_OK) {
+		_warn("is_critical_activity: state: 0x%02x\n", state);
+		if (((state >> 6) & 0x3) == 0x1) {
+			_warn("is_critical_activity: critical activity ongoing => deny\n");
+			// Critical activity ongoing, deny reboot
+			return true;
+		}
+	}
+	return false;
+}
+#endif
+
 #if defined(CONFIG_BOARDCTL_RESET)
 int px4_reboot_request(bool to_bootloader, uint32_t delay_us, bool continue_boot)
 {
+	_warn("px4_reboot_request\n");
+#ifdef __PX4_NUTTX
+	if (is_critical_activity()) {
+		return 0;
+	}
+#endif
 	pthread_mutex_lock(&shutdown_mutex);
 
 	if (shutdown_args & SHUTDOWN_ARG_IN_PROGRESS) {
