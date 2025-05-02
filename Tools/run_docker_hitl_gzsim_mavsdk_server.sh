@@ -49,7 +49,6 @@ BASE_COMMAND=(
     --env MESA_GL_VERSION_OVERRIDE=4.6
     --volume /tmp/.docker.xauth:/tmp/.docker.xauth
     --volume /tmp/.X11-unix:/tmp/.X11-unix
-    --volume ./logs:/px4-firmware/logs
     --privileged
 )
 
