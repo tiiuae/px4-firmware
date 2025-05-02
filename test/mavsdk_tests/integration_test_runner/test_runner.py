@@ -3,6 +3,7 @@ import fnmatch
 import math
 import os
 import re
+import subprocess
 import sys
 import time
 from typing import Any, Dict, List, NoReturn, TextIO, Optional
@@ -58,7 +59,8 @@ class Tester:
                  verbose: bool,
                  upload: bool,
                  build_dir: str,
-                 tester_interface: TesterInterface):
+                 tester_interface: TesterInterface,
+                 connection: str = "ethernet"):
         self.config = config
         self.build_dir = build_dir
         self.active_runners: List[ph.Runner]
@@ -73,6 +75,7 @@ class Tester:
         self.start_time = datetime.datetime.now()
         self.log_fd: Any[TextIO] = None
         self.tester_interface = tester_interface
+        self.connection = connection
         self.tests = self.determine_tests(config['tests'], model, case)
         self.active_runners = []
 
@@ -166,6 +169,147 @@ class Tester:
                     continue
                 value['results'] = []
 
+    # ---------------------------------------------------------------------
+    # HITL helpers: reboot the flight controller and set SYS_AUTOSTART
+    # either over a serial mavlink-shell or over ethernet via the
+    # mavsdk_preparing helper binary.
+    # ---------------------------------------------------------------------
+
+    def check_dev(self) -> bool:
+        return os.path.exists("/dev/ttyACM0")
+
+    def send_command_to_px4(self, command: str,
+                            args: Optional[List[str]] = None,
+                            use_shell: bool = True) -> bool:
+        if use_shell:
+            shell = "./Tools/mavlink_shell.py /dev/ttyACM0"
+            proc = subprocess.Popen(shell, shell=True,
+                                    stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, text=True)
+            proc.stdin.write(command + '\n')
+        else:
+            proc = subprocess.Popen([command] + (args or []),
+                                    stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, text=True)
+
+        proc.stdin.flush()
+        output, errors = proc.communicate()
+        proc.stdin.close()
+        proc.stdout.close()
+        proc.stderr.close()
+
+        if len(errors) > 0:
+            print("Error running command", command, "with args", args)
+            if self.verbose:
+                print("=========================")
+                print("errors:", errors)
+                print("=========================")
+            return False
+
+        if use_shell and len(output) < len("Connecting to MAVLINK..."):
+            print("Device doesn't answer")
+            return False
+
+        if self.verbose:
+            print("=========================")
+            print("output:", output)
+            print("=========================")
+
+        print("Command", command, "was run with args", args)
+        return True
+
+    def _mavsdk_preparing_cmd(self) -> str:
+        return os.path.join(self.build_dir, "mavsdk_tests/mavsdk_preparing")
+
+    def reboot_using_serial(self) -> bool:
+        if not self.check_dev():
+            return False
+        return self.send_command_to_px4("reboot")
+
+    def reboot_using_ethernet(self) -> bool:
+        return self.send_command_to_px4(
+            self._mavsdk_preparing_cmd(),
+            ["--url", self.config['mavlink_connection'], "--command", "reboot"],
+            use_shell=False)
+
+    def reboot_px4(self) -> None:
+        if self.connection == "serial":
+            res = self.reboot_using_serial()
+        elif self.connection == "ethernet":
+            res = self.reboot_using_ethernet()
+        else:
+            print("Wrong connection selected")
+            res = False
+
+        if res:
+            print("The device has successfully rebooted")
+        else:
+            print("Reboot failed")
+            sys.exit(-1)
+
+    def check_connection_px4_serial(self) -> bool:
+        if not self.check_dev():
+            return False
+        return self.send_command_to_px4("ver mcu")
+
+    def check_connection_px4_ethernet(self) -> bool:
+        return self.send_command_to_px4(
+            self._mavsdk_preparing_cmd(),
+            ["--url", self.config['mavlink_connection'], "--command", "check"],
+            use_shell=False)
+
+    def check_connection_px4(self) -> bool:
+        if self.connection == "serial":
+            res = self.check_connection_px4_serial()
+        elif self.connection == "ethernet":
+            res = self.check_connection_px4_ethernet()
+        else:
+            res = False
+
+        if res:
+            print("Device has", self.connection, "connection")
+        else:
+            print("Device doesn't have", self.connection, "connection")
+        return res
+
+    def check_connection_px4_times(self, num_cases: int = 3) -> bool:
+        while num_cases > 0 and (not self.check_connection_px4()):
+            num_cases -= 1
+            time.sleep(0.5)
+        return num_cases > 0
+
+    def set_sys_autostart_px4_serial(self, value: int) -> bool:
+        if not self.check_dev():
+            return False
+        if not self.send_command_to_px4("param set SYS_AUTOSTART " + str(value)):
+            return False
+        return self.send_command_to_px4("reboot")
+
+    def set_sys_autostart_px4_ethernet(self, value: int) -> bool:
+        return self.send_command_to_px4(
+            self._mavsdk_preparing_cmd(),
+            ["--url", self.config['mavlink_connection'],
+             "--command", "set_sys_autostart", str(value)],
+            use_shell=False)
+
+    def set_sys_autostart(self, value: int) -> bool:
+        time.sleep(5)
+        if self.connection == "serial":
+            res = self.set_sys_autostart_px4_serial(value)
+        elif self.connection == "ethernet":
+            res = self.set_sys_autostart_px4_ethernet(value)
+        else:
+            print("Chose incorrect connection")
+            res = False
+
+        if res:
+            print("The device has successfully changed a parameter")
+        else:
+            print("Changing a parameter failed")
+        return res
+
     def run_tests(self) -> None:
         for iteration in range(self.iterations):
             if self.iterations > 1:
@@ -186,6 +330,10 @@ class Tester:
             print(colorize(
                 "==> Running tests for {}".format(test['model']),
                 color.BOLD))
+
+            if self.config['mode'] == 'hitl' and 'sys_autostart' in test:
+                if not self.set_sys_autostart(test['sys_autostart']):
+                    return False
 
             test_i = 0
             for key, case_value in test['cases'].items():
@@ -301,62 +449,95 @@ class Tester:
                       case: str) -> None:
         self.active_runners = []
 
-        if self.config['mode'] == 'sitl':
-            if self.config['simulator'] == 'gazebo':
-                # Use RegEx to extract worldname.world from case name
-                match = re.search(r'\((.*?\.world)\)', case)
-                if match:
-                    world_name = match.group(1)
-                else:
-                    world_name = 'empty.world'
+        if self.config['simulator'] == 'gazebo':
+            # Use RegEx to extract worldname.world from case name
+            match = re.search(r'\((.*?\.world)\)', case)
+            if match:
+                world_name = match.group(1)
+            else:
+                world_name = 'empty.world'
 
-                gzserver_runner = ph.GzserverRunner(
-                    os.getcwd(),
-                    log_dir,
-                    test['vehicle'],
-                    case,
-                    self.get_max_speed_factor(test),
-                    self.verbose,
-                    self.build_dir,
-                    world_name)
-                self.active_runners.append(gzserver_runner)
+            gzserver_runner = ph.GzserverRunner(
+                os.getcwd(),
+                log_dir,
+                test['vehicle'],
+                case,
+                self.get_max_speed_factor(test),
+                self.verbose,
+                self.build_dir,
+                world_name)
+            self.active_runners.append(gzserver_runner)
 
-                gzmodelspawn_runner = ph.GzmodelspawnRunner(
-                    os.getcwd(),
-                    log_dir,
-                    test['vehicle'],
-                    case,
-                    self.verbose,
-                    self.build_dir)
-                self.active_runners.append(gzmodelspawn_runner)
+            gzmodelspawn_runner = ph.GzmodelspawnRunner(
+                os.getcwd(),
+                log_dir,
+                test['vehicle'],
+                case,
+                self.verbose,
+                self.build_dir)
+            self.active_runners.append(gzmodelspawn_runner)
 
-                if self.gui:
-                    gzclient_runner = ph.GzclientRunner(
-                        os.getcwd(),
-                        log_dir,
-                        test['model'],
-                        case,
-                        self.verbose)
-                    self.active_runners.append(gzclient_runner)
-
-                # We must start the PX4 instance at the end, as starting
-                # it in the beginning, then connecting Gazebo server freaks
-                # out the PX4 (it needs to have data coming in when started),
-                # and can lead to EKF to freak out, or the instance itself
-                # to die unexpectedly.
-                px4_runner = ph.Px4Runner(
+            if self.gui:
+                gzclient_runner = ph.GzclientRunner(
                     os.getcwd(),
                     log_dir,
                     test['model'],
                     case,
-                    self.get_max_speed_factor(test),
-                    self.debugger,
+                    self.verbose)
+                self.active_runners.append(gzclient_runner)
+
+        elif self.config['simulator'] == 'gz_sim':
+            gzserver_runner = ph.GzHarmonicServer(
+                os.getcwd(),
+                log_dir,
+                test['vehicle'],
+                case,
+                self.get_max_speed_factor(test),
+                self.verbose,
+                self.build_dir)
+            self.active_runners.append(gzserver_runner)
+
+            if self.config['mode'] == 'hitl':
+                model_file = test.get('model_file', 'model')
+                gzmodelspawn_runner = ph.GzHarmonicModelSpawnRunner(
+                    os.getcwd(),
+                    log_dir,
+                    test['vehicle'],
+                    case,
                     self.verbose,
                     self.build_dir,
-                    self.tester_interface.rootfs_base_dirname())
-                for env_key in test.get('env', []):
-                    px4_runner.env[env_key] = str(test['env'][env_key])
-                self.active_runners.append(px4_runner)
+                    model_file)
+                self.active_runners.append(gzmodelspawn_runner)
+
+            if self.gui:
+                gzclient_runner = ph.GzHarmonicClientRunner(
+                    os.getcwd(),
+                    log_dir,
+                    test['model'],
+                    case,
+                    self.verbose)
+                self.active_runners.append(gzclient_runner)
+
+        # We must start the PX4 instance at the end, as starting
+        # it in the beginning, then connecting Gazebo server freaks
+        # out the PX4 (it needs to have data coming in when started),
+        # and can lead to EKF to freak out, or the instance itself
+        # to die unexpectedly.
+        if self.config['mode'] == 'sitl':
+            px4_runner = ph.Px4Runner(
+                os.getcwd(),
+                log_dir,
+                test['model'],
+                case,
+                self.get_max_speed_factor(test),
+                self.debugger,
+                self.verbose,
+                self.build_dir,
+                self.tester_interface.rootfs_base_dirname(),
+                self.config['simulator'])
+            for env_key in test.get('env', []):
+                px4_runner.env[env_key] = str(test['env'][env_key])
+            self.active_runners.append(px4_runner)
 
         self.active_runners.append(self.tester_interface.create_test_runner(
             os.getcwd(),
@@ -368,6 +549,16 @@ class Tester:
             self.verbose,
             self.build_dir
         ))
+
+        if self.config['mode'] == 'hitl':
+            self.reboot_px4()
+            print("Reboot was finished")
+            if not self.check_connection_px4_times(3):
+                print("Could not start runners. Lost connection")
+                self.collect_runner_output()
+                self.stop_combined_log()
+                self.stop_runners()
+                sys.exit(1)
 
         abort = False
         for runner in self.active_runners:

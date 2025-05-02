@@ -43,7 +43,8 @@ class TesterInterfaceMavsdk(test_runner.TesterInterface):
             config['mavlink_connection'],
             speed_factor,
             verbose,
-            build_dir)
+            build_dir,
+            config.get('mode') == 'hitl')
 
     def rootfs_base_dirname(self) -> str:
         return "tmp_mavsdk_tests"
@@ -78,6 +79,8 @@ def main() -> NoReturn:
     parser.add_argument("--build-dir", type=str,
                         default='build/px4_sitl_default/',
                         help="relative path where the built files are stored")
+    parser.add_argument("--connection", type=str, default="ethernet",
+                        help="the type of connection: serial or ethernet. Using only for --hitl")
     args = parser.parse_args()
 
     if args.force_color:
@@ -85,11 +88,6 @@ def main() -> NoReturn:
 
     with open(args.config_file) as json_file:
         config = json.load(json_file)
-
-    if config["mode"] != "sitl" and args.gui:
-        print("--gui is not compatible with the mode '{}'"
-              .format(config["mode"]))
-        sys.exit(1)
 
     if not is_everything_ready(config, args.build_dir):
         sys.exit(1)
@@ -112,7 +110,8 @@ def main() -> NoReturn:
         args.verbose,
         args.upload,
         args.build_dir,
-        tester_interface
+        tester_interface,
+        args.connection
     )
     signal.signal(signal.SIGINT, tester.sigint_handler)
 
