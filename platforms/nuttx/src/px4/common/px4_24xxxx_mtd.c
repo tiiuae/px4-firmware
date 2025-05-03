@@ -551,6 +551,11 @@ static int at24c_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
 		ret = at24c_eraseall(priv);
 		break;
 
+	case BIOC_FLUSH:
+		/* bchlib has already taken care of writing the pages */
+		ret = OK;
+		break;
+
 	default:
 		ret = -ENOTTY; /* Bad command */
 		break;
