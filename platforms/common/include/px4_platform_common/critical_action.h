@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (C) 2022 Technology Innovation Institute. All rights reserved.
+ *   Copyright (c) 2025 Technology Innovation Institute. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,40 +32,40 @@
  ****************************************************************************/
 
 /**
- * @file px4_userspace_init.cpp
+ * @file critical_action.h
+ * System critical action request/release functions definitions
  *
- * Initialize px4 userspace in NuttX protected build
  */
 
-#include <drivers/drv_hrt.h>
-#include <px4_platform_common/console_buffer.h>
-#include <px4_platform_common/px4_work_queue/WorkQueueManager.hpp>
-#include <px4_platform_common/spi.h>
-#include <px4_platform_common/log.h>
-#include <px4_platform/board_determine_hw_info.h>
+#ifndef CRITICAL_ACTION_H_
+#define CRITICAL_ACTION_H_
 
-extern void cdcacm_init(void);
+#include <uORB/uORB.h>
+#include <uORB/topics/vehicle_command.h>
 
-extern "C" void px4_userspace_init(void)
+const uint8_t ACTION_UNKNOWN_COMP_ID = 0;
+const uint8_t ACTION_FWUPDATER_COMP_ID = 1;
+const uint8_t ACTION_SENSOR_CALIBRATION_COMP_ID = 2;
+const uint8_t ACTION_FLIGHT_LOG_DLOAD_COMP_ID = 3;
+const uint8_t ACTION_MAVLINK_FTP_COMP_ID = 4;
+const uint8_t ACTION_COMMANDER_COMP_ID = 5;
+const uint8_t ACTION_ASSEMBLY_AGENT_COMP_ID = 6;
+
+const size_t ACTION_COUNT = 7;
+
+class CriticalAction
 {
-	hrt_init();
+public:
+    CriticalAction();
+    ~CriticalAction();
 
-	px4_set_spi_buses_from_hw_version();
+    bool request(uint8_t comp_id);
+    void release(uint8_t comp_id);
 
-	board_determine_hw_info();
+private:
+    vehicle_command_s _critical_req {};
+    orb_advert_t _crit_act_req_pub {ORB_ADVERT_INVALID};
+    orb_sub_t    _crit_act_resp_sub {ORB_SUB_INVALID};
+};
 
-	// Do lazy init of wq:manager for kernel. This saves a considerable amount
-	// of scheduling time due to unnecessary threads.
-#ifndef CONFIG_BUILD_KERNEL
-	px4::WorkQueueManagerStart();
-#endif
-
-	px4_log_initialize();
-
-	px4_console_buffer_init();
-
-#if defined(CONFIG_SYSTEM_CDCACM) && defined(CONFIG_BUILD_PROTECTED)
-	cdcacm_init();
-#endif
-
-}
+#endif // CRITICAL_ACTION_H_
