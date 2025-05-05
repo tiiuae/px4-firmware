@@ -40,6 +40,7 @@
 #include <time.h>
 #include <systemlib/err.h>
 
+
 #define MOUNTPOINT PX4_STORAGEDIR
 
 static const char *kLogRoot    = MOUNTPOINT "/log";
@@ -61,6 +62,8 @@ static const char *kTmpData    = MOUNTPOINT "/$log$.txt";
 #else
 #define PX4LOG_WARN(fmt, ...)
 #endif
+
+const size_t CRIT_ACT_RELEASE_DELAY_US = 1000000; // 1s
 
 //-------------------------------------------------------------------
 static bool
@@ -203,7 +206,13 @@ MavlinkLogHandler::_log_request_data(const mavlink_message_t *msg)
 	//-- If we were sending log entries, stop it
 	_current_status = LogHandlerState::Idle;
 
+	if (!_crit_action.request(ACTION_FLIGHT_LOG_DLOAD_COMP_ID)) {
+		PX4LOG_WARN("MavlinkLogHandler::_log_request_data critical action blocked");
+		return;
+	}
+
 	if (_current_log_index != request.id) {
+
 		//-- Init send log dataset
 		_current_log_filename[0] = 0;
 		_current_log_index = request.id;
@@ -258,6 +267,7 @@ MavlinkLogHandler::_log_request_end(const mavlink_message_t * /*msg*/)
 
 	_current_status = LogHandlerState::Inactive;
 	_close_and_unlink_files();
+	_crit_action.release(ACTION_FLIGHT_LOG_DLOAD_COMP_ID);
 }
 
 //-------------------------------------------------------------------
@@ -315,6 +325,7 @@ MavlinkLogHandler::_log_send_data()
 
 	if (read_size < sizeof(response.data) || _current_log_data_remaining == 0) {
 		_current_status = LogHandlerState::Idle;
+		_crit_action.release(ACTION_FLIGHT_LOG_DLOAD_COMP_ID);
 	}
 
 	return sizeof(response);
