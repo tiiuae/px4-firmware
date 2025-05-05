@@ -34,6 +34,7 @@
 #pragma once
 #include <perf/perf_counter.h>
 #include "mavlink_bridge_header.h"
+#include <px4_platform_common/critical_action.h>
 
 #ifdef __PX4_NUTTX
 #define PX4LOG_REGULAR_FILE    DTYPE_FILE
@@ -126,4 +127,6 @@ private:
 
 	perf_counter_t _create_file_elapsed{perf_alloc(PC_ELAPSED, MODULE_NAME": create file")};
 	perf_counter_t _listing_elapsed{perf_alloc(PC_ELAPSED, MODULE_NAME": listing")};
+
+	CriticalAction _crit_action;
 };

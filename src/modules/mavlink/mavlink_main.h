@@ -514,6 +514,8 @@ public:
 
 	int set_stream_interval(MavlinkStream *stream, int interval);
 
+	bool is_crit_act_enabled() const { return _crit_act_enabled; }
+
 private:
 	MavlinkStreamPoll	_stream_poller;
 
@@ -661,6 +663,8 @@ private:
 	VariableLengthRingbuffer _message_buffer{};
 
 	pthread_mutex_t         _radio_status_mutex {};
+
+	bool			_crit_act_enabled{false};
 
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::MAV_SYS_ID>) _param_mav_sys_id,
