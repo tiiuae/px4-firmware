@@ -56,7 +56,11 @@ static const char *kLogDir = PX4_STORAGEDIR "/log";
 
 MavlinkLogHandler::MavlinkLogHandler(Mavlink &mavlink)
 	: _mavlink(mavlink)
-{}
+{
+	if (_mavlink.is_crit_act_enabled()) {
+		_crit_action.enable(true);
+	}
+}
 
 MavlinkLogHandler::~MavlinkLogHandler()
 {
@@ -249,6 +253,11 @@ void MavlinkLogHandler::state_sending_data()
 
 		if (chunk_finished || _file_send_finished) {
 			_state = LogHandlerState::Idle;
+
+			if (_file_send_finished) {
+				_crit_action.release(ACTION_FLIGHT_LOG_DLOAD_COMP_ID);
+			}
+
 			return;
 		}
 	}
@@ -275,6 +284,12 @@ void MavlinkLogHandler::handle_log_request_data(const mavlink_message_t *msg)
 {
 	if (!_logs_listed) {
 		PX4_DEBUG("Logs not yet listed");
+		_state = LogHandlerState::Idle;
+		return;
+	}
+
+	if (!_crit_action.request(ACTION_FLIGHT_LOG_DLOAD_COMP_ID)) {
+		PX4_WARN("MavlinkLogHandler::handle_log_request_data critical action blocked");
 		_state = LogHandlerState::Idle;
 		return;
 	}
@@ -335,6 +350,7 @@ void MavlinkLogHandler::handle_log_request_data(const mavlink_message_t *msg)
 void MavlinkLogHandler::handle_log_request_end(const mavlink_message_t *msg)
 {
 	_state = LogHandlerState::Idle;
+	_crit_action.release(ACTION_FLIGHT_LOG_DLOAD_COMP_ID);
 }
 
 void MavlinkLogHandler::handle_log_erase(const mavlink_message_t *msg)

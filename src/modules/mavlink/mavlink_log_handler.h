@@ -35,6 +35,7 @@
 
 #include <perf/perf_counter.h>
 #include "mavlink_bridge_header.h"
+#include <px4_platform_common/critical_action.h>
 
 class Mavlink;
 
@@ -115,4 +116,6 @@ private:
 
 	perf_counter_t _create_file_elapsed{perf_alloc(PC_ELAPSED, MODULE_NAME": create file")};
 	perf_counter_t _listing_elapsed{perf_alloc(PC_ELAPSED, MODULE_NAME": listing")};
+
+	CriticalAction _crit_action;
 };
