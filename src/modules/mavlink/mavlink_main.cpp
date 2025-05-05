@@ -1854,7 +1854,7 @@ Mavlink::task_main(int argc, char *argv[])
 	int temp_int_arg;
 #endif
 
-	while ((ch = px4_getopt(argc, argv, "b:r:d:n:u:o:m:t:i:c:fswxzZp", &myoptind, &myoptarg)) != EOF) {
+	while ((ch = px4_getopt(argc, argv, "b:r:d:n:u:o:m:t:i:c:fswxyzZp", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 'b':
 			if (px4_get_parameter_value(myoptarg, _baudrate) != 0) {
@@ -2078,6 +2078,10 @@ Mavlink::task_main(int argc, char *argv[])
 
 		case 'x':
 			_ftp_on = true;
+			break;
+
+		case 'y':
+			_crit_act_enabled = true;
 			break;
 
 		case 'z':
@@ -3322,6 +3326,7 @@ $ mavlink stream -u 14556 -s HIGHRES_IMU -r 50
 	PRINT_MODULE_USAGE_PARAM_FLAG('f', "Enable message forwarding to other Mavlink instances", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('w', "Wait to send, until first message received", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('x', "Enable FTP", true);
+	PRINT_MODULE_USAGE_PARAM_FLAG('y', "Enable Critical Action support", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('z', "Force hardware flow control always on", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('Z', "Force hardware flow control always off", true);
 

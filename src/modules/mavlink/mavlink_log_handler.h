@@ -44,6 +44,7 @@
 #include <drivers/drv_hrt.h>
 
 #include "mavlink_bridge_header.h"
+#include <px4_platform_common/critical_action.h>
 
 class Mavlink;
 
@@ -105,4 +106,6 @@ private:
 	uint32_t    _current_log_data_remaining{0};
 	FILE       *_current_log_filep{nullptr};
 	char        _current_log_filename[128]; //TODO: consider to allocate on runtime
+
+	CriticalAction _crit_action;
 };
