@@ -10,11 +10,6 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
     inputs:
-      jfrog-upload:
-        description: 'upload to UAE Artifactory'
-        required: false
-        default: false
-        type: boolean
       saluki-v2-manual-fpga-version:
         description: 'saluki-v2 optional fpga version (e.g. sha-3b85ccc)'
         required: false
@@ -123,14 +118,12 @@ jobs:
           echo "saluki_pi_fpga_version=${saluki_pi_fpga_version}" >> $GITHUB_OUTPUT
           echo "saluki_fmu2_fpga_version=${saluki_fmu2_fpga_version}" >> $GITHUB_OUTPUT
           echo "saluki_nxp_bootloader=${saluki_nxp_bl_container}" >> $GITHUB_OUTPUT
-          echo "jfrog_upload=${{ github.event.inputs.jfrog-upload }}" >> $GITHUB_OUTPUT
 
           echo "saluki_v2_fpga_version: ${saluki_v2_fpga_version}"
           echo "saluki_v3_fpga_version: ${saluki_v3_fpga_version}"
           echo "saluki_pi_fpga_version: ${saluki_pi_fpga_version}"
           echo "saluki_fmu2_fpga_version: ${saluki_fmu2_fpga_version}"
           echo "saluki_nxp_bootloader: ${saluki_nxp_bl_container}"
-          echo "jfrog_upload: ${{ github.event.inputs.jfrog-upload }}"
 
   upload-px4fwupdater:
     name: upload px4fwupdater to docker registry
@@ -279,7 +272,7 @@ jobs:
           echo "BUILD[build PX4 fwupdater]"                  >> $GITHUB_STEP_SUMMARY
 
           # output
-          echo "OUTPUT[($(echo ${container_name}|sed 's/:/<br>/'))]" >> $GITHUB_STEP_SUMMARY
+          echo "OUTPUT[($(echo ${container_name}))]" >> $GITHUB_STEP_SUMMARY
 
           # links
           echo "PX4-SHA --> BUILD"                 >> $GITHUB_STEP_SUMMARY
