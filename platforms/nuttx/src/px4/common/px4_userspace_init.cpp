@@ -43,6 +43,7 @@
 #include <px4_platform_common/spi.h>
 #include <px4_platform_common/log.h>
 #include <px4_platform/board_determine_hw_info.h>
+#include <px4_platform_common/critical_action.h>
 
 extern void cdcacm_init(void);
 
@@ -67,4 +68,6 @@ extern "C" void px4_userspace_init(void)
 #if defined(CONFIG_SYSTEM_CDCACM) && defined(CONFIG_BUILD_PROTECTED)
 	cdcacm_init();
 #endif
+
+	critical_action_init();
 }

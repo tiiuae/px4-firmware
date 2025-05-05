@@ -62,6 +62,8 @@
 #include <px4_platform/board_ctrl.h>
 #endif
 
+#include <px4_platform_common/critical_action.h>
+
 #ifndef I2C_RESET_SPEED
 #define I2C_RESET_SPEED I2C_SPEED_STANDARD
 #endif
@@ -215,6 +217,8 @@ int px4_platform_init()
 #if defined(CONFIG_SYSTEM_CDCACM) && defined(CONFIG_BUILD_FLAT)
 	cdcacm_init();
 #endif
+
+	critical_action_init();
 
 	return PX4_OK;
 }

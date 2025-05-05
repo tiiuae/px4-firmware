@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2025 Technology Innovation Institute. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,29 +31,30 @@
  *
  ****************************************************************************/
 
-#include <px4_platform_common/init.h>
-#include <px4_platform_common/px4_config.h>
-#include <px4_platform_common/defines.h>
-#include <px4_platform_common/log.h>
-#include <drivers/drv_hrt.h>
-#include <lib/parameters/param.h>
-#include <px4_platform_common/px4_work_queue/WorkQueueManager.hpp>
-#include <uORB/uORB.h>
-#include <px4_platform_common/critical_action.h>
+/**
+ * @file critical_action.h
+ * System critical action request/release functions definitions
+ *
+ */
 
-int px4_platform_init(void)
-{
-	hrt_init();
+#ifndef CRITICAL_ACTION_H_
+#define CRITICAL_ACTION_H_
 
-	param_init();
+const uint8_t ACTION_UNKNOWN_COMP_ID = 0;
+const uint8_t ACTION_FWUPDATER_COMP_ID = 1;
+const uint8_t ACTION_SENSOR_CALIBRATION_COMP_ID = 2;
+const uint8_t ACTION_FLIGHT_LOG_DLOAD_COMP_ID = 3;
+const uint8_t ACTION_MAVLINK_FTP_COMP_ID = 4;
+const uint8_t ACTION_COMMANDER_COMP_ID = 5;
+const uint8_t ACTION_ASSEMBLY_AGENT_COMP_ID = 6;
 
-	px4::WorkQueueManagerStart();
+const size_t ACTION_COUNT = 7;
 
-	uorb_start();
-
-	px4_log_initialize();
-
-	critical_action_init();
-
-	return PX4_OK;
-}
+int critical_action_init(void);
+bool critical_action_request(uint8_t comp_id);
+void critical_action_release(uint8_t comp_id);
+/*
+bool critical_action_request_cancel_release(uint8_t comp_id);
+void critical_action_release_delayed(uint8_t comp_id, hrt_abstime timeout_us);
+*/
+#endif // CRITICAL_ACTION_H_
