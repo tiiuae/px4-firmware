@@ -66,6 +66,8 @@ jobs:
             keys: Tools/saluki-sec-scripts/custom_keys/saluki-v3/px4_bin_ed25519_private.pem
           - product: saluki-pi_custom_keys
             keys: Tools/saluki-sec-scripts/custom_keys/saluki-pi/px4_bin_ed25519_private.pem
+          - product: saluki-nxp93_custom_keys
+            keys: Tools/saluki-sec-scripts/custom_keys/saluki-nxp93/ed25519_private_key.pem
 
     uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
     with:
