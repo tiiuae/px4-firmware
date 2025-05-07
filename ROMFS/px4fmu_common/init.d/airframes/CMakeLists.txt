@@ -48,9 +48,6 @@ if(CONFIG_MODULES_SIMULATION_PWM_OUT_SIM)
 		1100_rc_quad_x_sih.hil
 		1101_rc_plane_sih.hil
 		1102_tailsitter_duo_sih.hil
-		1401_ssrc_holybro_x500.hil
-		1404_ssrc_standard_vtol.hil
-		1440_ssrc_skywalker_x8.hil
 	)
 endif()
 
@@ -106,6 +103,9 @@ if(CONFIG_MODULES_MC_RATE_CONTROL)
 		16001_helicopter
 
 		24001_dodeca_cox
+
+		# SSRC HIL airframes
+		1401_ssrc_holybro_x500.hil
 	)
 endif()
 
@@ -125,6 +125,9 @@ if(CONFIG_MODULES_FW_RATE_CONTROL)
 		# [17000, 17999] Autogyro
 		17002_TF-AutoG2
 		17003_TF-G2
+
+		# SSRC HIL airframes
+		1440_ssrc_skywalker_x8.hil
 	)
 endif()
 
@@ -143,6 +146,10 @@ if(CONFIG_MODULES_VTOL_ATT_CONTROL)
 		13014_vtol_babyshark
 		13030_generic_vtol_quad_tiltrotor
 		13200_generic_vtol_tailsitter
+
+		# SSRC HIL airframes
+		1404_ssrc_standard_vtol.hil
+		1405_ssrc_strivermini.hil
 	)
 endif()
 

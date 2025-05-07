@@ -63,11 +63,6 @@ def main() -> NoReturn:
     with open(args.config_file) as json_file:
         config = json.load(json_file)
 
-    if config["mode"] != "sitl" and args.gui:
-        print("--gui is not compatible with the mode '{}'"
-              .format(config["mode"]))
-        sys.exit(1)
-
     if not is_everything_ready(config, args.build_dir):
         sys.exit(1)
 
