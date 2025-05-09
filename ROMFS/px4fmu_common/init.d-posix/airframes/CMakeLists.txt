@@ -85,6 +85,7 @@ px4_add_romfs_files(
 	4009_gz_r1_rover
 	4010_gz_x500_mono_cam
 	4011_gz_lawnmower
+	4401_gz_ssrc_holybro_x500
 	4440_gz_ssrc_skywalker_x8
 	4404_gz_ssrc_standard_vtol
 	4430_gz_ssrc_strivermini

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2022 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2024 Technology Innovation Institute. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,11 +31,18 @@
  *
  ****************************************************************************/
 
-/**
- * Simulator Gazebo bridge enable
- *
- * @boolean
- * @reboot_required true
- * @group Simulator
- */
-PARAM_DEFINE_INT32(SIM_GZ_EN, 0);
+#include "autopilot_tester.h"
+
+TEST_CASE("Fly fix wing mission", "[fw]")
+{
+	AutopilotTester::MissionOptions mission_options;
+
+	AutopilotTester tester;
+	tester.connect(connection_url);
+	tester.wait_until_ready();
+	tester.load_qgc_mission_raw_and_move_here("test/mavsdk_tests/fw_mission.plan");
+	tester.arm();
+	tester.takeoff();
+	tester.execute_mission_raw();
+	tester.wait_until_disarmed();
+}

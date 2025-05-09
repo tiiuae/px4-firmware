@@ -50,6 +50,7 @@ if(CONFIG_MODULES_SIMULATION_PWM_OUT_SIM)
 		1102_tailsitter_duo_sih.hil
 		1401_ssrc_holybro_x500.hil
 		1404_ssrc_standard_vtol.hil
+		1405_ssrc_strivermini.hil
 		1440_ssrc_skywalker_x8.hil
 	)
 endif()

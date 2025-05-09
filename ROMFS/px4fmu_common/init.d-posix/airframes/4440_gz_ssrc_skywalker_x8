@@ -19,6 +19,9 @@ param set-default SENS_EN_BAROSIM 1
 param set-default SENS_EN_MAGSIM 1
 param set-default SENS_EN_ARSPDSIM 1
 
+param set-default EKF2_MULTI_IMU 3
+param set-default SENS_IMU_MODE 0
+
 # Control allocator parameters
 param set-default CA_AIRFRAME 1
 param set-default CA_ROTOR_COUNT 1
