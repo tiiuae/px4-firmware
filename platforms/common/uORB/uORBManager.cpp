@@ -464,14 +464,7 @@ int uORB::Manager::orb_poll(orb_poll_struct_t *fds, unsigned int nfds, int timeo
 int8_t
 uORB::Manager::launchCallbackThread()
 {
-	int ret;
-#if defined(__PX4_NUTTX)
-	ret = nxmutex_init((mutex_t *)&per_process_cb_list_mutex);
-#else
-	ret = px4_sem_init(&per_process_cb_list_mutex, 1, 1);
-#endif
-
-	if (ret != 0) {
+	if (px4_sem_init(&per_process_cb_list_mutex, 1, 1) != 0) {
 		PX4_ERR("Can't initialize cb mutex");
 		return -1;
 	}
@@ -621,11 +614,7 @@ void uORB::Manager::GlobalSemPool::init(void)
 		sem.init();
 	}
 
-#if defined(__PX4_NUTTX)
-	nxmutex_init((mutex_t *)&_semLock);
-#else
 	px4_sem_init(&_semLock, 1, 1);
-#endif
 }
 
 void uORB::Manager::GlobalSemPool::free(int8_t i)
