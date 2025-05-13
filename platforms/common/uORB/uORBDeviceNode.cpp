@@ -85,7 +85,7 @@ bool &uORB::DeviceNode::MappingCache::initialized()
 void uORB::DeviceNode::MappingCache::init()
 {
 	if (!initialized()) {
-		px4_sem_init(&cache_lock(), 0, 1);
+		px4_mutex_init(&cache_lock(), 0);
 		initialized() = true;
 	}
 }
@@ -566,8 +566,8 @@ uORB::DeviceNode::DeviceNode(const ORB_ID id, const uint8_t instance) :
 	_orb_id(id),
 	_instance(instance)
 {
-	int ret = px4_sem_init(&_lock, 1, 1);
-	int ret2 = px4_sem_init(&_cb_lock, 1, 1);
+	int ret = px4_mutex_init(&_lock, 1);
+	int ret2 = px4_mutex_init(&_cb_lock, 1);
 
 	if (ret != 0 || ret2 != 0) {
 		PX4_DEBUG("SEM INIT FAIL: _lock %d, _cb_lock %d", ret, ret2);
