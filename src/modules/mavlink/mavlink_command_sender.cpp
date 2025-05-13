@@ -51,7 +51,7 @@ static pthread_once_t mavlink_command_sender_init_once = PTHREAD_ONCE_INIT;
 
 void MavlinkCommandSender::do_initialize()
 {
-	px4_sem_init(&_lock, 1, 1);
+	px4_mutex_init(&_lock, 0);
 	_instance = new MavlinkCommandSender();
 
 	if (_instance == nullptr) {
