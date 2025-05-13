@@ -46,7 +46,7 @@
 
 uORB::DeviceMaster::DeviceMaster()
 {
-	px4_sem_init(&_lock, 0, 1);
+	px4_mutex_init(&_lock, 0);
 }
 
 uORB::DeviceMaster::~DeviceMaster()

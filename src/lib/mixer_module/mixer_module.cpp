@@ -86,7 +86,7 @@ MixingOutput::MixingOutput(const char *param_prefix, uint8_t max_num_outputs, Ou
 	_armed.termination = false;
 	_armed.in_esc_calibration_mode = false;
 
-	px4_sem_init(&_lock, 0, 1);
+	px4_mutex_init(&_lock, 0);
 
 	initParamHandles(instance_start);
 
