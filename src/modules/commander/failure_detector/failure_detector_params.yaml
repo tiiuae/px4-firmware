@@ -2,6 +2,16 @@ module_name: failure_detector
 parameters:
 - group: Failure Detector
   definitions:
+    FD_ESC_TOUT:
+      description:
+        short: ESC arming failure time threshold
+        long: ESC arming failure triggers only if the condition persists for this time.
+      type: int32
+      default: 400
+      unit: ms
+      min: 10
+      max: 10000
+      increment: 100
     FD_FAIL_R:
       description:
         short: FailureDetector Max Roll

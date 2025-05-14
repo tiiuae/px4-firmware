@@ -379,7 +379,8 @@ void EscChecks::updateEscsStatus(const Context &context, Report &reporter, const
 		const int all_escs_armed_mask = (1 << limited_esc_count) - 1;
 		const bool is_all_escs_armed = (all_escs_armed_mask == esc_status.esc_armed_flags);
 
-		_esc_arm_hysteresis.set_hysteresis_time_from(false, ESC_TIMEOUT_US);
+		_esc_arm_hysteresis.set_hysteresis_time_from(false,
+				static_cast<hrt_abstime>(_param_fd_esc_failure_time_thres.get()) * 1000);
 		_esc_arm_hysteresis.set_state_and_update(!is_all_escs_armed, now);
 
 		if (_esc_arm_hysteresis.get_state()) {
