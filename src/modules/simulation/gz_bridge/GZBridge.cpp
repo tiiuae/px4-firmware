@@ -59,9 +59,10 @@ GZBridge::GZBridge(const char *world, const char *name, const char *model, const
 
 	param_t param_handle = param_find("CA_AIRFRAME");
 	int32_t airframe_param_value = -1;
+
 	if (param_handle != PARAM_INVALID
-			&& param_get(param_handle, &airframe_param_value) == PX4_OK
-			&& (_airframe = static_cast<AirframeType>(airframe_param_value)) == AirframeType::ROVER_DIFFERENTIAL) {
+	    && param_get(param_handle, &airframe_param_value) == PX4_OK
+	    && (_airframe = static_cast<AirframeType>(airframe_param_value)) == AirframeType::ROVER_DIFFERENTIAL) {
 		// get rover max speed
 		param_get(param_find("GND_SPEED_MAX"), &_rover_max_speed);
 	}

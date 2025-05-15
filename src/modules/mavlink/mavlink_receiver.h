@@ -100,6 +100,7 @@
 #include <uORB/topics/tune_control.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
+#include <uORB/topics/vehicle_angular_velocity.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_command_ack.h>
 #include <uORB/topics/vehicle_global_position.h>
@@ -314,7 +315,10 @@ private:
 	uORB::Publication<onboard_computer_status_s>		_onboard_computer_status_pub{ORB_ID(onboard_computer_status)};
 	uORB::Publication<velocity_limits_s>			_velocity_limits_pub{ORB_ID(velocity_limits)};
 	uORB::Publication<generator_status_s>			_generator_status_pub{ORB_ID(generator_status)};
-	uORB::Publication<vehicle_attitude_s>			_attitude_pub{ORB_ID(vehicle_attitude)};
+	uORB::Publication<vehicle_angular_velocity_s>	_angular_velocity_groundtruth_pub{ORB_ID(vehicle_angular_velocity_groundtruth)};
+	uORB::Publication<vehicle_attitude_s>					_attitude_groundtruth_pub{ORB_ID(vehicle_attitude_groundtruth)};
+	uORB::Publication<vehicle_global_position_s>	_gpos_groundtruth_pub{ORB_ID(vehicle_global_position_groundtruth)};
+	uORB::Publication<vehicle_local_position_s>		_lpos_groundtruth_pub{ORB_ID(vehicle_local_position_groundtruth)};
 	uORB::Publication<vehicle_attitude_setpoint_s>		_att_sp_pub{ORB_ID(vehicle_attitude_setpoint)};
 	uORB::Publication<vehicle_attitude_setpoint_s>		_mc_virtual_att_sp_pub{ORB_ID(mc_virtual_attitude_setpoint)};
 	uORB::Publication<vehicle_attitude_setpoint_s>		_fw_virtual_att_sp_pub{ORB_ID(fw_virtual_attitude_setpoint)};

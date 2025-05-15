@@ -219,7 +219,7 @@ class Tester:
 
         return False
 
-    def reboot_using_ethernen(self):
+    def reboot_using_ethernet(self):
         return self.send_command_to_px4("./build/px4_sitl_default/mavsdk_tests/mavsdk_preparing",
                                                 ["--url",  self.config['mavlink_connection'], "--command", "reboot"], False)
 
@@ -310,7 +310,7 @@ class Tester:
         if (self.connection == "serial"):
             res = self.reboot_using_serial()
         elif (self.connection == "ethernet"):
-            res = self.reboot_using_ethernen()
+            res = self.reboot_using_ethernet()
         else:
             print("Wrong connection selected")
 
