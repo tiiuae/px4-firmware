@@ -4,7 +4,7 @@ set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_VERSION 1)
 set(PLATFORM_NAME "nuttx")
 
-set(triple riscv64-unknown-elf)
+set(triple riscv-none-elf)
 set(CMAKE_LIBRARY_ARCHITECTURE ${triple})
 set(TOOLCHAIN_PREFIX ${triple})
 
@@ -48,3 +48,11 @@ foreach(tool grep make)
 		message(FATAL_ERROR "could not find ${tool}")
 	endif()
 endforeach()
+
+# Set architecture and ABI for RV64
+set(CMAKE_C_FLAGS "-march=rv64gc -mabi=lp64d -mcmodel=medany ${CMAKE_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "-march=rv64gc -mabi=lp64d -mcmodel=medany ${CMAKE_CXX_FLAGS}")
+set(CMAKE_ASM_FLAGS "-march=rv64gc -mabi=lp64d -mcmodel=medany ${CMAKE_ASM_FLAGS}")
+
+# Ensure the linker uses the correct emulation
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-march=rv64gc -mabi=lp64d -mcmodel=medany -Wl,-melf64lriscv ${CMAKE_EXE_LINKER_FLAGS_INIT}")
