@@ -344,13 +344,6 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	 *
 	 * Accept HIL GPS messages if use_hil_gps flag is true.
 	 * This allows to provide fake gps measurements to the system.
-	 *
-	 * SSRC:
-	 * in HIL mode, MAVLINK_MSG_ID_HIL_SENSOR only contains imu sensor data from
-	 * from gz sim.
-	 * MAVLINK_MSG_ID_HIL_STATE_QUATERNION contains vehicle pose info from gz sim
-	 * Following that, local, global, attitude and angle velocity ground truth
-	 * will be published. These are needed by PX4 simulated sensors (GPS, Mag, Baro)
 	 */
 	if (_mavlink->get_hil_enabled()) {
 		switch (msg->msgid) {
