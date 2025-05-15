@@ -157,6 +157,22 @@ int board_reset(int status)
 	}
 
 #ifdef CONFIG_SMP
+	struct tcb_s *tcb;
+	irqstate_t flags;
+
+	/* Atomically lock this thread to this CPU */
+
+	flags = enter_critical_section();
+
+	tcb = nxsched_self();
+	tcb->flags |= TCB_FLAG_CPU_LOCKED;
+	CPU_ZERO(&tcb->affinity);
+	CPU_SET(tcb->cpu, &tcb->affinity);
+
+	leave_critical_section(flags);
+
+	/* Now that the CPU cannot change, start the reboot process */
+
 	g_reboot_data.func = board_reset_enter_app;
 	g_reboot_data.arg  = NULL;
 	g_cpus_paused      = 0;
