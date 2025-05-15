@@ -80,13 +80,15 @@ private:
 			char param_name[17];
 			snprintf(param_name, sizeof(param_name), "%s_%s%d", "PWM_MAIN", "FUNC", i + 1);
 			param_t param_handle;
+
 			if ((param_handle = param_find(param_name)) == PARAM_INVALID
-					|| param_get(param_handle, &_output_functions[i]) != PX4_OK
-					|| _output_functions[i] <= 0) {
+			    || param_get(param_handle, &_output_functions[i]) != PX4_OK
+			    || _output_functions[i] <= 0) {
 				snprintf(param_name, sizeof(param_name), "%s_%s%d", "PWM_AUX", "FUNC", i + 1);
+
 				if ((param_handle = param_find(param_name)) == PARAM_INVALID
-						|| param_get(param_handle, &_output_functions[i]) != PX4_OK
-						|| _output_functions[i] <= 0) {
+				    || param_get(param_handle, &_output_functions[i]) != PX4_OK
+				    || _output_functions[i] <= 0) {
 					_output_functions[i] = 0;
 					continue;
 				}
