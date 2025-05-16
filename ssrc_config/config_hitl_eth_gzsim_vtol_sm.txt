@@ -77,6 +77,10 @@ param set CA_SV_CS2_TRIM 0.1
 param set CA_SV_CS3_TRIM 0.1
 param set CA_SV_CS3_TRQ_P 1.0
 
+# MC mode adjustments
+param set MC_ROLL_P 2.0
+
+# FW mode adjustments
 param set FW_YR_P 0.2
 param set FW_YR_I 0.01
 

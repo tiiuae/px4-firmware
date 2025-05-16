@@ -108,7 +108,7 @@ param set-default MC_PITCHRATE_P 0.140
 param set-default MC_PITCH_P 4
 param set-default MC_ROLLRATE_D 0
 param set-default MC_ROLLRATE_P 0.140
-param set-default MC_ROLL_P 3.50
+param set-default MC_ROLL_P 2.0
 param set-default MPC_MAN_TILT_MAX 30.0
 param set-default MPC_MAN_Y_MAX 80.0
 param set-default MPC_Z_VEL_MAX_UP 2.0
