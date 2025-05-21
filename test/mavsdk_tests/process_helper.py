@@ -50,18 +50,19 @@ class Runner:
 
     def start(self) -> None:
         if self.verbose:
-            print("Running: {}".format(" ".join([self.cmd] + self.args)))
+            print("[{}] Running: {}".format(self.name, " ".join([self.cmd] + self.args)))
 
         if self.name == "mavsdk_tests":
             if self.env["HIL_MODE"] == "hitl":
                 delay = 30
-                print("Waiting ", delay, " seconds for connection to be established...  ")
+                print("[{}] Waiting {} seconds for connection to be established...  ".format(self.name, delay))
                 time.sleep(delay)
-                print("Running test...")
+                print("[{}] Running test...".format(self.name))
+
         atexit.register(self.stop)
 
         if self.verbose:
-            print("Logging to {}".format(self.log_filename))
+            print("[{}] Logging to {}".format(self.name, self.log_filename))
         self.log_fd = open(self.log_filename, 'w')
 
         self.process = subprocess.Popen(
@@ -146,7 +147,7 @@ class Runner:
                 returncode = self.process.poll()
 
         if self.verbose:
-            print("{} exited with {}".format(
+            print("[{}] exited with {}".format(
                 self.name, self.process.returncode))
 
         self.stop_thread.set()
@@ -367,7 +368,7 @@ class GzHarmonicServer(Runner):
                  verbose: bool,
                  build_dir: str):
         super().__init__(log_dir, model, case, verbose)
-        self.name = "gz-sim server"
+        self.name = "gz-sim_server"
         self.cwd = workspace_dir
         self. update_gz_sim_enviement(workspace_dir, build_dir)
 
@@ -390,7 +391,7 @@ class GzHarmonicModelSpawnRunner(Runner):
                  build_dir: str,
                  model_file: str):
         super().__init__(log_dir, model, case, verbose)
-        self.name = "gzmodelspawn"
+        self.name = "gz-harmonic_model_spawn"
         self.cwd = workspace_dir
         self.update_gz_sim_enviement(workspace_dir, build_dir)
 
@@ -409,6 +410,33 @@ class GzHarmonicModelSpawnRunner(Runner):
                     '--timeout', '1000',
                     '--req', 'sdf_filename: "{}", name: "{}" pose: {{position: {{x: 1.01, y: 0.98, z: 0.83}}}}'.format(
                     model_path, f'{self.model}')]
+        
+    def has_started_ok(self) -> bool:
+        # The problem is that sometimes gz sim does not seem to start
+        # quickly enough and gz model spawn fails with the error:
+        # "Service call timed out." but still returns 0
+        # as a result.
+        # We work around this by trying to start and then check whether
+        # using has_started_ok() whether it was successful or not.
+        timeout_s = 20
+        steps = 10
+        for _ in range(steps):
+            returncode = self.process.poll()
+            if returncode is None:
+                time.sleep(float(timeout_s)/float(steps))
+                continue
+
+            with open(self.log_filename, 'r') as f:
+                for line in f.readlines():
+                    if 'Service call timed out' in line:
+                        print("[{}] Failed to spawn drone: service call timed out.".format(self.name))                
+                        return False
+                else:
+                    return True
+
+        print("[{}] did not return within {}s"
+              .format(self.name, timeout_s))
+        return False
 
 
 class GzHarmonicClientRunner(Runner):
@@ -419,7 +447,7 @@ class GzHarmonicClientRunner(Runner):
                  case: str,
                  verbose: bool):
         super().__init__(log_dir, model, case, verbose)
-        self.name = "gz-sim client"
+        self.name = "gz-sim_client"
         self.cwd = workspace_dir
         self.cmd = "gz"
         self.args = ["sim", "-g", "--verbose"]
