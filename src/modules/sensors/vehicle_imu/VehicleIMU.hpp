@@ -195,6 +195,7 @@ private:
 
 	perf_counter_t _accel_generation_gap_perf{perf_alloc(PC_COUNT, MODULE_NAME": accel data gap")};
 	perf_counter_t _gyro_generation_gap_perf{perf_alloc(PC_COUNT, MODULE_NAME": gyro data gap")};
+	perf_counter_t _integrator_update_perf{perf_alloc(PC_COUNT, MODULE_NAME": integrator updates")};
 
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::IMU_INTEG_RATE>) _param_imu_integ_rate,

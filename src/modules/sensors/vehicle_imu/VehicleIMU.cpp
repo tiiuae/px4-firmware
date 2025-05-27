@@ -81,6 +81,7 @@ VehicleIMU::~VehicleIMU()
 
 	perf_free(_accel_generation_gap_perf);
 	perf_free(_gyro_generation_gap_perf);
+	perf_free(_integrator_update_perf);
 
 	_vehicle_imu_pub.unadvertise();
 	_vehicle_imu_status_pub.unadvertise();
@@ -299,6 +300,7 @@ bool VehicleIMU::UpdateAccel()
 						if (!PX4_ISFINITE(_accel_interval_us) || diff_exceeds_stddev) {
 							// update integrator configuration if interval has changed by more than 10%
 							_update_integrator_config = true;
+							perf_count(_integrator_update_perf);
 						}
 					}
 				}
@@ -428,6 +430,7 @@ bool VehicleIMU::UpdateGyro()
 						if (!PX4_ISFINITE(_gyro_interval_us) || diff_exceeds_stddev) {
 							// update integrator configuration if interval has changed by more than 10%
 							_update_integrator_config = true;
+							perf_count(_integrator_update_perf);
 						}
 					}
 				}
@@ -762,6 +765,7 @@ void VehicleIMU::PrintStatus()
 
 	perf_print_counter(_accel_generation_gap_perf);
 	perf_print_counter(_gyro_generation_gap_perf);
+	perf_print_counter(_integrator_update_perf);
 
 	_accel_calibration.PrintStatus();
 	_gyro_calibration.PrintStatus();
