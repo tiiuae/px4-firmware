@@ -223,7 +223,7 @@ void VehicleIMU::Run()
 		// update accel until integrator ready and caught up to gyro
 		while (_sensor_accel_sub.updated()
 		       && (!_accel_integrator.integral_ready() || !_intervals_configured || _data_gap
-			   || (_accel_timestamp_sample_last < (_gyro_timestamp_sample_last - 0.5f * _accel_interval_us)))
+			   || _accel_timestamp_sample_last < _gyro_timestamp_sample_last)
 		      ) {
 
 			if (UpdateAccel()) {
