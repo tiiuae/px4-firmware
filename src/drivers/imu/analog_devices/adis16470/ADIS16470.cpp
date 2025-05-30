@@ -418,6 +418,20 @@ int ADIS16470::DataReadyInterruptCallback(int irq, void *context, void *arg)
 
 void ADIS16470::DataReady()
 {
+	static int enabled = 0;
+
+	if (enabled <= 100000) {
+		enabled++;
+	}
+
+	if (enabled > 100000) {
+		perf_end(_irq_perf);
+	}
+
+	if (enabled >= 100000) {
+		perf_begin(_irq_perf);
+	}
+
 	_drdy_timestamp_sample.store(hrt_absolute_time());
 	ScheduleNow();
 }
