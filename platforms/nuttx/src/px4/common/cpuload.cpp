@@ -47,9 +47,78 @@
 
 #if defined(__PX4_NUTTX) && defined(CONFIG_SCHED_INSTRUMENTATION)
 __BEGIN_DECLS
-# include <nuttx/sched_note.h>
+
+#include <sys/syscall.h>
+#include <nuttx/sched.h>
+#include <nuttx/sched_note.h>
+#include <nuttx/note/note_driver.h>
 
 __EXPORT struct system_load_s system_load;
+
+
+void cpuload_start(FAR struct note_driver_s *drv, FAR struct tcb_s *tcb);
+void cpuload_stop(FAR struct note_driver_s *drv, FAR struct tcb_s *tcb);
+void cpuload_suspend(FAR struct note_driver_s *drv, FAR struct tcb_s *tcb);
+void cpuload_resume(FAR struct note_driver_s *drv, FAR struct tcb_s *tcb);
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static const struct note_driver_ops_s g_cpuload_ops = {
+	NULL,                  /* add */
+	cpuload_start,         /* start */
+	cpuload_stop,          /* stop */
+#ifdef CONFIG_SCHED_INSTRUMENTATION_SWITCH
+	cpuload_suspend,       /* suspend */
+	cpuload_resume,        /* resume */
+#endif
+#ifdef CONFIG_SMP
+	NULL,                  /* cpu_start */
+	NULL,                  /* cpu_started */
+#  ifdef CONFIG_SCHED_INSTRUMENTATION_SWITCH
+	NULL,                  /* cpu_pause */
+	NULL,                  /* cpu_paused */
+	NULL,                  /* cpu_resume */
+	NULL,                  /* cpu_resumed */
+#  endif
+#endif
+#ifdef CONFIG_SCHED_INSTRUMENTATION_PREEMPTION
+	NULL,                  /* preemption */
+#endif
+#ifdef CONFIG_SCHED_INSTRUMENTATION_CSECTION
+	NULL,                  /* csection */
+#endif
+#ifdef CONFIG_SCHED_INSTRUMENTATION_SPINLOCKS
+	NULL,                  /* spinlock */
+#endif
+#ifdef CONFIG_SCHED_INSTRUMENTATION_SYSCALL
+	NULL,                  /* syscall_enter */
+	NULL,                  /* syscall_leave */
+#endif
+#ifdef CONFIG_SCHED_INSTRUMENTATION_IRQHANDLER
+	NULL,                  /* irqhandler */
+#endif
+};
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+struct note_driver_s g_cpuload_driver = {
+#ifdef CONFIG_SCHED_INSTRUMENTATION_FILTER
+	"cpuload",
+	{
+		{
+			CONFIG_SCHED_INSTRUMENTATION_FILTER_DEFAULT_MODE,
+#  ifdef CONFIG_SMP
+			CONFIG_SCHED_INSTRUMENTATION_CPUSET
+#  endif
+		},
+	},
+#endif
+	&g_cpuload_ops,
+};
 
 /* Simple hashing via PID; shamelessly ripped from NuttX scheduler. All rights
  * and credit belong to whomever authored this logic.
@@ -147,13 +216,6 @@ retry:
 	goto retry;
 }
 
-#if defined(CONFIG_SEGGER_SYSVIEW)
-#  include <nuttx/note/note_sysview.h>
-#  ifndef CONFIG_SEGGER_SYSVIEW_PREFIX
-#   error Systemview enabled but prefix is not
-#  endif
-#endif
-
 static px4::atomic_int cpuload_monitor_all_count{0};
 
 void cpuload_monitor_start()
@@ -201,10 +263,10 @@ void cpuload_initialize_once()
 		hash_task_info(&system_load.tasks[system_load.total_count], system_load.total_count);
 	}
 
-	system_load.initialized = true;
+	system_load.initialized = note_driver_register(&g_cpuload_driver) == 0;
 }
 
-void sched_note_start(FAR struct tcb_s *tcb)
+void cpuload_start(FAR struct note_driver_s *drv, FAR struct tcb_s *tcb)
 {
 	// find first free slot
 	if (system_load.initialized) {
@@ -222,13 +284,9 @@ void sched_note_start(FAR struct tcb_s *tcb)
 			}
 		}
 	}
-
-#ifdef CONFIG_SEGGER_SYSVIEW
-	sysview_sched_note_start(tcb);
-#endif
 }
 
-void sched_note_stop(FAR struct tcb_s *tcb)
+void cpuload_stop(FAR struct note_driver_s *drv, FAR struct tcb_s *tcb)
 {
 	if (system_load.initialized) {
 		for (auto &task : system_load.tasks) {
@@ -245,13 +303,9 @@ void sched_note_stop(FAR struct tcb_s *tcb)
 			}
 		}
 	}
-
-#ifdef CONFIG_SEGGER_SYSVIEW
-	sysview_sched_note_stop(tcb);
-#endif
 }
 
-void sched_note_suspend(FAR struct tcb_s *tcb)
+void cpuload_suspend(FAR struct note_driver_s *drv, FAR struct tcb_s *tcb)
 {
 	if (system_load.initialized) {
 		if (tcb->pid < CONFIG_SMP_NCPUS) {
@@ -274,13 +328,9 @@ void sched_note_suspend(FAR struct tcb_s *tcb)
 			}
 		}
 	}
-
-#ifdef CONFIG_SEGGER_SYSVIEW
-	sysview_sched_note_suspend(tcb);
-#endif
 }
 
-void sched_note_resume(FAR struct tcb_s *tcb)
+void cpuload_resume(FAR struct note_driver_s *drv, FAR struct tcb_s *tcb)
 {
 	if (system_load.initialized) {
 		if (tcb->pid < CONFIG_SMP_NCPUS) {
@@ -303,68 +353,7 @@ void sched_note_resume(FAR struct tcb_s *tcb)
 			}
 		}
 	}
-
-#ifdef CONFIG_SEGGER_SYSVIEW
-	sysview_sched_note_resume(tcb);
-#endif
 }
-
-#ifdef CONFIG_SEGGER_SYSVIEW
-
-#ifdef CONFIG_SCHED_INSTRUMENTATION_IRQHANDLER
-void sched_note_irqhandler(int irq, FAR void *handler, bool enter)
-{
-	sysview_sched_note_irqhandler(irq, handler, enter);
-}
-#endif
-
-#ifdef CONFIG_SCHED_INSTRUMENTATION_SYSCALL
-void sched_note_syscall_enter(int nr);
-{
-	sysview_sched_note_syscall_enter(nr);
-}
-
-void sched_note_syscall_enter(int nr);
-{
-	sysview_sched_note_syscall_enter(nr);
-}
-#endif
-
-#endif
-
-#if defined(CONFIG_SMP) && defined(CONFIG_SCHED_INSTRUMENTATION)
-void sched_note_cpu_start(FAR struct tcb_s *tcb, int cpu)
-{
-	/* Not interesting for us */
-}
-
-void sched_note_cpu_started(FAR struct tcb_s *tcb)
-{
-	/* Not interesting for us */
-}
-#endif
-
-#if defined(CONFIG_SMP) && defined(CONFIG_SCHED_INSTRUMENTATION_SWITCH)
-void sched_note_cpu_pause(FAR struct tcb_s *tcb, int cpu)
-{
-	/* Not interesting for us */
-}
-
-void sched_note_cpu_paused(FAR struct tcb_s *tcb)
-{
-	/* Handled via sched_note_suspend */
-}
-
-void sched_note_cpu_resume(FAR struct tcb_s *tcb, int cpu)
-{
-	/* Not interesting for us */
-}
-
-void sched_note_cpu_resumed(FAR struct tcb_s *tcb)
-{
-	/* Handled via sched_note_resume */
-}
-#endif
 
 __END_DECLS
 #endif // PX4_NUTTX && CONFIG_SCHED_INSTRUMENTATION
