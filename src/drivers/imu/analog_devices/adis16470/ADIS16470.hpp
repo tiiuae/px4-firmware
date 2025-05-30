@@ -102,6 +102,7 @@ private:
 	perf_counter_t _bad_transfer_perf{perf_alloc(PC_COUNT, MODULE_NAME": bad transfer")};
 	perf_counter_t _perf_crc_bad{perf_counter_t(perf_alloc(PC_COUNT, MODULE_NAME": CRC16 bad"))};
 	perf_counter_t _drdy_missed_perf{nullptr};
+	perf_counter_t _irq_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": irq_loop")};
 
 	hrt_abstime _reset_timestamp{0};
 	hrt_abstime _last_config_check_timestamp{0};
