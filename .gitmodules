@@ -139,3 +139,6 @@
 [submodule "src/modules/assembly_agent"]
 	path = src/modules/assembly_agent
 	url = git@github.com:tiiuae/px4_assembly_agent.git
+[submodule "src/systemcmds/keys"]
+	path = src/systemcmds/keys
+	url = git@github.com:tiiuae/px4_testing_keys.git
