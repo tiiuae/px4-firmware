@@ -82,25 +82,29 @@ function(make_bin_romfs)
 
 	# Strip the elf files to reduce romfs image size
 
+	set(stripped_deps)
+
 	if (${STRIPPED} STREQUAL "y")
 		# Preserve the files with debug symbols
 
-		add_custom_target(debug_${OUTPREFIX}
+		add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${OUTPREFIX}_copy.stamp
 			COMMAND cp -r ${BINDIR}/. ${BINDIR}_debug
+			COMMAND touch ${CMAKE_CURRENT_BINARY_DIR}/${OUTPREFIX}_copy.stamp
 			DEPENDS ${DEPS}
 		)
 
+		add_custom_target(${OUTPREFIX}_copy DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${OUTPREFIX}_copy.stamp)
+
 		# Then strip the binaries in place
 
-		add_custom_command(OUTPUT ${OUTPREFIX}_stripped_bins
+		add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${OUTPREFIX}_stripped.stamp
 			COMMAND for f in * \; do if [ -f "$$f" ]; then ${CMAKE_STRIP} $$f --strip-unneeded \; fi \; done
-			DEPENDS ${DEPS} debug_${OUTPREFIX}
+			COMMAND touch ${CMAKE_CURRENT_BINARY_DIR}/${OUTPREFIX}_stripped.stamp
+			DEPENDS ${DEPS} ${OUTPREFIX}_copy
 			WORKING_DIRECTORY ${BINDIR}
 		)
-	else()
-		add_custom_command(OUTPUT ${OUTPREFIX}_stripped_bins
-			COMMAND touch ${BINDIR}
-		)
+
+		list(APPEND stripped_deps ${CMAKE_CURRENT_BINARY_DIR}/${OUTPREFIX}_stripped.stamp)
 	endif()
 
 	# Make sure we have what we need
@@ -128,7 +132,7 @@ function(make_bin_romfs)
 				${SED} 's/^unsigned char/const unsigned char/g' >${OUTPREFIX}_romfsimg.h
 		COMMAND mv ${OUTPREFIX}_romfsimg.h ${OUTDIR}/${OUTPREFIX}_romfsimg.h
 		COMMAND rm -f ${OUTPREFIX}_romfs.img
-		DEPENDS ${OUTDIR} ${DEPS} ${OUTPREFIX}_stripped_bins
+		DEPENDS ${DEPS} ${stripped_deps}
 	)
 	add_custom_target(${OUTPREFIX}_romfsimg DEPENDS ${OUTDIR}/${OUTPREFIX}_romfsimg.h)
 

@@ -278,7 +278,6 @@ if (CONFIG_BUILD_KERNEL)
 			ELFLDNAME="${LDSCRIPT}"
 			USERLIBS="${userlibs}" > ${CMAKE_CURRENT_BINARY_DIR}/nuttx_apps_install.log
 		COMMAND touch nuttx_install.stamp
-		BYPRODUCTS ${PX4_BINARY_DIR}/bin/nsh
 		DEPENDS ${nuttx_userlibs} nuttx_startup
 	)
 	add_custom_target(nuttx_app_bins DEPENDS nuttx_install.stamp)
