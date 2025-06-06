@@ -187,6 +187,10 @@ list(APPEND OPTIONAL_BOARD_RC
 	rc.board_sensors
 	rc.board_extras
 	rc.board_mavlink
+	common_init/rc.moi
+	common_init/rc.m_state
+	common_init/rc.o_state
+	common_init/rc.i_state
 )
 
 foreach(board_rc_file ${OPTIONAL_BOARD_RC})
