@@ -57,4 +57,7 @@ px4_add_romfs_files(
 	rc.vtol_apps
 	rc.vtol_defaults
 	rc.hitl_testing
+	rc.m_state
+	rc.o_state
+	rc.i_state
 )
