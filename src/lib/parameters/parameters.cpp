@@ -854,8 +854,6 @@ int param_save_default(bool blocking)
 		PX4_ERR("param export failed (%d)", res);
 
 	} else {
-		params_unsaved.reset();
-
 		// backup file
 		if (param_backup_file) {
 			int fd_backup_file = ::open(param_backup_file, O_WRONLY | O_CREAT | O_TRUNC, PX4_O_MODE_666);
@@ -934,6 +932,11 @@ static int param_verify_callback(bson_decoder_t decoder, bson_node_t node)
 	if (param == PARAM_INVALID) {
 		PX4_ERR("verify: invalid parameter '%s'", node->name);
 		return -1;
+	}
+
+	if (params_unsaved[param]) {
+		PX4_DEBUG("verify: skip unsaved %s\n", node->name);
+		return 1;
 	}
 
 	// handle verifying the parameter from the node
@@ -1098,6 +1101,7 @@ static int param_export_internal(int fd, param_filter_func filter)
 		case PARAM_TYPE_INT32:
 			if (user_config_value.i == runtime_default_value.i) {
 				PX4_DEBUG("skipping %s %" PRIi32 " export", param_name(param), runtime_default_value.i);
+				params_unsaved.set(param, false);
 				continue;
 			}
 
@@ -1106,6 +1110,7 @@ static int param_export_internal(int fd, param_filter_func filter)
 		case PARAM_TYPE_FLOAT:
 			if (fabsf(user_config_value.f - runtime_default_value.f) <= FLT_EPSILON) {
 				PX4_DEBUG("skipping %s %.3f export", param_name(param), (double)runtime_default_value.f);
+				params_unsaved.set(param, false);
 				continue;
 			}
 
@@ -1125,6 +1130,8 @@ static int param_export_internal(int fd, param_filter_func filter)
 					PX4_ERR("BSON append failed for '%s'", name);
 					goto out;
 				}
+
+				params_unsaved.set(param, false);
 			}
 			break;
 
@@ -1136,6 +1143,8 @@ static int param_export_internal(int fd, param_filter_func filter)
 					PX4_ERR("BSON append failed for '%s'", name);
 					goto out;
 				}
+
+				params_unsaved.set(param, false);
 			}
 			break;
 
