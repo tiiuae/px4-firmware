@@ -281,13 +281,31 @@ void VehicleIMU::Run()
 	}
 }
 
+volatile int debug_break = 0;
+
 bool VehicleIMU::UpdateAccel(const sensor_accel_s &accel)
 {
 	bool updated = false;
 
+	static int debug_cnt = 0;
+
 	if (_sensor_accel_sub.get_last_generation() != _accel_last_generation + 1) {
 		_data_gap = true;
 		perf_count(_accel_generation_gap_perf);
+
+		static hrt_abstime start = hrt_absolute_time();
+
+		if (hrt_elapsed_time(&start) > 300000000) {
+			start = hrt_absolute_time();
+			debug_cnt = 0;
+		}
+
+		if (debug_cnt++ > 400) {
+			enter_critical_section();
+			debug_break ^= 1;
+
+			while (1);
+		}
 
 	} else {
 		// collect sample interval average for filters
