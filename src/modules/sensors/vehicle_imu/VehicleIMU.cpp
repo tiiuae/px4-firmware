@@ -225,19 +225,21 @@ void VehicleIMU::Run()
 			}
 		}
 
-
 		// update accel until integrator ready and caught up to gyro
 		int sensor_accel_sub_updates = 0;
+		sensor_accel_s accel;
 
-		while (_sensor_accel_sub.updated()
-		       && (sensor_accel_sub_updates < sensor_accel_s::ORB_QUEUE_LENGTH)
+		while ((sensor_accel_sub_updates < sensor_accel_s::ORB_QUEUE_LENGTH)
 		       && (!_accel_integrator.integral_ready() || !_intervals_configured || _data_gap
 			   || (_accel_timestamp_sample_last < (_gyro_timestamp_sample_last - 0.5f * _accel_interval_us)))
+		       && _sensor_accel_sub.update(&accel)
 		      ) {
+
+			// integrate queued accel
 
 			sensor_accel_sub_updates++;
 
-			if (UpdateAccel()) {
+			if (UpdateAccel(accel)) {
 				updated = true;
 			}
 		}
@@ -279,128 +281,123 @@ void VehicleIMU::Run()
 	}
 }
 
-bool VehicleIMU::UpdateAccel()
+bool VehicleIMU::UpdateAccel(const sensor_accel_s &accel)
 {
 	bool updated = false;
 
-	// integrate queued accel
-	sensor_accel_s accel;
+	if (_sensor_accel_sub.get_last_generation() != _accel_last_generation + 1) {
+		_data_gap = true;
+		perf_count(_accel_generation_gap_perf);
 
-	if (_sensor_accel_sub.update(&accel)) {
-		if (_sensor_accel_sub.get_last_generation() != _accel_last_generation + 1) {
-			_data_gap = true;
-			perf_count(_accel_generation_gap_perf);
+	} else {
+		// collect sample interval average for filters
+		if (accel.timestamp_sample > _accel_timestamp_sample_last) {
+			if (_accel_timestamp_sample_last != 0) {
+				const float interval_us = accel.timestamp_sample - _accel_timestamp_sample_last;
 
-		} else {
-			// collect sample interval average for filters
-			if (accel.timestamp_sample > _accel_timestamp_sample_last) {
-				if (_accel_timestamp_sample_last != 0) {
-					const float interval_us = accel.timestamp_sample - _accel_timestamp_sample_last;
+				_accel_mean_interval_us.update(interval_us);
+				_accel_fifo_mean_interval_us.update(interval_us / math::max(accel.samples, (uint8_t)1));
 
-					_accel_mean_interval_us.update(interval_us);
-					_accel_fifo_mean_interval_us.update(interval_us / math::max(accel.samples, (uint8_t)1));
+				// check measured interval periodically
+				if (_accel_mean_interval_us.valid() && (_accel_mean_interval_us.count() % 10 == 0)) {
 
-					// check measured interval periodically
-					if (_accel_mean_interval_us.valid() && (_accel_mean_interval_us.count() % 10 == 0)) {
+					const float interval_mean = _accel_mean_interval_us.mean();
 
-						const float interval_mean = _accel_mean_interval_us.mean();
+					// update sample rate if previously invalid or changed by more than 1 standard deviation
+					const bool diff_exceeds_stddev = sq(interval_mean - _accel_interval_us) > _accel_mean_interval_us.variance();
 
-						// update sample rate if previously invalid or changed by more than 1 standard deviation
-						const bool diff_exceeds_stddev = sq(interval_mean - _accel_interval_us) > _accel_mean_interval_us.variance();
-
-						if (!PX4_ISFINITE(_accel_interval_us) || diff_exceeds_stddev) {
-							// update integrator configuration if interval has changed by more than 10%
-							_update_integrator_config = true;
-						}
+					if (!PX4_ISFINITE(_accel_interval_us) || diff_exceeds_stddev) {
+						// update integrator configuration if interval has changed by more than 10%
+						_update_integrator_config = true;
 					}
 				}
-
-			} else {
-				PX4_ERR("%d - accel %" PRIu32 " timestamp error timestamp_sample: %" PRIu64 ", previous timestamp_sample: %" PRIu64,
-					_instance, accel.device_id, accel.timestamp_sample, _accel_timestamp_sample_last);
 			}
 
-			if (accel.timestamp < accel.timestamp_sample) {
-				PX4_ERR("%d - accel %" PRIu32 " timestamp (%" PRIu64 ") < timestamp_sample (%" PRIu64 ")",
-					_instance, accel.device_id, accel.timestamp, accel.timestamp_sample);
-			}
+		} else {
+			PX4_ERR("%d - accel %" PRIu32 " timestamp error timestamp_sample: %" PRIu64 ", previous timestamp_sample: %" PRIu64,
+				_instance, accel.device_id, accel.timestamp_sample, _accel_timestamp_sample_last);
 		}
 
-		_accel_last_generation = _sensor_accel_sub.get_last_generation();
+		if (accel.timestamp < accel.timestamp_sample) {
+			PX4_ERR("%d - accel %" PRIu32 " timestamp (%" PRIu64 ") < timestamp_sample (%" PRIu64 ")",
+				_instance, accel.device_id, accel.timestamp, accel.timestamp_sample);
+		}
+	}
 
-		_accel_calibration.set_device_id(accel.device_id);
+	_accel_last_generation = _sensor_accel_sub.get_last_generation();
 
-		if (accel.error_count != _status.accel_error_count) {
-			_publish_status = true;
-			_status.accel_error_count = accel.error_count;
+	_accel_calibration.set_device_id(accel.device_id);
+
+	if (accel.error_count != _status.accel_error_count) {
+		_publish_status = true;
+		_status.accel_error_count = accel.error_count;
+	}
+
+
+	// temperature average
+	if (PX4_ISFINITE(accel.temperature)) {
+		if ((_accel_temperature_sum_count == 0) || !PX4_ISFINITE(_accel_temperature_sum)) {
+			_accel_temperature_sum = accel.temperature;
+			_accel_temperature_sum_count = 1;
+
+		} else {
+			_accel_temperature_sum += accel.temperature;
+			_accel_temperature_sum_count += 1;
+		}
+	}
+
+
+	const float dt = (accel.timestamp_sample - _accel_timestamp_sample_last) * 1e-6f;
+	_accel_timestamp_sample_last = accel.timestamp_sample;
+
+	const Vector3f accel_raw{accel.x, accel.y, accel.z};
+	_raw_accel_mean.update(accel_raw);
+	_accel_integrator.put(accel_raw, dt);
+
+	updated = true;
+
+	if (accel.clip_counter[0] > 0 || accel.clip_counter[1] > 0 || accel.clip_counter[2] > 0) {
+		// rotate sensor clip counts into vehicle body frame
+		const Vector3f clipping{_accel_calibration.rotation() *
+					Vector3f{(float)accel.clip_counter[0], (float)accel.clip_counter[1], (float)accel.clip_counter[2]}};
+
+		// round to get reasonble clip counts per axis (after board rotation)
+		const uint8_t clip_x = roundf(fabsf(clipping(0)));
+		const uint8_t clip_y = roundf(fabsf(clipping(1)));
+		const uint8_t clip_z = roundf(fabsf(clipping(2)));
+
+		_status.accel_clipping[0] += clip_x;
+		_status.accel_clipping[1] += clip_y;
+		_status.accel_clipping[2] += clip_z;
+
+		if (clip_x > 0) {
+			_delta_velocity_clipping |= vehicle_imu_s::CLIPPING_X;
 		}
 
-
-		// temperature average
-		if (PX4_ISFINITE(accel.temperature)) {
-			if ((_accel_temperature_sum_count == 0) || !PX4_ISFINITE(_accel_temperature_sum)) {
-				_accel_temperature_sum = accel.temperature;
-				_accel_temperature_sum_count = 1;
-
-			} else {
-				_accel_temperature_sum += accel.temperature;
-				_accel_temperature_sum_count += 1;
-			}
+		if (clip_y > 0) {
+			_delta_velocity_clipping |= vehicle_imu_s::CLIPPING_Y;
 		}
 
+		if (clip_z > 0) {
+			_delta_velocity_clipping |= vehicle_imu_s::CLIPPING_Z;
+		}
 
-		const float dt = (accel.timestamp_sample - _accel_timestamp_sample_last) * 1e-6f;
-		_accel_timestamp_sample_last = accel.timestamp_sample;
+		_publish_status = true;
 
-		const Vector3f accel_raw{accel.x, accel.y, accel.z};
-		_raw_accel_mean.update(accel_raw);
-		_accel_integrator.put(accel_raw, dt);
+		if (_notify_clipping && _accel_calibration.enabled() && (hrt_elapsed_time(&_last_accel_clipping_notify_time) > 3_s)) {
+			// start notifying the user periodically if there's significant continuous clipping
+			const uint64_t clipping_total = _status.accel_clipping[0] + _status.accel_clipping[1] + _status.accel_clipping[2];
 
-		updated = true;
-
-		if (accel.clip_counter[0] > 0 || accel.clip_counter[1] > 0 || accel.clip_counter[2] > 0) {
-			// rotate sensor clip counts into vehicle body frame
-			const Vector3f clipping{_accel_calibration.rotation() *
-						Vector3f{(float)accel.clip_counter[0], (float)accel.clip_counter[1], (float)accel.clip_counter[2]}};
-
-			// round to get reasonble clip counts per axis (after board rotation)
-			const uint8_t clip_x = roundf(fabsf(clipping(0)));
-			const uint8_t clip_y = roundf(fabsf(clipping(1)));
-			const uint8_t clip_z = roundf(fabsf(clipping(2)));
-
-			_status.accel_clipping[0] += clip_x;
-			_status.accel_clipping[1] += clip_y;
-			_status.accel_clipping[2] += clip_z;
-
-			if (clip_x > 0) {
-				_delta_velocity_clipping |= vehicle_imu_s::CLIPPING_X;
-			}
-
-			if (clip_y > 0) {
-				_delta_velocity_clipping |= vehicle_imu_s::CLIPPING_Y;
-			}
-
-			if (clip_z > 0) {
-				_delta_velocity_clipping |= vehicle_imu_s::CLIPPING_Z;
-			}
-
-			_publish_status = true;
-
-			if (_notify_clipping && _accel_calibration.enabled() && (hrt_elapsed_time(&_last_accel_clipping_notify_time) > 3_s)) {
-				// start notifying the user periodically if there's significant continuous clipping
-				const uint64_t clipping_total = _status.accel_clipping[0] + _status.accel_clipping[1] + _status.accel_clipping[2];
-
-				if (clipping_total > _last_accel_clipping_notify_total_count + 1000) {
-					mavlink_log_critical(&_mavlink_log_pub, "Accel %" PRIu8 " clipping, not safe to fly!\t", _instance);
-					/* EVENT
-					 * @description Land now, and check the vehicle setup.
-					 * Clipping can lead to fly-aways.
-					 */
-					events::send<uint8_t>(events::ID("vehicle_imu_accel_clipping"), events::Log::Critical,
-							      "Accel {1} clipping, not safe to fly!", _instance);
-					_last_accel_clipping_notify_time = accel.timestamp_sample;
-					_last_accel_clipping_notify_total_count = clipping_total;
-				}
+			if (clipping_total > _last_accel_clipping_notify_total_count + 1000) {
+				mavlink_log_critical(&_mavlink_log_pub, "Accel %" PRIu8 " clipping, not safe to fly!\t", _instance);
+				/* EVENT
+				 * @description Land now, and check the vehicle setup.
+				 * Clipping can lead to fly-aways.
+				 */
+				events::send<uint8_t>(events::ID("vehicle_imu_accel_clipping"), events::Log::Critical,
+						      "Accel {1} clipping, not safe to fly!", _instance);
+				_last_accel_clipping_notify_time = accel.timestamp_sample;
+				_last_accel_clipping_notify_total_count = clipping_total;
 			}
 		}
 	}

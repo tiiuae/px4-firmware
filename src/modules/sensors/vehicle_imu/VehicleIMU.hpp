@@ -81,7 +81,7 @@ private:
 	bool Publish();
 	void Run() override;
 
-	bool UpdateAccel();
+	bool UpdateAccel(const sensor_accel_s &accel);
 	bool UpdateGyro();
 
 	void UpdateIntegratorConfiguration();
