@@ -64,6 +64,25 @@
 
 #include <px4_platform_common/atomic.h>
 
+static bool perf_can_update_float()
+{
+#ifdef CONFIG_BUILD_FLAT
+	DEBUGASSERT(!up_interrupt_context());
+
+	if (up_interrupt_context()) {
+		static px4::atomic<unsigned> error_count{0};
+
+		if (error_count.fetch_add(1) < 10) {
+			PX4_ERR("perf statistics called from interrupt");
+		}
+
+		return false;
+	}
+
+#endif
+	return true;
+}
+
 // perf counters are written on the hot path (perf_begin/perf_end/perf_count)
 // and read concurrently by the 'perf' command and the logger.
 //
@@ -472,16 +491,18 @@ perf_set_elapsed(perf_counter_t handle, int64_t elapsed)
 					pce->time_most.store((uint32_t)elapsed);
 				}
 
-				// maintain mean and variance of the elapsed time in seconds
-				// Knuth/Welford recursive mean and variance of update intervals (via Wikipedia)
-				float dt = elapsed / 1e6f;
-				float mean_val = pce->mean.load();
-				float delta_intvl = dt - mean_val;
-				mean_val += delta_intvl / ec;
-				pce->mean.store(mean_val);
-				float m2_val = pce->M2.load();
-				m2_val += delta_intvl * (dt - mean_val);
-				pce->M2.store(m2_val);
+				if (perf_can_update_float()) {
+					// maintain mean and variance of the elapsed time in seconds
+					// Knuth/Welford recursive mean and variance of update intervals (via Wikipedia)
+					float dt = elapsed / 1e6f;
+					float mean_val = pce->mean.load();
+					float delta_intvl = dt - mean_val;
+					mean_val += delta_intvl / ec;
+					pce->mean.store(mean_val);
+					float m2_val = pce->M2.load();
+					m2_val += delta_intvl * (dt - mean_val);
+					pce->M2.store(m2_val);
+				}
 
 				pce->time_start.store((uint64_t)0);
 			}
@@ -515,8 +536,12 @@ perf_count_interval(perf_counter_t handle, hrt_abstime now)
 					uint32_t interval = (uint32_t)(now - tl);
 					pci->time_least.store(interval);
 					pci->time_most.store(interval);
-					pci->mean.store(interval / 1e6f);
-					pci->M2.store(0.0f);
+
+					if (perf_can_update_float()) {
+						pci->mean.store(interval / 1e6f);
+						pci->M2.store(0.0f);
+					}
+
 					break;
 				}
 
@@ -536,16 +561,19 @@ perf_count_interval(perf_counter_t handle, hrt_abstime now)
 						pci->time_most.store((uint32_t)interval);
 					}
 
-					// maintain mean and variance of interval in seconds
-					// Knuth/Welford recursive mean and variance of update intervals (via Wikipedia)
-					float dt = interval / 1e6f;
-					float mean_val = pci->mean.load();
-					float delta_intvl = dt - mean_val;
-					mean_val += delta_intvl / ec;
-					pci->mean.store(mean_val);
-					float m2_val = pci->M2.load();
-					m2_val += delta_intvl * (dt - mean_val);
-					pci->M2.store(m2_val);
+					if (perf_can_update_float()) {
+						// maintain mean and variance of interval in seconds
+						// Knuth/Welford recursive mean and variance of update intervals (via Wikipedia)
+						float dt = interval / 1e6f;
+						float mean_val = pci->mean.load();
+						float delta_intvl = dt - mean_val;
+						mean_val += delta_intvl / ec;
+						pci->mean.store(mean_val);
+						float m2_val = pci->M2.load();
+						m2_val += delta_intvl * (dt - mean_val);
+						pci->M2.store(m2_val);
+					}
+
 					break;
 				}
 			}
