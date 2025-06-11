@@ -334,11 +334,16 @@ uORB::DeviceNode::DeviceNode(const ORB_ID id, const uint8_t instance, const char
 	_orb_id(id),
 	_instance(instance)
 {
+#ifdef __PX4_NUTTX
+	spin_lock_init(&_lock);
+#else
 	int ret = px4_mutex_init(&_lock, 1);
 
 	if (ret != 0) {
 		PX4_DEBUG("SEM INIT FAIL: ret %d", ret);
 	}
+
+#endif
 
 #if defined(CONFIG_BUILD_FLAT)
 	_devname = strdup(path);
@@ -370,7 +375,10 @@ uORB::DeviceNode::~DeviceNode()
 
 	free(_devname);
 #endif
+
+#ifndef __PX4_NUTTX
 	px4_sem_destroy(&_lock);
+#endif
 }
 
 /**
@@ -697,6 +705,9 @@ uORB::DeviceNode::_register_callback(uORB::SubscriptionCallback *cb_sub,
 	lock();
 
 	cb_handle = callbacks.pop_free();
+
+	unlock();
+
 	EventWaitItem *item = callbacks.peek(cb_handle);
 
 #ifdef CONFIG_BUILD_FLAT
@@ -718,13 +729,16 @@ uORB::DeviceNode::_register_callback(uORB::SubscriptionCallback *cb_sub,
 #endif
 		item->last_update = last_update;
 		item->interval_us = interval_us;
+
+		lock();
 		callbacks.push(cb_handle);
+		unlock();
 
 	} else {
 		PX4_ERR("register fail\n");
 	}
 
-	unlock();
+
 
 	return uorb_cb_handle_valid(cb_handle);
 }

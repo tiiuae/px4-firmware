@@ -51,6 +51,10 @@
 
 #include "IndexedStack.hpp"
 
+#ifdef __PX4_NUTTX
+#include <nuttx/spinlock.h>
+#endif
+
 #if defined(CONFIG_BUILD_FLAT)
 #define MAX_EVENT_WAITERS 0 // dynamic
 typedef void *uorb_cb_handle_t;
@@ -349,9 +353,16 @@ private:
 	 * Mutex for protecting node's internal data
 	 */
 
+#ifdef __PX4_NUTTX
+	void lock() {_flags = spin_lock_irqsave_nopreempt(&_lock);}
+	void unlock() {spin_unlock_irqrestore_nopreempt(&_lock, _flags);}
+	irqstate_t _flags;
+	spinlock_t _lock;
+#else
 	void		lock() { do {} while (px4_sem_wait(&_lock) != 0); }
 	void		unlock() { px4_sem_post(&_lock); }
-	px4_sem_t	_lock; /**< lock to protect access to all class members */
+	px4_sem_t	_lock;
+#endif
 
 #ifdef CONFIG_BUILD_FLAT
 	char *_devname;
