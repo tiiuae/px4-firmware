@@ -360,10 +360,10 @@ int board_determine_hw_info(void)
 	guid.timestamp = timestamp;
 	hwinfo.timestamp = timestamp;
 
-	orb_publish(ORB_ID(system_version_string), &ver_str_pub, &ver_str);
-	orb_publish(ORB_ID(system_version), &ver_pub, &ver);
-	orb_publish(ORB_ID(guid), &mfguid_pub, &guid);
-	orb_publish(ORB_ID(hw_info), &hw_info_pub, &hwinfo);
+	orb_publish(ORB_ID(system_version_string), ver_str_pub, &ver_str);
+	orb_publish(ORB_ID(system_version), ver_pub, &ver);
+	orb_publish(ORB_ID(guid), mfguid_pub, &guid);
+	orb_publish(ORB_ID(hw_info), hw_info_pub, &hwinfo);
 
 	return OK;
 }
