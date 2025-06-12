@@ -51,6 +51,7 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
+#include <nuttx/spinlock.h>
 
 #include <stdint.h>
 #include <inttypes.h>
@@ -116,6 +117,14 @@ static uint32_t           latency_baseline;
 
 /* timer count at interrupt (for latency purposes) */
 static uint32_t           latency_actual;
+
+/* SMP spinlock for hrt.
+ *
+ * Note: when SMP=no the spin lock turns into normal critical section i.e. it
+ * only disables interrupts
+ */
+static spinlock_t g_hrt_lock = SP_UNLOCKED;
+static spinlock_t g_hrt_time_lock = SP_UNLOCKED;
 
 /* latency histogram */
 const uint16_t latency_bucket_count = LATENCY_BUCKET_COUNT;
@@ -227,6 +236,9 @@ hrt_tim_isr(int irq, void *context, void *arg)
 	regval |= LPTMR_CSR_TCF;
 	putreg32(regval, LPTMR_CSR(HRT_TIMER_BASE));
 
+	/* get exclusive access to hrt */
+	spin_lock_notrace(&g_hrt_lock);
+
 	/* do latency calculations */
 	hrt_latency_update();
 
@@ -235,6 +247,9 @@ hrt_tim_isr(int irq, void *context, void *arg)
 
 	/* and schedule the next interrupt */
 	hrt_call_reschedule();
+
+	/* release exclusive access */
+	spin_unlock_notrace(&g_hrt_lock);
 
 	return OK;
 }
@@ -260,7 +275,7 @@ hrt_absolute_time(void)
 	static volatile uint32_t last_count;
 
 	/* prevent re-entry */
-	flags = px4_enter_critical_section();
+	flags = spin_lock_irqsave_notrace(&g_hrt_time_lock);
 
 	/* get the current counter value */
 	count = get_time();
@@ -282,7 +297,7 @@ hrt_absolute_time(void)
 	/* compute the current time */
 	abstime = HRT_COUNTER_SCALE(base_time + count);
 
-	px4_leave_critical_section(flags);
+	spin_unlock_irqrestore_notrace(&g_hrt_time_lock, flags);
 
 	return abstime;
 }
@@ -293,9 +308,7 @@ hrt_absolute_time(void)
 void
 hrt_store_absolute_time(volatile hrt_abstime *t)
 {
-	irqstate_t flags = px4_enter_critical_section();
 	*t = hrt_absolute_time();
-	px4_leave_critical_section(flags);
 }
 
 /**
@@ -346,7 +359,7 @@ hrt_call_every(struct hrt_call *entry, hrt_abstime delay, hrt_abstime interval, 
 static void
 hrt_call_internal(struct hrt_call *entry, hrt_abstime deadline, hrt_abstime interval, hrt_callout callout, void *arg)
 {
-	irqstate_t flags = px4_enter_critical_section();
+	irqstate_t flags = spin_lock_irqsave_notrace(&g_hrt_lock);
 
 	/* if the entry is currently queued, remove it */
 	/* note that we are using a potentially uninitialized
@@ -367,7 +380,7 @@ hrt_call_internal(struct hrt_call *entry, hrt_abstime deadline, hrt_abstime inte
 
 	hrt_call_enter(entry);
 
-	px4_leave_critical_section(flags);
+	spin_unlock_irqrestore_notrace(&g_hrt_lock, flags);
 }
 
 /**
@@ -387,7 +400,7 @@ hrt_called(struct hrt_call *entry)
 void
 hrt_cancel(struct hrt_call *entry)
 {
-	irqstate_t flags = px4_enter_critical_section();
+	irqstate_t flags = spin_lock_irqsave_notrace(&g_hrt_lock);
 
 	sq_rem(&entry->link, &callout_queue);
 	entry->deadline = 0;
@@ -397,7 +410,7 @@ hrt_cancel(struct hrt_call *entry)
 	 */
 	entry->period = 0;
 
-	px4_leave_critical_section(flags);
+	spin_unlock_irqrestore_notrace(&g_hrt_lock, flags);
 }
 
 static void
