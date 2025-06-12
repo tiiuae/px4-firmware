@@ -1,5 +1,5 @@
 # px4-firmware builder environment
-FROM ghcr.io/tiiuae/px4-firmware-builder-base:latest
+FROM ghcr.io/tiiuae/px4-firmware-builder-base:toolchn_upd
 
 ARG UID=1000
 ARG GID=1000
