@@ -63,7 +63,6 @@
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/posix.h>
 #include <px4_platform_common/sem.h>
-#include <px4_platform_common/shutdown.h>
 #include <px4_platform_common/micro_hal.h>
 
 using namespace time_literals;
@@ -158,7 +157,6 @@ param_init()
 	autosave_instance = new ParamAutosave();
 #endif
 }
-
 
 void
 param_notify_changes()
@@ -805,12 +803,6 @@ int param_save_default(bool blocking)
 		}
 	}
 
-	int shutdown_lock_ret = px4_shutdown_lock();
-
-	if (shutdown_lock_ret != 0) {
-		PX4_ERR("px4_shutdown_lock() failed (%i)", shutdown_lock_ret);
-	}
-
 	int res = PX4_ERROR;
 	const char *filename = param_get_default_file();
 
@@ -876,10 +868,6 @@ int param_save_default(bool blocking)
 	}
 
 	pthread_mutex_unlock(&file_mutex);
-
-	if (shutdown_lock_ret == 0) {
-		px4_shutdown_unlock();
-	}
 
 	return res;
 }
@@ -1034,12 +1022,6 @@ param_export(const char *filename, param_filter_func filter)
 {
 	PX4_DEBUG("param_export");
 
-	int shutdown_lock_ret = px4_shutdown_lock();
-
-	if (shutdown_lock_ret != 0) {
-		PX4_ERR("px4_shutdown_lock() failed (%i)", shutdown_lock_ret);
-	}
-
 	// take the file lock
 	if (pthread_mutex_trylock(&file_mutex) != 0) {
 		PX4_ERR("param_export: file lock failed (already locked)");
@@ -1061,10 +1043,6 @@ param_export(const char *filename, param_filter_func filter)
 	perf_end(param_export_perf);
 
 	pthread_mutex_unlock(&file_mutex);
-
-	if (shutdown_lock_ret == 0) {
-		px4_shutdown_unlock();
-	}
 
 	return result;
 }

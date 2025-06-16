@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2025 Technology Innovation Institute. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,50 +31,60 @@
  *
  ****************************************************************************/
 
-#include <px4_platform_common/init.h>
-#include <px4_platform_common/px4_config.h>
-#include <px4_platform_common/defines.h>
-#include <px4_platform_common/log.h>
-#include <px4_platform_common/shutdown.h>
-#include <drivers/drv_hrt.h>
-#include <lib/parameters/param.h>
-#include <px4_platform_common/px4_work_queue/WorkQueueManager.hpp>
-#include <uORB/uORB.h>
+/**
+ * @file shutdown_ioctl.cpp
+ *
+ * Interface to shutdown from user space.
+ */
 
-#if defined(CONFIG_MODULES_MUORB_APPS)
-extern "C" { int muorb_init(); }
-#endif
+#include <px4_platform/board_ctrl.h>
 
-int px4_platform_init(void)
+#include <errno.h>
+
+#include "shutdown_ioctl.h"
+
+static int shutdown_ioctl(unsigned int cmd, unsigned long arg)
 {
-	hrt_init();
+	int ret = OK;
 
-	px4::WorkQueueManagerStart();
+	switch (cmd) {
+	case SHUTDOWNIOCREGISTER: {
+			shutdowniocregister_t *data = (shutdowniocregister_t *)arg;
+			data->ret = px4_register_shutdown_hook();
+		}
+		break;
 
-// MUORB has slightly different startup requirements
-#if defined(CONFIG_MODULES_MUORB_APPS)
-	//Put sleeper in here to allow wq to finish initializing before param_init is called
-	usleep(10000);
+	case SHUTDOWNIOCUNREGISTER: {
+			shutdowniocunregister_t *data = (shutdowniocunregister_t *)arg;
+			data->ret = px4_unregister_shutdown_hook(data->handle);
+		}
+		break;
 
-	uorb_start();
-
-	muorb_init();
-
-	// Give muorb some time to setup the DSP
-	usleep(100000);
-
-	shutdown_init();
-
-	param_init();
-#else
-	uorb_start();
-
-	shutdown_init();
-
-	param_init();
+	case SHUTDOWNIOCREBOOT: {
+#if defined(CONFIG_BOARDCTL_RESET)
+			shutdowniocreboot_t *data = (shutdowniocreboot_t *)arg;
+			data->ret = px4_reboot_request(data->request, data->delay_us);
 #endif
+		}
+		break;
 
-	px4_log_initialize();
+	case SHUTDOWNIOCSHUTDOWN: {
+#if defined(BOARD_HAS_POWER_CONTROL) || defined(__PX4_POSIX)
+			shutdowniocshutdown_t *data = (shutdowniocshutdown_t *)arg;
+			data->ret = px4_shutdown_request(data->delay_us);
+#endif
+		}
+		break;
 
-	return PX4_OK;
+	default:
+		ret = -ENOTTY;
+		break;
+	}
+
+	return ret;
+}
+
+void shutdown_ioctl_init(void)
+{
+	px4_register_boardct_ioctl(_SHUTDOWNIOCBASE, shutdown_ioctl);
 }
