@@ -43,32 +43,31 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+#include <uORB/uORB.h>
+#include <uORB/SubscriptionCallback.hpp>
+#include <uORB/topics/shutdown_event.h>
+
 __BEGIN_DECLS
 
-/**
- * Shutdown hook callback method (@see px4_register_shutdown_hook()).
- * @return true if it's ok to shutdown, false if more time needed for cleanup
- */
-typedef bool (*shutdown_hook_t)(void);
+/*
+ * Handle of the process which registered to listen shutdown event. (@see px4_register_shutdown_hook())
+*/
+typedef int shutdown_handle_t;
 
 
 /**
  * Register a method that should be called when powering off (and also on reboot).
- * @param hook callback method. It must not block, but return immediately.
- *        When the system is requested to shutdown, the registered hooks will be
- *        called regularily until either all of them return true, or a timeout
- *        is reached.
- * @return 0 on success, <0 on error
+ * @return handle on success, <0 on error
  */
-__EXPORT int px4_register_shutdown_hook(shutdown_hook_t hook);
+__EXPORT shutdown_handle_t px4_register_shutdown_hook();
 
 
 /**
  * Unregister a shutdown hook
- * @param hook callback method to be removed
+ * @param handle to be removed
  * @return 0 on success, <0 on error
  */
-__EXPORT int px4_unregister_shutdown_hook(shutdown_hook_t hook);
+__EXPORT int px4_unregister_shutdown_hook(shutdown_handle_t hook);
 
 /** Types of reboot requests for PX4 */
 typedef enum {
@@ -108,20 +107,57 @@ __EXPORT int px4_reboot_request(reboot_request_t request = REBOOT_REQUEST, uint3
 __EXPORT int px4_shutdown_request(uint32_t delay_us = 0);
 #endif // BOARD_HAS_POWER_CONTROL
 
-
 /**
- * Grab the shutdown lock. It will prevent the system from shutting down until the lock is released.
- * It is safe to call this recursively.
- * @return 0 on success, <0 on error
+ * Initialize shutdown uORB mechanism.
  */
-__EXPORT int px4_shutdown_lock(void);
-
-
-/**
- * Release the shutdown lock.
- * @return 0 on success, <0 on error
- */
-__EXPORT int px4_shutdown_unlock(void);
-
+void shutdown_init();
 
 __END_DECLS
+
+class ShutdownEventCallback : public uORB::SubscriptionCallback
+{
+public:
+	ShutdownEventCallback(void (*callback)(void *), void *parent) :
+		uORB::SubscriptionCallback(ORB_ID(shutdown_event)),
+		_callback(callback), _parent(parent)
+	{
+		if (_callback && _parent) {
+			registerCallback();
+			_shutdown_handle = px4_register_shutdown_hook();
+		}
+	}
+
+	~ShutdownEventCallback()
+	{
+		if (_shutdown_handle >= 0) {
+			px4_unregister_shutdown_hook(_shutdown_handle);
+			unregisterCallback();
+		}
+	}
+
+	void call()
+	{
+		shutdown_event_s msg;
+
+		if (update(&msg)) {
+			if (_callback && _parent) {
+				_callback(_parent);
+			}
+		}
+	}
+
+	/**
+	 * Confirm that subscriber has completed reboot/shutdown related procedures.
+	 */
+	void complete()
+	{
+		if (px4_unregister_shutdown_hook(_shutdown_handle) == PX4_OK) {
+			unregisterCallback();
+			_shutdown_handle = -1;
+		}
+	}
+private:
+	shutdown_handle_t _shutdown_handle{-1};
+	void (*_callback)(void *) {nullptr};
+	void *_parent{nullptr};
+};

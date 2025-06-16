@@ -45,6 +45,30 @@ using namespace time_literals;
 ParamAutosave::ParamAutosave()
 	: ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::lp_default)
 {
+	_shutdown_event_callback = new ShutdownEventCallback(&ParamAutosave::shutdown_callback, this);
+
+	if (!_shutdown_event_callback) {
+		PX4_ERR("Failed to create ShutdownEventCallback\n");
+	}
+}
+
+ParamAutosave::~ParamAutosave()
+{
+	if (_shutdown_event_callback) {
+		delete _shutdown_event_callback;
+		_shutdown_event_callback = nullptr;
+	}
+}
+
+void ParamAutosave::forceSave()
+{
+	if (_scheduled.load() || !_disabled) {
+		ScheduleClear();
+	}
+
+	_ready_to_shutdown.store(true);
+
+	ScheduleNow();
 }
 
 void ParamAutosave::request()
@@ -81,9 +105,15 @@ void ParamAutosave::enable(bool enable)
 	}
 }
 
+void ParamAutosave::shutdown_callback(void *object)
+{
+	static_cast<ParamAutosave *>(object)->forceSave();
+}
+
 void ParamAutosave::Run()
 {
 	bool disabled = false;
+	bool ready_to_shutdown = false;
 
 	if (!param_get_default_file()) {
 		// In case we save to FLASH, defer param writes until disarmed,
@@ -102,6 +132,7 @@ void ParamAutosave::Run()
 		// Note that the order is important here: we first clear _scheduled, then save the parameters, as during export,
 		// more parameter changes could happen.
 		_scheduled.store(false);
+		ready_to_shutdown = _ready_to_shutdown.load();
 		disabled = _disabled;
 	}
 
@@ -127,5 +158,9 @@ void ParamAutosave::Run()
 	} else {
 		_retry_count = 0;
 	}
-}
 
+	if (ret == PX4_OK && ready_to_shutdown) {
+		_disabled = true;
+		_shutdown_event_callback->complete();
+	}
+}

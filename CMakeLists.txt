@@ -419,6 +419,8 @@ add_library(parameters_interface INTERFACE)
 add_library(kernel_parameters_interface INTERFACE)
 add_library(events_interface INTERFACE)
 add_library(kernel_events_interface INTERFACE)
+add_library(shutdown_interface INTERFACE)
+add_library(kernel_shutdown_interface INTERFACE)
 
 include(px4_add_library)
 add_subdirectory(src/lib EXCLUDE_FROM_ALL)
@@ -439,6 +441,8 @@ add_subdirectory(src/lib/events EXCLUDE_FROM_ALL)
 # metadata needs PX4_MODULE_CONFIG_FILES
 add_subdirectory(src/lib/metadata EXCLUDE_FROM_ALL)
 
+add_subdirectory(src/lib/shutdown EXCLUDE_FROM_ALL)
+
 # must be the last module before firmware
 add_subdirectory(src/lib/parameters EXCLUDE_FROM_ALL)
 
@@ -447,9 +451,12 @@ if(${PX4_PLATFORM} STREQUAL "nuttx" AND NOT CONFIG_BUILD_FLAT)
 	target_link_libraries(kernel_parameters_interface INTERFACE parameters)
 	target_link_libraries(events_interface INTERFACE usr_events)
 	target_link_libraries(kernel_events_interface INTERFACE events)
+	target_link_libraries(shutdown_interface INTERFACE usr_shutdown)
+	target_link_libraries(kernel_shutdown_interface INTERFACE shutdown)
 else()
 	target_link_libraries(parameters_interface INTERFACE parameters)
 	target_link_libraries(events_interface INTERFACE events)
+	target_link_libraries(shutdown_interface INTERFACE shutdown)
 endif()
 
 # firmware added last to generate the builtin for included modules
