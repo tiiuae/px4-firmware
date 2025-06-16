@@ -185,4 +185,4 @@ bool from_external
 
 uint16 COMPONENT_MODE_EXECUTOR_START = 1000
 
-# TOPICS vehicle_command gimbal_v1_command vehicle_command_mode_executor
+# TOPICS vehicle_command gimbal_v1_command vehicle_command_mode_executor critical_act_req
