@@ -56,6 +56,7 @@ target_link_libraries(px4_kernel_layer
 		nuttx_kmm
 	PRIVATE
 		kernel_events_interface # events_ioctl_init
+		kernel_shutdown_interface # shutdown_ioctl_init
 )
 
 if (DEFINED PX4_CRYPTO)

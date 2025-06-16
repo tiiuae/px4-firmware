@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2015 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2025 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,50 +31,16 @@
 #
 ############################################################################
 
-set(SRCS)
-
-if(NOT "${PX4_PLATFORM}" MATCHES "qurt" AND NOT "${PX4_PLATFORM}" MATCHES "ros2" AND NOT "${PX4_BOARD}" MATCHES "io-v2" AND NOT "${PX4_BOARD_LABEL}" MATCHES "bootloader")
-	list(APPEND SRCS
-		px4_log.cpp
-		px4_log_history.cpp
-	)
+# Build the interface(s)
+if (${PX4_PLATFORM} STREQUAL "nuttx" AND NOT CONFIG_BUILD_FLAT)
+	list(APPEND EXTRA_SRCS shutdown_ioctl.cpp)
+	px4_add_library(usr_shutdown usr_shutdown.cpp shutdown.h)
+	target_compile_definitions(usr_shutdown PRIVATE -DMODULE_NAME="usr_shutdown")
 endif()
 
-add_library(px4_platform STATIC
-	board_common.c
-	board_identity.c
-	i2c.cpp
-	i2c_spi_buses.cpp
-	module.cpp
-	px4_getopt.c
-	px4_cli.cpp
-	spi.cpp
-	pab_manifest.c
-	Serial.cpp
-	${SRCS}
-)
-target_link_libraries(px4_platform prebuild_targets px4_work_queue)
+px4_add_library(shutdown shutdown.cpp ${EXTRA_SRCS})
+target_link_libraries(shutdown PRIVATE prebuild_targets PUBLIC px4_external)
 
-add_library(px4_external STATIC
-	external_reset_lockout.cpp
-)
-target_link_libraries(px4_external prebuild_targets)
-
-if(NOT "${PX4_BOARD}" MATCHES "io-v2")
-	add_subdirectory(uORB)
+if (${PX4_PLATFORM} STREQUAL "nuttx" AND NOT CONFIG_BUILD_FLAT)
+	target_compile_definitions(shutdown PRIVATE -DMODULE_NAME="shutdown" -D__KERNEL__)
 endif()
-
-if(NOT "${PX4_PLATFORM}" MATCHES "posix")
-	target_link_libraries(px4_platform board_bus_info)
-endif()
-
-add_subdirectory(px4_work_queue)
-add_subdirectory(work_queue)
-
-if("${PX4_PLATFORM}" MATCHES "nuttx")
-	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/c_cpp_properties.json.nuttx.in ${PX4_SOURCE_DIR}/.vscode/c_cpp_properties.json @ONLY)
-else()
-	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/c_cpp_properties.json.in ${PX4_SOURCE_DIR}/.vscode/c_cpp_properties.json @ONLY)
-endif()
-
-px4_add_unit_gtest(SRC board_identity_test.cpp LINKLIBS px4_platform)

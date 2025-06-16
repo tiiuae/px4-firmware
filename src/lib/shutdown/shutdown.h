@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2012-2018 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2025 Technology Innovation Institute. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,74 +31,6 @@
  *
  ****************************************************************************/
 
-/**
- * @file reboot.c
- * Tool similar to UNIX reboot command
- *
- * @author Lorenz Meier <lorenz@px4.io>
- */
+#pragma once
 
-#include <px4_platform_common/px4_config.h>
-#include <px4_platform_common/getopt.h>
-#include <px4_platform_common/log.h>
-#include <px4_platform_common/module.h>
-#include <px4_platform_common/shutdown.h>
-#include <string.h>
-#include <board_config.h>
-
-static void print_usage()
-{
-	PRINT_MODULE_DESCRIPTION("Reboot the system");
-
-	PRINT_MODULE_USAGE_NAME_SIMPLE("reboot", "command");
-	PRINT_MODULE_USAGE_PARAM_FLAG('b', "Reboot into bootloader", true);
-#ifdef BOARD_HAS_ISP_BOOTLOADER
-	PRINT_MODULE_USAGE_PARAM_FLAG('i', "Reboot into ISP (1st stage bootloader)", true);
-#endif
-	PRINT_MODULE_USAGE_PARAM_FLAG('c', "Bootloader continue boot", true);
-
-}
-
-extern "C" __EXPORT int reboot_main(int argc, char *argv[])
-{
-	int ch;
-	reboot_request_t request = REBOOT_REQUEST;
-
-	int myoptind = 1;
-	const char *myoptarg = nullptr;
-
-	while ((ch = px4_getopt(argc, argv, "bic", &myoptind, &myoptarg)) != -1) {
-		switch (ch) {
-		case 'b':
-			request = REBOOT_TO_BOOTLOADER;
-			break;
-
-#ifdef BOARD_HAS_ISP_BOOTLOADER
-
-		case 'i':
-			request = REBOOT_TO_ISP;
-			break;
-#endif
-
-		case 'c':
-			request = REBOOT_TO_BOOTLOADER_CONTINUE;
-			break;
-
-		default:
-			print_usage();
-			return 1;
-
-		}
-	}
-
-	int ret = px4_reboot_request(request);
-
-	if (ret < 0) {
-		PX4_ERR("reboot failed (%i)", ret);
-		return -1;
-	}
-
-	while (1) { px4_usleep(1); } // this command should not return on success
-
-	return 0;
-}
+void shutdown_ioctl_init(void);

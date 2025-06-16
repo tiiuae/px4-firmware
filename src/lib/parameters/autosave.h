@@ -35,13 +35,24 @@
 
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 #include <px4_platform_common/atomic.h>
+#include <px4_platform_common/shutdown.h>
 #include <drivers/drv_hrt.h>
+#include <uORB/uORB.h>
+#include <uORB/PublicationMulti.hpp>
+#include <uORB/topics/shutdown_ack.h>
+#include <uORB/SubscriptionCallback.hpp>
+#include <uORB/topics/shutdown_event.h>
+#include <uORB/topics/shutdown_ack.h>
+
+class ShutdownEventCallback;
 
 class ParamAutosave : public px4::ScheduledWorkItem
 {
 public:
 
 	ParamAutosave();
+
+	~ParamAutosave();
 
 	/**
 	 * Automatically save the parameters after a timeout and at limited rate.
@@ -56,9 +67,43 @@ public:
 
 	void Run() override;
 
+	void forceSave();
+
 private:
 	hrt_abstime _last_timestamp{0};
 	px4::atomic_bool _scheduled{false};
 	int _retry_count{0};
 	bool _disabled{false};
+	uORB::PublicationMulti<shutdown_ack_s> 	_shutdown_ack_pub{ORB_ID(shutdown_ack)};
+	ShutdownEventCallback *_shutdown_event_callback;
+	shutdown_handle_t _shutdown_handle{-1};
+	px4::atomic_bool _send_ack{false};
+};
+
+class ShutdownEventCallback : public uORB::SubscriptionCallback
+{
+public:
+	ShutdownEventCallback(ParamAutosave *parent) :
+		uORB::SubscriptionCallback(ORB_ID(shutdown_event)),
+		_parent(parent)
+	{
+	}
+
+	void call()
+	{
+		shutdown_event_s msg;
+
+		if (update(&msg) && msg.triggered) {
+			PX4_DEBUG("Shutdown triggered, saving parameters..\n");
+
+			if (_parent) {
+				_parent->forceSave();
+			}
+
+		} else {
+			PX4_WARN("Callback but shutdown event topic has not been updated / triggered");
+		}
+	}
+private:
+	ParamAutosave *_parent{nullptr};
 };
