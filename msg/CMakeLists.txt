@@ -205,6 +205,7 @@ set(msg_files
 	SensorTvs.msg
 	SensorUwb.msg
 	SensorAirflow.msg
+	ShutdownEvent.msg
 	SystemPower.msg
 	SystemVersion.msg
 	SystemVersionString.msg

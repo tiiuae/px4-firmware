@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2012-2018 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2025 Technology Innovation Institute. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,73 +32,42 @@
  ****************************************************************************/
 
 /**
- * @file reboot.c
- * Tool similar to UNIX reboot command
+ * @file shutdown_ioctl.h
  *
- * @author Lorenz Meier <lorenz@px4.io>
+ * User space - kernel space interface for shutdown
  */
 
-#include <px4_platform_common/px4_config.h>
-#include <px4_platform_common/getopt.h>
-#include <px4_platform_common/log.h>
-#include <px4_platform_common/module.h>
+#pragma once
+
+#include <arch/inttypes.h>
+#include <px4_platform/board_ctrl.h>
+#include <px4_platform_common/defines.h>
 #include <px4_platform_common/shutdown.h>
-#include <string.h>
-#include <board_config.h>
 
-static void print_usage()
-{
-	PRINT_MODULE_DESCRIPTION("Reboot the system");
+#define _SHUTDOWNIOC(_n) (_PX4_IOC(_SHUTDOWNIOCBASE, _n))
 
-	PRINT_MODULE_USAGE_NAME_SIMPLE("reboot", "command");
-	PRINT_MODULE_USAGE_PARAM_FLAG('b', "Reboot into bootloader", true);
-#ifdef BOARD_HAS_ISP_BOOTLOADER
-	PRINT_MODULE_USAGE_PARAM_FLAG('i', "Reboot into ISP (1st stage bootloader)", true);
-#endif
-	PRINT_MODULE_USAGE_PARAM_FLAG('c', "Bootloader continue boot", true);
+#define SHUTDOWNIOCREGISTER _SHUTDOWNIOC(1)
+typedef struct shutdowniocregister {
+	int ret;
+} shutdowniocregister_t;
 
-}
 
-extern "C" __EXPORT int reboot_main(int argc, char *argv[])
-{
-	int ch;
-	reboot_request_t request = REBOOT_REQUEST;
+#define SHUTDOWNIOCUNREGISTER _SHUTDOWNIOC(2)
+typedef struct shutdowniocunregister {
+	shutdown_handle_t handle;
+	int ret;
+} shutdowniocunregister_t;
 
-	int myoptind = 1;
-	const char *myoptarg = nullptr;
+#define SHUTDOWNIOCREBOOT _SHUTDOWNIOC(3)
+typedef struct shutdowniocreboot {
+	reboot_request_t request;
+	uint32_t delay_us;
+	int ret;
+} shutdowniocreboot_t;
 
-	while ((ch = px4_getopt(argc, argv, "bic", &myoptind, &myoptarg)) != -1) {
-		switch (ch) {
-		case 'b':
-			request = REBOOT_TO_BOOTLOADER;
-			break;
 
-#ifdef BOARD_HAS_ISP_BOOTLOADER
-
-		case 'i':
-			request = REBOOT_TO_ISP;
-			break;
-#endif
-
-		case 'c':
-			request = REBOOT_TO_BOOTLOADER_CONTINUE;
-			break;
-
-		default:
-			print_usage();
-			return 1;
-
-		}
-	}
-
-	int ret = px4_reboot_request(request);
-
-	if (ret < 0) {
-		PX4_ERR("reboot failed (%i)", ret);
-		return -1;
-	}
-
-	while (1) { px4_usleep(1); } // this command should not return on success
-
-	return 0;
-}
+#define SHUTDOWNIOCSHUTDOWN _SHUTDOWNIOC(4)
+typedef struct shutdowniocshutdown {
+	uint32_t delay_us;
+	int ret;
+} shutdowniocshutdown_t;

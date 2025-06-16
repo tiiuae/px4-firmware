@@ -46,16 +46,19 @@
 #include <px4_platform_common/printload.h>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
+#include <px4_platform_common/shutdown.h>
 
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionInterval.hpp>
+#include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/logger_status.h>
 #include <uORB/topics/log_message.h>
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/parameter_update.h>
+#include <uORB/topics/shutdown_event.h>
 
 extern "C" __EXPORT int logger_main(int argc, char *argv[]);
 
@@ -149,6 +152,8 @@ public:
 	 * @return true if the logger is stopped, false if (still) running
 	 */
 	static bool request_stop_static();
+
+	static void shutdown_callback(void *object);
 
 	void print_statistics(LogType type);
 
@@ -418,6 +423,8 @@ private:
 	uORB::SubscriptionInterval			_log_message_sub{ORB_ID(log_message), 20};
 	uORB::SubscriptionInterval			_parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
+	ShutdownEventCallback 				*_shutdown_event_callback;
+
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::SDLOG_UTC_OFFSET>) _param_sdlog_utc_offset,
 		(ParamInt<px4::params::SDLOG_DIRS_MAX>) _param_sdlog_dirs_max,
@@ -431,6 +438,7 @@ private:
 		(ParamInt<px4::params::SDLOG_EXCH_KEY>) _param_sdlog_crypto_exchange_key
 #endif
 	)
+
 };
 
 } //namespace logger
