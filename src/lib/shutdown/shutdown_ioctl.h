@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2025 Technology Innovation Institute. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,50 +31,43 @@
  *
  ****************************************************************************/
 
-#include <px4_platform_common/init.h>
-#include <px4_platform_common/px4_config.h>
+/**
+ * @file shutdown_ioctl.h
+ *
+ * User space - kernel space interface for shutdown
+ */
+
+#pragma once
+
+#include <arch/inttypes.h>
+#include <px4_platform/board_ctrl.h>
 #include <px4_platform_common/defines.h>
-#include <px4_platform_common/log.h>
 #include <px4_platform_common/shutdown.h>
-#include <drivers/drv_hrt.h>
-#include <lib/parameters/param.h>
-#include <px4_platform_common/px4_work_queue/WorkQueueManager.hpp>
-#include <uORB/uORB.h>
 
-#if defined(CONFIG_MODULES_MUORB_APPS)
-extern "C" { int muorb_init(); }
-#endif
+#define _SHUTDOWNIOC(_n) (_PX4_IOC(_SHUTDOWNIOCBASE, _n))
 
-int px4_platform_init(void)
-{
-	hrt_init();
+#define SHUTDOWNIOCREGISTER _SHUTDOWNIOC(1)
+typedef struct shutdowniocregister {
+	int ret;
+} shutdowniocregister_t;
 
-	px4::WorkQueueManagerStart();
 
-// MUORB has slightly different startup requirements
-#if defined(CONFIG_MODULES_MUORB_APPS)
-	//Put sleeper in here to allow wq to finish initializing before param_init is called
-	usleep(10000);
+#define SHUTDOWNIOCUNREGISTER _SHUTDOWNIOC(2)
+typedef struct shutdowniocunregister {
+	shutdown_handle_t handle;
+	int ret;
+} shutdowniocunregister_t;
 
-	uorb_start();
+#define SHUTDOWNIOCREBOOT _SHUTDOWNIOC(3)
+typedef struct shutdowniocreboot {
+	reboot_request_t request;
+	uint32_t delay_us;
+	int ret;
+} shutdowniocreboot_t;
 
-	muorb_init();
 
-	// Give muorb some time to setup the DSP
-	usleep(100000);
-
-	shutdown_init();
-
-	param_init();
-#else
-	uorb_start();
-
-	shutdown_init();
-
-	param_init();
-#endif
-
-	px4_log_initialize();
-
-	return PX4_OK;
-}
+#define SHUTDOWNIOCSHUTDOWN _SHUTDOWNIOC(4)
+typedef struct shutdowniocshutdown {
+	uint32_t delay_us;
+	int ret;
+} shutdowniocshutdown_t;

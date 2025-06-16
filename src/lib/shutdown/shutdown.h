@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2025 Technology Innovation Institute. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,50 +31,6 @@
  *
  ****************************************************************************/
 
-#include <px4_platform_common/init.h>
-#include <px4_platform_common/px4_config.h>
-#include <px4_platform_common/defines.h>
-#include <px4_platform_common/log.h>
-#include <px4_platform_common/shutdown.h>
-#include <drivers/drv_hrt.h>
-#include <lib/parameters/param.h>
-#include <px4_platform_common/px4_work_queue/WorkQueueManager.hpp>
-#include <uORB/uORB.h>
+#pragma once
 
-#if defined(CONFIG_MODULES_MUORB_APPS)
-extern "C" { int muorb_init(); }
-#endif
-
-int px4_platform_init(void)
-{
-	hrt_init();
-
-	px4::WorkQueueManagerStart();
-
-// MUORB has slightly different startup requirements
-#if defined(CONFIG_MODULES_MUORB_APPS)
-	//Put sleeper in here to allow wq to finish initializing before param_init is called
-	usleep(10000);
-
-	uorb_start();
-
-	muorb_init();
-
-	// Give muorb some time to setup the DSP
-	usleep(100000);
-
-	shutdown_init();
-
-	param_init();
-#else
-	uorb_start();
-
-	shutdown_init();
-
-	param_init();
-#endif
-
-	px4_log_initialize();
-
-	return PX4_OK;
-}
+void shutdown_ioctl_init(void);

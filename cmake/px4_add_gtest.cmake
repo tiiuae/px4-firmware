@@ -109,6 +109,7 @@ function(px4_add_functional_gtest)
 		                                              work_queue
 		                                              parameters
 		                                              events
+		                                              shutdown
 		                                              perf
 		                                              tinybson
 		                                              uorb_msgs
