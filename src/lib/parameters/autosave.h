@@ -35,13 +35,19 @@
 
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 #include <px4_platform_common/atomic.h>
+#include <px4_platform_common/shutdown.h>
 #include <drivers/drv_hrt.h>
+#include <uORB/uORB.h>
+#include <uORB/PublicationMulti.hpp>
+#include <uORB/topics/shutdown_event.h>
 
 class ParamAutosave : public px4::ScheduledWorkItem
 {
 public:
 
 	ParamAutosave();
+
+	~ParamAutosave();
 
 	/**
 	 * Automatically save the parameters after a timeout and at limited rate.
@@ -56,9 +62,15 @@ public:
 
 	void Run() override;
 
+	void forceSave();
+
+	static void shutdown_callback(void *object);
+
 private:
 	hrt_abstime _last_timestamp{0};
 	px4::atomic_bool _scheduled{false};
 	int _retry_count{0};
 	bool _disabled{false};
+	ShutdownEventCallback *_shutdown_event_callback;
+	px4::atomic_bool _ready_to_shutdown{false};
 };

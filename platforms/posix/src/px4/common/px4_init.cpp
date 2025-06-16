@@ -35,6 +35,7 @@
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/log.h>
+#include <px4_platform_common/shutdown.h>
 #include <drivers/drv_hrt.h>
 #include <lib/parameters/param.h>
 #include <px4_platform_common/px4_work_queue/WorkQueueManager.hpp>
@@ -62,11 +63,15 @@ int px4_platform_init(void)
 	// Give muorb some time to setup the DSP
 	usleep(100000);
 
+	shutdown_init();
+
 	param_init();
 #else
-	param_init();
-
 	uorb_start();
+
+	shutdown_init();
+
+	param_init();
 #endif
 
 	px4_log_initialize();
