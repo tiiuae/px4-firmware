@@ -43,6 +43,7 @@ endif()
 add_library(px4_platform STATIC
 	board_common.c
 	board_identity.c
+	CriticalAction.cpp
 	external_reset_lockout.cpp
 	i2c.cpp
 	i2c_spi_buses.cpp
