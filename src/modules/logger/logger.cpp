@@ -45,6 +45,7 @@
 #include <time.h>
 #include <math.h>
 
+#include <uORB/SubscriptionCallback.hpp>
 #include <uORB/uORBMessageFields.hpp>
 #include <uORB/Publication.hpp>
 #include <uORB/topics/uORBTopics.hpp>
@@ -429,12 +430,23 @@ Logger::Logger(LogWriter::Backend backend, size_t buffer_size, uint32_t log_inte
 	}
 
 #endif
+	_shutdown_event_callback = new ShutdownEventCallback(&Logger::shutdown_callback, this);
+
+	if (!_shutdown_event_callback) {
+		PX4_ERR("Failed to create ShutdownEventCallback\n");
+	}
+
 }
 
 Logger::~Logger()
 {
 	if (_replay_file_name) {
 		free(_replay_file_name);
+	}
+
+	if (_shutdown_event_callback) {
+		delete _shutdown_event_callback;
+		_shutdown_event_callback = nullptr;
 	}
 
 	delete[](_msg_buffer);
@@ -462,6 +474,15 @@ bool Logger::request_stop_static()
 	}
 
 	return true;
+}
+
+void Logger::shutdown_callback(void *object)
+{
+	if (is_running(desc)) {
+		get_instance<Logger>(desc)->request_stop();
+	}
+
+	return;
 }
 
 bool Logger::copy_if_updated(int sub_idx, void *buffer, bool try_to_subscribe)
@@ -669,8 +690,6 @@ void Logger::run()
 	/* debug stats */
 	hrt_abstime	timer_start = 0;
 	uint32_t	total_bytes = 0;
-
-	px4_register_shutdown_hook(&Logger::request_stop_static);
 
 	const bool disable_boot_logging = get_disable_boot_logging();
 
@@ -970,6 +989,10 @@ void Logger::run()
 	// stop the writer thread
 	_writer.thread_stop();
 
+	if (_shutdown_event_callback) {
+		_shutdown_event_callback->complete();
+	}
+
 	if (orb_sub_valid(polling_topic_sub)) {
 		orb_unsubscribe(polling_topic_sub);
 	}
@@ -978,8 +1001,6 @@ void Logger::run()
 		orb_unadvertise(_mavlink_log_pub);
 		_mavlink_log_pub = nullptr;
 	}
-
-	px4_unregister_shutdown_hook(&Logger::request_stop_static);
 }
 
 void Logger::debug_print_buffer(uint32_t &total_bytes, hrt_abstime &timer_start)
