@@ -31,3 +31,5 @@ uint8 target_system
 uint16 target_component 				# Target component / mode executor
 
 bool from_external					# Indicates if the command came from an external source
+
+# TOPICS vehicle_command_ack critical_act_resp
