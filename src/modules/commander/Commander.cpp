@@ -616,6 +616,14 @@ transition_result_t Commander::arm(arm_disarm_reason_t calling_reason, bool run_
 				     "Arming denied: Resolve system health failures first");
 			return TRANSITION_DENIED;
 		}
+
+		if (!_crit_action.request(ACTION_COMMANDER_COMP_ID)) {
+			mavlink_log_critical(&_mavlink_log_pub, "Arming denied: critical activity blocked\t");
+			events::send(events::ID("commander_arm_denied_critical_activity_blocked"), {events::Log::Critical, events::LogInternal::Info},
+				     "Arming denied: System critical activity blocked");
+			tune_negative(true);
+			return TRANSITION_DENIED;
+		}
 	}
 
 	_vehicle_status.armed_time = hrt_absolute_time();
@@ -686,6 +694,7 @@ transition_result_t Commander::disarm(arm_disarm_reason_t calling_reason, bool f
 	const int32_t flight_uuid = _param_com_flight_uuid.get() + 1;
 	_param_com_flight_uuid.set(flight_uuid);
 	_param_com_flight_uuid.commit_no_notification();
+	_crit_action.release(ACTION_COMMANDER_COMP_ID);
 
 	_status_changed = true;
 
@@ -1288,7 +1297,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 
 	case vehicle_command_s::VEHICLE_CMD_PREFLIGHT_CALIBRATION: {
 
-			if (isArmed() || _worker_thread.isBusy()) {
+			if (isArmed() || _worker_thread.isBusy() || !_crit_action.request(ACTION_SENSOR_CALIBRATION_COMP_ID)) {
 
 				// reject if armed or shutting down
 				answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED);
@@ -1305,6 +1314,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 					   (int)(cmd.param5) == vehicle_command_s::PREFLIGHT_CALIBRATION_TEMPERATURE_CALIBRATION ||
 					   (int)(cmd.param7) == vehicle_command_s::PREFLIGHT_CALIBRATION_TEMPERATURE_CALIBRATION) {
 					/* temperature calibration: handled in events module */
+					_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 					break;
 
 				} else if ((int)(cmd.param2) == 1) {
@@ -1368,6 +1378,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 							mavlink_log_critical(&_mavlink_log_pub, "ESC calibration denied! Press safety button first\t");
 							events::send(events::ID("commander_esc_calibration_denied"), events::Log::Critical,
 								     "ESCs calibration denied");
+							_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 
 						} else {
 							_vehicle_status.calibration_enabled = true;
@@ -1376,6 +1387,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 						}
 
 					} else {
+						_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 						answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_DENIED);
 					}
 
@@ -1389,9 +1401,11 @@ Commander::handle_command(const vehicle_command_s &cmd)
 							     "Calibration: Restoring RC input");
 					}
 
+					_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 					answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED);
 
 				} else {
+					_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 					answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_UNSUPPORTED);
 				}
 			}
@@ -1401,7 +1415,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 
 	case vehicle_command_s::VEHICLE_CMD_FIXED_MAG_CAL_YAW: {
 			// Magnetometer quick calibration using world magnetic model and known heading
-			if (isArmed() || _worker_thread.isBusy()) {
+			if (isArmed() || _worker_thread.isBusy() || !_crit_action.request(ACTION_SENSOR_CALIBRATION_COMP_ID)) {
 
 				// reject if armed or shutting down
 				answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED);
@@ -2272,6 +2286,8 @@ void Commander::checkWorkerThread()
 			} else {
 				tune_negative(true);
 			}
+
+			_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 		}
 	}
 }
@@ -2710,6 +2726,9 @@ Commander *Commander::instantiate(int argc, char *argv[])
 	if (instance) {
 		if (argc >= 2 && !strcmp(argv[1], "-h")) {
 			instance->enable_hil();
+
+		} else if (argc >= 2 && !strcmp(argv[1], "-y")) {
+			instance->enable_crit_action_support();
 		}
 	}
 
@@ -3037,6 +3056,7 @@ The commander module contains the state machine for mode switching and failsafe 
 	PRINT_MODULE_USAGE_NAME("commander", "system");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAM_FLAG('h', "Enable HIL mode", true);
+	PRINT_MODULE_USAGE_PARAM_FLAG('y', "Enable Critical Action support", true);
 #ifndef CONSTRAINED_FLASH
 	PRINT_MODULE_USAGE_COMMAND_DESCR("calibrate", "Run sensor calibration");
 	PRINT_MODULE_USAGE_ARG("mag|baro|accel|gyro|level|esc|airspeed", "Calibration type", false);
