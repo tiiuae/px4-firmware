@@ -603,6 +603,14 @@ transition_result_t Commander::arm(arm_disarm_reason_t calling_reason, bool run_
 				     "Arming denied: Resolve system health failures first");
 			return TRANSITION_DENIED;
 		}
+
+		if (!_crit_action.request(ACTION_COMMANDER_COMP_ID)) {
+			mavlink_log_critical(&_mavlink_log_pub, "Arming denied: critical activity blocked\t");
+			events::send(events::ID("commander_arm_denied_critical_activity_blocked"), {events::Log::Critical, events::LogInternal::Info},
+				     "Arming denied: System critical activity blocked");
+			tune_negative(true);
+			return TRANSITION_DENIED;
+		}
 	}
 
 	_vehicle_status.armed_time = hrt_absolute_time();
@@ -673,6 +681,7 @@ transition_result_t Commander::disarm(arm_disarm_reason_t calling_reason, bool f
 	const int32_t flight_uuid = _param_flight_uuid.get() + 1;
 	_param_flight_uuid.set(flight_uuid);
 	_param_flight_uuid.commit_no_notification();
+	_crit_action.release(ACTION_COMMANDER_COMP_ID);
 
 	_status_changed = true;
 
