@@ -1,5 +1,5 @@
-# px4-firmware builder environment
-FROM ghcr.io/tiiuae/px4-firmware-builder-base:latest
+# px4-firmware builder environment (dedicated sha with old toolchain)
+FROM ghcr.io/tiiuae/px4-firmware-builder-base:sha-5118b34
 
 ARG UID=1000
 ARG GID=1000
