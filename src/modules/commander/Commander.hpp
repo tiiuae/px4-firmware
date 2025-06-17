@@ -49,6 +49,7 @@
 #include <lib/perf/perf_counter.h>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
+#include <px4_platform_common/critical_action.h>
 
 // publications
 #include <uORB/Publication.hpp>
@@ -121,6 +122,8 @@ public:
 	int print_status() override;
 
 	void enable_hil();
+
+	void enable_crit_action_support() { _crit_action.enable(true); };
 
 private:
 	bool isArmed() const { return (_vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED); }
@@ -327,6 +330,8 @@ private:
 	// optional parameters
 	param_t _param_mav_type{PARAM_INVALID};
 	param_t _param_rc_map_fltmode{PARAM_INVALID};
+
+	CriticalAction _crit_action;
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::COM_DISARM_LAND>)  _param_com_disarm_land,
