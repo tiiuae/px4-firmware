@@ -34,6 +34,7 @@ RUN /opt/rust/bin/rustup toolchain install stable-x86_64-unknown-linux-gnu
 RUN /opt/rust/bin/rustup target add aarch64-unknown-none riscv64gc-unknown-none-elf
 RUN /opt/rust/bin/cargo install bindgen-cli
 
+# Aarch64/Arm and RISC-v toolchains
 RUN curl -LOs https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releases/download/v14.2.0-3/xpack-riscv-none-elf-gcc-14.2.0-3-linux-x64.tar.gz && \
     tar xf xpack-riscv-none-elf-gcc-14.2.0-3-linux-x64.tar.gz -C /tools && \
     rm -f xpack-riscv-none-elf-gcc-14.2.0-3-linux-x64.tar.gz
@@ -47,3 +48,10 @@ RUN curl -LOs https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/bi
     rm -f arm-gnu-toolchain-13.2.rel1-x86_64-aarch64-none-elf.tar.xz
 
 ENV PATH=/tools/arm-gnu-toolchain-13.2.Rel1-x86_64-aarch64-none-elf/bin:/tools/xpack-riscv-none-elf-gcc-14.2.0-3/bin:/tools/gcc-arm-none-eabi-9-2019-q4-major/bin/:/opt/rust/bin:$PATH
+
+# Old RISC-V toolchain for legacy builds
+RUN curl -LOs https://static.dev.sifive.com/dev-tools/freedom-tools/v2020.12/riscv64-unknown-elf-toolchain-10.2.0-2020.12.8-x86_64-linux-ubuntu14.tar.gz && \
+    tar xf riscv64-unknown-elf-toolchain-10.2.0-2020.12.8-x86_64-linux-ubuntu14.tar.gz -C /tools && \
+    rm -f riscv64-unknown-elf-toolchain-10.2.0-2020.12.8-x86_64-linux-ubuntu14.tar.gz
+
+ENV PATH=$PATH:/tools/riscv64-unknown-elf-toolchain-10.2.0-2020.12.8-x86_64-linux-ubuntu14/bin
