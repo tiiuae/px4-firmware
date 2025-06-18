@@ -243,21 +243,23 @@ private:
 		if (_telemetry && _telemetry->attitude_quaternion().timestamp_us != 0) {
 			// A system is connected. We can base the timeouts on the autopilot time.
 			const int64_t start_time_us = _telemetry->attitude_quaternion().timestamp_us;
-
+			std::cout << time_str() << " start_time_us: " << start_time_us << std::endl;
 			while (!fun()) {
 				std::this_thread::sleep_for(duration_us / check_resolution);
 
 				// This might potentially loop forever and the test needs to be killed by a watchdog outside.
 				// The reason not to include an absolute timeout here is that it can happen if the host is
 				// busy and PX4 doesn't run fast enough.
-				const int64_t elapsed_time_us = _telemetry->attitude_quaternion().timestamp_us - start_time_us;
-
+				const int64_t curr_ts = _telemetry->attitude_quaternion().timestamp_us;
+				const int64_t elapsed_time_us = curr_ts - start_time_us;
+				std::cout << time_str() << " ts - start: " << curr_ts << " - " << start_time_us << " = " << elapsed_time_us << std::endl;
 				if (elapsed_time_us > duration_us.count()) {
-					std::cout << time_str() << "Timeout, connected to vehicle but waiting for test for " << static_cast<double>
+					std::cout << time_str() << "ap_tester: Timeout, connected to vehicle but waiting for test for " << static_cast<double>
 						  (elapsed_time_us) / 1e6 << " seconds\n";
 					return false;
 				}
 			}
+			std::cout << time_str() << " waiting ends." << std::endl;
 
 		} else {
 			// Nothing is connected yet. Use the host time.
@@ -269,7 +271,7 @@ private:
 							     start_time);
 
 				if (elapsed_time_us > duration_us) {
-					std::cout << time_str() << "Timeout, waiting for the vehicle for "
+					std::cout << time_str() << "ap_tester: Timeout, waiting for the vehicle for "
 						  << elapsed_time_us.count() * std::chrono::steady_clock::period::num
 						  / static_cast<double>(std::chrono::steady_clock::period::den)
 						  << " seconds\n";

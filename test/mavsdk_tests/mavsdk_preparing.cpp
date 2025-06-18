@@ -34,7 +34,7 @@ bool poll_condition_with_timeout(std::function<bool()> fun, std::chrono::duratio
 					     start_time);
 
 		if (elapsed_time_us > duration_us) {
-			std::cout << "Timeout, waiting for the vehicle for "
+			std::cout << "mavsdk: Timeout, waiting for the vehicle for "
 				  << elapsed_time_us.count() * std::chrono::steady_clock::period::num
 				  / static_cast<double>(std::chrono::steady_clock::period::den)
 				  << " seconds\n";

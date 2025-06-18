@@ -106,6 +106,7 @@ void AutopilotTester::store_home()
 	CHECK(poll_condition_with_timeout(
 	[this]() {
 		_home = _telemetry->ground_truth();
+		std::cout << time_str() << "  home lat: " <<  _home.latitude_deg << " lon: " << _home.longitude_deg << std::endl;
 		return std::isfinite(_home.latitude_deg) && std::isfinite(_home.longitude_deg);
 	}, std::chrono::seconds(10)));
 }
