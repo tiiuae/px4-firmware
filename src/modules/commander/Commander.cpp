@@ -1262,7 +1262,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 
 	case vehicle_command_s::VEHICLE_CMD_PREFLIGHT_CALIBRATION: {
 
-			if (isArmed() || _worker_thread.isBusy()) {
+			if (isArmed() || _worker_thread.isBusy() || !_crit_action.request(ACTION_SENSOR_CALIBRATION_COMP_ID)) {
 
 				// reject if armed or shutting down
 				answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED);
@@ -1279,6 +1279,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 					   (int)(cmd.param5) == vehicle_command_s::PREFLIGHT_CALIBRATION_TEMPERATURE_CALIBRATION ||
 					   (int)(cmd.param7) == vehicle_command_s::PREFLIGHT_CALIBRATION_TEMPERATURE_CALIBRATION) {
 					/* temperature calibration: handled in events module */
+					_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 					break;
 
 				} else if ((int)(cmd.param2) == 1) {
@@ -1342,6 +1343,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 							mavlink_log_critical(&_mavlink_log_pub, "ESC calibration denied! Press safety button first\t");
 							events::send(events::ID("commander_esc_calibration_denied"), events::Log::Critical,
 								     "ESCs calibration denied");
+							_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 
 						} else {
 							_vehicle_status.calibration_enabled = true;
@@ -1350,6 +1352,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 						}
 
 					} else {
+						_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 						answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_DENIED);
 					}
 
@@ -1363,9 +1366,11 @@ Commander::handle_command(const vehicle_command_s &cmd)
 							     "Calibration: Restoring RC input");
 					}
 
+					_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 					answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED);
 
 				} else {
+					_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 					answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_UNSUPPORTED);
 				}
 			}
@@ -1375,7 +1380,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 
 	case vehicle_command_s::VEHICLE_CMD_FIXED_MAG_CAL_YAW: {
 			// Magnetometer quick calibration using world magnetic model and known heading
-			if (isArmed() || _worker_thread.isBusy()) {
+			if (isArmed() || _worker_thread.isBusy() || !_crit_action.request(ACTION_SENSOR_CALIBRATION_COMP_ID)) {
 
 				// reject if armed or shutting down
 				answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED);
@@ -2238,6 +2243,8 @@ void Commander::checkWorkerThread()
 			} else {
 				tune_negative(true);
 			}
+
+			_crit_action.release(ACTION_SENSOR_CALIBRATION_COMP_ID);
 		}
 	}
 }
