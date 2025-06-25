@@ -6,6 +6,7 @@ while read -r repo
 do
   [[ "${repo}" == boards/ssrc/* ]] || \
   [[ "${repo}" == *saluki-sec-scripts ]] || \
+  [[ "${repo}" == *ssrc_crypto ]]  || \
   [[ "${repo}" == *pfsoc_crypto ]]  || \
   [[ "${repo}" == *pfsoc_keystore ]]  || \
   [[ "${repo}" == *imx9_keystore ]]  || \
