@@ -100,9 +100,6 @@
 [submodule "boards/ssrc/common"]
 	path = boards/ssrc/common
 	url = git@github.com:tiiuae/px4_boards_ssrc.git
-[submodule "src/drivers/pfsoc_crypto"]
-	path = src/drivers/pfsoc_crypto
-	url = ../pfsoc_crypto.git
 [submodule "src/drivers/pfsoc_keystore"]
 	path = src/drivers/pfsoc_keystore
 	url = ../pfsoc_keystore.git
@@ -139,3 +136,6 @@
 [submodule "src/modules/assembly_agent"]
 	path = src/modules/assembly_agent
 	url = git@github.com:tiiuae/px4_assembly_agent.git
+[submodule "src/drivers/ssrc_crypto"]
+	path = src/drivers/ssrc_crypto
+	url = git@github.com:tiiuae/pfsoc_crypto.git
