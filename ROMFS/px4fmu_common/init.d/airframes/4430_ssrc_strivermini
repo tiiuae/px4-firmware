@@ -1,5 +1,5 @@
 #!/bin/sh
-#
+# 
 # @name SSRC Striver Mini
 #
 # @type Standard VTOL
@@ -150,8 +150,8 @@ param set-default VTO_LOITER_ALT 40
 param set-default VT_FW_MIN_ALT 10
 
 # QuadChute angle limits
-param set-default VT_FW_QC_P 25
-param set-default VT_FW_QC_R 45
+param set-default VT_FW_QC_P 50
+param set-default VT_FW_QC_R 80
 
 param set-default VT_TRANS_MIN_TM 5.00
 param set-default VT_FWD_THRUST_EN 3
