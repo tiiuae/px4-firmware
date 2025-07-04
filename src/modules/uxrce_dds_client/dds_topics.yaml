@@ -74,6 +74,8 @@ publications:
     type: px4_msgs::msg::EstimatorGpsStatus
 
 subscriptions:
+  - topic: /fmu/in/manual_control_setpoint
+    type: px4_msgs::msg::ManualControlSetpoint
 
   - topic: /fmu/in/offboard_control_mode
     type: px4_msgs::msg::OffboardControlMode
