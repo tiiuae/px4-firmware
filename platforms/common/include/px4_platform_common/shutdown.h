@@ -45,11 +45,10 @@
 
 __BEGIN_DECLS
 
-/**
- * Shutdown hook callback method (@see px4_register_shutdown_hook()).
- * @return true if it's ok to shutdown, false if more time needed for cleanup
- */
-typedef bool (*shutdown_hook_t)(void);
+/*
+ * PID of the process which registered to listen shutdown event. (@see px4_register_shutdown_hook())
+*/
+typedef int shutdown_hook_t;
 
 
 /**
