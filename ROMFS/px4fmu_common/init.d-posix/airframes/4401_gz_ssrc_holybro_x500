@@ -71,3 +71,5 @@ param set MC_ROLLRATE_D 0.004
 param set MC_PITCHRATE_D 0.004
 param set BAT_N_CELLS 4
 param set SDLOG_MODE 0
+param set MAV_0_BROADCAST 1
+param set MAV_1_BROADCAST 1
