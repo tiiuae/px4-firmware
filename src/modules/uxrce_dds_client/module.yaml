@@ -64,3 +64,40 @@ parameters:
             reboot_required: true
             default: 2130706433
             requires_ethernet: true
+        ETH_IP_1:
+            description:
+                short: IP Value 1
+            type: int32
+            default: 192
+            reboot_required: true
+        ETH_IP_2:
+            description:
+                short: IP Value 2
+            type: int32
+            default: 168
+            reboot_required: true
+        ETH_IP_3:
+            description:
+                short: IP Value 3
+            type: int32
+            default: 200
+            reboot_required: true
+        ETH_IP_4:
+            description:
+                short: IP Value 4
+            type: int32
+            default: 101
+            reboot_required: true
+        MAVROS_REM_PORT:
+            description:
+                short: Remote Port
+            type: int32
+            default: 13541
+            reboot_required: true
+        MAVROS_LOC_PORT:
+            description:
+                short: Local Port
+            type: int32
+            default: 14531
+            reboot_required: true
+
