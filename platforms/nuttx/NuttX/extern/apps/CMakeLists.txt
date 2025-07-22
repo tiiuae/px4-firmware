@@ -32,6 +32,8 @@
 #
 # ##############################################################################
 
+add_definitions(-D__PX4_NUTTX)
+
 nuttx_add_subdirectory()
 
 nuttx_generate_kconfig(MENUDESC "NuttX external apps")
