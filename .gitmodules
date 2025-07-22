@@ -139,3 +139,6 @@
 [submodule "src/drivers/ssrc_crypto"]
 	path = src/drivers/ssrc_crypto
 	url = git@github.com:tiiuae/pfsoc_crypto.git
+[submodule "platforms/nuttx/NuttX/extern/apps/nxp93-attestation"]
+	path = platforms/nuttx/NuttX/extern/apps/nxp93-attestation
+	url = git@github.com:tiiuae/nxp93-attestation.git
