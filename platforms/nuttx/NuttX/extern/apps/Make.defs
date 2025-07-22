@@ -32,4 +32,7 @@
 #
 ############################################################################
 
+# Let external apps know they're being built for PX4
+CFLAGS += -D__PX4_NUTTX
+
 include $(wildcard $(APPDIR)/external/*/Make.defs)
