@@ -34,9 +34,9 @@
 #include "autopilot_tester.h"
 #include <chrono>
 
-static constexpr float acceptance_radius = 0.3f;
+static constexpr float acceptance_radius = 0.1f;
 
-TEST_CASE("Offboard takeoff and land", "[multicopter][offboard]")
+TEST_CASE("Offboard takeoff and land", "[multicopter][offboard][choose]")
 {
 	AutopilotTester tester;
 	Offboard::PositionNedYaw takeoff_position {0.0f, 0.0f, -2.0f, 0.0f};
@@ -52,7 +52,7 @@ TEST_CASE("Offboard takeoff and land", "[multicopter][offboard]")
 	tester.check_home_within(1.0f);
 }
 
-TEST_CASE("Offboard position control", "[multicopter][offboard]")
+TEST_CASE("Offboard position control", "[multicopter][offboard][choose]")
 {
 	AutopilotTester tester;
 	Offboard::PositionNedYaw takeoff_position {0.0f, 0.0f, -2.0f, 0.0f};
