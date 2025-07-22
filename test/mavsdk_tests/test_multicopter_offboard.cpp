@@ -52,7 +52,7 @@ TEST_CASE("Offboard takeoff and land", "[multicopter][offboard][choose]")
 	tester.check_home_within(1.0f);
 }
 
-TEST_CASE("Offboard position control", "[multicopter][offboard][choose]")
+TEST_CASE("Offboard position control", "[multicopter][offboard]")
 {
 	AutopilotTester tester;
 	Offboard::PositionNedYaw takeoff_position {0.0f, 0.0f, -2.0f, 0.0f};

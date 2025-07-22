@@ -10,12 +10,12 @@
             "test_filter": "[multicopter],[offboard],[choose]",
             "timeout_min": 10
         },
-        // {
-        //     "model": "iris",
-        //     "vehicle": "iris",
-        //     "test_filter": "[offboard_attitude]",
-        //     "timeout_min": 10
-        // },
+        {
+            "model": "iris",
+            "vehicle": "iris",
+            "test_filter": "[offboard_attitude]",
+            "timeout_min": 10
+        },
         {
             "model": "standard_vtol",
             "vehicle": "standard_vtol",
