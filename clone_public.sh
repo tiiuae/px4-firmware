@@ -17,6 +17,7 @@ do
   [[ "${repo}" == *rust_module_example ]] || \
   [[ "${repo}" == *assembly_agent ]] || \
   [[ "${repo}" == *secure_udp_proxy ]] || \
-  [[ "${repo}" == *process ]] && continue
+  [[ "${repo}" == *process ]] || \
+  [[ "${repo}" == *nxp93-attestation ]] && continue
   git submodule update --init --recursive "${repo}"
 done <<< "$(git submodule status | awk '{print $2}')"
