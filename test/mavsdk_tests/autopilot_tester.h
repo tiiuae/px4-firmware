@@ -236,17 +236,16 @@ private:
 	bool poll_condition_with_timeout(
 		std::function<bool()> fun, std::chrono::duration<Rep, Period> duration)
 	{
-		static constexpr unsigned check_resolution = 100;
-
 		const std::chrono::microseconds duration_us(duration);
+		const float sf = (speed_factor && *speed_factor > 0.0f) ? *speed_factor : 1.0f;
 
 		if (_telemetry && _telemetry->attitude_quaternion().timestamp_us != 0) {
 			// A system is connected. We can base the timeouts on the autopilot time.
 			const int64_t start_time_us = _telemetry->attitude_quaternion().timestamp_us;
 
 			while (!fun()) {
-				std::this_thread::sleep_for(duration_us / check_resolution);
-
+				// Check period should depend on simulation speed factor in order to account for fluctuations at target position
+				std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(100 / sf)));
 				// This might potentially loop forever and the test needs to be killed by a watchdog outside.
 				// The reason not to include an absolute timeout here is that it can happen if the host is
 				// busy and PX4 doesn't run fast enough.
@@ -264,7 +263,8 @@ private:
 			const auto start_time = std::chrono::steady_clock::now();
 
 			while (!fun()) {
-				std::this_thread::sleep_for(duration_us / check_resolution);
+				// Check period should depend on simulation speed factor in order to account for fluctuations at target position
+				std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(100 / sf)));
 				const auto elapsed_time_us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() -
 							     start_time);
 
