@@ -32,7 +32,7 @@ else
         # Remove old build output
         rm -Rf build/${arg}
         # Build
-        SIGNING_ARGS=${signing_args} make ${arg}
+        SIGNING_ARGS=${signing_args} make -j$((`nproc`+1)) ${arg}
 
         if [ -n "$signing_args" ]; then
             echo "Signing key: $signing_args"
