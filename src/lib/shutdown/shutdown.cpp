@@ -47,8 +47,14 @@
 #define MODULE_NAME "shutdown"
 #endif
 
-#include <px4_platform_common/external_reset_lockout.h>
+//#include <px4_platform_common/external_reset_lockout.h>
 #include <px4_platform_common/log.h>
+
+#include <uORB/uORB.h>
+#include <uORB/SubscriptionCallback.hpp>
+#include <uORB/Publication.hpp>
+#include <uORB/topics/shutdown_event.h>
+#include <uORB/topics/shutdown_ack.h>
 
 #include <stdint.h>
 #include <errno.h>
@@ -71,7 +77,7 @@ int px4_shutdown_lock()
 
 	if (ret == 0) {
 		++shutdown_lock_counter;
-		px4_indicate_external_reset_lockout(LockoutComponent::SystemShutdownLock, true);
+//		px4_indicate_external_reset_lockout(LockoutComponent::SystemShutdownLock, true);
 		return pthread_mutex_unlock(&shutdown_mutex);
 	}
 
@@ -87,7 +93,7 @@ int px4_shutdown_unlock()
 			--shutdown_lock_counter;
 
 			if (shutdown_lock_counter == 0) {
-				px4_indicate_external_reset_lockout(LockoutComponent::SystemShutdownLock, false);
+//				px4_indicate_external_reset_lockout(LockoutComponent::SystemShutdownLock, false);
 			}
 
 		} else {
@@ -113,26 +119,96 @@ static uint16_t shutdown_counter = 0; ///< count how many times the shutdown wor
 
 static uint8_t shutdown_args = 0;
 
-static constexpr int max_shutdown_hooks = 1;
-static shutdown_hook_t shutdown_hooks[max_shutdown_hooks] = {};
+static constexpr int max_shutdown_hooks = 10;
+static shutdown_hook_t shutdown_hooks[max_shutdown_hooks] = {0};
 
 static hrt_abstime shutdown_time_us = 0;
 static constexpr hrt_abstime shutdown_timeout_us =
 	5_s; ///< force shutdown after this time if modules do not respond in time
 
+class ShutdownAckCallback : public uORB::SubscriptionCallback
+{
+public:
+	ShutdownAckCallback() :
+		uORB::SubscriptionCallback(ORB_ID(shutdown_ack))
+	{}
+
+	void call()
+	{
+		if (updated()) {
+			shutdown_ack_s ack_msg;
+			copy(&ack_msg);
+
+			if (ack_msg.pid > 0) {
+				pthread_mutex_lock(&shutdown_mutex);
+
+				for (int i = 0; i < max_shutdown_hooks; ++i) {
+					if (shutdown_hooks[i] == ack_msg.pid) {
+						PX4_DEBUG("Shutdown ack from pid %i\n", ack_msg.pid);
+						shutdown_hooks[i] = -1;
+						pthread_mutex_unlock(&shutdown_mutex);
+						return;
+					}
+				}
+
+				pthread_mutex_unlock(&shutdown_mutex);
+
+			} else {
+				PX4_WARN("Shutdown ack from unknown pid: %i\n", ack_msg.pid);
+			}
+		}
+
+		return;
+	}
+};
+
+static ShutdownAckCallback *shutdown_ack_callback{nullptr};
+
+static uORB::Publication<shutdown_event_s> *shutdown_event{nullptr};
+
 int px4_register_shutdown_hook(shutdown_hook_t hook)
 {
+	// create and advertise shutdown event topic if not done yet
+	if (!shutdown_event) {
+		shutdown_event = new uORB::Publication<shutdown_event_s>(ORB_ID(shutdown_event));
+
+		if (shutdown_event) {
+			if (!shutdown_event->advertise()) {
+				PX4_ERR("Failed to advertise shutdown event topic\n");
+			}
+
+		} else {
+			PX4_ERR("Failed to create shutdown event topic\n");
+		}
+	}
+
+	// subscribe shutdown ack topic if not done yet
+	if (!shutdown_ack_callback) {
+		shutdown_ack_callback = new ShutdownAckCallback();
+
+		if (shutdown_ack_callback) {
+			if (!shutdown_ack_callback->registerCallback()) {
+				PX4_ERR("Failed to register shutdown ack callback\n");
+			}
+
+		} else {
+			PX4_ERR("Failed to create ShutdownAckCallback\n");
+		}
+	}
+
 	pthread_mutex_lock(&shutdown_mutex);
 
 	for (int i = 0; i < max_shutdown_hooks; ++i) {
-		if (!shutdown_hooks[i]) {
+		if (shutdown_hooks[i] <= 0) {
 			shutdown_hooks[i] = hook;
+			PX4_DEBUG("Registered shutdown hook for pid %i\n", hook);
 			pthread_mutex_unlock(&shutdown_mutex);
 			return 0;
 		}
 	}
 
 	pthread_mutex_unlock(&shutdown_mutex);
+
 	return -ENOMEM;
 }
 
@@ -142,13 +218,17 @@ int px4_unregister_shutdown_hook(shutdown_hook_t hook)
 
 	for (int i = 0; i < max_shutdown_hooks; ++i) {
 		if (shutdown_hooks[i] == hook) {
-			shutdown_hooks[i] = nullptr;
+			shutdown_hooks[i] = -1;
+			PX4_DEBUG("Unregistered shutdown hook for pid %i\n", hook);
 			pthread_mutex_unlock(&shutdown_mutex);
 			return 0;
 		}
 	}
 
 	pthread_mutex_unlock(&shutdown_mutex);
+
+	PX4_DEBUG("Tried to unregister shutdown hook from unknown pid: %i\n", hook);
+
 	return -EINVAL;
 }
 
@@ -161,13 +241,13 @@ static void shutdown_worker(void *arg)
 	PX4_DEBUG("shutdown worker (%i)", shutdown_counter);
 	bool done = true;
 
+	// wait responses from PIDs registered in shutdown_hook
 	pthread_mutex_lock(&shutdown_mutex);
 
 	for (int i = 0; i < max_shutdown_hooks; ++i) {
-		if (shutdown_hooks[i]) {
-			if (!shutdown_hooks[i]()) {
-				done = false;
-			}
+		if (shutdown_hooks[i] > 0) {
+			PX4_DEBUG("Uncomplete shutdown hook for pid %i\n", shutdown_hooks[i]);
+			done = false;
 		}
 	}
 
@@ -178,6 +258,17 @@ static void shutdown_worker(void *arg)
 		if (shutdown_args & SHUTDOWN_ARG_REBOOT) {
 #if defined(CONFIG_BOARDCTL_RESET)
 			PX4_INFO_RAW("Reboot NOW.");
+
+			// remove shutdown ack callback object
+			if (shutdown_ack_callback) {
+				shutdown_ack_callback->unregisterCallback();
+				delete shutdown_ack_callback;
+			}
+
+			if (shutdown_event) {
+				shutdown_event->unadvertise();
+				delete shutdown_event;
+			}
 
 			if (shutdown_args & SHUTDOWN_ARG_TO_BOOTLOADER) {
 				if (shutdown_args & SHUTDOWN_ARG_BL_CONTINUE_BOOT) {
@@ -219,6 +310,7 @@ static void shutdown_worker(void *arg)
 		pthread_mutex_unlock(&shutdown_mutex); // must NEVER come here
 
 	} else {
+		PX4_DEBUG("Rescheduling shutdown worker\n");
 		pthread_mutex_unlock(&shutdown_mutex);
 		work_queue(HPWORK, &shutdown_work, (worker_t)&shutdown_worker, nullptr, USEC2TICK(10000));
 	}
@@ -227,6 +319,20 @@ static void shutdown_worker(void *arg)
 #if defined(CONFIG_BOARDCTL_RESET)
 int px4_reboot_request(reboot_request_t request, uint32_t delay_us)
 {
+	// create and advertise shutdown event topic if not done yet
+	if (!shutdown_event) {
+		shutdown_event = new uORB::Publication<shutdown_event_s>(ORB_ID(shutdown_event));
+
+		if (shutdown_event) {
+			if (!shutdown_event->advertise()) {
+				PX4_ERR("Failed to advertise shutdown event topic\n");
+			}
+
+		} else {
+			PX4_ERR("Failed to create shutdown event topic\n");
+		}
+	}
+
 	pthread_mutex_lock(&shutdown_mutex);
 
 	if (shutdown_args & SHUTDOWN_ARG_IN_PROGRESS) {
@@ -234,10 +340,13 @@ int px4_reboot_request(reboot_request_t request, uint32_t delay_us)
 		return 0;
 	}
 
-#ifdef CONFIG_BUILD_KERNEL
-	// Must start the worker as it is not automatically started by the system
-	work_usrstart();
-#endif
+	shutdown_event_s event_msg{};
+	event_msg.timestamp = hrt_absolute_time();
+	event_msg.triggered = true;
+
+	if (!shutdown_event->publish(event_msg)) {
+		PX4_ERR("Failed to publish shutdown uorb %d (%s)\n", errno, strerror(errno));
+	}
 
 	shutdown_args |= SHUTDOWN_ARG_REBOOT;
 
@@ -266,11 +375,33 @@ int px4_reboot_request(reboot_request_t request, uint32_t delay_us)
 #if defined(BOARD_HAS_POWER_CONTROL) || defined(__PX4_POSIX)
 int px4_shutdown_request(uint32_t delay_us)
 {
+	// create and advertise shutdown event topic if not done yet
+	if (!shutdown_event) {
+		shutdown_event = new uORB::Publication<shutdown_event_s>(ORB_ID(shutdown_event));
+
+		if (shutdown_event) {
+			if (!shutdown_event->advertise()) {
+				PX4_ERR("Failed to advertise shutdown event topic\n");
+			}
+
+		} else {
+			PX4_ERR("Failed to create shutdown event topic\n");
+		}
+	}
+
 	pthread_mutex_lock(&shutdown_mutex);
 
 	if (shutdown_args & SHUTDOWN_ARG_IN_PROGRESS) {
 		pthread_mutex_unlock(&shutdown_mutex);
 		return 0;
+	}
+
+	shutdown_event_s event_msg{};
+	event_msg.timestamp = hrt_absolute_time();
+	event_msg.triggered = true;
+
+	if (!shutdown_event->publish(event_msg)) {
+		PX4_ERR("Failed to publish shutdown uorb %d (%s)\n", errno, strerror(errno));
 	}
 
 	shutdown_args |= SHUTDOWN_ARG_IN_PROGRESS;
@@ -285,6 +416,7 @@ int px4_shutdown_request(uint32_t delay_us)
 	pthread_mutex_unlock(&shutdown_mutex);
 	return 0;
 }
+
 #endif // BOARD_HAS_POWER_CONTROL
 
 #endif // CONFIG_SCHED_WORKQUEUE)

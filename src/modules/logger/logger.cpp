@@ -43,6 +43,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include <uORB/SubscriptionCallback.hpp>
 #include <uORB/uORBMessageFields.hpp>
 #include <uORB/Publication.hpp>
 #include <uORB/topics/uORBTopics.hpp>
@@ -139,6 +140,20 @@ namespace px4
 {
 namespace logger
 {
+
+void ShutdownEventCallback::call()
+{
+	if (_parent && updated()) {
+		shutdown_event_s msg;
+		copy(&msg);
+
+		if (msg.triggered) {
+			PX4_INFO_RAW("Shutdown triggered, stopping logger.\n");
+			_parent->request_stop_static();
+		}
+	}
+}
+
 
 constexpr const char *Logger::LOG_ROOT[(int)LogType::Count];
 
@@ -418,6 +433,10 @@ Logger::Logger(LogWriter::Backend backend, size_t buffer_size, uint32_t log_inte
 	}
 
 #endif
+	_shutdown_event_callback = new ShutdownEventCallback(this);
+	_shutdown_event_callback->registerCallback();
+
+	_shutdown_ack_pub.advertise();
 }
 
 Logger::~Logger()
@@ -425,6 +444,9 @@ Logger::~Logger()
 	if (_replay_file_name) {
 		free(_replay_file_name);
 	}
+
+	_shutdown_event_callback->unregisterCallback();
+	delete _shutdown_event_callback;
 
 	delete[](_msg_buffer);
 	delete[](_subscriptions);
@@ -659,7 +681,7 @@ void Logger::run()
 	hrt_abstime	timer_start = 0;
 	uint32_t	total_bytes = 0;
 
-	px4_register_shutdown_hook(&Logger::request_stop_static);
+	px4_register_shutdown_hook(getpid());
 
 	const bool disable_boot_logging = get_disable_boot_logging();
 
@@ -951,6 +973,11 @@ void Logger::run()
 	// stop the writer thread
 	_writer.thread_stop();
 
+	shutdown_ack_s ack_msg;
+	ack_msg.timestamp = hrt_absolute_time();
+	ack_msg.pid = getpid();
+	_shutdown_ack_pub.publish(ack_msg);
+
 	if (orb_sub_valid(polling_topic_sub)) {
 		orb_unsubscribe(polling_topic_sub);
 	}
@@ -960,7 +987,7 @@ void Logger::run()
 		_mavlink_log_pub = nullptr;
 	}
 
-	px4_unregister_shutdown_hook(&Logger::request_stop_static);
+	px4_unregister_shutdown_hook(getpid());
 }
 
 void Logger::debug_print_buffer(uint32_t &total_bytes, hrt_abstime &timer_start)
