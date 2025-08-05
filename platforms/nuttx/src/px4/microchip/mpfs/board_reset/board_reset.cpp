@@ -52,13 +52,6 @@
 
 #define ALL_CPUS ((1 << CONFIG_SMP_NCPUS) - 1)
 
-/* PX4 has -nostdinc++ set, which confuses the logic in <nuttx/atomic.h>
- * making it pull the C-versions of atomic_fetch_add/atomic_load which use
- * __auto_type, which should match the counters here.
- */
-
-#define __auto_type int *
-
 /* With SMP, first we need to wait for all CPUs to pause (g_cpus_paused).
  * Then the CPUs can be reset, but CPU0 must be reset last (g_cpus_ready).
  * Otherwise a race can occur on g_cpus_paused as CPU0 clears .bss.
