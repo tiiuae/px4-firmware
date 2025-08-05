@@ -50,13 +50,6 @@
 
 #define ALL_CPUS ((1 << CONFIG_SMP_NCPUS) - 1)
 
-/* PX4 has -nostdinc++ set, which confuses the logic in <nuttx/atomic.h>
- * making it pull the C-versions of atomic_fetch_add/atomic_load which use
- * __auto_type, which should match the counters here.
- */
-
-#define __auto_type int *
-
 /* With SMP, we keep track on which CPUs have completed their reboot / shutdown */
 
 static int g_cpus_ready;
