@@ -48,6 +48,7 @@
 #if defined(__PX4_NUTTX) && defined(CONFIG_SCHED_INSTRUMENTATION)
 __BEGIN_DECLS
 # include <nuttx/sched_note.h>
+# include <nuttx/spinlock.h>
 
 __EXPORT struct system_load_s system_load;
 
