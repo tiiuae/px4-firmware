@@ -224,6 +224,14 @@ void sched_note_start(FAR struct tcb_s *tcb)
 {
 	// find first free slot
 	if (system_load.initialized) {
+		struct system_load_taskinfo_s *info = get_task_info(tcb->pid);
+
+		if (info && info->tcb && info->tcb->pid == tcb->pid) {
+			/* Already started */
+
+			return;
+		}
+
 		for (auto &task : system_load.tasks) {
 			if (!task.valid) {
 				// slot is available
