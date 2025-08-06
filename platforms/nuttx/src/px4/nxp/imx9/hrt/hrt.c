@@ -107,11 +107,6 @@
  */
 #define HRT_COUNTER_SCALE(_c)   (_c)
 
-#ifndef CONFIG_SPINLOCK
-#define spin_lock_notrace(x)
-#define spin_unlock_notrace(x)
-#endif
-
 /*
  * Queue of callout entries.
  */
