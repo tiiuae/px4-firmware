@@ -93,11 +93,6 @@
 #define HRT_INTERVAL_MIN 50UL                          // 50 microseconds
 #define HRT_INTERVAL_MAX HRT_COUNTS_TO_TIME(0xFFFFFFFF) // ~28.6s at 150MHz timer
 
-#ifndef CONFIG_SPINLOCK
-#define spin_lock_notrace(x)
-#define spin_unlock_notrace(x)
-#endif
-
 /*
  * Queue of callout entries.
  */
