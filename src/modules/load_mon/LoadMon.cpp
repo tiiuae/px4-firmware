@@ -279,7 +279,7 @@ void LoadMon::stack_usage()
 
 	irqstate_t flags = px4_enter_critical_section();
 
-	if (system_load.tasks[_stack_task_index].valid && (system_load.tasks[_stack_task_index].tcb->pid > 0)) {
+	if (system_load.tasks[_stack_task_index].valid && (system_load.tasks[_stack_task_index].tcb->pid >= CONFIG_SMP_NCPUS)) {
 
 		stack_free = system_load.tasks[_stack_task_index].tcb->adj_stack_size - up_check_tcbstack(
 				     system_load.tasks[_stack_task_index].tcb);
