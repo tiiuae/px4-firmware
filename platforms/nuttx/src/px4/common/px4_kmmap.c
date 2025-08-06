@@ -60,7 +60,7 @@ void *px4_mmap(void *start, size_t length, int prot, int flags, int fd, off_t of
 	unsigned int npages;
 	int ret;
 
-	if (fs_getfilep(fd, &filep) < 0) {
+	if (file_get(fd, &filep) < 0) {
 		ret = -EBADF;
 		goto errout;
 	}
@@ -96,13 +96,13 @@ void *px4_mmap(void *start, size_t length, int prot, int flags, int fd, off_t of
 
 	filep->f_inode->i_crefs++;
 	inode_unlock();
-	fs_putfilep(filep);
+	file_put(filep);
 	return vaddr;
 
 errout_with_lock:
 	inode_unlock();
 errout:
-	fs_putfilep(filep);
+	file_put(filep);
 	set_errno(-ret);
 	return MAP_FAILED;
 }
