@@ -1,0 +1,11 @@
+
+module_name: sh1106_notify
+description: "I2C SH1106 OLED notifier (AP_Notify-like) for PX4"
+type: driver
+category: other
+maintainer: "you@example.com"
+
+parameters: []
+
+depends:
+  - uorb
