@@ -45,30 +45,25 @@
 
 __BEGIN_DECLS
 
-/**
- * Shutdown hook callback method (@see px4_register_shutdown_hook()).
- * @return true if it's ok to shutdown, false if more time needed for cleanup
- */
-typedef bool (*shutdown_hook_t)(void);
+/*
+ * Handle of the process which registered to listen shutdown event. (@see px4_register_shutdown_hook())
+*/
+typedef int shutdown_handle_t;
 
 
 /**
  * Register a method that should be called when powering off (and also on reboot).
- * @param hook callback method. It must not block, but return immediately.
- *        When the system is requested to shutdown, the registered hooks will be
- *        called regularily until either all of them return true, or a timeout
- *        is reached.
- * @return 0 on success, <0 on error
+ * @return handle on success, <0 on error
  */
-__EXPORT int px4_register_shutdown_hook(shutdown_hook_t hook);
+__EXPORT shutdown_handle_t px4_register_shutdown_hook();
 
 
 /**
  * Unregister a shutdown hook
- * @param hook callback method to be removed
+ * @param handle to be removed
  * @return 0 on success, <0 on error
  */
-__EXPORT int px4_unregister_shutdown_hook(shutdown_hook_t hook);
+__EXPORT int px4_unregister_shutdown_hook(shutdown_handle_t hook);
 
 /** Types of reboot requests for PX4 */
 typedef enum {
@@ -107,21 +102,5 @@ __EXPORT int px4_reboot_request(reboot_request_t request = REBOOT_REQUEST, uint3
 #if defined(BOARD_HAS_POWER_CONTROL) || defined(__PX4_POSIX)
 __EXPORT int px4_shutdown_request(uint32_t delay_us = 0);
 #endif // BOARD_HAS_POWER_CONTROL
-
-
-/**
- * Grab the shutdown lock. It will prevent the system from shutting down until the lock is released.
- * It is safe to call this recursively.
- * @return 0 on success, <0 on error
- */
-__EXPORT int px4_shutdown_lock(void);
-
-
-/**
- * Release the shutdown lock.
- * @return 0 on success, <0 on error
- */
-__EXPORT int px4_shutdown_unlock(void);
-
 
 __END_DECLS

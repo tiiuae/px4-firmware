@@ -45,6 +45,45 @@ using namespace time_literals;
 ParamAutosave::ParamAutosave()
 	: ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::lp_default)
 {
+	_shutdown_event_callback = new ShutdownEventCallback(this);
+
+	if (_shutdown_event_callback) {
+		if (!_shutdown_event_callback->registerCallback()) {
+			PX4_ERR("Failed to register shutdown event callback\n");
+		}
+
+	} else {
+		PX4_ERR("Failed to create ShutdownEventCallback\n");
+	}
+
+	_shutdown_handle = px4_register_shutdown_hook();
+	_shutdown_ack_pub.advertise();
+}
+
+ParamAutosave::~ParamAutosave()
+{
+	if (_shutdown_handle >= 0) {
+		px4_unregister_shutdown_hook(_shutdown_handle);
+	}
+
+	if (_shutdown_event_callback) {
+		_shutdown_event_callback->unregisterCallback();
+		delete _shutdown_event_callback;
+		_shutdown_event_callback = nullptr;
+	}
+}
+
+void ParamAutosave::forceSave()
+{
+	AtomicTransaction transaction;
+
+	if (_scheduled.load() || _disabled) {
+		ScheduleClear();
+	}
+
+	_send_ack.store(true);
+
+	ScheduleNow();
 }
 
 void ParamAutosave::request()
@@ -75,15 +114,36 @@ void ParamAutosave::enable(bool enable)
 	AtomicTransaction transaction;
 	_disabled = !enable;
 
-	if (!enable && _scheduled.load()) {
-		_scheduled.store(false);
-		px4::ScheduledWorkItem::ScheduleClear();
+	if (!enable) {
+		if (_shutdown_event_callback && _shutdown_event_callback->registered()) {
+			_shutdown_event_callback->unregisterCallback();
+		}
+
+		if (_shutdown_handle >= 0) {
+			px4_unregister_shutdown_hook(_shutdown_handle);
+			_shutdown_handle = -1;
+		}
+
+		if (_scheduled.load()) {
+			_scheduled.store(false);
+			px4::ScheduledWorkItem::ScheduleClear();
+		}
+
+	} else {
+		if (_shutdown_handle < 0) {
+			if (_shutdown_event_callback && !_shutdown_event_callback->registered()) {
+				_shutdown_event_callback->registerCallback();
+			}
+
+			_shutdown_handle = px4_register_shutdown_hook();
+		}
 	}
 }
 
 void ParamAutosave::Run()
 {
 	bool disabled = false;
+	bool send_ack = false;
 
 	if (!param_get_default_file()) {
 		// In case we save to FLASH, defer param writes until disarmed,
@@ -126,6 +186,19 @@ void ParamAutosave::Run()
 
 	} else {
 		_retry_count = 0;
+	}
+
+	{
+		AtomicTransaction transaction;
+		send_ack = _send_ack.load();
+	}
+
+	if (ret == PX4_OK && send_ack) {
+		_disabled = true;
+		shutdown_ack_s ack_msg;
+		ack_msg.timestamp = hrt_absolute_time();
+		ack_msg.handle = _shutdown_handle;
+		_shutdown_ack_pub.publish(ack_msg);
 	}
 }
 

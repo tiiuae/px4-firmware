@@ -46,16 +46,20 @@
 #include <px4_platform_common/printload.h>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
+#include <px4_platform_common/shutdown.h>
 
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionInterval.hpp>
+#include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/logger_status.h>
 #include <uORB/topics/log_message.h>
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/parameter_update.h>
+#include <uORB/topics/shutdown_event.h>
+#include <uORB/topics/shutdown_ack.h>
 
 extern "C" __EXPORT int logger_main(int argc, char *argv[]);
 
@@ -69,6 +73,8 @@ namespace px4
 namespace logger
 {
 
+class Logger;
+
 #ifdef LOGGER_PARALLEL_LOGGING
 typedef struct thread_data {
 	ULogWriteType write_type{ULogWriteType::RELIABLE_TOPIC_DATA};
@@ -78,6 +84,20 @@ pthread_key_t pthread_data_key;
 #endif
 
 static constexpr uint8_t MSG_ID_INVALID = UINT8_MAX;
+
+class ShutdownEventCallback : public uORB::SubscriptionCallback
+{
+public:
+	ShutdownEventCallback(Logger *parent) :
+		uORB::SubscriptionCallback(ORB_ID(shutdown_event)),
+		_parent(parent)
+	{}
+
+	void call() override;
+
+private:
+	Logger *_parent{nullptr};
+};
 
 struct LoggerSubscription : public uORB::SubscriptionInterval {
 	LoggerSubscription() = default;
@@ -418,6 +438,11 @@ private:
 	uORB::SubscriptionInterval			_log_message_sub{ORB_ID(log_message), 20};
 	uORB::SubscriptionInterval			_parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
+	uORB::PublicationMulti<shutdown_ack_s> 		_shutdown_ack_pub{ORB_ID(shutdown_ack)};
+
+	ShutdownEventCallback 				*_shutdown_event_callback;
+	shutdown_handle_t				_shutdown_handle{-1};
+
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::SDLOG_UTC_OFFSET>) _param_sdlog_utc_offset,
 		(ParamInt<px4::params::SDLOG_DIRS_MAX>) _param_sdlog_dirs_max,
@@ -431,6 +456,7 @@ private:
 		(ParamInt<px4::params::SDLOG_EXCH_KEY>) _param_sdlog_crypto_exchange_key
 #endif
 	)
+
 };
 
 } //namespace logger
