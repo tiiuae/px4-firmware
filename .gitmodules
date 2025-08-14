@@ -142,3 +142,6 @@
 [submodule "platforms/nuttx/NuttX/extern/apps/nxp93-attestation"]
 	path = platforms/nuttx/NuttX/extern/apps/nxp93-attestation
 	url = git@github.com:tiiuae/nxp93-attestation.git
+[submodule "src/systemcmds/keys"]
+	path = src/systemcmds/keys
+	url = git@github.com:tiiuae/px4_testing_keys.git
