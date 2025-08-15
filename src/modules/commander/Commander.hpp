@@ -124,6 +124,8 @@ public:
 
 	void enable_hil();
 
+	void enable_crit_action_support() { _crit_action.enable(true); };
+
 private:
 	bool isArmed() const { return (_vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED); }
 	static ModeChangeSource getSourceFromCommand(const vehicle_command_s &cmd);

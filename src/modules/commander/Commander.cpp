@@ -2684,6 +2684,9 @@ Commander *Commander::instantiate(int argc, char *argv[])
 		if (argc >= 2 && !strcmp(argv[1], "-h")) {
 			instance->enable_hil();
 		}
+		else if (argc >= 2 && !strcmp(argv[1], "-y")) {
+			instance->enable_crit_action_support();
+		}
 	}
 
 	return instance;
@@ -3006,6 +3009,7 @@ The commander module contains the state machine for mode switching and failsafe 
 	PRINT_MODULE_USAGE_NAME("commander", "system");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAM_FLAG('h', "Enable HIL mode", true);
+	PRINT_MODULE_USAGE_PARAM_FLAG('y', "Enable Critical Action support", true);
 #ifndef CONSTRAINED_FLASH
 	PRINT_MODULE_USAGE_COMMAND_DESCR("calibrate", "Run sensor calibration");
 	PRINT_MODULE_USAGE_ARG("mag|baro|accel|gyro|level|esc|airspeed", "Calibration type", false);
