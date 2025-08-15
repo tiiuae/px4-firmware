@@ -71,6 +71,10 @@ CriticalAction::~CriticalAction()
 
 bool CriticalAction::request(uint8_t comp_id)
 {
+	if (!_enabled) {
+		return true;
+	}
+
 	if (!orb_advert_valid(_crit_act_req_pub) || !orb_sub_valid(_crit_act_resp_sub)) {
 		px4_log_raw(_PX4_LOG_LEVEL_ERROR, "Uninitialized CriticalAction uorb handles\n");
 		return false;
@@ -133,6 +137,10 @@ bool CriticalAction::request(uint8_t comp_id)
 
 void CriticalAction::release(uint8_t comp_id)
 {
+	if (!_enabled) {
+		return;
+	}
+
 	if (!orb_advert_valid(_crit_act_req_pub)) {
 		px4_log_raw(_PX4_LOG_LEVEL_ERROR, "Uninitialized Critical Action uorb handles\n");
 		return;

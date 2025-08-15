@@ -61,11 +61,13 @@ public:
 
 	bool request(uint8_t comp_id);
 	void release(uint8_t comp_id);
+	void enable(bool state) { _enabled = state; }
 
 private:
 	vehicle_command_s _critical_req {};
 	orb_advert_t _crit_act_req_pub {ORB_ADVERT_INVALID};
 	orb_sub_t    _crit_act_resp_sub {ORB_SUB_INVALID};
+	bool _enabled{false};
 };
 
 #endif // CRITICAL_ACTION_H_
