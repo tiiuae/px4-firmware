@@ -48,6 +48,7 @@
 #if defined(__PX4_NUTTX) && defined(CONFIG_SCHED_INSTRUMENTATION)
 __BEGIN_DECLS
 # include <nuttx/sched_note.h>
+# include <nuttx/spinlock.h>
 
 __EXPORT struct system_load_s system_load;
 
@@ -224,6 +225,14 @@ void sched_note_start(FAR struct tcb_s *tcb)
 {
 	// find first free slot
 	if (system_load.initialized) {
+		struct system_load_taskinfo_s *info = get_task_info(tcb->pid);
+
+		if (info && info->tcb && info->tcb->pid == tcb->pid) {
+			/* Already started */
+
+			return;
+		}
+
 		for (auto &task : system_load.tasks) {
 			if (!task.valid) {
 				// slot is available
