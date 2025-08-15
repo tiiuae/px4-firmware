@@ -492,6 +492,7 @@ void UxrceddsClient::run()
 		// Set time-callback.
 		if (_synchronize_timestamps) {
 			uxr_set_time_callback(&session, on_time, &_timesync);
+			PX4_INFO("Waiting timesync..");
 
 		} else {
 			uxr_set_time_callback(&session, on_time_no_sync, nullptr);
@@ -501,7 +502,13 @@ void UxrceddsClient::run()
 
 		// Spin until sync with the Agent
 		while (_synchronize_timestamps) {
-			if (uxr_sync_session(&session, 1000) && _timesync.sync_converged()) {
+			if (!uxr_sync_session(&session, 1000)) {
+				// Sync session timeout, connection has been lost
+				_connected = false;
+				break;
+			}
+
+			if (_timesync.sync_converged()) {
 				PX4_INFO("synchronized with time offset %-5" PRId64 "us", session.time_offset / 1000);
 
 				if (_param_uxrce_dds_syncc.get() > 0) {
@@ -512,6 +519,10 @@ void UxrceddsClient::run()
 			}
 
 			px4_usleep(10'000);
+		}
+
+		if (!_connected) {
+			continue;
 		}
 
 		hrt_abstime last_sync_session = 0;
