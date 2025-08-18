@@ -83,7 +83,9 @@ stat_file(const char *file, time_t *date = nullptr, uint32_t *size = nullptr)
 MavlinkLogHandler::MavlinkLogHandler(Mavlink *mavlink)
 	: _mavlink(mavlink)
 {
-
+	if (_mavlink->is_crit_act_enabled()) {
+		_crit_action.enable(true);
+	}
 }
 MavlinkLogHandler::~MavlinkLogHandler()
 {
