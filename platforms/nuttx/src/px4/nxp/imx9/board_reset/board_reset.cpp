@@ -58,7 +58,7 @@
 #define __auto_type int *
 
 /* With SMP, first we need to wait for all CPUs to pause (g_cpus_paused).
- * Then the CPUs can be reset, but CPU0 must be reset last (g_cpus_ready).
+ * Then the CPUs can be reset, but CPU0 must be reset last.
  * Otherwise a race can occur on g_cpus_paused as CPU0 clears .bss.
  *
  * Note: We cannot use locks that allow synchronization (like semaphores) here
@@ -66,7 +66,6 @@
  */
 
 static int g_cpus_paused;
-static int g_cpus_ready;
 
 /* Handle for nxsched_smp_call_async */
 
@@ -111,52 +110,37 @@ static void board_reset_enter_bootloader_and_continue_boot()
 
 static int board_reset_enter_app(FAR void *arg)
 {
-	/* Mask local interrupts */
-
-	up_irq_save();
-
 #ifdef CONFIG_SMP
 	/* Notify that this CPU is paused */
 
 	atomic_fetch_add(&g_cpus_paused, 1);
 
-	/* Wait for ALL CPUs to be ready */
+	/* Wait for ALL CPUs to be paused */
 
 	while (atomic_load(&g_cpus_paused) < CONFIG_SMP_NCPUS);
 
-	/* Notify that this CPU has now ready */
-
-	atomic_fetch_add(&g_cpus_ready, 1);
-
-	/* CPU0 must then wait for other CPUs to start */
+#endif
 
 	if (this_cpu() == 0) {
-		while (atomic_load(&g_cpus_ready) < CONFIG_SMP_NCPUS);
-	}
+		/* Allow some time for the other CPUs to finish poweroff */
 
-#endif
+		up_udelay(10000);
 
 #if defined(BOARD_HAS_ON_RESET)
-
-	if (this_cpu() == 0) {
 		board_on_reset(0);
+#endif
+		__start();
 	}
 
-#endif
-	/* Make sure the CPU cache is flushed so data is not lost */
+#ifdef CONFIG_SMP
 
-	up_flush_dcache_all();
-
-	/* And jump to the entrypoint */
-
-	if (this_cpu() == 0) {
-		__start();
-
-	} else {
+	else {
 		/* The secondary CPU needs to be turned off */
 
 		psci_cpu_off();
 	}
+
+#endif
 
 	/* Never reached */
 
@@ -165,14 +149,6 @@ static int board_reset_enter_app(FAR void *arg)
 
 int board_reset(int status)
 {
-#if defined(BOARD_HAS_ON_RESET)
-
-	if (status != 0) {
-		board_on_reset(status);
-	}
-
-#endif
-
 	if (status == REBOOT_TO_BOOTLOADER) {
 		board_reset_enter_bootloader();
 
@@ -180,27 +156,18 @@ int board_reset(int status)
 		board_reset_enter_bootloader_and_continue_boot();
 	}
 
+	up_irq_save();
+
 #ifdef CONFIG_SMP
-	struct tcb_s *tcb;
-	irqstate_t flags;
+	/* Lock this thread running on this CPU */
 
-	/* Atomically lock this thread to this CPU */
-
-	flags = enter_critical_section();
-
-	tcb = nxsched_self();
-	tcb->flags |= TCB_FLAG_CPU_LOCKED;
-	CPU_ZERO(&tcb->affinity);
-	CPU_SET(tcb->cpu, &tcb->affinity);
-
-	leave_critical_section(flags);
+	sched_lock();
 
 	/* Now that the CPU cannot change, start the reboot process */
 
 	g_reboot_data.func = board_reset_enter_app;
 	g_reboot_data.arg  = NULL;
 	g_cpus_paused      = 0;
-	g_cpus_ready       = 0;
 
 	/* Reset the other CPUs via SMP call.
 	 *
@@ -219,7 +186,7 @@ int board_reset(int status)
 	nxsched_smp_call_async(cpuset, &g_reboot_data);
 #endif
 
-	/* Just reboot via reset vector */
+	/* Enter reboot function */
 
 	board_reset_enter_app(NULL);
 
