@@ -43,6 +43,7 @@ endif()
 add_library(px4_platform STATIC
 	board_common.c
 	board_identity.c
+	external_reset_lockout.cpp
 	i2c.cpp
 	i2c_spi_buses.cpp
 	module.cpp
@@ -54,11 +55,6 @@ add_library(px4_platform STATIC
 	${SRCS}
 )
 target_link_libraries(px4_platform prebuild_targets px4_work_queue)
-
-add_library(px4_external STATIC
-	external_reset_lockout.cpp
-)
-target_link_libraries(px4_external prebuild_targets)
 
 if(NOT "${PX4_BOARD}" MATCHES "io-v2")
 	add_subdirectory(uORB)
