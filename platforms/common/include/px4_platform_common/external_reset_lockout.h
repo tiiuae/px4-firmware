@@ -39,7 +39,8 @@
 
 enum class LockoutComponent : uint8_t {
 	Commander = 0,
-	SystemShutdownLock = 1
+	SystemShutdownLock = 1,
+	Parameters = 2
 };
 
 /**
