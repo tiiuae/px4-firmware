@@ -185,6 +185,8 @@ static void shutdown_worker(void *arg)
 				shutdown_event = nullptr;
 			}
 
+			px4_indicate_external_reset_lockout(LockoutComponent::SystemShutdownLock, false);
+
 			if (shutdown_args & SHUTDOWN_ARG_TO_BOOTLOADER) {
 				if (shutdown_args & SHUTDOWN_ARG_BL_CONTINUE_BOOT) {
 					boardctl(BOARDIOC_RESET, (uintptr_t)REBOOT_TO_BOOTLOADER_CONTINUE);
@@ -238,6 +240,8 @@ int px4_reboot_request(reboot_request_t request, uint32_t delay_us)
 		return 0;
 	}
 
+	px4_indicate_external_reset_lockout(LockoutComponent::SystemShutdownLock, true);
+
 	shutdown_event_s event_msg{};
 	event_msg.timestamp = hrt_absolute_time();
 
@@ -275,6 +279,8 @@ int px4_shutdown_request(uint32_t delay_us)
 	if (shutdown_args & SHUTDOWN_ARG_IN_PROGRESS) {
 		return 0;
 	}
+
+	px4_indicate_external_reset_lockout(LockoutComponent::SystemShutdownLock, true);
 
 	shutdown_event_s event_msg{};
 	event_msg.timestamp = hrt_absolute_time();
