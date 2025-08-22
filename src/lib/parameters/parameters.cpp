@@ -65,6 +65,7 @@
 #include <px4_platform_common/posix.h>
 #include <px4_platform_common/sem.h>
 #include <px4_platform_common/micro_hal.h>
+#include <px4_platform_common/external_reset_lockout.h>
 
 using namespace time_literals;
 
@@ -823,6 +824,8 @@ int param_save_default(bool blocking)
 		}
 	}
 
+	px4_indicate_external_reset_lockout(LockoutComponent::Parameters, true);
+
 	int res = PX4_ERROR;
 	const char *filename = param_get_default_file();
 
@@ -888,6 +891,8 @@ int param_save_default(bool blocking)
 	}
 
 	pthread_mutex_unlock(&file_mutex);
+
+	px4_indicate_external_reset_lockout(LockoutComponent::Parameters, false);
 
 	return res;
 }
@@ -1047,6 +1052,8 @@ param_export(const char *filename, param_filter_func filter)
 {
 	PX4_DEBUG("param_export");
 
+	px4_indicate_external_reset_lockout(LockoutComponent::Parameters, true);
+
 	// take the file lock
 	if (pthread_mutex_trylock(&file_mutex) != 0) {
 		PX4_ERR("param_export: file lock failed (already locked)");
@@ -1068,6 +1075,8 @@ param_export(const char *filename, param_filter_func filter)
 	perf_end(param_export_perf);
 
 	pthread_mutex_unlock(&file_mutex);
+
+	px4_indicate_external_reset_lockout(LockoutComponent::Parameters, false);
 
 	return result;
 }
