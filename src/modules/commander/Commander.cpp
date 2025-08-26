@@ -2679,13 +2679,16 @@ int Commander::task_spawn(int argc, char *argv[])
 Commander *Commander::instantiate(int argc, char *argv[])
 {
 	Commander *instance = new Commander();
+	int i;
 
 	if (instance) {
-		if (argc >= 2 && !strcmp(argv[1], "-h")) {
-			instance->enable_hil();
+		for (i = 1; i < argc; i++) {
+			if (!strcmp(argv[i], "-h")) {
+				instance->enable_hil();
 
-		} else if (argc >= 2 && !strcmp(argv[1], "-y")) {
-			instance->enable_crit_action_support();
+			} else if (!strcmp(argv[i], "-y")) {
+				instance->enable_crit_action_support();
+			}
 		}
 	}
 
