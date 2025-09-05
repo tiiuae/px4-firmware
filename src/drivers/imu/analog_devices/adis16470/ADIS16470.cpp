@@ -371,8 +371,8 @@ void ADIS16470::RunImpl()
 			if (success) {
 				// Publish data if there was no errors
 
-				_px4_accel.update(timestamp_sample, accel_x, accel_y, accel_z);
 				_px4_gyro.update(timestamp_sample, gyro_x, gyro_y, gyro_z);
+				_px4_accel.update(timestamp_sample, accel_x, accel_y, accel_z);
 			}
 		}
 
