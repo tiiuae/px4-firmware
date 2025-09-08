@@ -83,9 +83,6 @@ stat_file(const char *file, time_t *date = nullptr, uint32_t *size = nullptr)
 MavlinkLogHandler::MavlinkLogHandler(Mavlink *mavlink)
 	: _mavlink(mavlink)
 {
-	if (_mavlink->is_crit_act_enabled()) {
-		_crit_action.enable(true);
-	}
 }
 MavlinkLogHandler::~MavlinkLogHandler()
 {
@@ -144,6 +141,11 @@ MavlinkLogHandler::_log_request_list(const mavlink_message_t *msg)
 {
 	mavlink_log_request_list_t request;
 	mavlink_msg_log_request_list_decode(msg, &request);
+
+	// Check if CriticalActivity support is enabled
+	if (_mavlink->is_crit_act_enabled()) {
+		_crit_action.enable(true);
+	}
 
 	//-- Check for re-requests (data loss) or new request
 	if (_current_status != LogHandlerState::Inactive) {
