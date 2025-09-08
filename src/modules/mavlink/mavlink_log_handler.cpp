@@ -57,9 +57,6 @@ static const char *kLogDir = PX4_STORAGEDIR "/log";
 MavlinkLogHandler::MavlinkLogHandler(Mavlink &mavlink)
 	: _mavlink(mavlink)
 {
-	if (_mavlink.is_crit_act_enabled()) {
-		_crit_action.enable(true);
-	}
 }
 
 MavlinkLogHandler::~MavlinkLogHandler()
@@ -267,6 +264,11 @@ void MavlinkLogHandler::handle_log_request_list(const mavlink_message_t *msg)
 {
 	mavlink_log_request_list_t request;
 	mavlink_msg_log_request_list_decode(msg, &request);
+
+	// Check if CriticalActivity support is enabled
+	if (_mavlink.is_crit_act_enabled()) {
+		_crit_action.enable(true);
+	}
 
 	if (!create_log_list_file()) {
 		return;
