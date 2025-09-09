@@ -80,9 +80,17 @@ case $target in
     build_target_env=$(echo ${build_target}|sed 's/custom_keys/default/g')
 
     $build_cmd_fw ${build_target_env}
+
+    # tar elf files
+    files_to_tar="${build_target_env}_kernel.elf"
+    if [ -d ${script_dir}/build/${build_target_env}/bin_debug ]; then
+      files_to_tar+=" bin_debug"
+    fi
+    tar czf ${dest_dir}/${build_target}_app_elfs-${version}.tar.gz -C ${script_dir}/build/${build_target_env} ${files_to_tar}
+
+    # copy px4 and map files
     cp ${script_dir}/build/${build_target_env}/${build_target_env}.px4 ${dest_dir}/${build_target}-${version}.px4
     cp ${script_dir}/build/${build_target_env}/${build_target_env}.map ${dest_dir}/${build_target}-${version}.map
-    cp ${script_dir}/build/${build_target_env}/${build_target_env}_kernel.elf ${dest_dir}/${build_target}_kernel-${version}.elf
     json_output+="\"filename\":\"${build_target}-${version}.px4\","
     px4_build_time=$(grep PX4_BUILD_TIME ${script_dir}/build/${build_target_env}/src/lib/version/build_git_version.h|awk '{print $3}')
     json_output+="\"px4_build_time\":\"${px4_build_time}\"}"
@@ -98,9 +106,16 @@ case $target in
       elf_target=${build_target}.elf
     fi
 
+    # tar elf files
+    files_to_tar="${elf_target}"
+    if [ -d ${script_dir}/build/${build_target}/bin_debug ]; then
+      files_to_tar+=" bin_debug"
+    fi
+    tar czf ${dest_dir}/${build_target}_app_elfs-${version}.tar.gz -C ${script_dir}/build/${build_target} ${files_to_tar}
+
+    # copy px4 and map files
     cp ${script_dir}/build/${build_target}/${build_target}.px4 ${dest_dir}/${build_target}-${version}.px4
     cp ${script_dir}/build/${build_target}/${build_target}.map ${dest_dir}/${build_target}-${version}.map
-    cp ${script_dir}/build/${build_target}/${elf_target} ${dest_dir}/${build_target}_kernel-${version}.elf
     json_output+="\"filename\":\"${build_target}-${version}.px4\","
     px4_build_time=$(grep PX4_BUILD_TIME ${script_dir}/build/${build_target}/src/lib/version/build_git_version.h|awk '{print $3}')
     json_output+="\"px4_build_time\":\"${px4_build_time}\"}"
