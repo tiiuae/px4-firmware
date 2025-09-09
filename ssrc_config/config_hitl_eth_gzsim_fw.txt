@@ -36,7 +36,7 @@ param set FD_ESCS_EN 0
 ####################################
 
 # HITL PWM functions
-# TODO: adapt gz model to remove custom HITL min, max and disarmed limit
+
 param set PWM_MAIN_MIN1 0
 param set PWM_MAIN_MIN2 0
 param set PWM_MAIN_MIN4 0
