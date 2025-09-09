@@ -1,0 +1,13 @@
+module_name: PWMESC_HITL
+actuator_output:
+  show_subgroups_if: 'SYS_HITL>0'
+  output_groups:
+    - param_prefix: HIL_ACT
+      channel_label: HIL_ACT
+      standard_params:
+        disarmed: { min: 0, max: 3500, default: 0 }
+        min: { min: 0, max: 1000, default: 0 }
+        max: { min: 0, max: 3500, default: 1000 }
+        failsafe: { min: 0, max: 3500 }
+      num_channels: 10
+

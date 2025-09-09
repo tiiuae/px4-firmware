@@ -1,5 +1,6 @@
 module_name: PWMESC
 actuator_output:
+  show_subgroups_if: 'SYS_HITL==0'
   output_groups:
     - param_prefix: '${PWM_MAIN_OR_AUX}'
       channel_label: '${PWM_MAIN_OR_AUX}'
