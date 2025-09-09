@@ -79,18 +79,16 @@ private:
 		for (int i = 0; i < actuator_outputs_s::NUM_ACTUATOR_OUTPUTS; ++i) {
 			char param_name[17];
 			snprintf(param_name, sizeof(param_name), "%s_%s%d", "PWM_MAIN", "FUNC", i + 1);
-			param_t param_handle;
+			param_t param_handle = param_find(param_name);
 
-			if ((param_handle = param_find(param_name)) == PARAM_INVALID
-			    || param_get(param_handle, &_output_functions[i]) != PX4_OK
-			    || _output_functions[i] <= 0) {
-				snprintf(param_name, sizeof(param_name), "%s_%s%d", "PWM_AUX", "FUNC", i + 1);
+			if (param_handle != PARAM_INVALID) {
+				int32_t param_value = 0;
+				param_get(param_handle, &param_value);
 
-				if ((param_handle = param_find(param_name)) == PARAM_INVALID
-				    || param_get(param_handle, &_output_functions[i]) != PX4_OK
-				    || _output_functions[i] <= 0) {
-					_output_functions[i] = 0;
-					continue;
+				const bool is_motor = param_value >= (int)OutputFunction::Motor1 && param_value <= (int)OutputFunction::MotorMax;
+
+				if (is_motor) {
+					_hil_act_flags |= (1ULL << i);
 				}
 			}
 		}
@@ -103,9 +101,8 @@ private:
 	uORB::Subscription _rover_torque_sub;
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 
-	int32_t _output_functions[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS] {};
-
 	bool _is_rover{false};
+	uint64_t _hil_act_flags{0};
 	float _rover_max_speed{0.0f};
 	float _rover_thrust_control{0.0f};
 	float _rover_torque_control{0.0f};
@@ -154,6 +151,8 @@ private:
 		if (_act_sub.update(&act) || updateRoverCmdVel()) {
 			mavlink_hil_actuator_controls_t msg{};
 			msg.time_usec = act.timestamp;
+			// [custom use of flag] depending on OutputFunction, if output function is motor type, set bit in bitfield
+			msg.flags = _hil_act_flags;
 
 			if (_is_rover) {
 				// Use last two control inputs for rover vel cmd
@@ -208,17 +207,6 @@ private:
 					msg.mode |= MAV_MODE_FLAG_TEST_ENABLED;
 				}
 			}
-
-			// [custom use of flag] depending on OutputFunction, if output function is motor type, set bit in bitfield
-			uint64_t flags = 0;
-
-			for (int i = 0; i < actuator_outputs_s::NUM_ACTUATOR_OUTPUTS; i++) {
-				if (_output_functions[i] >= (int)OutputFunction::Motor1 && _output_functions[i] <= (int)OutputFunction::MotorMax) {
-					flags |= (1ULL << i);
-				}
-			}
-
-			msg.flags = flags;
 
 			mavlink_msg_hil_actuator_controls_send_struct(_mavlink->get_channel(), &msg);
 
