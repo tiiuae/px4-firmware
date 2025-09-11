@@ -382,9 +382,9 @@ hrt_ioctl(unsigned int cmd, unsigned long arg)
 				kmm_free(deleted);
 			}
 
-			px4_sem_destroy(callback_sem);
-
 			spin_unlock_irqrestore_notrace(&g_hrt_ioctl_lock, flags);
+
+			px4_sem_destroy(callback_sem);
 
 			*(px4_sem_t **)arg = NULL;
 			kmm_free(callback_sem);
