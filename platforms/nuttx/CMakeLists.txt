@@ -296,6 +296,12 @@ if (CONFIG_BUILD_KERNEL)
 			target_compile_options(${BIN} PRIVATE -DNO_DAEMON)
 		endif()
 
+		if (CONFIG_BINFMT_ELF_RELOCATABLE)
+			set(RELOCATABLE -Wl,-r)
+		else()
+			set(RELOCATABLE)
+		endif()
+
 		target_link_libraries(${BIN} PRIVATE
 
 			-nostartfiles
@@ -308,7 +314,7 @@ if (CONFIG_BUILD_KERNEL)
 
 			-Wl,--script=${LDSCRIPT}
 			-Wl,--entry=__start
-			-Wl,-r
+			${RELOCATABLE}
 			-Wl,-Bstatic
 			-Wl,-Map=${PX4_CONFIG}.map
 			-Wl,--warn-common
@@ -323,7 +329,6 @@ if (CONFIG_BUILD_KERNEL)
 				${nuttx_userlibs}
 				${module_libraries}
 			-Wl,--end-group
-
 			m
 			gcc
 		)
