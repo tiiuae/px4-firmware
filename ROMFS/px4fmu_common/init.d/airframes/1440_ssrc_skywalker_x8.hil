@@ -21,21 +21,21 @@ param set-default CA_SV_CS1_TRQ_P 0.5
 param set-default CA_SV_CS1_TRQ_R 0.5
 
 # PWM AUX functions
-param set PWM_AUX_FUNC1 201
-param set PWM_AUX_FUNC2 202
-param set PWM_AUX_FUNC4 101
+param set HIL_ACT_FUNC1 201
+param set HIL_ACT_FUNC2 202
+param set HIL_ACT_FUNC4 101
 
-param set PWM_AUX_MIN1 0
-param set PWM_AUX_MIN2 0
-param set PWM_AUX_MIN4 150
+param set HIL_ACT_MIN1 0
+param set HIL_ACT_MIN2 0
+param set HIL_ACT_MIN4 150
 
-param set PWM_AUX_MAX1 1000
-param set PWM_AUX_MAX2 1000
-param set PWM_AUX_MAX4 3000
+param set HIL_ACT_MAX1 1000
+param set HIL_ACT_MAX2 1000
+param set HIL_ACT_MAX4 3000
 
-param set PWM_AUX_DIS1 500
-param set PWM_AUX_DIS2 500
-param set PWM_AUX_DIS4 0
+param set HIL_ACT_DIS1 500
+param set HIL_ACT_DIS2 500
+param set HIL_ACT_DIS4 0
 
 # Airspeed parameters
 param set-default ASPD_PRIMARY 1

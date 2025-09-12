@@ -45,7 +45,7 @@ px4_add_module(
 	SRCS
 		pwm_esc.cpp
 	MODULE_CONFIG
-		module.yaml
+		module.yaml module_hitl.yaml
 	DEPENDS
 		mixer_module
 	)
