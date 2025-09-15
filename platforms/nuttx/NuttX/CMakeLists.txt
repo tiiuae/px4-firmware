@@ -263,8 +263,6 @@ if (CONFIG_BUILD_KERNEL)
 	set_property(TARGET nuttx_crt0 PROPERTY IMPORTED_OBJECTS ${PX4_BINARY_DIR}/startup/crt0.o)
 
 	# Build and install the NuttX applications into build/xx/bin
-	set(LDSCRIPT ${NUTTX_CONFIG_DIR}/scripts/${SCRIPT_PREFIX}gnu-elf.ld)
-
 	list(APPEND nuttx_userlibs
 		nuttx_apps
 		nuttx_mm
@@ -280,6 +278,17 @@ if (CONFIG_BUILD_KERNEL)
 
 	get_property(CRT0_OBJ TARGET nuttx_crt0 PROPERTY IMPORTED_OBJECTS)
 
+	set(LDSCRIPT ${NUTTX_CONFIG_DIR}/scripts/${SCRIPT_PREFIX}gnu-elf.ld)
+	set(LDSCRIPT_TEMPLATE ${NUTTX_CONFIG_DIR}/scripts/${SCRIPT_PREFIX}gnu-elf.ld.in)
+
+	add_custom_command(OUTPUT ${LDSCRIPT}
+		MAIN_DEPENDENCY ${LDSCRIPT_TEMPLATE}
+		COMMAND ${CMAKE_C_COMPILER} -E -P -x c -o ${LDSCRIPT} ${LDSCRIPT_TEMPLATE} -I${NUTTX_DIR}/include
+		DEPENDS nuttx_context)
+
+	add_custom_target(linkerscript
+		DEPENDS ${LDSCRIPT})
+
 	add_custom_command(OUTPUT nuttx_install.stamp
 		COMMAND mkdir -p ${PX4_BINARY_DIR}/bin
 		COMMAND make -C ${NUTTX_SRC_DIR}/apps install --no-print-directory --silent
@@ -291,7 +300,7 @@ if (CONFIG_BUILD_KERNEL)
 			USERLIBS="${userlibs}" > ${CMAKE_CURRENT_BINARY_DIR}/nuttx_apps_install.log
 		COMMAND touch nuttx_install.stamp
 		BYPRODUCTS ${PX4_BINARY_DIR}/bin/nsh
-		DEPENDS ${nuttx_userlibs} nuttx_startup
+		DEPENDS ${nuttx_userlibs} nuttx_startup linkerscript
 	)
 	add_custom_target(nuttx_app_bins DEPENDS nuttx_install.stamp)
 endif()
