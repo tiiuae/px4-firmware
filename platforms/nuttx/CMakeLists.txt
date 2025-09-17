@@ -125,7 +125,6 @@ list(APPEND nuttx_libs
 	nuttx_drivers
 	nuttx_fs
 	nuttx_sched
-	nuttx_crypto
 	nuttx_binfmt
 	)
 
@@ -147,11 +146,6 @@ if (NOT CONFIG_BUILD_FLAT)
 		nuttx_c
 		nuttx_xx
 		)
-
-	if(CONFIG_CRYPTO)
-		target_link_libraries(nuttx_crypto INTERFACE nuttx_kc)
-	endif()
-
 else()
 	list(APPEND nuttx_libs
 		nuttx_apps
@@ -172,6 +166,15 @@ if(CONFIG_OPENAMP)
 	list(APPEND nuttx_libs nuttx_openamp)
 	target_link_libraries(nuttx_drivers INTERFACE nuttx_openamp)
 	target_link_libraries(nuttx_openamp INTERFACE nuttx_drivers)
+endif()
+
+if(CONFIG_CRYPTO)
+	list(APPEND nuttx_libs nuttx_crypto)
+	if (NOT CONFIG_BUILD_FLAT)
+		target_link_libraries(nuttx_crypto INTERFACE nuttx_kc)
+	else()
+		target_link_libraries(nuttx_crypto INTERFACE nuttx_c)
+	endif()
 endif()
 
 file(RELATIVE_PATH PX4_BINARY_DIR_REL ${CMAKE_CURRENT_BINARY_DIR} ${PX4_BINARY_DIR})
