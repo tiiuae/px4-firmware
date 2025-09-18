@@ -117,7 +117,7 @@ function(px4_add_module)
 	if(UNITY_BUILD AND (${PX4_PLATFORM} STREQUAL "nuttx"))
 		# build standalone test library to catch compilation errors and provide sane output
 		add_library(${MODULE}_original STATIC EXCLUDE_FROM_ALL ${SRCS})
-		if(DEPENDS)
+		if(DEPENDS AND NOT ${rust_build})
 			add_dependencies(${MODULE}_original ${DEPENDS})
 		endif()
 
@@ -144,7 +144,7 @@ function(px4_add_module)
 			target_compile_options(${MODULE}_original PRIVATE ${COMPILE_FLAGS})
 		endif()
 
-		if(DEPENDS)
+		if(DEPENDS AND NOT ${rust_build})
 			# using target_link_libraries for dependencies provides linking
 			#  as well as interface include and libraries
 			foreach(dep ${DEPENDS})
@@ -256,7 +256,7 @@ function(px4_add_module)
 		target_include_directories(${MODULE} PRIVATE ${INCLUDES})
 	endif()
 
-	if(DEPENDS)
+	if(DEPENDS AND NOT ${rust_build})
 		# using target_link_libraries for dependencies provides linking
 		#  as well as interface include and libraries
 		foreach(dep ${DEPENDS})
@@ -281,43 +281,50 @@ function(px4_add_module)
 		endforeach()
 	endif()
 
-    if(${rust_build})
+	if(${rust_build})
 
-        if (NOT CONFIG_BUILD_FLAT)
-            set(RUST_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/target)
-            set(RUST_LIB_NAME lib${RUST_MOD}.a)
-            set(RUST_LIB_PATH ${RUST_TARGET_DIR}/${CMAKE_RUST_TARGET}/release/${RUST_LIB_NAME})
+		if (NOT CONFIG_BUILD_FLAT)
+			set(RUST_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/target)
+			set(RUST_LIB_NAME lib${RUST_MOD}.a)
+			set(RUST_LIB_PATH ${RUST_TARGET_DIR}/${CMAKE_RUST_TARGET}/release/${RUST_LIB_NAME})
 
-            # Custom target to build the Rust library
-            add_custom_command(
-                OUTPUT ${RUST_LIB_PATH}
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${RUST_MOD}
-                DEPENDS ${CMAKE_BINARY_DIR}/uORB/topics/uORBTopics.hpp
-                DEPENDS rust_bindings
-                COMMAND CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} cargo ${CMAKE_RUST_TOOLCHAIN_VERSION} rustc --crate-type=staticlib ${CMAKE_RUST_COMPILER_FLAGS} --release --target-dir ${RUST_TARGET_DIR}
-                COMMENT "Building Rust staticlib: ${RUST_LIB_PATH}"
-            )
+			# Custom target to build the Rust library
+			add_custom_command(
+				OUTPUT ${RUST_LIB_PATH}
+				WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${RUST_MOD}
+				DEPENDS ${CMAKE_BINARY_DIR}/uORB/topics/uORBTopics.hpp
+				DEPENDS rust_bindings
+				COMMAND CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} cargo ${CMAKE_RUST_TOOLCHAIN_VERSION} rustc --crate-type=staticlib ${CMAKE_RUST_COMPILER_FLAGS} --release --target-dir ${RUST_TARGET_DIR}
+				COMMENT "Building Rust staticlib: ${RUST_LIB_PATH}"
+			)
 
-            add_custom_target(rust_build_${MODULE} ALL
-                DEPENDS ${RUST_LIB_PATH}
-            )
+			add_custom_target(rust_build_${MODULE} ALL
+				DEPENDS ${RUST_LIB_PATH}
+			)
 
-            # Import the Rust staticlib as a CMake target
-            add_library(${RUST_MOD}_rust STATIC IMPORTED GLOBAL)
-            set_target_properties(${RUST_MOD}_rust PROPERTIES
-                IMPORTED_LOCATION ${RUST_LIB_PATH}
-            )
+			# Import the Rust staticlib as a CMake target
+			add_library(${RUST_MOD}_rust STATIC IMPORTED GLOBAL)
+				set_target_properties(${RUST_MOD}_rust PROPERTIES
+				IMPORTED_LOCATION ${RUST_LIB_PATH}
+			)
 
-            add_dependencies(${RUST_MOD}_rust rust_build_${MODULE})
-            add_dependencies(${MODULE} rust_bindings)
-            add_dependencies(${MODULE} ${RUST_MOD}_rust)
+			add_dependencies(${RUST_MOD}_rust rust_build_${MODULE})
+			add_dependencies(${MODULE} rust_bindings)
+			add_dependencies(${MODULE} ${RUST_MOD}_rust)
 
-            # Link Rust library to the PX4 module
-            target_link_libraries(${MODULE} PRIVATE ${RUST_MOD}_rust)
-        else()
-            add_dependencies(${MODULE} build_rust_bridge)
-            target_link_libraries(${MODULE} PRIVATE rust_bridge)
-        endif()
-    endif()
+			if(DEPENDS)
+				foreach(dep ${DEPENDS})
+					target_link_libraries(${RUST_MOD}_rust INTERFACE ${dep})
+				endforeach()
+			endif()
+
+			# Link Rust library to the PX4 module
+			target_link_libraries(${MODULE} PRIVATE ${RUST_MOD}_rust)
+		else()
+			add_dependencies(${MODULE} build_rust_bridge)
+			target_link_libraries(${MODULE} PRIVATE rust_bridge)
+		endif()
+
+	endif()
 
 endfunction()
