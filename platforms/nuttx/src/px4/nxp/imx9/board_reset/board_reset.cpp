@@ -57,15 +57,9 @@
 
 #define __auto_type int *
 
-/* With SMP, first we need to wait for all CPUs to pause (g_cpus_paused).
- * Then the CPUs can be reset, but CPU0 must be reset last.
- * Otherwise a race can occur on g_cpus_paused as CPU0 clears .bss.
- *
- * Note: We cannot use locks that allow synchronization (like semaphores) here
- * because we want the system reset to happen as fast as possible.
- */
+/* With SMP, we keep track on which CPUs have completed their reboot / shutdown */
 
-static int g_cpus_paused;
+static int g_cpus_ready;
 
 /* Handle for nxsched_smp_call_async */
 
@@ -84,12 +78,18 @@ static void board_reset_enter_bootloader()
 	* stay in bootloader: WDOG_B_CFG 11b
 	*/
 
+#if defined(BOARD_HAS_ON_RESET)
+	board_on_reset(REBOOT_TO_BOOTLOADER);
+#endif
+
 	imx9_pmic_set_reset_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT |
 				 IMX9_PMIC_RESET_CTRL_WDOG_COLD_RESET_MASK);
 
 	/* Reset the whole SoC */
 
-	up_systemreset();
+	imx9_pmic_reset();
+
+	while (1);
 }
 
 static void board_reset_enter_bootloader_and_continue_boot()
@@ -101,46 +101,51 @@ static void board_reset_enter_bootloader_and_continue_boot()
 	* With PMIC register power on value system will boot normally.
 	*/
 
+#if defined(BOARD_HAS_ON_RESET)
+	board_on_reset(REBOOT_TO_BOOTLOADER_CONTINUE);
+#endif
+
 	imx9_pmic_set_reset_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT);
 
 	/* Reset the whole SoC */
 
-	up_systemreset();
+	imx9_pmic_reset();
+
+	while (1);
 }
+
+/* This is called for each CPU when doing warm reboot */
 
 static int board_reset_enter_app(FAR void *arg)
 {
 #ifdef CONFIG_SMP
-	/* Notify that this CPU is paused */
+	/* Notify that this CPU is ready */
 
-	atomic_fetch_add(&g_cpus_paused, 1);
+	atomic_fetch_add(&g_cpus_ready, 1);
 
-	/* Wait for ALL CPUs to be paused */
+	/* Wait for other CPUs to shut down */
 
-	while (atomic_load(&g_cpus_paused) < CONFIG_SMP_NCPUS);
+	while (atomic_load(&g_cpus_ready) < CONFIG_SMP_NCPUS);
 
-#endif
+	if (this_cpu() != 0) {
+		/* Make sure caches are written to ram before shutting off */
 
-	if (this_cpu() == 0) {
-		/* Allow some time for the other CPUs to finish poweroff */
+		up_clean_dcache_all();
 
-		up_udelay(10000);
-
-#if defined(BOARD_HAS_ON_RESET)
-		board_on_reset(0);
-#endif
-		__start();
-	}
-
-#ifdef CONFIG_SMP
-
-	else {
 		/* The secondary CPU needs to be turned off */
 
 		psci_cpu_off();
 	}
 
 #endif
+
+#if defined(BOARD_HAS_ON_RESET)
+	board_on_reset(REBOOT_REQUEST);
+#endif
+
+	/* The primary CPU jumps to start */
+
+	__start();
 
 	/* Never reached */
 
@@ -149,40 +154,46 @@ static int board_reset_enter_app(FAR void *arg)
 
 int board_reset(int status)
 {
+	DEBUGASSERT(!up_interrupt_context());
+
+	/* First check if doing a PMIC reset */
+
 	if (status == REBOOT_TO_BOOTLOADER) {
+		/* PMIC reset, stay in bootloader */
+
 		board_reset_enter_bootloader();
 
 	} else if (status == REBOOT_TO_BOOTLOADER_CONTINUE) {
+		/* PMIC reset, reboot */
+
 		board_reset_enter_bootloader_and_continue_boot();
 	}
 
+	/* If we and up here, continue with warm boot */
+
+	/* Disable local interrupts */
+
 	up_irq_save();
 
-#ifdef CONFIG_SMP
-	/* Lock this thread running on this CPU */
+	/* Don't ever schedule away any more on this CPU */
 
 	sched_lock();
 
-	/* Now that the CPU cannot change, start the reboot process */
+#ifdef CONFIG_SMP
+
+	/* Now that the CPU cannot change, start the reboot process.
+	 * All the other CPUs will end up in interrupt handler in
+	 * board_reset_enter_app
+	 */
 
 	g_reboot_data.func = board_reset_enter_app;
 	g_reboot_data.arg  = NULL;
-	g_cpus_paused      = 0;
+	g_cpus_ready       = 0;
 
-	/* Reset the other CPUs via SMP call.
-	 *
-	 * The SMP call in fact does run the callback on this CPU as well if
-	 * requested to do so, but it does it BEFORE dispatching the request to the
-	 * other CPUs. This is why we need to remove ourself from the CPU set.
-	 */
+	/* Reboot or shut down the other CPUs via SMP call */
 
 	cpu_set_t cpuset = ALL_CPUS;
 	CPU_CLR(this_cpu(), &cpuset);
-
-	/* We cannot wait in smp_call because the target CPUs are reset, thus they
-	 * will never acknowledge that they have run the handler!
-	 */
-
 	nxsched_smp_call_async(cpuset, &g_reboot_data);
 #endif
 
