@@ -48,6 +48,15 @@
 #if defined(__PX4_NUTTX) && defined(CONFIG_SCHED_INSTRUMENTATION)
 __BEGIN_DECLS
 # include <nuttx/sched_note.h>
+# include <nuttx/spinlock.h>
+
+/* NuttX internals from sched/irq/irq.h */
+
+# ifdef CONFIG_SMP
+extern "C" volatile spinlock_t g_cpu_irqlock;
+extern "C" volatile cpu_set_t g_cpu_irqset;
+extern "C" volatile uint8_t g_cpu_nestcount[CONFIG_SMP_NCPUS];
+# endif
 
 __EXPORT struct system_load_s system_load;
 
@@ -58,7 +67,6 @@ __EXPORT struct system_load_s system_load;
 #define HASH(i) ((i) & (hashtab_size - 1))
 
 struct system_load_taskinfo_s **hashtab;
-static spinlock_t g_hashtab_lock = SP_UNLOCKED;
 volatile int hashtab_size;
 
 void init_task_hash(void)
@@ -67,24 +75,82 @@ void init_task_hash(void)
 	hashtab = (struct system_load_taskinfo_s **)kmm_zalloc(sizeof(*hashtab) * hashtab_size);
 }
 
+/* get_task_info and drop_task_info are called from middle of scheduling
+ * (where this_task is not valid), in interrupts, and from normal task context.
+ *
+ * In these functions we can't call enter_critical_section. Simply acquire the
+ * g_cpu_irqlock if needed.
+ *
+ * NOTE: This doesn't support scheduling out from here, or causing another
+ * nested interrupts. So don't place debug prints in these functions
+ * w.o. handling all of the related things first!
+ */
+
 static struct system_load_taskinfo_s *get_task_info(pid_t pid)
 {
 	struct system_load_taskinfo_s *ret = NULL;
-	irqstate_t flags = spin_lock_irqsave_notrace(&g_hashtab_lock);
+	irqstate_t flags = up_irq_save();
+
+#ifdef CONFIG_SMP
+	bool locked = false;
+	int cpu = this_cpu();
+
+	if (!CPU_ISSET(cpu, &g_cpu_irqset)) {
+		spin_lock_notrace(&g_cpu_irqlock);
+		CPU_SET(cpu, &g_cpu_irqset);
+		locked = true;
+	}
+
+	DEBUGASSERT(spin_is_locked(&g_cpu_irqlock) &&
+		    (g_cpu_irqset & (1 << this_cpu())) != 0);
+#endif
 
 	if (hashtab) {
 		ret = hashtab[HASH(pid)];
 	}
 
-	spin_unlock_irqrestore_notrace(&g_hashtab_lock, flags);
+#ifdef CONFIG_SMP
+
+	if (locked) {
+		cpu_irqlock_clear();
+	}
+
+#endif
+
+	up_irq_restore(flags);
+
 	return ret;
 }
 
 static void drop_task_info(pid_t pid)
 {
-	irqstate_t flags = spin_lock_irqsave_notrace(&g_hashtab_lock);
+	irqstate_t flags = up_irq_save();
+
+#ifdef CONFIG_SMP
+	bool locked = false;
+	int cpu = this_cpu();
+
+	if (!CPU_ISSET(cpu, &g_cpu_irqset)) {
+		spin_lock_notrace(&g_cpu_irqlock);
+		CPU_SET(cpu, &g_cpu_irqset);
+		locked = true;
+	}
+
+	DEBUGASSERT(spin_is_locked(&g_cpu_irqlock) &&
+		    (g_cpu_irqset & (1 << this_cpu())) != 0);
+#endif
+
 	hashtab[HASH(pid)] = NULL;
-	spin_unlock_irqrestore_notrace(&g_hashtab_lock, flags);
+
+#ifdef CONFIG_SMP
+
+	if (locked) {
+		cpu_irqlock_clear();
+	}
+
+#endif
+
+	up_irq_restore(flags);
 }
 
 static int hash_task_info(struct system_load_taskinfo_s *task_info, pid_t pid)
@@ -97,7 +163,7 @@ static int hash_task_info(struct system_load_taskinfo_s *task_info, pid_t pid)
 
 	/* Use critical section to protect the hash table */
 
-	irqstate_t flags = spin_lock_irqsave_notrace(&g_hashtab_lock);
+	irqstate_t flags = enter_critical_section();
 
 	/* Keep trying until we get it or run out of memory */
 
@@ -111,19 +177,19 @@ retry:
 
 	if (hashtab[hash] == NULL || task_info->tcb->pid == hashtab[hash]->tcb->pid) {
 		hashtab[hash] = task_info;
-		spin_unlock_irqrestore_notrace(&g_hashtab_lock, flags);
+		leave_critical_section(flags);
 		return OK;
 	}
 
 	/* No can do, double the size of the hash table */
 
 	oldtab = hashtab;
-	spin_unlock_irqrestore_notrace(&g_hashtab_lock, flags);
+	leave_critical_section(flags);
 	newtab = (struct system_load_taskinfo_s **)kmm_zalloc(hashtab_size * 2 * sizeof(*newtab));
-	flags = spin_lock_irqsave_notrace(&g_hashtab_lock);
+	flags = enter_critical_section();
 
 	if (newtab == NULL) {
-		spin_unlock_irqrestore_notrace(&g_hashtab_lock, flags);
+		leave_critical_section(flags);
 		return -ENOMEM;
 	}
 
@@ -132,9 +198,9 @@ retry:
 	if (oldtab != hashtab) {
 		/* Yes, free the allocated table and try again */
 
-		spin_unlock_irqrestore_notrace(&g_hashtab_lock, flags);
+		leave_critical_section(flags);
 		kmm_free(newtab);
-		flags = spin_lock_irqsave_notrace(&g_hashtab_lock);
+		flags = enter_critical_section();
 		goto retry;
 	}
 
