@@ -82,9 +82,12 @@ static struct system_load_taskinfo_s *get_task_info(pid_t pid)
 
 static void drop_task_info(pid_t pid)
 {
-	irqstate_t flags = spin_lock_irqsave_notrace(&g_hashtab_lock);
+	/* Note: g_hashtab_lock is not taken here, because this code path is called from
+	 * critical section, only in task exit case. We assume an atomic write.
+	 * Spin lock here doesn't protect anything, but may lead to deadlock.
+	 */
+
 	hashtab[HASH(pid)] = NULL;
-	spin_unlock_irqrestore_notrace(&g_hashtab_lock, flags);
 }
 
 static int hash_task_info(struct system_load_taskinfo_s *task_info, pid_t pid)
