@@ -145,3 +145,6 @@
 [submodule "src/modules/moi_agent"]
 	path = src/modules/moi_agent
 	url = git@github.com:tiiuae/px4_moi_agent.git
+[submodule "src/modules/calibration_bridge"]
+	path = src/modules/calibration_bridge
+	url = https://github.com/tiiuae/calibration-bridge.git
