@@ -68,6 +68,9 @@ publications:
   - topic: /fmu/out/estimator_gps_status
     type: px4_msgs::msg::EstimatorGpsStatus
 
+  - topic: /fmu/out/calibration_status
+    type: px4_msgs::msg::CalibrationStatus
+
 subscriptions:
 
   - topic: /fmu/in/offboard_control_mode
@@ -114,6 +117,9 @@ subscriptions:
 
   - topic: /fmu/in/gps_inject_data
     type: px4_msgs::msg::GpsInjectData
+
+  - topic: /fmu/in/calibration_command
+    type: px4_msgs::msg::CalibrationCommand
 
 # Create uORB::PublicationMulti
 subscriptions_multi:
