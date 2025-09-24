@@ -291,6 +291,7 @@ if (CONFIG_BUILD_KERNEL)
 		set_target_properties(${BIN} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PX4_BINARY_DIR}/bin)
 		add_dependencies(${BIN} nuttx_crt0 ${module})
 		target_compile_options(${BIN} PRIVATE -Dentry=${MAIN}_main)
+		target_link_options(${BIN} PRIVATE -z max-page-size=0x1000)
 
 		# Disable daemon if the module explicitly tells us to do so
 		if (NO_DAEMON)
