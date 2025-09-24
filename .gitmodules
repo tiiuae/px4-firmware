@@ -145,3 +145,6 @@
 [submodule "src/modules/moi_agent"]
 	path = src/modules/moi_agent
 	url = git@github.com:tiiuae/px4_moi_agent.git
+[submodule "src/systemcmds/keys"]
+	path = src/systemcmds/keys
+	url = git@github.com:tiiuae/px4_keys_tool.git
