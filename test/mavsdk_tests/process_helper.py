@@ -94,6 +94,18 @@ class Runner:
             self.output_queue.put(line)
             self.log_fd.write(line)
             self.log_fd.flush()
+            
+            error = self.check_output(line)
+            if error:
+                error = self.add_prefix(10, self.name, error)
+                self.output_queue.put(error)
+                self.log_fd.write(error)
+                self.log_fd.flush()
+                self.process.terminate()
+                break
+
+    def check_output(self, line: str) -> bool:
+        return None
 
     def add_prefix(self, width: int, name: str, text: str) -> str:
         return "[" + self.seconds() + "|" + name.ljust(width) + "] " + text
@@ -380,6 +392,11 @@ class GzHarmonicServer(Runner):
 
         self.cmd = "gz"
         self.args = ["sim", "--verbose=1", "-r", "-s", word_path]
+    
+    def check_output(self, line: str) -> Optional[str]:
+        if "You tried to access index" in line:
+            return "Error! The model is incompatible with the actuators.\n"
+        return None
 
 class GzHarmonicModelSpawnRunner(Runner):
     def __init__(self,
@@ -418,7 +435,7 @@ class GzHarmonicModelSpawnRunner(Runner):
         # as a result.
         # We work around this by trying to start and then check whether
         # using has_started_ok() whether it was successful or not.
-        timeout_s = 20
+        timeout_s = 30
         steps = 10
         for _ in range(steps):
             returncode = self.process.poll()
@@ -430,6 +447,9 @@ class GzHarmonicModelSpawnRunner(Runner):
                 for line in f.readlines():
                     if 'Service call timed out' in line:
                         print("[{}] Failed to spawn drone: service call timed out.".format(self.name))                
+                        return False
+                    if 'You tried to access index' in line:
+                        print("[{}] Model doesn't match to actuators.".format(self.name))
                         return False
                 else:
                     return True
