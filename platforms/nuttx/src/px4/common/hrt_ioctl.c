@@ -181,16 +181,27 @@ void hrt_usr_call(void *arg)
 {
 	// This is called from hrt interrupt
 	struct usr_hrt_call *e = (struct usr_hrt_call *)arg;
+	bool post = false;
 	irqstate_t flags = spin_lock_irqsave_notrace(&g_hrt_ioctl_lock);
 
 	// Make sure the event is not already in flight
 	if (!entry_inlist(&callout_inflight, (sq_entry_t *)e)) {
 		sq_rem(&e->list_item, &callout_queue);
 		sq_addfirst(&e->list_item, &callout_inflight);
-		px4_sem_post(e->entry.callout_sem);
+		post = true;
 	}
 
 	spin_unlock_irqrestore_notrace(&g_hrt_ioctl_lock, flags);
+
+	if (post) {
+		flags = enter_critical_section();
+
+		if (e->entry.callout_sem) {
+			px4_sem_post(e->entry.callout_sem);
+		}
+
+		leave_critical_section(flags);
+	}
 }
 
 int hrt_ioctl(unsigned int cmd, unsigned long arg);
@@ -295,6 +306,7 @@ hrt_ioctl(unsigned int cmd, unsigned long arg)
 			/* Find the user entry */
 			irqstate_t flags = spin_lock_irqsave_notrace(&g_hrt_ioctl_lock);
 			struct usr_hrt_call *e = pop_entry(&callout_queue, h->handle, h->entry);
+			spin_unlock_irqrestore_notrace(&g_hrt_ioctl_lock, flags);
 
 			if (e) {
 				hrt_cancel(&e->entry);
@@ -302,17 +314,19 @@ hrt_ioctl(unsigned int cmd, unsigned long arg)
 			} else {
 				/* If the HRT already triggered, it is in inflight queue */
 
+				flags = spin_lock_irqsave_notrace(&g_hrt_ioctl_lock);
 				e = pop_entry(&callout_inflight, h->handle, h->entry);
+				spin_unlock_irqrestore_notrace(&g_hrt_ioctl_lock, flags);
 			}
 
 			if (e) {
+				flags = spin_lock_irqsave_notrace(&g_hrt_ioctl_lock);
 				sq_addfirst((sq_entry_t *)e, &callout_freelist);
+				spin_unlock_irqrestore_notrace(&g_hrt_ioctl_lock, flags);
 
 			} else {
 				PX4_ERR("HRT_CANCEL called with invalid entry\n");
 			}
-
-			spin_unlock_irqrestore_notrace(&g_hrt_ioctl_lock, flags);
 
 		} else {
 			PX4_ERR("HRT_CANCEL called with NULL entry");
@@ -352,18 +366,13 @@ hrt_ioctl(unsigned int cmd, unsigned long arg)
 	case HRT_UNREGISTER: {
 			px4_sem_t *callback_sem = *(px4_sem_t **)arg;
 			sq_entry_t *queued;
-			void *deleted = NULL;
+			sq_queue_t deleted;
 			struct usr_hrt_call *e;
 			irqstate_t flags;
 
 			flags = spin_lock_irqsave_notrace(&g_hrt_ioctl_lock);
 
 			sq_for_every(&callout_queue, queued) {
-				if (deleted) {
-					kmm_free(deleted);
-					deleted = NULL;
-				}
-
 				e = (struct usr_hrt_call *)queued;
 
 				if (callback_sem == e->entry.callout_sem) {
@@ -373,18 +382,34 @@ hrt_ioctl(unsigned int cmd, unsigned long arg)
 					/* Remove potential inflight entry as well */
 					sq_rem(&e->list_item, &callout_inflight);
 
-					/* Delete on the next round */
-					deleted = queued;
+					/* Add this to a local deleted list */
+					sq_addfirst(&e->list_item, &deleted);
 				}
-			}
-
-			if (deleted) {
-				kmm_free(deleted);
 			}
 
 			spin_unlock_irqrestore_notrace(&g_hrt_ioctl_lock, flags);
 
+			/* Perhaps the HRT alrady fired before entering the spinlock above, and
+			 * the interrupt handler is running on the other CPU.
+			 * Set callout_sem to NULL for each deleted entry before destroying the
+			 * semaphore
+			 */
+
+			flags = enter_critical_section();
+			sq_for_every(&deleted, queued) {
+				e = (struct usr_hrt_call *)queued;
+				e->entry.callout_sem = NULL;
+			}
+
 			px4_sem_destroy(callback_sem);
+			leave_critical_section(flags);
+
+			/* Free all the memory */
+
+			sq_for_every(&deleted, queued) {
+				e = (struct usr_hrt_call *)queued;
+				kmm_free(e);
+			}
 
 			*(px4_sem_t **)arg = NULL;
 			kmm_free(callback_sem);
