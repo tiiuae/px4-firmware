@@ -385,10 +385,13 @@ hrt_call_invoke(void)
 		call->deadline = 0;
 
 		/* invoke the callout (if there is one) */
-		if (call->callout) {
-			hrtinfo("call %p: %p(%p)\n", call, call->callout, call->arg);
+		hrt_callout callout = call->callout;
+		void *arg = call->arg;
+
+		if (callout) {
+			hrtinfo("call %p: %p(%p)\n", call, callout, arg);
 			spin_unlock_notrace(&g_hrt_lock);
-			call->callout(call->arg);
+			callout(arg);
 			spin_lock_notrace(&g_hrt_lock);
 		}
 
