@@ -1,0 +1,30 @@
+# Default parameter set for HITL with ethernet Gazebo Sim connection (partly derived from indoor flying parameters)
+# Currently this is used for FC only HITL with ssrc holybro x500 airframe
+# [ type: hitl_eth_gzsim ]
+
+#####################################
+# HITL configuration
+#
+
+# Set HITL related flag
+param set SYS_HITL 1
+param set MAV_HITL_SHOME 0
+param set SENS_EN_GPSSIM 1
+param set SENS_EN_BAROSIM 1
+param set SENS_EN_MAGSIM 1
+
+# Disable safety switch
+param set COM_PREARM_MODE 0
+param set CBRK_IO_SAFETY 22027
+
+# Disable RC loss failsafe check
+param set NAV_RCL_ACT 0
+
+# Disable RC input requirement
+param set COM_RC_IN_MODE 1
+
+# EKF2
+param set EKF2_MULTI_IMU 1
+
+# Need mavlink version 2
+param set MAV_PROTO_VER 2
