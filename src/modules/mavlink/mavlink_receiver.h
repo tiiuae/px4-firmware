@@ -61,6 +61,7 @@
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/SubscriptionInterval.hpp>
 #include <uORB/topics/actuator_armed.h>
+#include <uORB/topics/actuator_motors.h>
 #include <uORB/topics/actuator_outputs.h>
 #include <uORB/topics/autotune_attitude_control_status.h>
 #include <uORB/topics/battery_status.h>
