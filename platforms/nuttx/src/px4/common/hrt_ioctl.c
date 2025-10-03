@@ -370,6 +370,8 @@ hrt_ioctl(unsigned int cmd, unsigned long arg)
 			struct usr_hrt_call *e;
 			irqstate_t flags;
 
+			sq_init(&deleted);
+
 			flags = spin_lock_irqsave_notrace(&g_hrt_ioctl_lock);
 
 			sq_for_every(&callout_queue, queued) {
