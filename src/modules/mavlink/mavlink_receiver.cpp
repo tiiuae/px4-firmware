@@ -942,24 +942,39 @@ MavlinkReceiver::handle_message_esc_info(mavlink_message_t *msg)
 void
 MavlinkReceiver::handle_message_esc_status(mavlink_message_t *msg)
 {
+	static constexpr int batch_size = MAVLINK_MSG_ESC_STATUS_FIELD_RPM_LEN;
 	mavlink_esc_status_t esc_status_mav;
 	mavlink_msg_esc_status_decode(msg, &esc_status_mav);
 
 	esc_status_s esc_status{};
-	esc_status.esc_count = math::min(_esc_count,
-					 (uint8_t)MAVLINK_MSG_ESC_STATUS_FIELD_RPM_LEN);	/* currently only support quadcopter */
+	memset(&esc_status, 0, sizeof(esc_status));
+	esc_status.timestamp = hrt_absolute_time();
 
-	for (int i = 0; i < esc_status.esc_count; i++) {
-		esc_status.esc[i].timestamp = hrt_absolute_time();
-		esc_status.esc[i].esc_rpm = esc_status_mav.rpm[i];
+	/* Status is sent in batches, i is the actu al esc index, idx is the index within the received batch */
+
+	size_t i = esc_status_mav.index;
+
+	for (int idx = 0; idx < batch_size && i < sizeof(esc_status.esc) / sizeof(esc_status.esc[0]); idx++, i++) {
+		esc_status.esc[i].timestamp = esc_status.timestamp;
+		esc_status.esc[i].esc_rpm = esc_status_mav.rpm[idx];
+		esc_status.esc[i].esc_voltage = esc_status_mav.voltage[idx];
+		esc_status.esc[i].esc_current = esc_status_mav.current[idx];
+		esc_status.esc[i].actuator_function = actuator_motors_s::ACTUATOR_FUNCTION_MOTOR1 + i;
 		esc_status.esc_online_flags |= 1 << i;
 
-		if (abs(esc_status_mav.rpm[i]) > 0) {
+		if (abs(esc_status_mav.rpm[idx]) > 0) {
 			esc_status.esc_armed_flags |= 1 << i;
 		}
 	}
 
-	esc_status.timestamp = hrt_absolute_time();
+	/* Update _esc_count to largest seen esc index, in case esc_info messages are not present */
+
+	if (i > _esc_count) {
+		_esc_count = i;
+	}
+
+	esc_status.esc_count = _esc_count;
+
 	_esc_status_pub.publish(esc_status);
 }
 
