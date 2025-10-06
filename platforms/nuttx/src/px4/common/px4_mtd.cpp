@@ -52,6 +52,7 @@
 #include <inttypes.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <fcntl.h>
 #include "systemlib/px4_macros.h"
 
 #include <nuttx/drivers/drivers.h>
@@ -415,7 +416,7 @@ memoryout:
 
 			/* Now create a character device on the block device */
 
-			rv = bchdev_register(blockname, instances[i]->partition_names[part], false);
+			rv = bchdev_register(blockname, instances[i]->partition_names[part], O_RDWR);
 
 			if (rv < 0) {
 				PX4_ERR("bchdev_register %s failed: %d", instances[i]->partition_names[part], rv);
