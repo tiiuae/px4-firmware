@@ -158,6 +158,7 @@ file(GLOB_RECURSE nuttx_apps_files FOLLOW_SYMLINKS LIST_DIRECTORIES false
 list(FILTER nuttx_apps_files EXCLUDE REGEX "builtin/builtin_list\\.h|builtin/builtin_proto\\.h")
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/apps/libapps.a
+	COMMAND ${CMAKE_COMMAND} -E remove -f ${APPS_DIR}/builtin/registry/nsh.bdat ${APPS_DIR}/builtin/registry/nsh.pdat
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/px4.bdat ${APPS_DIR}/builtin/registry/px4.bdat
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/px4.pdat ${APPS_DIR}/builtin/registry/px4.pdat
 	COMMAND ${CMAKE_COMMAND} -E touch_nocreate ${APPS_DIR}/builtin/registry/.updated
