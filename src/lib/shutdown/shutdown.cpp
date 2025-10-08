@@ -78,6 +78,8 @@ static struct work_s shutdown_work = {};
 
 static uint8_t shutdown_args = 0;
 
+static bool shutdown_force = false;
+
 static px4_sem_t shutdown_hook_lock;
 
 static constexpr int max_shutdown_hooks = 10;
@@ -88,6 +90,8 @@ static constexpr hrt_abstime shutdown_timeout_us =
 	5_s; ///< force shutdown after this time if modules do not respond in time
 
 static uORB::Publication<shutdown_event_s> *shutdown_event{nullptr};
+
+bool is_ongoing_critical_activity();
 
 void shutdown_init()
 {
@@ -233,11 +237,23 @@ static void shutdown_worker(void *arg)
 	}
 }
 
+int shutdown_set_force_flag(bool force)
+{
+	shutdown_force = force;
+	return 0;
+}
+
 #if defined(CONFIG_BOARDCTL_RESET)
+
 int px4_reboot_request(reboot_request_t request, uint32_t delay_us)
 {
 	if (shutdown_args & SHUTDOWN_ARG_IN_PROGRESS || shutdown_args & SHUTDOWN_ARG_REBOOT) {
 		return 0;
+	}
+
+	if (!shutdown_force && is_ongoing_critical_activity()) {
+		PX4_WARN("M-O-I Critical activity ongoing => Reboot/shutdown temporarily denied");
+		return -EBUSY;
 	}
 
 	px4_indicate_external_reset_lockout(LockoutComponent::SystemShutdownLock, true);
@@ -278,6 +294,11 @@ int px4_shutdown_request(uint32_t delay_us)
 {
 	if (shutdown_args & SHUTDOWN_ARG_IN_PROGRESS) {
 		return 0;
+	}
+
+	if (!shutdown_force && is_ongoing_critical_activity()) {
+		PX4_WARN("M-O-I Critical activity ongoing => Reboot/shutdown temporarily denied");
+		return -EBUSY;
 	}
 
 	px4_indicate_external_reset_lockout(LockoutComponent::SystemShutdownLock, true);
