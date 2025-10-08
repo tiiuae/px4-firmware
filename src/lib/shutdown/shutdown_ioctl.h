@@ -71,3 +71,9 @@ typedef struct shutdowniocshutdown {
 	uint32_t delay_us;
 	int ret;
 } shutdowniocshutdown_t;
+
+#define SHUTDOWNIOCSETFORCE _SHUTDOWNIOC(5)
+typedef struct shutdowniocsetforce {
+	bool force;
+	int ret;
+} shutdowniocsetforce_t;
