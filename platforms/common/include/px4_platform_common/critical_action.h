@@ -45,14 +45,15 @@
 #include <uORB/topics/vehicle_command_ack.h>
 
 const uint8_t ACTION_UNKNOWN_COMP_ID = 0;
-const uint8_t ACTION_FWUPDATER_COMP_ID = 1;
+const uint8_t ACTION_FWUPDATER_COMP_ID = 1; // This is special request to prevent MOI state change but allowing reboot
 const uint8_t ACTION_SENSOR_CALIBRATION_COMP_ID = 2;
 const uint8_t ACTION_FLIGHT_LOG_DLOAD_COMP_ID = 3;
 const uint8_t ACTION_MAVLINK_FTP_COMP_ID = 4;
 const uint8_t ACTION_COMMANDER_COMP_ID = 5;
 const uint8_t ACTION_ASSEMBLY_AGENT_COMP_ID = 6;
+const uint8_t ACTION_FWUPDATE_VALIDATE_COMP_ID = 7;
 
-const size_t ACTION_COUNT = 7;
+const size_t ACTION_COUNT = 8;
 
 class CriticalAction
 {
