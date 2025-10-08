@@ -56,6 +56,7 @@ static void print_usage()
 	PRINT_MODULE_USAGE_PARAM_FLAG('i', "Reboot into ISP (1st stage bootloader)", true);
 #endif
 	PRINT_MODULE_USAGE_PARAM_FLAG('c', "Bootloader continue boot", true);
+	PRINT_MODULE_USAGE_PARAM_FLAG('f', "force", true);
 
 }
 
@@ -65,9 +66,10 @@ extern "C" __EXPORT int reboot_main(int argc, char *argv[])
 	reboot_request_t request = REBOOT_REQUEST;
 
 	int myoptind = 1;
+	bool force = false;
 	const char *myoptarg = nullptr;
 
-	while ((ch = px4_getopt(argc, argv, "bic", &myoptind, &myoptarg)) != -1) {
+	while ((ch = px4_getopt(argc, argv, "bicf", &myoptind, &myoptarg)) != -1) {
 		switch (ch) {
 		case 'b':
 			request = REBOOT_TO_BOOTLOADER;
@@ -84,11 +86,21 @@ extern "C" __EXPORT int reboot_main(int argc, char *argv[])
 			request = REBOOT_TO_BOOTLOADER_CONTINUE;
 			break;
 
+		case 'f':
+			force = true;
+			break;
+
 		default:
 			print_usage();
 			return 1;
 
 		}
+	}
+
+	shutdown_set_force_flag(force);
+
+	if (force) {
+		PX4_WARN("Force reboot");
 	}
 
 	int ret = px4_reboot_request(request);

@@ -69,3 +69,10 @@ int px4_shutdown_request(uint32_t delay_us)
 	boardctl(SHUTDOWNIOCSHUTDOWN, reinterpret_cast<unsigned long>(&data));
 	return data.ret;
 }
+
+int shutdown_set_force_flag(bool force)
+{
+	shutdowniocsetforce_t data = {force, PX4_ERROR};
+	boardctl(SHUTDOWNIOCSETFORCE, reinterpret_cast<unsigned long>(&data));
+	return data.ret;
+}

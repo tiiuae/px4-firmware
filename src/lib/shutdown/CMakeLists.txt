@@ -36,11 +36,16 @@ if (${PX4_PLATFORM} STREQUAL "nuttx" AND NOT CONFIG_BUILD_FLAT)
 	list(APPEND EXTRA_SRCS shutdown_ioctl.cpp)
 	px4_add_library(usr_shutdown usr_shutdown.cpp shutdown.h)
 	target_compile_definitions(usr_shutdown PRIVATE -DMODULE_NAME="usr_shutdown")
+
 endif()
 
-px4_add_library(shutdown shutdown.cpp ${EXTRA_SRCS})
+px4_add_library(shutdown shutdown.cpp shutdown_ca_check.cpp ${EXTRA_SRCS})
 target_link_libraries(shutdown PRIVATE prebuild_targets)
 
 if (${PX4_PLATFORM} STREQUAL "nuttx" AND NOT CONFIG_BUILD_FLAT)
 	target_compile_definitions(shutdown PRIVATE -DMODULE_NAME="shutdown" -D__KERNEL__)
+elseif (CONFIG_MODULES_MOI_AGENT)
+	# Link state_ctrl in FLAT build only.
+	# Kernel build case needed functions are linked via drivers_board lib
+	target_link_libraries(shutdown PRIVATE state_ctrl)
 endif()
