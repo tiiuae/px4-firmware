@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2025 Technology Innovation Institute. All rights reserved.
+ * Copyright (C) 2025 Technology Innovation Institute. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,47 +31,22 @@
  *
  ****************************************************************************/
 
-/**
- * @file usr_shutdown.cpp
- *
- * User space interface for shutdown.
- */
+#include <px4_platform_common/log.h>
 
-#include <sys/boardctl.h>
-#include <px4_platform_common/shutdown.h>
+#include <common_src/moi_state.h>
+#include <common_src/state_ctrl.h>
 
-#include "shutdown_ioctl.h"
+bool is_ongoing_critical_activity() {
+	uint8_t byte;
+	if (statectrl_get_moi_state(&byte) < 0) {
+		PX4_ERR("Failed to read M-O-I state");
+		return false;
+	}
 
-shutdown_handle_t px4_register_shutdown_hook()
-{
-	shutdowniocregister_t data = {PX4_ERROR};
-	boardctl(SHUTDOWNIOCREGISTER, reinterpret_cast<unsigned long>(&data));
-	return data.ret;
-}
+	moi_state_t state = deserialize_moi_state(byte);
+	if (state.agent_state == AS_CA_ONGOING || state.fw_ota_active == 1) {
+		return true;
+	}
 
-int px4_unregister_shutdown_hook(shutdown_handle_t handle)
-{
-	shutdowniocunregister_t data = {handle, PX4_ERROR};
-	boardctl(SHUTDOWNIOCUNREGISTER, reinterpret_cast<unsigned long>(&data));
-	return data.ret;
-}
-
-int px4_reboot_request(reboot_request_t request, uint32_t delay_us)
-{
-	shutdowniocreboot_t data = {request, delay_us, PX4_ERROR};
-	boardctl(SHUTDOWNIOCREBOOT, reinterpret_cast<unsigned long>(&data));
-	return data.ret;
-}
-
-int px4_shutdown_request(uint32_t delay_us)
-{
-	shutdowniocshutdown_t data = {delay_us, PX4_ERROR};
-	boardctl(SHUTDOWNIOCSHUTDOWN, reinterpret_cast<unsigned long>(&data));
-	return data.ret;
-}
-
-int shutdown_set_force_flag(bool force) {
-	shutdowniocsetforce_t data = {force, PX4_ERROR};
-	boardctl(SHUTDOWNIOCSETFORCE, reinterpret_cast<unsigned long>(&data));
-	return data.ret;
+	return false;
 }

@@ -76,6 +76,12 @@ static int shutdown_ioctl(unsigned int cmd, unsigned long arg)
 		}
 		break;
 
+	case SHUTDOWNIOCSETFORCE: {
+			shutdowniocsetforce_t *data = (shutdowniocsetforce_t *)arg;
+			data->ret = shutdown_set_force_flag(data->force);
+		}
+		break;
+
 	default:
 		ret = -ENOTTY;
 		break;

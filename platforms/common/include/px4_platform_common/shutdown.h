@@ -89,6 +89,7 @@ typedef enum {
  * @return 0 on success, <0 on error
  */
 #if defined(CONFIG_BOARDCTL_RESET)
+__EXPORT int shutdown_set_force_flag(bool force);
 __EXPORT int px4_reboot_request(reboot_request_t request = REBOOT_REQUEST, uint32_t delay_us = 0);
 #endif // CONFIG_BOARDCTL_RESET
 

@@ -38,8 +38,8 @@ if (${PX4_PLATFORM} STREQUAL "nuttx" AND NOT CONFIG_BUILD_FLAT)
 	target_compile_definitions(usr_shutdown PRIVATE -DMODULE_NAME="usr_shutdown")
 endif()
 
-px4_add_library(shutdown shutdown.cpp ${EXTRA_SRCS})
-target_link_libraries(shutdown PRIVATE prebuild_targets)
+px4_add_library(shutdown shutdown.cpp shutdown_ca_check.cpp ${EXTRA_SRCS})
+target_link_libraries(shutdown PRIVATE prebuild_targets state_ctrl)
 
 if (${PX4_PLATFORM} STREQUAL "nuttx" AND NOT CONFIG_BUILD_FLAT)
 	target_compile_definitions(shutdown PRIVATE -DMODULE_NAME="shutdown" -D__KERNEL__)
