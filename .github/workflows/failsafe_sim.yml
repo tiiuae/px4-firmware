@@ -3,7 +3,7 @@ name: Failsafe Simulator Build
 on:
   push:
     branches:
-    - 'main'
+      - 'main'
     paths-ignore:
       - 'docs/**'
   pull_request:
@@ -48,9 +48,8 @@ jobs:
         run: |
           git clone https://github.com/emscripten-core/emsdk.git _emscripten_sdk
           cd _emscripten_sdk
-          git checkout 4.0.15
-          ./emsdk install latest
-          ./emsdk activate latest
+          ./emsdk install 4.0.15
+          ./emsdk activate 4.0.15
 
       - name: Testing [${{ matrix.check }}]
         run: |
