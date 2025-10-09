@@ -20,6 +20,12 @@ publications:
   - topic: /fmu/out/vehicle_attitude
     type: px4_msgs::msg::VehicleAttitude
 
+  - topic: /fmu/out/dataman_response
+    type: px4_msgs::msg::DatamanResponse
+
+  - topic: /fmu/out/vehicle_command_ack
+    type: px4_msgs::msg::VehicleCommandAck
+
   - topic: /fmu/out/vehicle_control_mode
     type: px4_msgs::msg::VehicleControlMode
 
@@ -46,6 +52,9 @@ publications:
 
   - topic: /fmu/out/distance_sensor
     type: px4_msgs::msg::DistanceSensor
+
+  - topic: /fmu/out/mission
+    type: px4_msgs::msg::Mission
 
   - topic: /fmu/out/mission_result
     type: px4_msgs::msg::MissionResult
@@ -87,6 +96,12 @@ subscriptions:
 
   - topic: /fmu/in/trajectory_setpoint
     type: px4_msgs::msg::TrajectorySetpoint
+
+  - topic: /fmu/in/dataman_request
+    type: px4_msgs::msg::DatamanRequest
+
+  - topic: /fmu/in/mission
+    type: px4_msgs::msg::Mission
 
   - topic: /fmu/in/vehicle_attitude_setpoint
     type: px4_msgs::msg::VehicleAttitudeSetpoint
