@@ -104,3 +104,6 @@ param set-default COM_RC_OVERRIDE 0
 
 # Set takeoff ramp to disabled for a more decisive takeoff action
 param set-default MPC_TKO_RAMP_T 0
+
+# Disable fusing of GPS height data into altitude estimate
+param set-default EKF2_GPS_CTRL 1
