@@ -145,16 +145,50 @@ int SocketCAN::Init(const char *const can_iface_name, const uint32_t can_bitrate
 	_recv_msg.msg_controllen = sizeof(_recv_control);
 	_recv_cmsg = CMSG_FIRSTHDR(&_recv_msg);
 
+	// Bring interface down before setting bitrate
+	if (ioctl(_fd, SIOCGIFFLAGS, &_ifr) < 0) {
+		PX4_ERR("Getting CAN flags failed");
+		return -1;
+	}
+
+	_ifr.ifr_flags &= ~(IFF_UP | IFF_RUNNING);
+
+	if (ioctl(_fd, SIOCSIFFLAGS, &_ifr) < 0) {
+		PX4_ERR("Bringing CAN interface down failed");
+		return -1;
+	}
+
 	// Setup bitrate
-	_ifr.ifr_ifru.ifru_can_data.arbi_bitrate = can_bitrate / 1000;
+	_ifr.ifr_ifru.ifru_can_data.arbi_bitrate = can_bitrate;
 	_ifr.ifr_ifru.ifru_can_data.arbi_samplep = 88;
-	_ifr.ifr_ifru.ifru_can_data.data_bitrate = 4 * can_bitrate / 1000;
+	_ifr.ifr_ifru.ifru_can_data.data_bitrate = 4 * can_bitrate;
 	_ifr.ifr_ifru.ifru_can_data.data_samplep = 75;
 
 	if (ioctl(_fd, SIOCSCANBITRATE, &_ifr) < 0) {
 		PX4_ERR("Setting CAN bitrate to %" PRIu32 " bit/s failed", can_bitrate);
 		return -1;
 	}
+
+	// Bring interface up
+	if (ioctl(_fd, SIOCGIFFLAGS, &_ifr) < 0) {
+		PX4_ERR("Getting CAN flags failed");
+		return -1;
+	}
+
+	_ifr.ifr_flags |= IFF_UP;
+
+	if (ioctl(_fd, SIOCSIFFLAGS, &_ifr) < 0) {
+		PX4_ERR("Bringing CAN interface up failed");
+		return -1;
+	}
+
+	// New bitrate info
+	if (ioctl(_fd, SIOCGCANBITRATE, &_ifr) < 0) {
+		PX4_ERR("Getting CAN bitrate failed");
+		return -1;
+	}
+
+	PX4_INFO("CAN interface %s is up with bitrate %u bit/s", can_iface_name, _ifr.ifr_ifru.ifru_can_data.arbi_bitrate);
 
 	return 0;
 }
