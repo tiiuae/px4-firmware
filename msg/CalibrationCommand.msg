@@ -22,4 +22,5 @@ uint8 calibration_type
 # Command type
 uint8 START_CALIBRATION = 1
 uint8 STOP_CALIBRATION = 2
+uint8 HEALTH_QUERY = 3
 uint8 command
