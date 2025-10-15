@@ -664,7 +664,7 @@ class Tester:
             )
             self.active_runners.append(boot_log_runner)
         if (self.ulog):
-            ulog_runner = ph.ULogListener(
+            ulog_runner = ph.ULogListenerUSB(
                 os.getcwd(),
                 log_dir,
                 test['model'],

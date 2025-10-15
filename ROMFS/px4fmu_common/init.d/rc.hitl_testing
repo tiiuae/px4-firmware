@@ -27,6 +27,3 @@ param set-default NAV_RCL_ACT 1
 
 # Disable RC input requirement
 param set-default COM_RC_IN_MODE 1
-
-#Instance for streaming and collecting ULog data during HITL tests
-mavlink start -u 14545 -o 14544 -r 1000000 -x -p

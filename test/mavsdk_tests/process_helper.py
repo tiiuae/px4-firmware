@@ -517,7 +517,7 @@ class BootLogRunner(Runner):
         self.args = ["-p", device,
                      "-s", "115200"]
 
-class ULogListener(Runner):
+class ULogListenerUDP(Runner):
     def __init__(self,
                  workspace_dir: str,
                  log_dir: str,
@@ -529,4 +529,18 @@ class ULogListener(Runner):
         self.cwd = workspace_dir
         self.cmd = os.path.join(workspace_dir, "Tools/mavlink_ulog_streaming.py")
         self.args = [":14544",
+                     "--output", log_dir]
+
+class ULogListenerUSB(Runner):
+    def __init__(self,
+                 workspace_dir: str,
+                 log_dir: str,
+                 model: str,
+                 case: str,
+                 verbose: bool):
+        super().__init__(log_dir, model, case, verbose)
+        self.name = "mavlink_ulog_streaming"
+        self.cwd = workspace_dir
+        self.cmd = os.path.join(workspace_dir, "Tools/mavlink_ulog_streaming.py")
+        self.args = ["/dev/ttyACM0",
                      "--output", log_dir]
