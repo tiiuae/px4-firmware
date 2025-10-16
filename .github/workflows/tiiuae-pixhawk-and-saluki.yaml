@@ -416,8 +416,7 @@ jobs:
           Tools/generate_basic_build_info.sh $build_basic_info_json
 
           # combine saluki json files to one file
-          # python Tools/saluki_packaging/combine-json.py saluki_file_info.json ${MINIMAL_WORK_DIR} ${{ env.BUILD_DIR }}/fpga-file-info.json $build_basic_info_json
-          Tools/saluki_packaging/combine-json.py -b ${build_basic_info_json} -p ${MINIMAL_WORK_DIR} -o /tmp/combine.json
+          Tools/saluki_packaging/tools/combine-json.py -b ${build_basic_info_json} -p ${MINIMAL_WORK_DIR} -o /tmp/combine.json
           popd
 
           echo "Combined minimal ota json: /tmp/combine.json"
