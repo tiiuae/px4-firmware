@@ -68,7 +68,6 @@ jobs:
             keys: Tools/saluki-sec-scripts/custom_keys/saluki-pi/px4_bin_ed25519_private.pem
           - product: saluki-nxp93_custom_keys
             keys: Tools/saluki-sec-scripts/custom_keys/saluki-nxp93/ed25519_key.pem
-
     uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
     with:
       product: ${{ matrix.product }}
@@ -247,6 +246,7 @@ jobs:
           labels: ${{ steps.containermeta.outputs.labels }}
           build-args: |
             "saluki_fpga_directory=${{ env.BUILD_DIR }}"
+
       - name: Build overview
         run: |
           echo "### Build overview:" >> $GITHUB_STEP_SUMMARY
@@ -344,3 +344,107 @@ jobs:
           echo "${flash_tool_cmd}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo 'For more info please see: https://github.com/tiiuae/fpga-flashing/#usage' >> $GITHUB_STEP_SUMMARY
+
+  upload-minimal-ota-container:
+    name: upload minimal ota container to docker registry
+    runs-on: ubuntu-latest
+    env:
+      COMBINED_OUTPUT_JSON: ${{ github.workspace }}/repackage/combine.json
+      BUILD_DIR: bin
+    needs:
+      - variables
+      - fc_matrix
+    steps:
+      - name: Checkout px4-firmware
+        uses: actions/checkout@v4
+        with:
+          path: px4-firmware
+          submodules: true
+          token: ${{ secrets.GH_REPO_TOKEN }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Download pixhawk artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ env.BUILD_DIR }}
+          pattern: saluki-*
+          merge-multiple: true
+      - name: Firmware flasher - Container metadata
+        id: containermeta # referenced from later step
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/tiiuae/px4-firmware-ota-container
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Minimal OTA container
+        run: |
+          set -eux
+          echo "Building minimal OTA container"
+          PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-v3_flat ssrc_saluki-nxp93_flat ssrc_saluki-nxp93_default"
+          REPACKAGE_DIR=$(mktemp -d)
+          echo "REPACKAGE_DIR=${REPACKAGE_DIR}" >> "$GITHUB_ENV"
+
+          # check what we have after download
+          ls -al
+          find ${{ env.BUILD_DIR }} -type f
+
+          # copy firmware files to minimal ota dir from each product
+          for product in $PRODUCTS_TO_INCLUDE; do
+            # skip if product not built
+            if [ ! -f ${{ env.BUILD_DIR }}/${product}*.px4 ]; then
+              echo "Product $product not built, skipping"
+              continue
+            fi
+
+            # create product dir and copy files
+            FIRMWARE_DIR=${REPACKAGE_DIR}/firmware
+            mkdir -p ${FIRMWARE_DIR}/$product
+            cp ${{ env.BUILD_DIR }}/${product}*px4 ${FIRMWARE_DIR}/$product/
+            cp ${{ env.BUILD_DIR }}/${product}*json ${FIRMWARE_DIR}/$product/
+          done
+
+          # debug: check we have all needed files
+          find ${REPACKAGE_DIR} -type f
+
+          # generate basic build info for minimal ota
+          pushd px4-firmware
+          build_basic_info_json=$(mktemp)
+          Tools/generate_basic_build_info.sh $build_basic_info_json
+
+          # combine saluki json files to one file
+          pushd ${REPACKAGE_DIR}
+          ${{ github.workspace }}/px4-firmware/Tools/saluki_packaging/tools/combine-json.py -b ${build_basic_info_json} -p firmware -o ${REPACKAGE_DIR}/saluki_file_info.json
+          popd
+
+          echo "Combined minimal ota json: ${REPACKAGE_DIR}/saluki_file_info.json"
+          cat ${REPACKAGE_DIR}/saluki_file_info.json
+
+          # workaround - copy px_uploader.entrypoint to repackage dir so we can use it in docker build
+          mkdir -p ${REPACKAGE_DIR}/px4-firmware/Tools
+          cp ${{ github.workspace }}/px4-firmware/Tools/px_uploader.entrypoint ${REPACKAGE_DIR}/px4-firmware/Tools/
+      - name: Firmware flasher - Build and push
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          context: ${{ env.REPACKAGE_DIR }}
+          # build for x86 and arm64
+          platforms: linux/amd64,linux/arm64
+          file: px4-firmware/Tools/px_minimal_ota_container.Dockerfile
+          tags: ${{ steps.containermeta.outputs.tags }}
+          labels: ${{ steps.containermeta.outputs.labels }}
+          build-args: |
+            "SALUKI_FILE_INFO_JSON=saluki_file_info.json"
+            "FIRMWARE_DIRECTORY=firmware"
