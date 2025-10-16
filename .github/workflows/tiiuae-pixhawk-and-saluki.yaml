@@ -387,7 +387,7 @@ jobs:
           set -eux
           echo "Building minimal OTA container"
           PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-v3_flat ssrc_saluki-nxp93_flat ssrc_saluki-nxp93_default"
-          MINIMAL_WORK_DIR="minimal_ota"
+          MINIMAL_WORK_DIR=$(mktemp -d)
 
           # check what we have after download
           ls -al
@@ -396,7 +396,7 @@ jobs:
           # copy firmware files to minimal ota dir from each product
           for product in $PRODUCTS_TO_INCLUDE; do
             # skip if product not built
-            if [ ! -d bin/${product}*.px4 ]; then
+            if [ ! -f bin/${product}*.px4 ]; then
               echo "Product $product not built, skipping"
               continue
             fi
