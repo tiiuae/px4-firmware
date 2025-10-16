@@ -247,6 +247,44 @@ jobs:
           labels: ${{ steps.containermeta.outputs.labels }}
           build-args: |
             "saluki_fpga_directory=${{ env.BUILD_DIR }}"
+      - name: Minimal OTA container
+        run: |
+          set -eux
+          echo "Building minimal OTA container"
+          PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-v3_flat ssrc_saluki-nxp93_flat ssrc_saluki-nxp93_default"
+          MINIMAL_WORK_DIR="minimal_ota"
+
+          # copy firmware files to minimal ota dir from each product
+          for product in $PRODUCTS_TO_INCLUDE; do
+            # skip if product not built
+            if [ ! -d ${{ env.BUILD_DIR }}/${product}*.px4 ]; then
+              echo "Product $product not built, skipping"
+              continue
+            fi
+
+            # create product dir and copy files
+            mkdir -p $MINIMAL_WORK_DIR/$product
+            cp ${{ env.BUILD_DIR }}/${product}*px4 $MINIMAL_WORK_DIR/$product/
+            cp ${{ env.BUILD_DIR }}/${product}*json $MINIMAL_WORK_DIR/$product/
+          done
+
+          # debug: check we have all needed files
+          find $MINIMAL_WORK_DIR -type f
+
+          # generate basic build info for minimal ota
+          pushd px4-firmware
+          build_basic_info_json=$(mktemp)
+          Tools/generate_basic_build_info.sh $build_basic_info_json
+
+          # combine saluki json files to one file
+          # python Tools/saluki_packaging/combine-json.py saluki_file_info.json ${MINIMAL_WORK_DIR} ${{ env.BUILD_DIR }}/fpga-file-info.json $build_basic_info_json
+          Tools/saluki_packaging/combine-json.py -b ${build_basic_info_json} -p ${MINIMAL_WORK_DIR} -o /tmp/combine.json
+          popd
+
+          echo "Combined minimal ota json: /tmp/combine.json"
+          cat /tmp/combine.json
+
+
       - name: Build overview
         run: |
           echo "### Build overview:" >> $GITHUB_STEP_SUMMARY
