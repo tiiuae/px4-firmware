@@ -58,17 +58,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        product: [saluki-v2_default, saluki-v2_amp, saluki-v2_flat, saluki-pi_default, saluki-pi_amp, saluki-pi_flat, saluki-v3_default, saluki-v3_amp, saluki-v3_flat, saluki-nxp93_flat, saluki-nxp93_default]
-        include:
-          - product: saluki-v2_custom_keys
-            keys: Tools/saluki-sec-scripts/custom_keys/saluki-v2/px4_bin_ed25519_private.pem
-          - product: saluki-v3_custom_keys
-            keys: Tools/saluki-sec-scripts/custom_keys/saluki-v3/px4_bin_ed25519_private.pem
-          - product: saluki-pi_custom_keys
-            keys: Tools/saluki-sec-scripts/custom_keys/saluki-pi/px4_bin_ed25519_private.pem
-          - product: saluki-nxp93_custom_keys
-            keys: Tools/saluki-sec-scripts/custom_keys/saluki-nxp93/ed25519_key.pem
-
+        # DO NOT MERGE: reduced targets to speed up testing
+        product: [saluki-pi_flat, saluki-v3_default, saluki-v3_amp, saluki-v3_flat, saluki-nxp93_flat, saluki-nxp93_default]
     uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
     with:
       product: ${{ matrix.product }}
@@ -136,6 +127,8 @@ jobs:
 
   upload-px4fwupdater:
     name: upload px4fwupdater to docker registry
+    # DO NOT MERGE: disabled to speed up testing
+    if: false
     runs-on: ubuntu-latest
     env:
       BUILD_DIR: combine
@@ -247,43 +240,6 @@ jobs:
           labels: ${{ steps.containermeta.outputs.labels }}
           build-args: |
             "saluki_fpga_directory=${{ env.BUILD_DIR }}"
-      - name: Minimal OTA container
-        run: |
-          set -eux
-          echo "Building minimal OTA container"
-          PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-v3_flat ssrc_saluki-nxp93_flat ssrc_saluki-nxp93_default"
-          MINIMAL_WORK_DIR="minimal_ota"
-
-          # copy firmware files to minimal ota dir from each product
-          for product in $PRODUCTS_TO_INCLUDE; do
-            # skip if product not built
-            if [ ! -d ${{ env.BUILD_DIR }}/${product}*.px4 ]; then
-              echo "Product $product not built, skipping"
-              continue
-            fi
-
-            # create product dir and copy files
-            mkdir -p $MINIMAL_WORK_DIR/$product
-            cp ${{ env.BUILD_DIR }}/${product}*px4 $MINIMAL_WORK_DIR/$product/
-            cp ${{ env.BUILD_DIR }}/${product}*json $MINIMAL_WORK_DIR/$product/
-          done
-
-          # debug: check we have all needed files
-          find $MINIMAL_WORK_DIR -type f
-
-          # generate basic build info for minimal ota
-          pushd px4-firmware
-          build_basic_info_json=$(mktemp)
-          Tools/generate_basic_build_info.sh $build_basic_info_json
-
-          # combine saluki json files to one file
-          # python Tools/saluki_packaging/combine-json.py saluki_file_info.json ${MINIMAL_WORK_DIR} ${{ env.BUILD_DIR }}/fpga-file-info.json $build_basic_info_json
-          Tools/saluki_packaging/combine-json.py -b ${build_basic_info_json} -p ${MINIMAL_WORK_DIR} -o /tmp/combine.json
-          popd
-
-          echo "Combined minimal ota json: /tmp/combine.json"
-          cat /tmp/combine.json
-
 
       - name: Build overview
         run: |
@@ -382,3 +338,87 @@ jobs:
           echo "${flash_tool_cmd}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo 'For more info please see: https://github.com/tiiuae/fpga-flashing/#usage' >> $GITHUB_STEP_SUMMARY
+
+  upload-minimal-ota-container:
+    name: upload minimal ota container to docker registry
+    runs-on: ubuntu-latest
+    env:
+      BUILD_DIR: combine
+    needs:
+      - variables
+      - fc_matrix
+    steps:
+      - name: Checkout px4-firmware
+        uses: actions/checkout@v4
+        with:
+          path: px4-firmware
+          submodules: true
+          token: ${{ secrets.GH_REPO_TOKEN }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Download pixhawk artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: bin
+          pattern: saluki-*
+          merge-multiple: true
+      - name: Firmware flasher - Container metadata
+        id: containermeta # referenced from later step
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/tiiuae/px4-firmware-ota-container
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Minimal OTA container
+        run: |
+          set -eux
+          echo "Building minimal OTA container"
+          PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-v3_flat ssrc_saluki-nxp93_flat ssrc_saluki-nxp93_default"
+          MINIMAL_WORK_DIR="minimal_ota"
+
+          # check what we have after download
+          ls -al
+          find bin -type f
+
+          # copy firmware files to minimal ota dir from each product
+          for product in $PRODUCTS_TO_INCLUDE; do
+            # skip if product not built
+            if [ ! -d bin/${product}*.px4 ]; then
+              echo "Product $product not built, skipping"
+              continue
+            fi
+
+            # create product dir and copy files
+            mkdir -p $MINIMAL_WORK_DIR/$product
+            cp bin/${product}*px4 $MINIMAL_WORK_DIR/$product/
+            cp bin/${product}*json $MINIMAL_WORK_DIR/$product/
+          done
+
+          # debug: check we have all needed files
+          find $MINIMAL_WORK_DIR -type f
+
+          # generate basic build info for minimal ota
+          pushd px4-firmware
+          build_basic_info_json=$(mktemp)
+          Tools/generate_basic_build_info.sh $build_basic_info_json
+
+          # combine saluki json files to one file
+          # python Tools/saluki_packaging/combine-json.py saluki_file_info.json ${MINIMAL_WORK_DIR} ${{ env.BUILD_DIR }}/fpga-file-info.json $build_basic_info_json
+          Tools/saluki_packaging/combine-json.py -b ${build_basic_info_json} -p ${MINIMAL_WORK_DIR} -o /tmp/combine.json
+          popd
+
+          echo "Combined minimal ota json: /tmp/combine.json"
+          cat /tmp/combine.json
