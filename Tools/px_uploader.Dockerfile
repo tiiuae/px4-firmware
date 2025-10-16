@@ -19,4 +19,4 @@ ADD px4-firmware/Tools/px_uploader.entrypoint /entrypoint.sh
 # copy /bin/* -> /firmware/*
 ADD bin/ /firmware/
 
-ADD px4-firmware/ssrc_config /flight_modes
+ADD px4-firmware/ssrc_config* /flight_modes
