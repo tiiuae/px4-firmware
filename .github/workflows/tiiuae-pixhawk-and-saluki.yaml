@@ -343,6 +343,7 @@ jobs:
     name: upload minimal ota container to docker registry
     runs-on: ubuntu-latest
     env:
+      REPACKAGE_DIR: repackage
       BUILD_DIR: repackage/bin
       COMBINED_OUTPUT_JSON: ${{ github.workspace }}/repackage/combine.json
     needs:
@@ -423,6 +424,9 @@ jobs:
           echo "Combined minimal ota json: ${{ env.COMBINED_OUTPUT_JSON }}"
           cat ${{ env.COMBINED_OUTPUT_JSON }}
 
+          # workaround - copy px_uploader.entrypoint to repackage dir so we can use it in docker build
+          mkdir -p repackage/px4-firmware/Tools
+          cp px4-firmware/Tools/px_uploader.entrypoint repackage/px4-firmware/Tools/
       - name: Firmware flasher - Build and push
         uses: docker/build-push-action@v5
         with:
