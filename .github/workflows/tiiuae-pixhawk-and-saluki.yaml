@@ -416,10 +416,10 @@ jobs:
           Tools/generate_basic_build_info.sh $build_basic_info_json
 
           # combine saluki json files to one file
-          Tools/saluki_packaging/tools/combine-json.py -b ${build_basic_info_json} -p ${MINIMAL_WORK_DIR} -o /tmp/combine.json
+          Tools/saluki_packaging/tools/combine-json.py -b ${build_basic_info_json} -p ${MINIMAL_WORK_DIR} -o ${{ env.BUILD_DIR }}/combine.json
           popd
 
-          echo "Combined minimal ota json: /tmp/combine.json"
+          echo "Combined minimal ota json: ${{ env.BUILD_DIR }}/combine.json"
           cat ${{ env.BUILD_DIR }}/combine.json
       - name: Firmware flasher - Build and push
         uses: docker/build-push-action@v5
