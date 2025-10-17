@@ -389,7 +389,7 @@ jobs:
           set -eux
           echo "Building minimal OTA container"
           PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-v3_flat ssrc_saluki-nxp93_flat ssrc_saluki-nxp93_default"
-          MINIMAL_WORK_DIR=$(mktemp -d)
+          REPACKAGE_DIR=$(mktemp -d)
 
           # check what we have after download
           ls -al
@@ -404,13 +404,13 @@ jobs:
             fi
 
             # create product dir and copy files
-            mkdir -p $MINIMAL_WORK_DIR/$product
-            cp ${{ env.BUILD_DIR }}/${product}*px4 $MINIMAL_WORK_DIR/$product/
-            cp ${{ env.BUILD_DIR }}/${product}*json $MINIMAL_WORK_DIR/$product/
+            mkdir -p ${{ env.REPACKAGE_DIR }}/$product
+            cp ${{ env.BUILD_DIR }}/${product}*px4 ${{ env.REPACKAGE_DIR }}/$product/
+            cp ${{ env.BUILD_DIR }}/${product}*json ${{ env.REPACKAGE_DIR }}/$product/
           done
 
           # debug: check we have all needed files
-          find $MINIMAL_WORK_DIR -type f
+          find ${{ env.REPACKAGE_DIR }} -type f
 
           # generate basic build info for minimal ota
           pushd px4-firmware
@@ -418,24 +418,24 @@ jobs:
           Tools/generate_basic_build_info.sh $build_basic_info_json
 
           # combine saluki json files to one file
-          Tools/saluki_packaging/tools/combine-json.py -b ${build_basic_info_json} -p ${MINIMAL_WORK_DIR} -o ${{ env.COMBINED_OUTPUT_JSON }}
+          Tools/saluki_packaging/tools/combine-json.py -b ${build_basic_info_json} -p ${{ env.REPACKAGE_DIR }} -o ${{ env.REPACKAGE_DIR }}/saluki_file_info.json
           popd
 
-          echo "Combined minimal ota json: ${{ env.COMBINED_OUTPUT_JSON }}"
-          cat ${{ env.COMBINED_OUTPUT_JSON }}
+          echo "Combined minimal ota json: ${{ env.REPACKAGE_DIR }}/saluki_file_info.json"
+          cat ${{ env.REPACKAGE_DIR }}/saluki_file_info.json
 
           # workaround - copy px_uploader.entrypoint to repackage dir so we can use it in docker build
-          mkdir -p repackage/px4-firmware/Tools
-          cp px4-firmware/Tools/px_uploader.entrypoint repackage/px4-firmware/Tools/
+          mkdir -p ${{ env.REPACKAGE_DIR }}/px4-firmware/Tools
+          cp px4-firmware/Tools/px_uploader.entrypoint ${{ env.REPACKAGE_DIR }}/px4-firmware/Tools/
       - name: Firmware flasher - Build and push
         uses: docker/build-push-action@v5
         with:
           push: true
-          context: repackage
+          context: ${{ env.REPACKAGE_DIR }}
           # build for x86 and arm64
           platforms: linux/amd64,linux/arm64
           file: px4-firmware/Tools/px_uploader.Dockerfile
           tags: ${{ steps.containermeta.outputs.tags }}
           labels: ${{ steps.containermeta.outputs.labels }}
           build-args: |
-            "SALUKI_FILE_INFO_JSON=combine.json"
+            "SALUKI_FILE_INFO_JSON=saluki_file_info.json"
