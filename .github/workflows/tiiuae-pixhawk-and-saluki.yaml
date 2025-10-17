@@ -422,6 +422,7 @@ jobs:
 
           echo "Combined minimal ota json: ${{ env.COMBINED_OUTPUT_JSON }}"
           cat ${{ env.COMBINED_OUTPUT_JSON }}
+
       - name: Firmware flasher - Build and push
         uses: docker/build-push-action@v5
         with:
@@ -433,4 +434,4 @@ jobs:
           tags: ${{ steps.containermeta.outputs.tags }}
           labels: ${{ steps.containermeta.outputs.labels }}
           build-args: |
-            "SALUKI_FILE_INFO_JSON=${{ env.COMBINED_OUTPUT_JSON }}"
+            "SALUKI_FILE_INFO_JSON=combine.json"
