@@ -343,7 +343,7 @@ jobs:
     name: upload minimal ota container to docker registry
     runs-on: ubuntu-latest
     env:
-      BUILD_DIR: combine
+      BUILD_DIR: bin
     needs:
       - variables
       - fc_matrix
@@ -363,7 +363,7 @@ jobs:
       - name: Download pixhawk artifacts
         uses: actions/download-artifact@v4
         with:
-          path: bin
+          path: ${{ env.BUILD_DIR }}
           pattern: saluki-*
           merge-multiple: true
       - name: Firmware flasher - Container metadata
@@ -391,20 +391,20 @@ jobs:
 
           # check what we have after download
           ls -al
-          find bin -type f
+          find ${{ env.BUILD_DIR }} -type f
 
           # copy firmware files to minimal ota dir from each product
           for product in $PRODUCTS_TO_INCLUDE; do
             # skip if product not built
-            if [ ! -f bin/${product}*.px4 ]; then
+            if [ ! -f ${{ env.BUILD_DIR }}/${product}*.px4 ]; then
               echo "Product $product not built, skipping"
               continue
             fi
 
             # create product dir and copy files
             mkdir -p $MINIMAL_WORK_DIR/$product
-            cp bin/${product}*px4 $MINIMAL_WORK_DIR/$product/
-            cp bin/${product}*json $MINIMAL_WORK_DIR/$product/
+            cp ${{ env.BUILD_DIR }}/${product}*px4 $MINIMAL_WORK_DIR/$product/
+            cp ${{ env.BUILD_DIR }}/${product}*json $MINIMAL_WORK_DIR/$product/
           done
 
           # debug: check we have all needed files
@@ -420,4 +420,17 @@ jobs:
           popd
 
           echo "Combined minimal ota json: /tmp/combine.json"
-          cat /tmp/combine.json
+          cat ${{ env.BUILD_DIR }}/combine.json
+      - name: Firmware flasher - Build and push
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          context: .
+          # build for x86 and arm64
+          platforms: linux/amd64,linux/arm64
+          file: px4-firmware/Tools/px_uploader.Dockerfile
+          tags: ${{ steps.containermeta.outputs.tags }}
+          labels: ${{ steps.containermeta.outputs.labels }}
+          build-args: |
+            "saluki_fpga_directory=${{ env.BUILD_DIR }}"
+            "SALUKI_FILE_INFO_JSON=${{ env.BUILD_DIR }}/combine.json"
