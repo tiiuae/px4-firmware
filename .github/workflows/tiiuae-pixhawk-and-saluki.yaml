@@ -344,6 +344,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUILD_DIR: bin
+      COMBINED_OUTPUT_JSON: combine.json
     needs:
       - variables
       - fc_matrix
@@ -352,8 +353,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: px4-firmware
-          submodules: true
+          submodules: false
           token: ${{ secrets.GH_REPO_TOKEN }}
+      - name: Checkout saluki_packaging submodule
+        run: |
+          cd px4-firmware
+          git submodule update --init Tools/saluki_packaging
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -416,11 +421,11 @@ jobs:
           Tools/generate_basic_build_info.sh $build_basic_info_json
 
           # combine saluki json files to one file
-          Tools/saluki_packaging/tools/combine-json.py -b ${build_basic_info_json} -p ${MINIMAL_WORK_DIR} -o ${{ env.BUILD_DIR }}/combine.json
+          Tools/saluki_packaging/tools/combine-json.py -b ${build_basic_info_json} -p ${MINIMAL_WORK_DIR} -o ${{ env.COMBINED_OUTPUT_JSON }}
           popd
 
-          echo "Combined minimal ota json: ${{ env.BUILD_DIR }}/combine.json"
-          cat ${{ env.BUILD_DIR }}/combine.json
+          echo "Combined minimal ota json: ${{ env.COMBINED_OUTPUT_JSON }}"
+          cat ${{ env.COMBINED_OUTPUT_JSON }}
       - name: Firmware flasher - Build and push
         uses: docker/build-push-action@v5
         with:
@@ -433,4 +438,4 @@ jobs:
           labels: ${{ steps.containermeta.outputs.labels }}
           build-args: |
             "saluki_fpga_directory=${{ env.BUILD_DIR }}"
-            "SALUKI_FILE_INFO_JSON=${{ env.BUILD_DIR }}/combine.json"
+            "SALUKI_FILE_INFO_JSON=${{ env.COMBINED_OUTPUT_JSON }}"
