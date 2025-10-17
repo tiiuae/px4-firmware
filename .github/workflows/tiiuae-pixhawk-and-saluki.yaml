@@ -353,12 +353,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: px4-firmware
-          submodules: false
+          submodules: true
           token: ${{ secrets.GH_REPO_TOKEN }}
-      - name: Checkout saluki_packaging submodule
-        run: |
-          cd px4-firmware
-          git submodule update --init Tools/saluki_packaging
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
