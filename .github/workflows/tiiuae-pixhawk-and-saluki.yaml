@@ -344,7 +344,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUILD_DIR: bin
-      COMBINED_OUTPUT_JSON: ${{ github.workspace }}/combine.json
+      COMBINED_OUTPUT_JSON: ${{ github.workspace }}/bin/combine.json
     needs:
       - variables
       - fc_matrix
@@ -427,11 +427,11 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          context: .
+          context: bin
           # build for x86 and arm64
           platforms: linux/amd64,linux/arm64
           file: px4-firmware/Tools/px_uploader.Dockerfile
           tags: ${{ steps.containermeta.outputs.tags }}
           labels: ${{ steps.containermeta.outputs.labels }}
           build-args: |
-            "SALUKI_FILE_INFO_JSON=combine.json"
+            "SALUKI_FILE_INFO_JSON=$(basename ${{ env.COMBINED_OUTPUT_JSON }})"
