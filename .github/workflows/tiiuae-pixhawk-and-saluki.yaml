@@ -433,5 +433,4 @@ jobs:
           tags: ${{ steps.containermeta.outputs.tags }}
           labels: ${{ steps.containermeta.outputs.labels }}
           build-args: |
-            "saluki_fpga_directory=${{ env.BUILD_DIR }}"
             "SALUKI_FILE_INFO_JSON=${{ env.COMBINED_OUTPUT_JSON }}"
