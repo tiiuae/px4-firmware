@@ -343,8 +343,8 @@ jobs:
     name: upload minimal ota container to docker registry
     runs-on: ubuntu-latest
     env:
-      BUILD_DIR: bin
-      COMBINED_OUTPUT_JSON: ${{ github.workspace }}/bin/combine.json
+      BUILD_DIR: repackage/bin
+      COMBINED_OUTPUT_JSON: ${{ github.workspace }}/repackage/combine.json
     needs:
       - variables
       - fc_matrix
@@ -427,7 +427,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          context: bin
+          context: repackage
           # build for x86 and arm64
           platforms: linux/amd64,linux/arm64
           file: px4-firmware/Tools/px_uploader.Dockerfile
