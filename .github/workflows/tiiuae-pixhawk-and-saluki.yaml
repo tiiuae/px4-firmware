@@ -344,7 +344,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUILD_DIR: bin
-      COMBINED_OUTPUT_JSON: combine.json
+      COMBINED_OUTPUT_JSON: ${{ github.workspace }}/combine.json
     needs:
       - variables
       - fc_matrix
