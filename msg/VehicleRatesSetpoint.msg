@@ -10,3 +10,6 @@ float32 yaw		# [rad/s] yaw rate setpoint
 float32[3] thrust_body	# Normalized thrust command in body NED frame [-1,1]
 
 bool reset_integral # Reset roll/pitch/yaw integrals (navigation logic change)
+
+# TOPICS vehicle_rates_setpoint
+# TOPICS redundant_rates_setpoint0 redundant_rates_setpoint1
