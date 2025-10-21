@@ -2175,10 +2175,9 @@ MavlinkReceiver::handle_message_heartbeat(mavlink_message_t *msg)
 
 		if (redundant_fc) {
 			int fc_idx = msg->compid - MAV_COMP_ID_AUTOPILOT1;
-
-			_redundant_status[fc_idx].system_id = msg->sysid;
-			_redundant_status[fc_idx].component_id = msg->compid;
-
+			vehicle_status_s redundant_status = {};
+			redundant_status.system_id = msg->sysid;
+			redundant_status.component_id = msg->compid;
 
 			/* publish the redundant status topic */
 
@@ -2195,16 +2194,16 @@ MavlinkReceiver::handle_message_heartbeat(mavlink_message_t *msg)
 				break;
 			}
 
-			_redundant_status[fc_idx].arming_state = arming_state;
+			redundant_status.arming_state = arming_state;
 
-			_redundant_status[fc_idx].calibration_enabled = hb.system_status == MAV_STATE_CALIBRATING;
+			redundant_status.calibration_enabled = hb.system_status == MAV_STATE_CALIBRATING;
 
-			_redundant_status[fc_idx].hil_state = hb.base_mode & MAV_MODE_FLAG_HIL_ENABLED ? vehicle_status_s::HIL_STATE_ON :
-							      vehicle_status_s::HIL_STATE_OFF;
+			redundant_status.hil_state = hb.base_mode & MAV_MODE_FLAG_HIL_ENABLED ? vehicle_status_s::HIL_STATE_ON :
+						     vehicle_status_s::HIL_STATE_OFF;
 
-			_redundant_status[fc_idx].timestamp = hrt_absolute_time();
+			redundant_status.timestamp = hrt_absolute_time();
 
-			_redundant_status_pub[fc_idx].publish(_redundant_status[fc_idx]);
+			_redundant_status_pub[fc_idx].publish(redundant_status);
 
 		} else if (same_system || hb.type == MAV_TYPE_GCS) {
 
