@@ -335,6 +335,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_actuator_output_status(msg);
 		break;
 
+	case MAVLINK_MSG_ID_ATTITUDE_TARGET:
+		handle_message_attitude_target(msg);
+		break;
+
 	default:
 		break;
 	}
@@ -3108,6 +3112,38 @@ MavlinkReceiver::handle_message_actuator_output_status(mavlink_message_t *msg)
 		}
 
 		_redundant_actuator_outputs_pub[fc_idx].publish(actuator_outputs);
+	}
+}
+
+void
+MavlinkReceiver::handle_message_attitude_target(mavlink_message_t *msg)
+{
+	/* Unpack attitude_target message into redundant_rates_setpoint */
+
+	int fc_idx = msg->compid - MAV_COMP_ID_AUTOPILOT1;
+
+	if (fc_idx >= 0 && fc_idx < vehicle_status_s::MAX_REDUNDANT_CONTROLLERS) {
+		mavlink_attitude_target_t attitude_target_msg;
+		mavlink_msg_attitude_target_decode(msg, &attitude_target_msg);
+
+		/* If any of the fields is not valid, we don't publish it for  now, as the
+		 * message would be unusable for the redundancy module. If there is a finer
+		 * grain control needed, the invalid fields would need to be set as recognizable
+		 * values (e.g. NAN) and handled properly.
+		 */
+
+		if (attitude_target_msg.type_mask == 0) {
+			vehicle_rates_setpoint_s redundant_rates_setpoint{};
+			vehicle_status_s vehicle_status{};
+			_vehicle_status_sub.copy(&vehicle_status);
+
+			redundant_rates_setpoint.timestamp = hrt_absolute_time();
+			redundant_rates_setpoint.roll = attitude_target_msg.body_roll_rate;
+			redundant_rates_setpoint.pitch = attitude_target_msg.body_pitch_rate;
+			redundant_rates_setpoint.yaw = attitude_target_msg.body_yaw_rate;
+			fill_thrust(redundant_rates_setpoint.thrust_body, vehicle_status.vehicle_type, attitude_target_msg.thrust);
+			_redundant_rates_setpoint_pub[fc_idx].publish(redundant_rates_setpoint);
+		}
 	}
 }
 
