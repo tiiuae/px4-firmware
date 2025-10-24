@@ -23,6 +23,14 @@ else
         if [[ $NAME = saluki* ]]
         then
             default_signing_args=Tools/saluki-sec-scripts/test_keys/$NAME/ed25519_test_key.pem
+
+            if [[ "$SIGNING_KEY" == *hsm* ]]; then
+                echo "Using HSM for signing"
+                export SIGNING_TOOL=Tools/saluki-sec-scripts/sign_by_hsm.py
+            else
+                echo "Using keyfile script for signing"
+                export SIGNING_TOOL=Tools/saluki-sec-scripts/sign_by_keyfile.py
+            fi
         else
             default_signing_args=Tools/test_keys/ed25519_test_key.pem
         fi
