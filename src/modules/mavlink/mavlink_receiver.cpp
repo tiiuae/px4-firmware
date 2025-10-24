@@ -335,6 +335,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_actuator_output_status(msg);
 		break;
 
+	case MAVLINK_MSG_ID_ATTITUDE_TARGET:
+		handle_message_attitude_target(msg);
+		break;
+
 	default:
 		break;
 	}
@@ -2175,10 +2179,9 @@ MavlinkReceiver::handle_message_heartbeat(mavlink_message_t *msg)
 
 		if (redundant_fc) {
 			int fc_idx = msg->compid - MAV_COMP_ID_AUTOPILOT1;
-
-			_redundant_status[fc_idx].system_id = msg->sysid;
-			_redundant_status[fc_idx].component_id = msg->compid;
-
+			vehicle_status_s redundant_status = {};
+			redundant_status.system_id = msg->sysid;
+			redundant_status.component_id = msg->compid;
 
 			/* publish the redundant status topic */
 
@@ -2195,16 +2198,16 @@ MavlinkReceiver::handle_message_heartbeat(mavlink_message_t *msg)
 				break;
 			}
 
-			_redundant_status[fc_idx].arming_state = arming_state;
+			redundant_status.arming_state = arming_state;
 
-			_redundant_status[fc_idx].calibration_enabled = hb.system_status == MAV_STATE_CALIBRATING;
+			redundant_status.calibration_enabled = hb.system_status == MAV_STATE_CALIBRATING;
 
-			_redundant_status[fc_idx].hil_state = hb.base_mode & MAV_MODE_FLAG_HIL_ENABLED ? vehicle_status_s::HIL_STATE_ON :
-							      vehicle_status_s::HIL_STATE_OFF;
+			redundant_status.hil_state = hb.base_mode & MAV_MODE_FLAG_HIL_ENABLED ? vehicle_status_s::HIL_STATE_ON :
+						     vehicle_status_s::HIL_STATE_OFF;
 
-			_redundant_status[fc_idx].timestamp = hrt_absolute_time();
+			redundant_status.timestamp = hrt_absolute_time();
 
-			_redundant_status_pub[fc_idx].publish(_redundant_status[fc_idx]);
+			_redundant_status_pub[fc_idx].publish(redundant_status);
 
 		} else if (same_system || hb.type == MAV_TYPE_GCS) {
 
@@ -3109,6 +3112,30 @@ MavlinkReceiver::handle_message_actuator_output_status(mavlink_message_t *msg)
 		}
 
 		_redundant_actuator_outputs_pub[fc_idx].publish(actuator_outputs);
+	}
+}
+
+void
+MavlinkReceiver::handle_message_attitude_target(mavlink_message_t *msg)
+{
+	/* Unpack attitude_target message into redundant_rates_setpoint */
+
+	int fc_idx = msg->compid - MAV_COMP_ID_AUTOPILOT1;
+
+	if (fc_idx >= 0 && fc_idx < vehicle_status_s::MAX_REDUNDANT_CONTROLLERS) {
+		mavlink_attitude_target_t attitude_target_msg;
+		mavlink_msg_attitude_target_decode(msg, &attitude_target_msg);
+		vehicle_rates_setpoint_s redundant_rates_setpoint{};
+		vehicle_status_s vehicle_status{};
+		_vehicle_status_sub.copy(&vehicle_status);
+
+		redundant_rates_setpoint.timestamp = hrt_absolute_time();
+		redundant_rates_setpoint.roll = attitude_target_msg.body_roll_rate;
+		redundant_rates_setpoint.pitch = attitude_target_msg.body_pitch_rate;
+		redundant_rates_setpoint.yaw = attitude_target_msg.body_yaw_rate;
+		fill_thrust(redundant_rates_setpoint.thrust_body, vehicle_status.vehicle_type, attitude_target_msg.thrust);
+
+		_redundant_rates_setpoint_pub[fc_idx].publish(redundant_rates_setpoint);
 	}
 }
 
