@@ -23,6 +23,7 @@ usage() {
   echo "     saluki-v3_flat"
   echo "     saluki-v3_custom_keys"
   echo "     saluki-nxp93_flat"
+  echo "     saluki-nxp93_default"
   echo
   exit 1
 }
@@ -31,6 +32,15 @@ if [ -z ${SIGNING_ARGS+x} ]; then
 else
   echo "using custom signing keys: ${SIGNING_ARGS}"
 fi
+
+if [ -z ${SIGNING_KEY+x} ]; then
+  SIGNING_KEY=""
+fi
+
+if [ -z ${HSM_TOKENDIR+x} ]; then
+  HSM_TOKENDIR="${HOME}/softhsm/tokens/"
+fi
+
 
 dest_dir="${1:-}"
 target="${2:-}"
@@ -43,17 +53,24 @@ version=$(git describe --always --tags --dirty | sed 's/^v//')
 script_dir=$(dirname $(realpath $0))
 dest_dir=$(realpath $1)
 iname_env=tii_px4_build
+hsm_iname_env=tii_px4_build_hsm
 
 mkdir -p ${dest_dir}
 pushd ${script_dir}
 
 build_env="docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --pull -f ./packaging/Dockerfile.build_env -t ${iname_env} ."
-build_cmd_fw="docker run --rm -e SIGNING_ARGS=${SIGNING_ARGS} -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
+build_cmd_fw="docker run --rm -e SIGNING_KEY=${SIGNING_KEY} -e SIGNING_ARGS=${SIGNING_ARGS} -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
 build_cmd_px4fwupdater="${script_dir}/packaging/build_px4fwupdater.sh -v ${version} -i ${dest_dir}"
+hsm_build_env="docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --pull -f ./packaging/Dockerfile.build_env_hsm -t ${hsm_iname_env} ."
+hsm_build_cmd_fw="docker run --rm -e SIGNING_KEY=${SIGNING_KEY} -e SIGNING_ARGS=${SIGNING_ARGS} -v ${HSM_TOKENDIR}:/softhsm/tokens -v ${script_dir}:/px4-firmware/sources ${hsm_iname_env} ./packaging/build_px4fw.sh"
 
 # Generate build_env
-if [ "${target}" != px4fwupdater ]; then
-  $build_env
+if [[ "$SIGNING_KEY" == "hsm" ]]; then
+  $hsm_build_env
+else
+  if [ "${target}" != px4fwupdater ]; then
+    $build_env
+  fi
 fi
 
 json_output="{\"type\":\"px4-firmware\",\
@@ -98,7 +115,11 @@ case $target in
   # handle all normal ssrc targets
   saluki-*)
     build_target="ssrc_${target}"
-    $build_cmd_fw ${build_target}
+    if [[ ${SIGNING_KEY} = "hsm" ]]; then
+      $hsm_build_cmd_fw ${build_target}
+    else
+      $build_cmd_fw ${build_target}
+    fi
 
     elf_target=${build_target}_kernel.elf
     # in flat builds kernel.elf has a different name

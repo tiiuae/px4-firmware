@@ -23,6 +23,14 @@ else
             if [ -z "$SIGNING_ARGS" ]; then
                 export SIGNING_ARGS=Tools/saluki-sec-scripts/test_keys/$NAME/secp384r1_test_key0.pem
             fi
+
+	    if [[ "$SIGNING_KEY" == *hsm* ]]; then
+               echo "Using HSM for signing"
+               export SIGNING_TOOL=Tools/saluki-sec-scripts/sign_by_hsm.py
+            else
+               echo "Using keyfile script for signing"
+               export SIGNING_TOOL=Tools/saluki-sec-scripts/sign_by_keyfile.py
+            fi
         else
             export SIGNING_TOOL=Tools/cryptotools.py
             unset SIGNING_ARGS
