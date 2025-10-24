@@ -1,0 +1,44 @@
+# px4-firmware builder environment
+FROM ghcr.io/tiiuae/px4-firmware-builder-base:latest
+
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd -o -g $GID builder && \
+    useradd -m -u $UID -g $GID -g builder builder && \
+    usermod -aG sudo builder && \
+    echo 'builder ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+RUN mkdir -p /px4-firmware && chown -R builder:builder /px4-firmware
+RUN mkdir -p /artifacts && chown -R builder:builder /artifacts
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libengine-pkcs11-openssl \
+    softhsm2 \
+    libsofthsm2-dev \
+    opensc \
+    opensc-pkcs11
+
+RUN pip3 install python-pkcs11
+RUN mkdir -p /softhsm/tokens/
+RUN chown -R builder:builder /softhsm
+RUN cp /etc/softhsm/softhsm2.conf /home/builder/
+RUN chown builder:builder /home/builder/softhsm2.conf
+
+USER builder
+
+# Define Rust compiler
+ENV RUSTUP_HOME=/opt/rust CARGO_HOME=/home/builder/.cargo
+ENV PATH=$PATH:/opt/rust/bin
+
+# Using /softhsm/tokens/ as tokendir. Host tokens can be shared with container by mounting host token dir to that.
+# This assumes that tokendir is accessible by the user. Does not work correctly e.g. /var/lib/softhsm/tokens
+RUN sed -i 's|/var/lib/softhsm/tokens/|/softhsm/tokens/|g' /home/builder/softhsm2.conf
+
+ENV SOFTHSM2_CONF=/home/builder/softhsm2.conf
+ENV PKCS11_MODULE=/usr/lib/softhsm/libsofthsm2.so
+
+VOLUME /px4-firmware/sources
+WORKDIR /px4-firmware/sources
+
+RUN git config --global --add safe.directory /px4-firmware/sources
