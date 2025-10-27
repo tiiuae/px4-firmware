@@ -1854,7 +1854,7 @@ Mavlink::task_main(int argc, char *argv[])
 	int temp_int_arg;
 #endif
 
-	while ((ch = px4_getopt(argc, argv, "b:r:d:n:u:o:m:t:i:c:fswxyzZp", &myoptind, &myoptarg)) != EOF) {
+	while ((ch = px4_getopt(argc, argv, "b:r:d:n:u:o:m:t:i:c:fgswxyzZp", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 'b':
 			if (px4_get_parameter_value(myoptarg, _baudrate) != 0) {
@@ -2067,6 +2067,19 @@ Mavlink::task_main(int argc, char *argv[])
 		case 'f':
 			_forwarding_on = true;
 			break;
+
+		case 'g': {
+				sched_param sch;
+				int policy;
+				pthread_getschedparam(pthread_self(), &policy, &sch);
+				sch.sched_priority = SCHED_PRIORITY_MAX - 80;
+
+				if (pthread_setschedparam(pthread_self(), policy, &sch)) {
+					PX4_ERR("Failed to set increased priority for the mavlink instance");
+				}
+
+				break;
+			}
 
 		case 's':
 			_use_software_mav_throttling = true;
@@ -3324,6 +3337,7 @@ $ mavlink stream -u 14556 -s HIGHRES_IMU -r 50
 	PRINT_MODULE_USAGE_PARAM_STRING('n', nullptr, "<interface_name>", "wifi/ethernet interface name", true);
 	PRINT_MODULE_USAGE_PARAM_STRING('c', nullptr, "Multicast address in the range [239.0.0.0,239.255.255.255]", "Multicast address (multicasting can be enabled via MAV_{i}_BROADCAST param)", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('f', "Enable message forwarding to other Mavlink instances", true);
+	PRINT_MODULE_USAGE_PARAM_FLAG('g', "HiGh priority streaming. Stream sending runs at equal priority as receiving.", false);
 	PRINT_MODULE_USAGE_PARAM_FLAG('w', "Wait to send, until first message received", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('x', "Enable FTP", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('y', "Enable Critical Action support", true);
