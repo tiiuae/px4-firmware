@@ -55,6 +55,8 @@ set(msg_files
 	BatteryStatus.msg
 	Buffer128.msg
 	ButtonEvent.msg
+	CalibrationCommand.msg
+	CalibrationStatus.msg
 	CameraCapture.msg
 	CameraStatus.msg
 	CameraTrigger.msg
