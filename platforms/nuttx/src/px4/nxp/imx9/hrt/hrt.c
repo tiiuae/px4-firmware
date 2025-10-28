@@ -474,13 +474,6 @@ hrt_call_invoke(void)
 		hrt_callout callout = call->callout;
 		void *arg = call->arg;
 
-		if (callout) {
-			hrtinfo("call %p: %p(%p)\n", call, callout, arg);
-			spin_unlock_notrace(&g_hrt_lock);
-			callout(arg);
-			spin_lock_notrace(&g_hrt_lock);
-		}
-
 		/* if the callout has a non-zero period, it has to be re-entered */
 		if (call->period != 0) {
 			// re-check call->deadline to allow for
@@ -491,6 +484,14 @@ hrt_call_invoke(void)
 			}
 
 			hrt_call_enter(call);
+		}
+
+		if (callout) {
+			hrtinfo("call %p: %p(%p)\n", call, callout, arg);
+
+			spin_unlock_notrace(&g_hrt_lock);
+			callout(arg);
+			spin_lock_notrace(&g_hrt_lock);
 		}
 	}
 }
