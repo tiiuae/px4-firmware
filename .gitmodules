@@ -148,3 +148,6 @@
 [submodule "src/modules/redundancy"]
 	path = src/modules/redundancy
 	url = git@github.com:tiiuae/px4_redundancy.git
+[submodule "src/modules/calibration_bridge"]
+	path = src/modules/calibration_bridge
+	url = git@github.com:tiiuae/calibration-bridge.git
