@@ -49,6 +49,8 @@ set(msg_files
 	AutotuneAttitudeControlStatus.msg
 	BatteryInfo.msg
 	ButtonEvent.msg
+	CalibrationCommand.msg
+	CalibrationStatus.msg
 	CameraCapture.msg
 	CameraStatus.msg
 	CameraTrigger.msg
