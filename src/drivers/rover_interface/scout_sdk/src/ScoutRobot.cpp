@@ -175,7 +175,7 @@ void ScoutRobot::CheckUpdateFromRover()
 	AgxMessage status_msg;
 
 	if (_parser.DecodeMessage(&_rx_frame, &status_msg)) {
-		UpdateRobotCoreState(status_msg);	// 0x211
+		UpdateRobotCoreState(status_msg);
 	}
 }
 

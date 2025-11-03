@@ -149,8 +149,8 @@ void RoverInterface::Init()
 	// Breathing mode light by default when not armed
 	_scout->SetLightCommand(LightMode::BREATH, 0);
 
-	// Allow reception of rover motion control feedback message only
-	_scout->AllowOnlyMotionControlFeedback();
+	// Allow reception of system status feedback message only
+	_scout->AllowOnlySystemStatusFeedback();
 
 	_initialized = true;
 }
@@ -329,17 +329,10 @@ void RoverInterface::PublishRoverState()
 
 	// Assign the values to the PX4 side ORB msg
 	_rover_status_msg.timestamp = hrt_absolute_time();
-	_rover_status_msg.linear_velocity = robot_state.motion_state.linear_velocity;
-	_rover_status_msg.angular_velocity = robot_state.motion_state.angular_velocity;
 	_rover_status_msg.vehicle_state = robot_state.system_state.vehicle_state;
 	_rover_status_msg.control_mode = robot_state.system_state.control_mode;
 	_rover_status_msg.error_code = robot_state.system_state.error_code;
 	_rover_status_msg.battery_voltage = robot_state.system_state.battery_voltage;
-	_rover_status_msg.light_control_enable = robot_state.light_state.enable_cmd_ctrl;
-	_rover_status_msg.front_light_mode = robot_state.light_state.front_light.mode;
-	_rover_status_msg.front_light_custom_value = robot_state.light_state.front_light.custom_value;
-	_rover_status_msg.rear_light_mode = robot_state.light_state.rear_light.mode;
-	_rover_status_msg.rear_light_custom_value = robot_state.light_state.rear_light.custom_value;
 
 	if (orb_advert_valid(_rover_status_pub)) {
 		orb_publish(ORB_ID(rover_status), _rover_status_pub, &_rover_status_msg);

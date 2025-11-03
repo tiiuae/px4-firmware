@@ -68,8 +68,8 @@ public:
 	const ScoutActuatorState &GetActuatorState() const { return _actuator_state_msgs; }
 	const ScoutMotorState &GetMotorState() const { return _motor_state_msgs; }
 
-	// Allow only motion control feedback message reception
-	void AllowOnlyMotionControlFeedback() { _can->SetMaskFilter(_parser.GetCanId(AgxMsgMotionState), CAN_SFF_MASK); }
+	// Allow only system status feedback message reception
+	void AllowOnlySystemStatusFeedback() { _can->SetMaskFilter(_parser.GetCanId(AgxMsgSystemState), CAN_SFF_MASK); }
 
 private:
 	void UpdateRobotCoreState(const AgxMessage &status_msg);
