@@ -280,8 +280,13 @@ jobs:
           # build
           echo "BUILD[build PX4 fwupdater]"                  >> $GITHUB_STEP_SUMMARY
 
-          # output
-          echo "OUTPUT[($(echo ${container_name}|sed 's/:/<br>/'))]" >> $GITHUB_STEP_SUMMARY
+          # output px4-firmware container
+          container_output_label=$(echo ${container_name}|sed 's/:/<br>/')
+          echo "OUTPUT[(${container_output_label})]" >> $GITHUB_STEP_SUMMARY
+
+          # ota container output (px4-firmware-ota-container instead of px4-fwupdater)
+          ota_container_label=$(echo ${container_name}|sed 's/px4-firmware/px4-firmware-ota-container/')
+          echo "OTA_OUTPUT[(${ota_container_label})]" >> $GITHUB_STEP_SUMMARY
 
           # links
           echo "PX4-SHA --> BUILD"                 >> $GITHUB_STEP_SUMMARY
@@ -291,6 +296,7 @@ jobs:
           echo "FPGA-FMU2 --> BUILD"               >> $GITHUB_STEP_SUMMARY
 
           echo "BUILD --> OUTPUT"                  >> $GITHUB_STEP_SUMMARY
+          echo "BUILD --> OTA_OUTPUT"              >> $GITHUB_STEP_SUMMARY
           # end mermaid flowchart
           echo '```'                               >> $GITHUB_STEP_SUMMARY
 
@@ -448,3 +454,18 @@ jobs:
           build-args: |
             "SALUKI_FILE_INFO_JSON=saluki_file_info.json"
             "FIRMWARE_DIRECTORY=firmware"
+      - name: OTA container update instructions
+        run: |
+          echo "### Update this container to manifest:" >> $GITHUB_STEP_SUMMARY
+
+          # in case more than one tag is generated, use the one which mentions commit sha
+          if (( $(echo "${{ steps.containermeta.outputs.tags }}" | wc -l) > 1 )); then
+            container_name=$(echo "${{ steps.containermeta.outputs.tags }}" | grep ':sha-' | head -n 1)
+          else
+            container_name="${{ steps.containermeta.outputs.tags }}"
+          fi
+          echo "Container name: ${container_name}"
+
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "fog manifest update-component --image ${container_name}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
