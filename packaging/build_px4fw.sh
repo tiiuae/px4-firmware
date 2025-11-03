@@ -24,15 +24,12 @@ else
                 export SIGNING_ARGS=Tools/saluki-sec-scripts/test_keys/$NAME/secp384r1_test_key0.pem
             fi
 
-            if [[ -z "$SIGNING_KEY" && "$NAME" == "saluki-nxp93" ]]; then
-               echo "Using secp384r1_sign.py script for signing"
-               export SIGNING_TOOL=Tools/saluki-sec-scripts/secp384r1_sign.py
-	    elif [[ "$SIGNING_KEY" = "hsm" ]]; then
+	    if [[ "$SIGNING_KEY" == *hsm* ]]; then
                echo "Using HSM for signing"
-               export SIGNING_TOOL=Tools/saluki-sec-scripts/sign_hsm.py
+               export SIGNING_TOOL=Tools/saluki-sec-scripts/sign_by_hsm.py
             else
-               echo "Using ed25519_sign.py script for signing"
-               export SIGNING_TOOL=Tools/saluki-sec-scripts/ed25519_sign.py
+               echo "Using keyfile script for signing"
+               export SIGNING_TOOL=Tools/saluki-sec-scripts/sign_by_keyfile.py
             fi
         else
             export SIGNING_TOOL=Tools/cryptotools.py
