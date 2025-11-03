@@ -11,7 +11,8 @@ RoverInterface::RoverInterface(uint8_t rover_type, uint32_t bitrate, float vehic
 	  ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::rover_interface),
 	  _rover_type(rover_type),
 	  _bitrate(bitrate),
-	  _vehicle_speed_max(vehicle_speed_max)
+	  _vehicle_speed_max(vehicle_speed_max),
+	  _battery(1, nullptr, RoverStatusPublishIntervalMs, battery_status_s::BATTERY_SOURCE_POWER_MODULE)
 {
 	pthread_mutex_init(&_node_mutex, nullptr);
 }
@@ -149,8 +150,8 @@ void RoverInterface::Init()
 	// Breathing mode light by default when not armed
 	_scout->SetLightCommand(LightMode::BREATH, 0);
 
-	// Allow reception of rover motion control feedback message only
-	_scout->AllowOnlyMotionControlFeedback();
+	// Allow reception of system status feedback message only
+	_scout->AllowOnlySystemStatusFeedback();
 
 	_initialized = true;
 }
@@ -329,17 +330,46 @@ void RoverInterface::PublishRoverState()
 
 	// Assign the values to the PX4 side ORB msg
 	_rover_status_msg.timestamp = hrt_absolute_time();
-	_rover_status_msg.linear_velocity = robot_state.motion_state.linear_velocity;
-	_rover_status_msg.angular_velocity = robot_state.motion_state.angular_velocity;
 	_rover_status_msg.vehicle_state = robot_state.system_state.vehicle_state;
 	_rover_status_msg.control_mode = robot_state.system_state.control_mode;
 	_rover_status_msg.error_code = robot_state.system_state.error_code;
 	_rover_status_msg.battery_voltage = robot_state.system_state.battery_voltage;
-	_rover_status_msg.light_control_enable = robot_state.light_state.enable_cmd_ctrl;
-	_rover_status_msg.front_light_mode = robot_state.light_state.front_light.mode;
-	_rover_status_msg.front_light_custom_value = robot_state.light_state.front_light.custom_value;
-	_rover_status_msg.rear_light_mode = robot_state.light_state.rear_light.mode;
-	_rover_status_msg.rear_light_custom_value = robot_state.light_state.rear_light.custom_value;
+
+	// Update battery status
+	if (_param_publish_battery_status.get()) {
+		_battery.setConnected(true);
+		_battery.updateVoltage(robot_state.system_state.battery_voltage);
+
+		// Calculate remaining percentage based on rover type
+		float max_voltage = 24.0f; // Default for most rovers
+
+		if (_rover_type == 5) { // Bunker
+			max_voltage = 48.0f;
+		}
+
+		// Calculate remaining as percentage (0.0 to 1.0)
+		float min_voltage = max_voltage * 0.8f;
+		float remaining = 1.0f;
+
+		if (robot_state.system_state.battery_voltage <= min_voltage) {
+			remaining = 0.0f;
+
+		} else if (robot_state.system_state.battery_voltage >= max_voltage) {
+			remaining = 1.0f;
+
+		} else {
+			remaining = (robot_state.system_state.battery_voltage - min_voltage) / (max_voltage - min_voltage);
+		}
+
+		// Set the calculated state of charge
+		_battery.setStateOfCharge(remaining);
+
+		// Update current (Use default Idle current at 1A since Scout rover doesn't provide current)
+		_battery.updateCurrent(1.0f);
+
+		// Update and publish battery status
+		_battery.updateAndPublishBatteryStatus(_rover_status_msg.timestamp);
+	}
 
 	if (orb_advert_valid(_rover_status_pub)) {
 		orb_publish(ORB_ID(rover_status), _rover_status_pub, &_rover_status_msg);
@@ -373,6 +403,9 @@ void RoverInterface::print_status()
 	// Arm / disarm / kill switch status
 	PX4_INFO("Rover is armed: %s. Kill switch: %s", _armed ? "true" : "false", _kill_switch ? "true" : "false");
 
+	// Battery status
+	PX4_INFO("Battery status publishing: %s", _param_publish_battery_status.get() ? "enabled" : "disabled");
+
 	// Subscription info
 	PX4_INFO("Subscribed to topics: %s, %s, %s",
 		 _vehicle_thrust_setpoint_sub.get_topic()->o_name,
@@ -381,6 +414,8 @@ void RoverInterface::print_status()
 
 	// Publication info
 	if (orb_advert_valid(_rover_status_pub)) { PX4_INFO("Publishing rover_status topic"); }
+
+	if (_param_publish_battery_status.get()) { PX4_INFO("Publishing battery_status topic"); }
 
 	// Performance counters
 	perf_print_counter(_cycle_perf);

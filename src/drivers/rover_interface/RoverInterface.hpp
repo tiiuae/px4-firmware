@@ -8,6 +8,7 @@
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 
 #include <lib/perf/perf_counter.h>
+#include <battery/battery.h>
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionInterval.hpp>
 #include <uORB/Publication.hpp>
@@ -110,8 +111,12 @@ private:
 	perf_counter_t _cycle_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle time")};
 	perf_counter_t _interval_perf{perf_alloc(PC_INTERVAL, MODULE_NAME": cycle interval")};
 
+	// Battery status reporting
+	Battery _battery;
+
 	DEFINE_PARAMETERS(
-		(ParamFloat<px4::params::RI_MAN_SPD_SC>) _param_man_speed_scale
+		(ParamFloat<px4::params::RI_MAN_SPD_SC>) _param_man_speed_scale,
+		(ParamInt<px4::params::RI_PUB_BATT>) _param_publish_battery_status
 	)
 
 	/**

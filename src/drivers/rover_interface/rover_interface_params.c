@@ -67,3 +67,13 @@ PARAM_DEFINE_INT32(RI_CAN_BITRATE, 500000);
  * @group Rover Interface
  */
 PARAM_DEFINE_FLOAT(RI_MAN_SPD_SC, 1.0);
+
+/**
+ * Rover interface battery status publishing.
+ *
+ * Enable publishing of battery status to QGroundControl.
+ *
+ * @boolean
+ * @group Rover Interface
+ */
+PARAM_DEFINE_INT32(RI_PUB_BATT, 1);
