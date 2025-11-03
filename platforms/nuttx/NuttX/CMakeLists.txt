@@ -169,6 +169,17 @@ add_library(nuttx_apps STATIC IMPORTED GLOBAL)
 set_property(TARGET nuttx_apps PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/apps/libapps.a)
 add_dependencies(nuttx_apps nuttx_apps_build)
 
+# Create interface library for libteec
+add_library(libteec_interface INTERFACE)
+add_dependencies(libteec_interface nuttx_apps_build)
+
+# Link nuttx_apps to libteec_interface so it's automatically included
+target_link_libraries(libteec_interface INTERFACE nuttx_apps)
+
+# Set the include directory as a property to bypass existence checking
+set(LIBTEEC_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/apps/tee/optee_client/optee_client/libteec/include)
+set_property(TARGET libteec_interface PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${LIBTEEC_INCLUDE_DIR})
+
 # helper for all targets
 function(add_nuttx_dir nuttx_lib nuttx_lib_dir kernel extra target)
 	if (${target} STREQUAL all)
