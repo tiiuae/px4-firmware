@@ -191,9 +191,10 @@ void ScoutRobot::EnableCommandMode()
 	if (_parser.EncodeMessage(&msg, &_tx_frame)) {
 		uint64_t count = 0;
 
-		while (count < 5) {
+		while (count < 3) {
 			count++;
 			_can->SendFrame(_tx_frame);
+			px4_usleep(10);
 		}
 	}
 }
@@ -213,6 +214,9 @@ void ScoutRobot::QuerySystemVersion(const uint64_t timeout_msec)
 	while (hrt_elapsed_time(&begin) < timeout_msec) {
 		// Send request
 		if (_parser.EncodeMessage(&msg, &_tx_frame)) { _can->SendFrame(_tx_frame); }
+
+		// Wait to receive response
+		px4_usleep(10);
 
 		// Receive response
 		_can->ReceiveFrame(&_rx_frame);
@@ -259,7 +263,15 @@ void ScoutRobot::SetLightCommand(LightMode f_mode, uint8_t f_value,
 		msg.body.light_command_msg.rear_light.custom_value = r_value;
 
 		// send to can bus
-		if (_parser.EncodeMessage(&msg, &_tx_frame)) { _can->SendFrame(_tx_frame); }
+		if (_parser.EncodeMessage(&msg, &_tx_frame)) {
+			uint64_t count = 0;
+
+			while (count < 3) {
+				count++;
+				_can->SendFrame(_tx_frame);
+				px4_usleep(10);
+			}
+		}
 	}
 }
 
@@ -273,7 +285,15 @@ void ScoutRobot::DisableLightControl()
 		msg.body.light_command_msg.enable_cmd_ctrl = false;
 
 		// send to can bus
-		if (_parser.EncodeMessage(&msg, &_tx_frame)) { _can->SendFrame(_tx_frame); }
+		if (_parser.EncodeMessage(&msg, &_tx_frame)) {
+			uint64_t count = 0;
+
+			while (count < 3) {
+				count++;
+				_can->SendFrame(_tx_frame);
+				px4_usleep(10);
+			}
+		}
 	}
 }
 } // namespace scoutsdk
