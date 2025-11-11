@@ -86,4 +86,7 @@ if [ -n "$PX4_EXPORT_DIR" ]; then
 
     # move temp json file to the final json file
     mv ${TEMP_JSON} $PX4_EXPORT_DIR/${SALUKI_FILE_INFO_JSON}
+
+    # keep the container running
+    tail -f /dev/null
 fi

@@ -438,9 +438,10 @@ jobs:
           echo "Combined minimal ota json: ${REPACKAGE_DIR}/saluki_file_info.json"
           cat ${REPACKAGE_DIR}/saluki_file_info.json
 
-          # workaround - copy px_uploader.entrypoint to repackage dir so we can use it in docker build
+          # workaround - copy px_uploader.entrypoint and validate_ota_extraction.sh to repackage dir so we can use it in docker build
           mkdir -p ${REPACKAGE_DIR}/px4-firmware/Tools
           cp ${{ github.workspace }}/px4-firmware/Tools/px_uploader.entrypoint ${REPACKAGE_DIR}/px4-firmware/Tools/
+          cp ${{ github.workspace }}/px4-firmware/Tools/validate_ota_extraction.sh ${REPACKAGE_DIR}/px4-firmware/Tools/
       - name: Firmware flasher - Build and push
         uses: docker/build-push-action@v5
         with:
