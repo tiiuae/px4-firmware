@@ -151,3 +151,6 @@
 [submodule "src/modules/calibration_bridge"]
 	path = src/modules/calibration_bridge
 	url = git@github.com:tiiuae/calibration-bridge.git
+[submodule "src/lib/libatt/libatt"]
+	path = src/lib/libatt/libatt
+	url = git@github.com:tiiuae/libatt.git
