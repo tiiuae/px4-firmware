@@ -341,14 +341,14 @@ void RoverInterface::PublishRoverState()
 		_battery.updateVoltage(robot_state.system_state.battery_voltage);
 
 		// Calculate remaining percentage based on rover type
-		float max_voltage = 24.0f; // Default for most rovers
+		float max_voltage = 27.2f; // Default for most rovers
 
 		if (_rover_type == 5) { // Bunker
-			max_voltage = 48.0f;
+			max_voltage = 54.4f;
 		}
 
 		// Calculate remaining as percentage (0.0 to 1.0)
-		float min_voltage = max_voltage * 0.8f;
+		float min_voltage = max_voltage * 0.83f;
 		float remaining = 1.0f;
 
 		if (robot_state.system_state.battery_voltage <= min_voltage) {
