@@ -22,6 +22,7 @@ do
   [[ "${repo}" == *libatt ]] || \
   [[ "${repo}" == src/modules/redundancy ]] || \
   [[ "${repo}" == *process ]] || \
+  [[ "${repo}" == src/modules/enroll_agent ]] || \
   [[ "${repo}" == *nxp93-attestation ]] && continue
   git submodule update --init --recursive "${repo}"
 done <<< "$(git submodule status | awk '{print $2}')"
