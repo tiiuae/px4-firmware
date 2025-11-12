@@ -157,3 +157,6 @@
 [submodule "boards/ssrc/saluki-ft"]
 	path = boards/ssrc/saluki-ft
 	url = ../saluki-ft.git
+[submodule "src/lib/libatt/libatt"]
+	path = src/lib/libatt/libatt
+	url = git@github.com:tiiuae/libatt.git
