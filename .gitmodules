@@ -160,3 +160,6 @@
 [submodule "src/lib/libatt/libatt"]
 	path = src/lib/libatt/libatt
 	url = git@github.com:tiiuae/libatt.git
+[submodule "src/modules/enroll_agent"]
+	path = src/modules/enroll_agent
+	url = git@github.com:tiiuae/px4_enroll_agent.git
