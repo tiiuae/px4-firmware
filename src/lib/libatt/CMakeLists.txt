@@ -34,7 +34,7 @@
 set(INCDIR ${CMAKE_CURRENT_LIST_DIR}/libatt/include)
 list(APPEND INCDIR ${CMAKE_CURRENT_LIST_DIR})
 
-#set(CFLAGS -DLIBATT_CONFIG_H=<px4_libatt_config.h>)
+set(CFLAGS -DLIBATT_CONFIG_H=<px4_libatt_config.h>)
 list(APPEND CFLAGS -DNDEBUG)
 
 set(LIBATTSRCS
