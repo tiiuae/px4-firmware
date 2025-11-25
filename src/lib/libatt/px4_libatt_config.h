@@ -69,7 +69,7 @@
  * whitespaces), parse the signing certificate + the signature, and then
  * verify it.
  */
-// #define LIBATT_DAC_VERIFY_THEN_PARSE
+#define LIBATT_DAC_VERIFY_THEN_PARSE
 
 /**
  * \def LIBATT_TLV_PRINTING_ENABLED
