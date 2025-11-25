@@ -47,5 +47,6 @@ set(LIBATTSRCS
 
 px4_add_library(libatt ${LIBATTSRCS})
 
+target_compile_definitions(libatt PRIVATE ${CFLAGS})
 target_include_directories(libatt PUBLIC ${INCDIR})
 target_link_libraries(libatt PRIVATE libteec_interface)
