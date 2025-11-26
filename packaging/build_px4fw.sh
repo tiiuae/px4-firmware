@@ -22,7 +22,11 @@ else
         # use the PX4 default test key.
         if [[ $NAME = saluki* ]]
         then
-            default_signing_args=Tools/saluki-sec-scripts/test_keys/$NAME/ed25519_test_key.pem
+            if [[ "$NAME" == "saluki-nxp93" ]]; then
+                default_signing_args=Tools/saluki-sec-scripts/test_keys/$NAME/secp384r1_test_key1.pem
+            else
+                default_signing_args=Tools/saluki-sec-scripts/test_keys/$NAME/ed25519_test_key.pem
+            fi
 
             if [[ "$SIGNING_KEY" == *hsm* ]]; then
                 echo "Using HSM for signing"
