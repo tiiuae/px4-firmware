@@ -48,6 +48,11 @@ public:
 	void send();
 	void handle_message(const mavlink_message_t *msg);
 
+	/**
+	 * Stop any ongoing activity and close any open files or streams
+	 */
+	void stop();
+
 private:
 	struct LogEntry {
 		uint16_t id{0xffff};
