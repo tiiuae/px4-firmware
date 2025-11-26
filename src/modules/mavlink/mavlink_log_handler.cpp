@@ -91,6 +91,17 @@ MavlinkLogHandler::~MavlinkLogHandler()
 
 //-------------------------------------------------------------------
 void
+MavlinkLogHandler::stop()
+{
+	// Stop any ongoing requests and close any open files or streams
+
+	if (_current_status != LogHandlerState::Inactive) {
+		_log_request_end(nullptr);
+	}
+}
+
+//-------------------------------------------------------------------
+void
 MavlinkLogHandler::handle_message(const mavlink_message_t *msg)
 {
 	switch (msg->msgid) {
