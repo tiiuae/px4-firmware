@@ -3360,6 +3360,14 @@ MavlinkReceiver::run()
 			_tune_publisher->publish_next_tune(t);
 		}
 	}
+
+	/* If the receiver task exists, we must stop any ongoing logging.
+	 * If there is a log file or stream open, it will get automatically
+	 * deleted by the OS when the task exits. This would cause double-deletion
+	 * of the file stream when the mavlink instance is deleted later.
+	 */
+
+	_mavlink_log_handler.stop();
 }
 
 bool MavlinkReceiver::component_was_seen(int system_id, int component_id)

@@ -66,6 +66,12 @@ public:
 
 	unsigned get_size();
 
+	/**
+	 * Stop any ongoing activity and close any open files or streams
+	 */
+
+	void stop();
+
 private:
 	enum class LogHandlerState {
 		Inactive,     //There is no active action of log handler
