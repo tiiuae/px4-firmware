@@ -20,18 +20,20 @@ else
         # use the PX4 default signing script and keys
         if [[ $NAME = saluki* ]]
         then
-            export SIGNING_TOOL=Tools/saluki-sec-scripts/ed25519_sign.py
-
-            if [ -z "$SIGNING_ARGS" ]; then
-                export SIGNING_ARGS=Tools/saluki-sec-scripts/test_keys/$NAME/ed25519_test_key.pem
-            fi
-
-	    if [[ "$SIGNING_KEY" == *hsm* ]]; then
+            if [[ "$SIGNING_KEY" == *hsm* ]]; then
                echo "Using HSM for signing"
                export SIGNING_TOOL=Tools/saluki-sec-scripts/sign_by_hsm.py
             else
                echo "Using keyfile script for signing"
                export SIGNING_TOOL=Tools/saluki-sec-scripts/sign_by_keyfile.py
+
+               if [ -z "$SIGNING_ARGS" ]; then
+                   if [[ "$NAME" == "saluki-nxp93" ]]; then
+                       export SIGNING_ARGS=Tools/saluki-sec-scripts/test_keys/$NAME/secp384r1_test_key1.pem
+                   else
+                       export SIGNING_ARGS=Tools/saluki-sec-scripts/test_keys/$NAME/ed25519_test_key.pem
+                   fi
+               fi
             fi
         else
             export SIGNING_TOOL=Tools/cryptotools.py
