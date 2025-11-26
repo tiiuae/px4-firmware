@@ -92,6 +92,20 @@ void MavlinkLogHandler::send()
 	}
 }
 
+void MavlinkLogHandler::stop()
+{
+	// Stop any ongoing requests and close any open files or streams before
+	// the mavlink receiver task exits — otherwise the OS would auto-close
+	// the file stream, causing a double-free when this class is destructed.
+
+	handle_log_request_end(nullptr);
+
+	if (_current_entry.fp) {
+		fclose(_current_entry.fp);
+		_current_entry.fp = nullptr;
+	}
+}
+
 void MavlinkLogHandler::handle_message(const mavlink_message_t *msg)
 {
 	switch (msg->msgid) {
