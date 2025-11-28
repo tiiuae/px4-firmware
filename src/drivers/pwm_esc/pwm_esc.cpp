@@ -62,6 +62,13 @@
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/actuator_outputs.h>
 
+#ifdef CONFIG_MODULES_REDUNDANCY
+#include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/redundancy_status.h>
+
+#define MAX_N_FCS vehicle_status_s::MAX_REDUNDANT_CONTROLLERS
+#endif
+
 #include <nuttx/timers/pwm.h>
 
 #ifndef PWMESC_OUT_PATH
@@ -87,7 +94,7 @@
 #  define PWM_DEFAULT_RATE 400
 #endif
 
-//using namespace time_literals;
+using namespace time_literals;
 
 /**
  * The PWMESC class.
@@ -189,6 +196,14 @@ private:
 
 	int32_t		_pwm_rate{PWM_DEFAULT_RATE};
 
+#ifdef CONFIG_MODULES_REDUNDANCY
+	uORB::Subscription _redundancy_status_sub {ORB_ID(redundancy_status)};
+
+	uORB::Subscription *_redundant_actuator_outputs_sub[MAX_N_FCS] = {nullptr, nullptr};
+
+	bool _redundant_actuator_control_enabled{false};
+#endif
+
 	int		init_pwm_outputs();
 
 	/* Singleton pointer */
@@ -279,12 +294,87 @@ PWMESC::~PWMESC()
 	/* deallocate perfs */
 	perf_free(_perf_update);
 
+#ifdef CONFIG_MODULES_REDUNDANCY
+	/* delete redundant_actuator_output subscriptions */
+
+	for (int i = 0; i < MAX_N_FCS; i++) {
+		delete _redundant_actuator_outputs_sub[i];
+	}
+
+#endif
+
 	px4_sem_destroy(&_update_sem);
 }
 
 int
 PWMESC::init(bool hitl_mode)
 {
+#ifdef CONFIG_MODULES_REDUNDANCY
+	int32_t spare_autopilots;
+
+	if (param_get(param_find("FT_N_SPARE_FCS"), &spare_autopilots) == PX4_OK && spare_autopilots > 0
+	    && spare_autopilots < MAX_N_FCS) {
+		_redundant_actuator_control_enabled = true;
+
+		/* Find out which actuator_outputs instance we are publishing.
+		 * Note: there is a race condition in here in theory; if
+		 * drivers publishing actuator outputs are started in parallel
+		 * threads, this might give wrong results. However, in practice
+		 * all the actuator drivers are started at boot in a single
+		 * thread sequentially.
+		 */
+
+		int actuator_output_instance = orb_group_count(ORB_ID(actuator_outputs)) - 1;
+
+		/* Sanity check; this only supports two instances, since the current
+		 * redundancy communication interface (mavlink) doesn't support
+		 * sharing more
+		 */
+
+		if (actuator_output_instance < 0 || actuator_output_instance > 1) {
+			return PX4_ERROR;
+		}
+
+		/* Subscribe to the correct actuator outputs from the other FCs;
+		 * this assumes that the same actuator control drivers are running
+		 * on all FCs; that is, the topic instance numbers match.
+		 * There is typically one instance for UAVCAN and another for PWM_ESC.
+		 */
+
+		for (int i = 0; i < MAX_N_FCS; i++) {
+			const orb_metadata *meta;
+
+			switch (i + redundancy_status_s::FC1) {
+			case redundancy_status_s::FC1:
+				meta = ORB_ID(redundant_actuator_outputs0);
+				break;
+
+			case redundancy_status_s::FC2:
+				meta = ORB_ID(redundant_actuator_outputs1);
+				break;
+
+			case redundancy_status_s::FC3:
+				meta = ORB_ID(redundant_actuator_outputs2);
+				break;
+
+			case redundancy_status_s::FC4:
+				meta = ORB_ID(redundant_actuator_outputs3);
+				break;
+
+			default:
+				meta = nullptr;
+			}
+
+			_redundant_actuator_outputs_sub[i] = new uORB::Subscription(meta, actuator_output_instance);
+
+			if (!_redundant_actuator_outputs_sub[i]) {
+				return PX4_ERROR;
+			}
+		}
+	}
+
+#endif
+
 	/* start the main task */
 	_task = px4_task_spawn_cmd("pwm_esc",
 				   SCHED_DEFAULT,
@@ -320,6 +410,44 @@ PWMESC::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigne
 	bool ret = true;
 	struct pwm_info_s pwm;
 	const unsigned ch_per_dev[PWMESC_N_DEVICES] = PWMESC_CHANNELS_PER_DEV;
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+
+	/* If it is known that this FC is not in control of the acutuators, and that there is
+	 * actuator output available from the controlling FC, output the controlling FC's
+	 * controls instead. This mitigates possible issues with HW or PWM switching logic.
+	 * Note that there is an additional delay when the actuator outputs are first via the
+	 * communication channel, so we simply assume that the communications rate is high
+	 * enough here.
+	 *
+	 * As a sanity check, the redundancy status should be less than 50ms old and any
+	 * redundant actuator outputs less than 10 ms old (20 ms in hitl).
+	 */
+
+	if (_redundant_actuator_control_enabled) {
+		redundancy_status_s rstatus;
+
+		if (_redundancy_status_sub.copy(&rstatus) &&
+		    hrt_elapsed_time(&rstatus.timestamp) < 50000 &&
+		    rstatus.fc_number != rstatus.fc_in_act_control &&
+		    rstatus.fc_number >= redundancy_status_s::FC1 && rstatus.fc_number <= MAX_N_FCS &&
+		    rstatus.fc_in_act_control >= redundancy_status_s::FC1 && rstatus.fc_in_act_control <= MAX_N_FCS) {
+			const hrt_abstime act_output_timeout = _hitl_mode ? 20_ms : 10_ms;
+			actuator_outputs_s ract_outputs;
+			int fc_idx = rstatus.fc_in_act_control - redundancy_status_s::FC1;
+
+			if (_redundant_actuator_outputs_sub[fc_idx]->copy(&ract_outputs) &&
+			    hrt_elapsed_time(&ract_outputs.timestamp) < act_output_timeout) {
+				/* The actuator outputs is already in correct scale, simply convert from float to uint16 */
+
+				for (int i = 0; i < (int)num_outputs; i++) {
+					outputs[i] = (uint16_t)ract_outputs.output[i];
+				}
+			}
+		}
+	}
+
+#endif
 
 	if (!_hitl_mode) {
 		/* When not in hitl, run PWMs */
