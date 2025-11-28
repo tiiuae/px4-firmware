@@ -21,6 +21,7 @@ do
   [[ "${repo}" == *secure_udp_proxy ]] || \
   [[ "${repo}" == src/modules/redundancy ]] || \
   [[ "${repo}" == *process ]] || \
-  [[ "${repo}" == *nxp93-attestation ]] && continue
+  [[ "${repo}" == *nxp93-attestation ]] || \
+  [[ "${repo}" == *calibration_bridge ]] && continue
   git submodule update --init --recursive "${repo}"
 done <<< "$(git submodule status | awk '{print $2}')"
