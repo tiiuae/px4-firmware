@@ -338,7 +338,11 @@ private:
 	uORB::Publication<vehicle_odometry_s>			_visual_odometry_pub{ORB_ID(vehicle_visual_odometry)};
 	uORB::Publication<vehicle_rates_setpoint_s>		_rates_sp_pub{ORB_ID(vehicle_rates_setpoint)};
 	uORB::Publication<vehicle_status_s>			_redundant_status_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_status0), ORB_ID(redundant_status1)};
-	uORB::Publication<actuator_outputs_s>			_redundant_actuator_outputs_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs1)};
+	uORB::PublicationMulti<actuator_outputs_s>
+	_redundant_actuator_outputs_pub[2][vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {{ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs0)},
+		{ORB_ID(redundant_actuator_outputs1), ORB_ID(redundant_actuator_outputs1)}
+	};
+
 	uORB::Publication<vehicle_rates_setpoint_s>
 	_redundant_rates_setpoint_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_rates_setpoint0), ORB_ID(redundant_rates_setpoint1)};
 
