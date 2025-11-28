@@ -3098,20 +3098,32 @@ MavlinkReceiver::handle_message_actuator_output_status(mavlink_message_t *msg)
 	int fc_idx = msg->compid - MAV_COMP_ID_AUTOPILOT1;
 	mavlink_actuator_output_status_t actuator_output_status_msg;
 	mavlink_msg_actuator_output_status_decode(msg, &actuator_output_status_msg);
-	actuator_outputs_s actuator_outputs{};
+	hrt_abstime now = hrt_absolute_time();
+	static constexpr unsigned max_instances = sizeof(_redundant_actuator_outputs_pub[0]) / sizeof(
+				_redundant_actuator_outputs_pub[0][0]); /* Number of actuator_outputs instances */
 
 	if (fc_idx >= 0 && fc_idx < vehicle_status_s::MAX_REDUNDANT_CONTROLLERS) {
-		actuator_outputs.timestamp = hrt_absolute_time();
-		actuator_outputs.noutputs = actuator_output_status_msg.active;
-		static constexpr size_t mavlink_actuator_output_status_size = sizeof(actuator_output_status_msg.actuator) / sizeof(
-					actuator_output_status_msg.actuator[0]);
-		static constexpr size_t actuator_outputs_size = sizeof(actuator_outputs.output) / sizeof(actuator_outputs.output[0]);
+		for (unsigned inst = 0; inst < max_instances; inst++) {
+			actuator_outputs_s actuator_outputs{};
+			static constexpr unsigned mavlink_actuator_output_status_size = sizeof(actuator_output_status_msg.actuator) / sizeof(
+						actuator_output_status_msg.actuator[0]) / max_instances;
+			static constexpr unsigned actuator_outputs_size = sizeof(actuator_outputs.output) / sizeof(actuator_outputs.output[0]);
 
-		for (size_t i = 0; i < math::min(mavlink_actuator_output_status_size, actuator_outputs_size); i++) {
-			actuator_outputs.output[i] = actuator_output_status_msg.actuator[i];
+			/* Check that all the data from the mavlink message fits into uORB */
+
+			static_assert(actuator_outputs_size >= mavlink_actuator_output_status_size);
+
+			uint32_t i;
+
+			for (i = 0; i < mavlink_actuator_output_status_size
+			     && PX4_ISFINITE(actuator_output_status_msg.actuator[inst * mavlink_actuator_output_status_size + i]); i++) {
+				actuator_outputs.output[i] = actuator_output_status_msg.actuator[inst * mavlink_actuator_output_status_size + i];
+			}
+
+			actuator_outputs.noutputs = i;
+			actuator_outputs.timestamp = now;
+			_redundant_actuator_outputs_pub[fc_idx][inst].publish(actuator_outputs);
 		}
-
-		_redundant_actuator_outputs_pub[fc_idx].publish(actuator_outputs);
 	}
 }
 

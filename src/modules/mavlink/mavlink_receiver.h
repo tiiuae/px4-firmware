@@ -335,7 +335,11 @@ private:
 	uORB::Publication<vehicle_trajectory_bezier_s>		_trajectory_bezier_pub{ORB_ID(vehicle_trajectory_bezier)};
 	uORB::Publication<vehicle_trajectory_waypoint_s>	_trajectory_waypoint_pub{ORB_ID(vehicle_trajectory_waypoint)};
 	uORB::Publication<vehicle_status_s>			_redundant_status_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_status0), ORB_ID(redundant_status1)};
-	uORB::Publication<actuator_outputs_s>			_redundant_actuator_outputs_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs1)};
+	uORB::PublicationMulti<actuator_outputs_s>
+	_redundant_actuator_outputs_pub[2][vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {{ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs0)},
+		{ORB_ID(redundant_actuator_outputs1), ORB_ID(redundant_actuator_outputs1)}
+	};
+
 	uORB::Publication<vehicle_rates_setpoint_s>
 	_redundant_rates_setpoint_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_rates_setpoint0), ORB_ID(redundant_rates_setpoint1)};
 

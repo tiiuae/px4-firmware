@@ -49,37 +49,72 @@ public:
 
 	unsigned get_size() override
 	{
-		return _act_output_sub.advertised() ? (MAVLINK_MSG_ID_ACTUATOR_OUTPUT_STATUS_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES) : 0;
+		return _act_output_sub[0].advertised() ? (MAVLINK_MSG_ID_ACTUATOR_OUTPUT_STATUS_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES) :
+		       0;
 	}
 
 private:
 	explicit MavlinkStreamActuatorOutputStatus(Mavlink *mavlink) : MavlinkStream(mavlink) {}
 
-	uORB::Subscription _act_output_sub{ORB_ID(actuator_outputs)};
+	uORB::Subscription _act_output_sub[2] {{ORB_ID(actuator_outputs), 0}, {ORB_ID(actuator_outputs), 1}};
 
 	bool send() override
 	{
+		mavlink_actuator_output_status_t msg{};
+		static constexpr unsigned max_outputs = sizeof(msg.actuator) / sizeof(
+				msg.actuator[0]); /* Max outputs in the mavlink message */
+		static constexpr unsigned max_instances = sizeof(_act_output_sub) / sizeof(
+					_act_output_sub[0]); /* Number of actuator_outputs instances */
+		static constexpr size_t mavlink_actuator_output_status_size = max_outputs / max_instances;
+		/* Check that all the uORB data fits in a single message */
+		static_assert(mavlink_actuator_output_status_size >= actuator_outputs_s::NUM_ACTUATOR_OUTPUTS);
+
 		actuator_outputs_s act;
+		unsigned inst = 0;
+		bool updated = false;
+		uint32_t active = 0;
 
-		if (_act_output_sub.update(&act)) {
-			mavlink_actuator_output_status_t msg{};
+		/* Loop through all the subscriptions */
 
-			msg.time_usec = act.timestamp;
-			msg.active = act.noutputs;
+		while (inst < max_instances) {
+			unsigned i = 0;
+			unsigned n_outputs = 0;
 
-			static size_t actuator_outputs_size = act.noutputs;
-			static constexpr size_t mavlink_actuator_output_status_size = sizeof(msg.actuator) / sizeof(msg.actuator[0]);
-
-			for (unsigned i = 0; i < math::min(actuator_outputs_size, mavlink_actuator_output_status_size); i++) {
-				msg.actuator[i] = act.output[i];
+			/* If any of the orb instances is updated, we need to send */
+			if (_act_output_sub[inst].updated()) {
+				updated = true;
 			}
 
-			mavlink_msg_actuator_output_status_send_struct(_mavlink->get_channel(), &msg);
+			if (_act_output_sub[inst].copy(&act)) {
+				n_outputs = act.noutputs;
+			}
 
-			return true;
+			active += n_outputs;
+
+			/* Fill the data from uORB instance to the message */
+
+			for (i = 0; i < n_outputs && i < actuator_outputs_s::NUM_ACTUATOR_OUTPUTS; i++) {
+				msg.actuator[inst * mavlink_actuator_output_status_size + i] = act.output[i];
+			}
+
+			/* Fill the unused channels with NAN */
+
+			for (; i < actuator_outputs_s::NUM_ACTUATOR_OUTPUTS; i++) {
+				msg.actuator[inst * mavlink_actuator_output_status_size + i] = NAN;
+			}
+
+			inst++;
 		}
 
-		return false;
+		if (updated != 0) {
+			msg.time_usec = hrt_absolute_time();
+			msg.active = active;
+			mavlink_msg_actuator_output_status_send_struct(_mavlink->get_channel(), &msg);
+			return true;
+
+		} else {
+			return false;
+		}
 	}
 };
 
