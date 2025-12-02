@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 #include "ManualVelocitySmoothingZ.hpp"
-
+#include <px4_platform_common/log.h>
 #include <mathlib/mathlib.h>
 #include <float.h>
 
@@ -102,15 +102,38 @@ void ManualVelocitySmoothingZ::checkPositionLock(float velocity_target)
 	    fabsf(_state.a) < .2f &&
 	    fabsf(velocity_target) <= FLT_EPSILON) {
 		// Lock position
+		if (_position_lock_active == false) {
+			PX4_LOG_NAMED("MVSZ", "Position lock activated at pos %.3f m", (double)_state.x);
+		}
+
 		_position_lock_active = true;
 		_position_setpoint_locked = _state.x;
+		//PX4_LOG_NAMED("MVSZ", "Position lock activated at pos %.3f m", (double)_position_setpoint_locked);
 
 	} else {
 		// Unlock position
 		if (_position_lock_active) {
+			_unlock_count++;
+			float mod_velsp_fb = _velocity_setpoint_feedback;
+			if (_unlock_count % 10 == 0) {
+				mod_velsp_fb = NAN;
+			}
+
+			PX4_LOG_NAMED("MVSZ", "Position lock released at pos %.3f m", (double)_state.x);
+			PX4_LOG_NAMED("MVSZ", "Velocity setpoint feedback %.3f m/s", (double)_velocity_setpoint_feedback);
+
+
+
+			if (!PX4_ISFINITE(mod_velsp_fb)) {
+				PX4_LOG_NAMED("MVSZ", "Warning: velocity setpoint feedback is not finite");
+				PX4_LOG_NAMED("MVSZ", "Using velocity setpoint feedback balue of 0 instead of NAN");
+				mod_velsp_fb = 0.f;
+			}
+
+
 			// Start the trajectory at the current velocity setpoint
-			_trajectory.setCurrentVelocity(_velocity_setpoint_feedback);
-			_state.v = _velocity_setpoint_feedback;
+			_trajectory.setCurrentVelocity(mod_velsp_fb);
+			_state.v = mod_velsp_fb;
 			resetPositionLock();
 		}
 

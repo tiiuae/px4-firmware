@@ -120,4 +120,6 @@ private:
 	float _max_accel_down{0.f};
 	float _max_vel_up{0.f};
 	float _max_vel_down{0.f};
+
+	uint _unlock_count{0};
 };
