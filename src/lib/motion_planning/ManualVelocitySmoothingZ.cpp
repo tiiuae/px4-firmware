@@ -54,16 +54,20 @@ void ManualVelocitySmoothingZ::update(float dt, float velocity_target)
 	// Update state
 	updateTrajectories(dt);
 
-	// Set max accel/vel/jerk
-	// Has to be done before _updateTrajDurations()
-	updateTrajConstraints(velocity_target);
+	// Guard against velocity_target being NAN, all of the below
+	// would be wrong in that case.
+	if (PX4_ISFINITE(velocity_target)) {
+		// Set max accel/vel/jerk
+		// Has to be done before _updateTrajDurations()
+		updateTrajConstraints(velocity_target);
 
-	// Lock or unlock position
-	// Has to be done before _updateTrajDurations()
-	checkPositionLock(velocity_target);
+		// Lock or unlock position
+		// Has to be done before _updateTrajDurations()
+		checkPositionLock(velocity_target);
 
-	// Update durations
-	_trajectory.updateDurations(velocity_target);
+		// Update durations
+		_trajectory.updateDurations(velocity_target);
+	}
 }
 
 void ManualVelocitySmoothingZ::updateTrajectories(float dt)
@@ -109,8 +113,12 @@ void ManualVelocitySmoothingZ::checkPositionLock(float velocity_target)
 		// Unlock position
 		if (_position_lock_active) {
 			// Start the trajectory at the current velocity setpoint
-			_trajectory.setCurrentVelocity(_velocity_setpoint_feedback);
-			_state.v = _velocity_setpoint_feedback;
+			float safe_velocity = PX4_ISFINITE(_velocity_setpoint_feedback) ?
+					      _velocity_setpoint_feedback : _state.v;
+
+			_trajectory.setCurrentVelocity(safe_velocity);
+			_state.v = safe_velocity;
+
 			resetPositionLock();
 		}
 
