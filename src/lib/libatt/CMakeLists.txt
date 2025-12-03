@@ -38,15 +38,15 @@ set(CFLAGS -DLIBATT_CONFIG_H=<px4_libatt_config.h>)
 list(APPEND CFLAGS -DNDEBUG)
 
 set(LIBATTSRCS
-      ${CMAKE_CURRENT_LIST_DIR}/libatt/attestation.c
-      ${CMAKE_CURRENT_LIST_DIR}/libatt/tlv.c
-      ${CMAKE_CURRENT_LIST_DIR}/libatt/util.c
+      ${CMAKE_CURRENT_LIST_DIR}/libatt/common/attestation.c
+      ${CMAKE_CURRENT_LIST_DIR}/libatt/common/tlv.c
+      ${CMAKE_CURRENT_LIST_DIR}/libatt/common/util.c
       ${CMAKE_CURRENT_LIST_DIR}/libatt/ree/io_helpers.c
       ${CMAKE_CURRENT_LIST_DIR}/libatt/ree/agent_helpers.c
       ${CMAKE_CURRENT_LIST_DIR}/libatt/ree/gp/att_ca.c)
 
-px4_add_library(libatt ${LIBATTSRCS})
+px4_add_library(libatt_ree ${LIBATTSRCS})
 
-target_compile_definitions(libatt PRIVATE ${CFLAGS})
-target_include_directories(libatt PUBLIC ${INCDIR})
-target_link_libraries(libatt PRIVATE libteec_interface)
+target_compile_definitions(libatt_ree PRIVATE ${CFLAGS})
+target_include_directories(libatt_ree PUBLIC ${INCDIR})
+target_link_libraries(libatt_ree PRIVATE libteec_interface)
