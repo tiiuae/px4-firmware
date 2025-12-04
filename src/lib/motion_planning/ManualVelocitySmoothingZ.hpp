@@ -102,6 +102,8 @@ private:
 
 	VelocitySmoothing _trajectory; ///< Trajectory in z direction
 
+	uint unlock_count{0};
+
 	bool _position_lock_active{false};
 
 	float _position_setpoint_locked{};

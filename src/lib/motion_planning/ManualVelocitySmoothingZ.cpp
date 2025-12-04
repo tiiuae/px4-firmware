@@ -112,10 +112,18 @@ void ManualVelocitySmoothingZ::checkPositionLock(float velocity_target)
 	} else {
 		// Unlock position
 		if (_position_lock_active) {
+
+			// Inject
+			unlock_count++;
+			if (unlock_count % 10 == 7) {
+				_velocity_setpoint_feedback = NAN;
+			}
+
 			// Start the trajectory at the current velocity setpoint
 			float safe_velocity = PX4_ISFINITE(_velocity_setpoint_feedback) ?
 					      _velocity_setpoint_feedback : _state.v;
 
+			//float safe_velocity = _velocity_setpoint_feedback;
 			_trajectory.setCurrentVelocity(safe_velocity);
 			_state.v = safe_velocity;
 
