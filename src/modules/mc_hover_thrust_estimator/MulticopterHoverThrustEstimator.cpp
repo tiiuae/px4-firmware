@@ -134,8 +134,8 @@ void MulticopterHoverThrustEstimator::Run()
 		}
 	}
 
-	// new local position setpoint needed every iteration
-	if (!_vehicle_local_position_setpoint_sub.updated()) {
+	// Check for thrust setpoint update from rate controller (always available when armed)
+	if (!_vehicle_thrust_setpoint_sub.updated()) {
 		return;
 	}
 
@@ -166,10 +166,11 @@ void MulticopterHoverThrustEstimator::Run()
 
 		_hover_thrust_ekf.predict(dt);
 
-		vehicle_local_position_setpoint_s local_pos_sp;
+		// Get thrust from rate controller (always published when rate control is active)
+		vehicle_thrust_setpoint_s thrust_sp;
 
-		if (_vehicle_local_position_setpoint_sub.copy(&local_pos_sp)) {
-			if (PX4_ISFINITE(local_pos_sp.thrust[2])) {
+		if (_vehicle_thrust_setpoint_sub.copy(&thrust_sp)) {
+			if (PX4_ISFINITE(thrust_sp.xyz[2])) {
 				// Inform the hover thrust estimator about the measured vertical
 				// acceleration (positive acceleration is up) and the current thrust (positive thrust is up)
 				// Guard against fast up and down motions biasing the estimator due to large drag and prop wash effects
@@ -179,7 +180,7 @@ void MulticopterHoverThrustEstimator::Run()
 									1.f);
 
 				_hover_thrust_ekf.setMeasurementNoiseScale(fmaxf(meas_noise_coeff_xy, meas_noise_coeff_z));
-				_hover_thrust_ekf.fuseAccZ(-local_pos.az, -local_pos_sp.thrust[2]);
+				_hover_thrust_ekf.fuseAccZ(-local_pos.az, -thrust_sp.xyz[2]);
 
 				bool valid = (_hover_thrust_ekf.getHoverThrustEstimateVar() < 0.001f);
 
