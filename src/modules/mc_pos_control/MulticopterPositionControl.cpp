@@ -370,7 +370,7 @@ void MulticopterPositionControl::Run()
 
 		_vehicle_land_detected_sub.update(&_vehicle_land_detected);
 
-		if (_param_mpc_use_hte.get()) {
+		if (_vehicle_control_mode.flag_multicopter_position_control_enabled && _param_mpc_use_hte.get()) {
 			hover_thrust_estimate_s hte;
 
 			if (_hover_thrust_estimate_sub.update(&hte)) {
