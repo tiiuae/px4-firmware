@@ -1,0 +1,35 @@
+# Default parameter set for indoor flying with mocap fake GPS
+# [ type: indoor ]
+
+# Disable internal GPS
+param set GPS_1_CONFIG 0
+
+# Disable magnetometer
+param set CAL_MAG0_PRIO 1
+param set CAL_MAG1_PRIO 0
+param set CAL_MAG2_PRIO 0
+param set CAL_MAG3_PRIO 0
+param set EKF2_MAG_TYPE 5
+param set SYS_HAS_MAG 0
+
+param set EKF2_HGT_REF 2
+param set EKF2_RNG_CTRL 2
+
+# Enable GPS Yaw fusion
+param set EKF2_GPS_CTRL 11
+
+# Disable external vision aid
+param set EKF2_EV_CTRL 0
+
+# Offboard failsafe, set to land immediately even when RC is available
+param set COM_OBL_RC_ACT 4
+
+# GND_L1_DIST
+param set GND_L1_DIST 1
+
+# Default Flight Modes and Kill Switch
+param set COM_FLTMODE1 0
+param set COM_FLTMODE4 2
+param set COM_FLTMODE6 11
+param set RC_MAP_FLTMODE 5
+param set RC_MAP_KILL_SW 7
