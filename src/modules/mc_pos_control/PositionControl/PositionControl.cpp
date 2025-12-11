@@ -84,8 +84,13 @@ void PositionControl::updateHoverThrust(const float hover_thrust_new)
 	const float previous_hover_thrust = _hover_thrust;
 	setHoverThrust(hover_thrust_new);
 
-	_vel_int(2) += (_acc_sp(2) - CONSTANTS_ONE_G) * previous_hover_thrust / _hover_thrust
-		       + CONSTANTS_ONE_G - _acc_sp(2);
+	// Only adjust the integrator if the acceleration setpoint is valid and finite
+	// This prevents integrator corruption when switching modes where _acc_sp might contain stale/invalid values
+	// Critical for mode transitions (offboard->auto, offboard->manual altitude, etc.)
+	if (PX4_ISFINITE(_acc_sp(2))) {
+		_vel_int(2) += (_acc_sp(2) - CONSTANTS_ONE_G) * previous_hover_thrust / _hover_thrust
+			       + CONSTANTS_ONE_G - _acc_sp(2);
+	}
 }
 
 void PositionControl::setState(const PositionControlStates &states)
