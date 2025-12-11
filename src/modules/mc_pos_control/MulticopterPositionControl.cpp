@@ -361,6 +361,10 @@ void MulticopterPositionControl::Run()
 				if (!previous_position_control_enabled && _vehicle_control_mode.flag_multicopter_position_control_enabled) {
 					_time_position_control_enabled = _vehicle_control_mode.timestamp;
 
+					// Reset integrator when position control becomes active to prevent using stale integrator values
+					// This prevents corrupted acceleration setpoints that can cause thrust spikes
+					_control.resetIntegral();
+
 				} else if (previous_position_control_enabled && !_vehicle_control_mode.flag_multicopter_position_control_enabled) {
 					// clear existing setpoint when controller is no longer active
 					_setpoint = PositionControl::empty_trajectory_setpoint;
