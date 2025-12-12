@@ -96,7 +96,7 @@
 	url = ../saluki-v3.git
 [submodule "boards/ssrc/saluki-nxp93"]
 	path = boards/ssrc/saluki-nxp93
-	url = git@github.com:tiiuae/saluki-nxp93.git
+	url = ../saluki-nxp93.git
 [submodule "boards/ssrc/common"]
 	path = boards/ssrc/common
 	url = git@github.com:tiiuae/px4_boards_ssrc.git
@@ -151,3 +151,9 @@
 [submodule "src/modules/calibration_bridge"]
 	path = src/modules/calibration_bridge
 	url = git@github.com:tiiuae/calibration-bridge.git
+[submodule "boards/ssrc/saluki-micro"]
+	path = boards/ssrc/saluki-micro
+	url = ../saluki-micro.git
+[submodule "boards/ssrc/saluki-ft"]
+	path = boards/ssrc/saluki-ft
+	url = ../saluki-ft.git
