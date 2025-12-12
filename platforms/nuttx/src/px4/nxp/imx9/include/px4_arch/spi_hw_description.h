@@ -92,8 +92,8 @@ constexpr bool validateSPIConfig(const px4_spi_bus_t spi_busses_conf[SPI_BUS_MAX
 			}
 		}
 
-		// Either the bus is enabled in NuttX and configured in spi_busses_conf, or disabled and not configured
-		constexpr_assert(found_bus == nuttx_enabled_spi_buses[i], "SPI bus config mismatch (CONFIG_IMX9_LPSPIx)");
+		// If the bus is configured in spi_busses_conf, it has to be also enabled in nuttx conf
+		constexpr_assert(!found_bus || nuttx_enabled_spi_buses[i] == true, "SPI bus config mismatch (CONFIG_IMX9_LPSPIx)");
 	}
 
 	return false;
