@@ -116,7 +116,7 @@
 	url = ../saluki-v3.git
 [submodule "boards/ssrc/saluki-nxp93"]
 	path = boards/ssrc/saluki-nxp93
-	url = git@github.com:tiiuae/saluki-nxp93.git
+	url = ../saluki-nxp93.git
 [submodule "boards/ssrc/saluki-micro"]
 	path = boards/ssrc/saluki-micro
 	url = ../saluki-micro.git
