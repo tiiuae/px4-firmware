@@ -24,6 +24,8 @@ usage() {
   echo "     saluki-v3_custom_keys"
   echo "     saluki-nxp93_flat"
   echo "     saluki-nxp93_default"
+  echo "     saluki-micro_default"
+  echo "     saluki-ft_default"
   echo
   exit 1
 }
