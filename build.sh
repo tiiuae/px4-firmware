@@ -43,6 +43,9 @@ if [ -z ${HSM_TOKENDIR+x} ]; then
   HSM_TOKENDIR="${HOME}/softhsm/tokens/"
 fi
 
+if [ -z ${PKCS11_MODULE_PATH+x} ]; then
+  PKCS11_MODULE_PATH=""
+fi
 
 dest_dir="${1:-}"
 target="${2:-}"
@@ -64,7 +67,7 @@ build_env="docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --pull
 build_cmd_fw="docker run --rm -e SIGNING_KEY=${SIGNING_KEY} -e SIGNING_ARGS=${SIGNING_ARGS} -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
 build_cmd_px4fwupdater="${script_dir}/packaging/build_px4fwupdater.sh -v ${version} -i ${dest_dir}"
 hsm_build_env="docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --pull -f ./packaging/Dockerfile.build_env_hsm -t ${hsm_iname_env} ."
-hsm_build_cmd_fw="docker run --rm -e SIGNING_KEY=${SIGNING_KEY} -e SIGNING_ARGS=${SIGNING_ARGS} -v ${HSM_TOKENDIR}:/softhsm/tokens -v ${script_dir}:/px4-firmware/sources ${hsm_iname_env} ./packaging/build_px4fw.sh"
+hsm_build_cmd_fw="docker run --rm -e SIGNING_KEY=${SIGNING_KEY} -e PKCS11_MODULE_PATH=${PKCS11_MODULE_PATH} -e SIGNING_ARGS=${SIGNING_ARGS} -v ${HSM_TOKENDIR}:/softhsm/tokens -v ${script_dir}:/px4-firmware/sources ${hsm_iname_env} ./packaging/build_px4fw.sh"
 
 # Generate build_env
 if [[ "$SIGNING_KEY" == "hsm" ]]; then
