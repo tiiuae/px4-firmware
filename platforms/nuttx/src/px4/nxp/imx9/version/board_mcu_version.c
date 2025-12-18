@@ -70,7 +70,6 @@
 #  define min(a,b) (((a) < (b)) ? (a) : (b))
 #endif
 
-static unsigned hw_version = BOARD_DEFAULT_VER;
 static unsigned hw_revision = BOARD_DEFAULT_REV;
 static char hw_info[HW_INFO_SIZE] = {0};
 
@@ -97,7 +96,12 @@ __EXPORT const char *board_get_hw_type_name(void)
 
 __EXPORT int board_get_hw_version(void)
 {
-	return  hw_version;
+	if (device_boot_info.hw_version) {
+		return device_boot_info.hw_version;
+
+	} else {
+		return BOARD_DEFAULT_VER;
+	}
 }
 
 __EXPORT int board_get_hw_revision()
@@ -218,6 +222,8 @@ int board_mcu_version(char *rev, const char **revstr, const char **errata)
 	} hw_version_table[] = BOARD_REVISIONS;
 
 	unsigned len = sizeof(hw_version_table) / sizeof(hw_version_table[0]);
+
+	unsigned hw_version = board_get_hw_version();
 
 	if (hw_version < len) {
 		if (rev) {
@@ -344,6 +350,8 @@ int board_determine_hw_info(void)
 
 	memset(&ver_str, 0, sizeof(ver_str));
 	memset(&ver, 0, sizeof(ver));
+
+	int hw_version = board_get_hw_version();
 
 	snprintf(hw_info, sizeof(hw_info), HW_INFO_INIT_PREFIX HW_INFO_SUFFIX,
 		 hw_version, hw_revision);
