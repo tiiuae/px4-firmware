@@ -102,6 +102,11 @@ public:
 
 	const failsafe_flags_s &failsafeFlags() const { return _failsafe_flags; }
 
+	/**
+	 * Print failing arming checks to mavlink log
+	 */
+	void printFailingArmingChecks(orb_advert_t *mavlink_log_pub) const;
+
 #ifndef CONSTRAINED_FLASH
 	ExternalChecks &externalChecks() { return _external_checks; }
 #endif

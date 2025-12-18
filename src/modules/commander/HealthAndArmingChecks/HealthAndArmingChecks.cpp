@@ -118,3 +118,69 @@ void HealthAndArmingChecks::updateParams()
 		_checks[i]->updateParams();
 	}
 }
+
+void HealthAndArmingChecks::printFailingArmingChecks(orb_advert_t *mavlink_log_pub) const
+{
+	const auto &arming_checks = _reporter.armingCheckResults();
+	const uint64_t error_flags = (uint64_t)arming_checks.error;
+	const uint64_t warning_flags = (uint64_t)arming_checks.warning;
+
+	if (error_flags == 0 && warning_flags == 0) {
+		return;
+	}
+
+	// Component name mapping for each bit position
+	// Based on health_component_t enum values which are powers of 2
+	static const struct {
+		uint32_t value;
+		const char *name;
+	} component_map[] = {
+		{0x1, "None"},                      // Bit 0
+		{0x2, "Absolute Pressure"},         // Bit 1
+		{0x4, "Differential Pressure"},     // Bit 2
+		{0x8, "GPS"},                       // Bit 3
+		{0x10, "Optical Flow"},             // Bit 4
+		{0x20, "Vision Position"},          // Bit 5
+		{0x40, "Distance Sensor"},          // Bit 6
+		{0x80, "Remote Control"},           // Bit 7
+		{0x100, "Motors/ESCs"},             // Bit 8
+		{0x200, "UTM"},                     // Bit 9
+		{0x400, "Logging"},                 // Bit 10
+		{0x800, "Battery"},                 // Bit 11
+		{0x1000, "Communication Links"},    // Bit 12
+		{0x2000, "Rate Controller"},        // Bit 13
+		{0x4000, "Attitude Controller"},    // Bit 14
+		{0x8000, "Position Controller"},    // Bit 15
+		{0x10000, "Attitude Estimate"},     // Bit 16
+		{0x20000, "Local Position Estimate"}, // Bit 17
+		{0x40000, "Mission"},               // Bit 18
+		{0x80000, "Avoidance"},             // Bit 19
+		{0x100000, "System"},               // Bit 20
+		{0x200000, "Camera"},               // Bit 21
+		{0x400000, "Gimbal"},               // Bit 22
+		{0x800000, "Payload"},              // Bit 23
+		{0x1000000, "Global Position Estimate"}, // Bit 24
+		{0x2000000, "Storage"},             // Bit 25
+		{0x4000000, "Parachute"},           // Bit 26
+		{0x8000000, "Magnetometer"},        // Bit 27
+		{0x10000000, "Accelerometer"},      // Bit 28
+		{0x20000000, "Gyroscope"},          // Bit 29
+		{0x40000000, "Open Drone ID"},      // Bit 30
+	};
+
+	constexpr int num_components = sizeof(component_map) / sizeof(component_map[0]);
+
+	// Print error components
+	for (int i = 0; i < num_components; i++) {
+		if (error_flags & component_map[i].value) {
+			mavlink_log_critical(mavlink_log_pub, "Preflight Check Failed: %s", component_map[i].name);
+		}
+	}
+
+	// Print warning components
+	for (int i = 0; i < num_components; i++) {
+		if (warning_flags & component_map[i].value) {
+			mavlink_log_warning(mavlink_log_pub, "Preflight Check Warning: %s", component_map[i].name);
+		}
+	}
+}
