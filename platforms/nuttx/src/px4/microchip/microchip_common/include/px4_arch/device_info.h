@@ -63,7 +63,18 @@ typedef struct __attribute__((__packed__))
 
 	uint32_t fpga_version;
 
+	/* Boot reason info (filled on PX4 side) */
+
+	uint32_t boot_reason;
+
+	/* HW version info */
+
+	uint8_t hw_version;
+	uint8_t hw_revision;
+	uint8_t board_version;
+	uint8_t board_revision;
+
 	/* Reserved for future use */
 
-	uint8_t reserved[424];
+	uint8_t reserved[416];
 } devinfo_t;
