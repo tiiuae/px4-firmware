@@ -118,3 +118,66 @@ void HealthAndArmingChecks::updateParams()
 		_checks[i]->updateParams();
 	}
 }
+
+void HealthAndArmingChecks::printFailingArmingChecks(orb_advert_t *mavlink_log_pub) const
+{
+	const auto &arming_checks = _reporter.armingCheckResults();
+	const uint64_t error_flags = (uint64_t)arming_checks.error;
+	const uint64_t warning_flags = (uint64_t)arming_checks.warning;
+
+	if (error_flags == 0 && warning_flags == 0) {
+		return;
+	}
+
+	// Component names array matching health_component_t enum
+	static const char *component_names[] = {
+		"Absolute Pressure",       // 1 << 0
+		"Accelerometer",           // 1 << 1
+		"Airspeed",                // 1 << 2
+		"Battery",                 // 1 << 3
+		"Camera",                  // 1 << 4
+		"Distance Sensor",         // 1 << 5
+		"GPS",                     // 1 << 6
+		"Gyroscope",               // 1 << 7
+		"Magnetometer",            // 1 << 8
+		"Motor/ESC",               // 1 << 9
+		"Parachute",               // 1 << 10
+		"RC Receiver",             // 1 << 11
+		"System",                  // 1 << 12
+		"Optical Flow",            // 1 << 13
+		"Differential Pressure",   // 1 << 14
+		"Navigation Computer",     // 1 << 15
+		"Open Drone ID",           // 1 << 16
+		"Avoidance",               // 1 << 17
+		"Payload",                 // 1 << 18
+		"Manual Control",          // 1 << 19
+		"Home Position",           // 1 << 20
+		"Mission",                 // 1 << 21
+		"Mode",                    // 1 << 22
+		"Arm Authorization",       // 1 << 23
+		"SD Card",                 // 1 << 24
+		"Wind",                    // 1 << 25
+		"Flight Time",             // 1 << 26
+		"Geofence",                // 1 << 27
+		"VTOL",                    // 1 << 28
+		"Offboard",                // 1 << 29
+		"Local Position Estimate", // 1 << 30
+		"Global Position Estimate" // 1 << 31
+	};
+
+	constexpr int max_components = sizeof(component_names) / sizeof(component_names[0]);
+
+	// Print error components
+	for (int i = 0; i < max_components && i < 64; i++) {
+		if (error_flags & (1ULL << i)) {
+			mavlink_log_critical(mavlink_log_pub, "Preflight Check Failed: %s", component_names[i]);
+		}
+	}
+
+	// Print warning components
+	for (int i = 0; i < max_components && i < 64; i++) {
+		if (warning_flags & (1ULL << i)) {
+			mavlink_log_warning(mavlink_log_pub, "Preflight Check Warning: %s", component_names[i]);
+		}
+	}
+}
