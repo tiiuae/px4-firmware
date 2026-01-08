@@ -420,24 +420,23 @@ PWMESC::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigne
 	 * communication channel, so we simply assume that the communications rate is high
 	 * enough here.
 	 *
-	 * As a sanity check, the redundancy status should be less than 50ms old and any
-	 * redundant actuator outputs less than 10 ms old (20 ms in hitl).
+	 * As a sanity check, verify that the redundancy status and any redundant actuator
+	 * outputs are less than 50 ms old.
 	 */
 
 	if (_redundant_actuator_control_enabled) {
 		redundancy_status_s rstatus;
 
 		if (_redundancy_status_sub.copy(&rstatus) &&
-		    hrt_elapsed_time(&rstatus.timestamp) < 50000 &&
+		    hrt_elapsed_time(&rstatus.timestamp) < 50_ms &&
 		    rstatus.fc_number != rstatus.fc_in_act_control &&
 		    rstatus.fc_number >= redundancy_status_s::FC1 && rstatus.fc_number <= MAX_N_FCS &&
 		    rstatus.fc_in_act_control >= redundancy_status_s::FC1 && rstatus.fc_in_act_control <= MAX_N_FCS) {
-			const hrt_abstime act_output_timeout = _hitl_mode ? 20_ms : 10_ms;
 			actuator_outputs_s ract_outputs;
 			int fc_idx = rstatus.fc_in_act_control - redundancy_status_s::FC1;
 
 			if (_redundant_actuator_outputs_sub[fc_idx]->copy(&ract_outputs) &&
-			    hrt_elapsed_time(&ract_outputs.timestamp) < act_output_timeout) {
+			    hrt_elapsed_time(&ract_outputs.timestamp) < 50_ms) {
 				/* The actuator outputs is already in correct scale, simply convert from float to uint16 */
 
 				for (int i = 0; i < (int)num_outputs; i++) {
