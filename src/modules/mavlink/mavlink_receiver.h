@@ -132,7 +132,7 @@ public:
 	MavlinkReceiver(Mavlink *parent);
 	~MavlinkReceiver() override;
 
-	void start();
+	void start(int priority);
 	void stop();
 
 	bool component_was_seen(int system_id, int component_id);
