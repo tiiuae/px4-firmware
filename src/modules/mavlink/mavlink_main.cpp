@@ -1942,6 +1942,8 @@ Mavlink::task_main(int argc, char *argv[])
 	int temp_int_arg;
 #endif
 
+	int priority = SCHED_PRIORITY_MAX - 80;
+
 	while ((ch = px4_getopt(argc, argv, "b:r:d:n:u:o:m:t:i:c:F:fgswxyzZp", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 'b':
@@ -2182,7 +2184,8 @@ Mavlink::task_main(int argc, char *argv[])
 				sched_param sch;
 				int policy;
 				pthread_getschedparam(pthread_self(), &policy, &sch);
-				sch.sched_priority = SCHED_PRIORITY_MAX - 80;
+				priority += 1;
+				sch.sched_priority = priority;
 
 				if (pthread_setschedparam(pthread_self(), policy, &sch)) {
 					PX4_ERR("Failed to set increased priority for the mavlink instance");
@@ -2396,7 +2399,7 @@ Mavlink::task_main(int argc, char *argv[])
 		send_autopilot_capabilities();
 	}
 
-	_receiver.start();
+	_receiver.start(priority);
 
 	uint16_t event_sequence_offset = 0; // offset to account for skipped events, not sent via MAVLink
 
