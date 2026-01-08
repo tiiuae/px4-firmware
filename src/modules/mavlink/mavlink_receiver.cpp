@@ -3563,14 +3563,14 @@ void MavlinkReceiver::print_detailed_rx_stats() const
 	}
 }
 
-void MavlinkReceiver::start()
+void MavlinkReceiver::start(int priority)
 {
 	pthread_attr_t receiveloop_attr;
 	pthread_attr_init(&receiveloop_attr);
 
 	struct sched_param param;
 	(void)pthread_attr_getschedparam(&receiveloop_attr, &param);
-	param.sched_priority = SCHED_PRIORITY_MAX - 80;
+	param.sched_priority = priority;
 	(void)pthread_attr_setschedparam(&receiveloop_attr, &param);
 
 	pthread_attr_setstacksize(&receiveloop_attr,
