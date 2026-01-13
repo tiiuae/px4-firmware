@@ -96,12 +96,7 @@ __EXPORT const char *board_get_hw_type_name(void)
 
 __EXPORT int board_get_hw_version(void)
 {
-	if (device_boot_info.hw_version) {
-		return device_boot_info.hw_version;
-
-	} else {
-		return BOARD_DEFAULT_VER;
-	}
+	return VER_SALUKI_NXP93_FT;
 }
 
 __EXPORT int board_get_hw_revision()
