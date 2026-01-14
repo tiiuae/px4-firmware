@@ -85,7 +85,7 @@ function(px4_add_module)
 
 	px4_parse_function_args(
 		NAME px4_add_module
-		ONE_VALUE MODULE MAIN STACK_MAIN STACK_MAX PRIORITY LANG RUST_MOD
+		ONE_VALUE MODULE MAIN STACK_MAIN STACK_MAX PRIORITY LANG RUST_MOD RUST_FEATS
 		MULTI_VALUE COMPILE_FLAGS LINK_FLAGS SRCS INCLUDES DEPENDS MODULE_CONFIG
 		OPTIONS EXTERNAL DYNAMIC UNITY_BUILD NO_DAEMON
 		REQUIRED MODULE MAIN
@@ -287,6 +287,10 @@ function(px4_add_module)
 			set(RUST_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/target)
 			set(RUST_LIB_NAME lib${RUST_MOD}.a)
 			set(RUST_LIB_PATH ${RUST_TARGET_DIR}/${CMAKE_RUST_TARGET}/release/${RUST_LIB_NAME})
+			set(RUST_FEAT_STR "")
+			if(NOT "${RUST_FEATS}" STREQUAL "")
+				set(RUST_FEAT_STR --features ${RUST_FEATS})
+			endif()
 
 			# Custom target to build the Rust library
 			add_custom_command(
@@ -294,7 +298,7 @@ function(px4_add_module)
 				WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${RUST_MOD}
 				DEPENDS ${CMAKE_BINARY_DIR}/uORB/topics/uORBTopics.hpp
 				DEPENDS rust_bindings
-				COMMAND CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} cargo ${CMAKE_RUST_TOOLCHAIN_VERSION} rustc --crate-type=staticlib ${CMAKE_RUST_COMPILER_FLAGS} --release --target-dir ${RUST_TARGET_DIR}
+				COMMAND CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} cargo ${CMAKE_RUST_TOOLCHAIN_VERSION} rustc --crate-type=staticlib ${CMAKE_RUST_COMPILER_FLAGS} ${RUST_FEAT_STR} --release --target-dir ${RUST_TARGET_DIR}
 				COMMENT "Building Rust staticlib: ${RUST_LIB_PATH}"
 			)
 
