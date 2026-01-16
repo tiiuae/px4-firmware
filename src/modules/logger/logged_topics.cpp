@@ -304,6 +304,16 @@ void LoggedTopics::add_default_topics()
 	add_optional_topic_multi("estimator_aid_src_sideslip", 0, MAX_ESTIMATOR_INSTANCES);
 
 #endif /* CONFIG_ARCH_BOARD_PX4_SITL */
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+	add_topic("redundancy_status");
+	add_topic("redundant_status0");
+	add_topic("redundant_status1");
+	add_topic("redundant_rates_setpoint0");
+	add_topic("redundant_rates_setpoint1");
+	add_topic("redundant_actuator_outputs0");
+	add_topic("redundant_actuator_outputs1");
+#endif
 }
 
 void LoggedTopics::add_high_rate_topics()
