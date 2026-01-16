@@ -265,6 +265,17 @@ void LoggedTopics::add_default_topics()
 #ifdef CONFIG_BOARD_UAVCAN_INTERFACES
 	add_topic_multi("can_interface_status", 100, CONFIG_BOARD_UAVCAN_INTERFACES);
 #endif
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+	add_topic("redundancy_status");
+	add_topic("redundancy_hw_status");
+	add_topic("redundant_status0");
+	add_topic("redundant_status1");
+	add_topic("redundant_rates_setpoint0");
+	add_topic("redundant_rates_setpoint1");
+	add_topic("redundant_actuator_outputs0");
+	add_topic("redundant_actuator_outputs1");
+#endif
 }
 
 void LoggedTopics::add_high_rate_topics()
