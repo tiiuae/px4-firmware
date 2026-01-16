@@ -1471,6 +1471,7 @@ void Logger::start_log_file(LogType type)
 		write_formats(type);
 
 		if (type == LogType::Full) {
+			_console_buffer_offset = 0; // Reset to read from beginning for new log
 			write_parameters(type);
 			write_parameter_defaults(type);
 			write_perf_data(PrintLoadReason::Preflight);
@@ -1524,6 +1525,7 @@ void Logger::mav_start_steps()
 	pthread_setspecific(pthread_data_key, (void *)&_thread_mav_start_sender_data);
 
 	PX4_INFO("Write static data - Begin");
+	_console_buffer_offset = 0; // Reset to read from beginning for new log
 	write_header(LogType::Full);
 	write_version(LogType::Full);
 	write_formats(LogType::Full);
@@ -1554,6 +1556,8 @@ void Logger::start_log_mavlink()
 	initialize_load_output(PrintLoadReason::Preflight);
 
 	PX4_INFO("Start mavlink log");
+
+	_console_buffer_offset = 0; // Reset to read from beginning for new log
 
 	_writer.start_log_mavlink();
 	_writer.select_write_backend(LogWriter::BackendMavlink);
@@ -1777,11 +1781,10 @@ void Logger::write_console_output()
 	const int buffer_length = 220;
 	char buffer[buffer_length];
 	int size = px4_console_buffer_size();
-	int offset = -1;
 	bool first = true;
 
 	while (size > 0) {
-		int read_size = px4_console_buffer_read(buffer, buffer_length - 1, &offset);
+		int read_size = px4_console_buffer_read(buffer, buffer_length - 1, &_console_buffer_offset);
 
 		if (read_size <= 0) { break; }
 
