@@ -70,21 +70,25 @@ int px4_console_buffer_size()
 int px4_console_buffer_read(char *buffer, int buffer_length, int *offset)
 {
 	FILE *fp;
-	ssize_t nread;
+	size_t nread = 0;
 
 	/* Open a file stream to keep track of offset */
 	fp = fdopen(dup(console_fd), "r");
 
 	if (fp == NULL) {
-		return -1;
+		return 0;  /* Return 0 on error to match console_buffer.cpp behavior */
 	}
 
 	/* The driver does not utilize file position, we have to do it for it */
-	fseek(fp, *offset, SEEK_SET);
-	nread = read(console_fd, buffer, buffer_length);
-	*offset = fseek(fp, 0, SEEK_CUR);
+	if (fseek(fp, *offset, SEEK_SET) == 0) {
+		nread = fread(buffer, 1, buffer_length, fp);
 
-	/* Now we can close the file */
+		/* Manually update offset since driver doesn't maintain file position */
+		if (nread > 0) {
+			*offset += nread;
+		}
+	}
+
 	fclose(fp);
 
 	return (int)nread;

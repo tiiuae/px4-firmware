@@ -415,6 +415,8 @@ private:
 
 	uint32_t					_message_gaps{0};
 
+	int						_console_buffer_offset{0}; ///< console buffer read offset for write_console_output()
+
 	timer_callback_data_s				_timer_callback_data{};
 
 	uORB::Subscription				_manual_control_setpoint_sub{ORB_ID(manual_control_setpoint)};
