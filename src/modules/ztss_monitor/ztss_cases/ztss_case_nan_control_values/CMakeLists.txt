@@ -1,0 +1,3 @@
+px4_add_library(ztss_case_nan_control_values
+ztss_case_nan_control_values.cpp
+)

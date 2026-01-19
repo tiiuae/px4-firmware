@@ -33,9 +33,9 @@
 		"ms-vscode.makefile-tools"
 	],
 
-	"containerUser": "user",
+	"containerUser": "root",
 	"containerEnv": {
-		"LOCAL_USER_ID": "${localEnv:UID}"
+		// "LOCAL_USER_ID": "${localEnv:UID}"
 	},
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.

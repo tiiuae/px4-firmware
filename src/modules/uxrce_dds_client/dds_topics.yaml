@@ -5,6 +5,9 @@
 #####
 publications:
 
+  - topic: /fmu/out/estimator_innovations
+    type: px4_msgs::msg::EstimatorInnovations
+
   - topic: /fmu/out/collision_constraints
     type: px4_msgs::msg::CollisionConstraints
 
@@ -114,6 +117,10 @@ subscriptions:
 
   - topic: /fmu/in/gps_inject_data
     type: px4_msgs::msg::GpsInjectData
+
+  # generate the dummy bridge between ros2 and px4 to trigger the dummy case
+  - topic: /fmu/in/ztss_dummy_trigger
+    type: px4_msgs::msg::DatamanRequest
 
 # Create uORB::PublicationMulti
 subscriptions_multi:
