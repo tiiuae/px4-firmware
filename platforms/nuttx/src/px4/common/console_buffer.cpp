@@ -59,6 +59,7 @@ public:
 
 	int read(char *buffer, int buffer_length, int *offset);
 
+	off_t seek(struct file *filep, off_t offset, int whence);
 private:
 	void		lock() { do {} while (px4_sem_wait(&_lock) != 0); }
 	void		unlock() { px4_sem_post(&_lock); }
@@ -185,6 +186,51 @@ int ConsoleBuffer::read(char *buffer, int buffer_length, int *offset)
 	return size;
 }
 
+off_t ConsoleBuffer::seek(struct file *filep, off_t offset, int whence)
+{
+	int head = _head; // assume atomic read
+	int f_pos;
+
+	if (!filep) {
+		return -EINVAL;
+	}
+
+	switch (whence) {
+	case SEEK_SET:
+		if (offset < 0) {
+			return -EINVAL;
+		}
+
+		f_pos = (head + offset);
+		break;
+
+	case SEEK_CUR:
+		f_pos = (filep->f_pos + offset);
+		break;
+
+	case SEEK_END:
+		f_pos = (size() + offset);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	f_pos %= BOARD_CONSOLE_BUFFER_SIZE;
+
+	/* Manage negative offset passed */
+
+	if (f_pos < 0) {
+		f_pos += BOARD_CONSOLE_BUFFER_SIZE;
+	}
+
+	filep->f_pos = f_pos;
+
+	/* return offset relative to circular buffer head, "beginning of the file" */
+
+	return f_pos >= head ? f_pos - head : BOARD_CONSOLE_BUFFER_SIZE - head + f_pos;
+}
+
 static ConsoleBuffer g_console_buffer;
 
 
@@ -213,24 +259,7 @@ ssize_t console_buffer_read(struct file *filep, char *buffer, size_t buflen)
 
 off_t console_buffer_seek(struct file *filep, off_t offset, int whence)
 {
-	switch (whence) {
-	case SEEK_SET:
-		filep->f_pos = offset;
-		break;
-
-	case SEEK_CUR:
-		filep->f_pos += offset;
-		break;
-
-	case SEEK_END:
-		filep->f_pos = (g_console_buffer.size() + offset) % BOARD_CONSOLE_BUFFER_SIZE;
-		break;
-
-	default:
-		return -1;
-	}
-
-	return filep->f_pos;
+	return g_console_buffer.seek(filep, offset, whence);
 }
 
 int console_buffer_ioctl(struct file *filep, int cmd, unsigned long arg)
