@@ -1,0 +1,8 @@
+ztss_case_dummy:
+  subscribers:
+    ztss_use_case_dummy_a:
+      message type:
+        - dataman_request
+    ztss_use_case_dummy_b:
+      message type:
+        - dataman_request

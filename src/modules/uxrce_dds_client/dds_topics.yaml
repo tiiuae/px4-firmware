@@ -119,7 +119,10 @@ subscriptions:
     type: px4_msgs::msg::GpsInjectData
 
   # generate the dummy bridge between ros2 and px4 to trigger the dummy case
-  - topic: /fmu/in/ztss_dummy_trigger
+  - topic: /fmu/in/ztss_dummy_trigger_a
+    type: px4_msgs::msg::DatamanRequest
+
+  - topic: /fmu/in/ztss_dummy_trigger_b
     type: px4_msgs::msg::DatamanRequest
 
 # Create uORB::PublicationMulti
