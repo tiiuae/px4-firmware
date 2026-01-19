@@ -1,5 +1,5 @@
 menuconfig MODULES_ZTSS_MONITOR
     bool "ztss_monitor"
-    default n
+    default y
     ---help---
         Enable ZTSS Monitor module for safety monitoring

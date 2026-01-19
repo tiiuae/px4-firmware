@@ -265,6 +265,7 @@ rc_update start
 manual_control start
 sensors start
 commander start
+ztss_monitor start
 
 #
 # state estimator selection
