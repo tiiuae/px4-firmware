@@ -59,6 +59,7 @@ public:
 
 	int read(char *buffer, int buffer_length, int *offset);
 
+	int seek(struct file *filep, off_t offset, int whence);
 private:
 	void		lock() { do {} while (px4_sem_wait(&_lock) != 0); }
 	void		unlock() { px4_sem_post(&_lock); }
@@ -185,6 +186,35 @@ int ConsoleBuffer::read(char *buffer, int buffer_length, int *offset)
 	return size;
 }
 
+int ConsoleBuffer::seek(struct file *filep, off_t offset, int whence)
+{
+	if (!filep || offset < 0) {
+		return -EINVAL;
+	}
+
+	switch (whence) {
+	case SEEK_SET:
+		lock();
+		filep->f_pos = (_head + offset);
+		unlock();
+		break;
+
+	case SEEK_CUR:
+		filep->f_pos = (filep->f_pos + offset);
+		break;
+
+	case SEEK_END:
+		filep->f_pos = (size() + offset);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	filep->f_pos %= BOARD_CONSOLE_BUFFER_SIZE;
+	return OK;
+}
+
 static ConsoleBuffer g_console_buffer;
 
 
@@ -213,24 +243,7 @@ ssize_t console_buffer_read(struct file *filep, char *buffer, size_t buflen)
 
 off_t console_buffer_seek(struct file *filep, off_t offset, int whence)
 {
-	switch (whence) {
-	case SEEK_SET:
-		filep->f_pos = offset;
-		break;
-
-	case SEEK_CUR:
-		filep->f_pos += offset;
-		break;
-
-	case SEEK_END:
-		filep->f_pos = (g_console_buffer.size() + offset) % BOARD_CONSOLE_BUFFER_SIZE;
-		break;
-
-	default:
-		return -1;
-	}
-
-	return filep->f_pos;
+	return g_console_buffer.seek(filep, offset, whence);
 }
 
 int console_buffer_ioctl(struct file *filep, int cmd, unsigned long arg)
