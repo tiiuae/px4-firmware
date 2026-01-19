@@ -263,6 +263,9 @@ set(msg_files
 	WheelEncoders.msg
 	Wind.msg
 	YawEstimatorStatus.msg
+	ZtssMonitorUseCaseOutput.msg
+	ZtssEventTrigger.msg
+	ZtssSafeActionsStatus.msg
 )
 list(SORT msg_files)
 

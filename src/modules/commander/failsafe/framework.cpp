@@ -423,6 +423,12 @@ void FailsafeBase::getSelectedAction(const State &state, const failsafe_flags_s 
 	returned_state.updated_user_intended_mode = state.user_intended_mode;
 	returned_state.cause = Cause::Generic;
 
+	// If the user just updated the intended mode to a ZTSS mode, we should not immediately trigger failsafe actions.
+	if (state.user_intended_mode == vehicle_status_s::NAVIGATION_STATE_ZTSS) {
+		returned_state.action = Action::None;
+		return;
+	}
+
 	if (_selected_action == Action::Terminate) { // Terminate never clears
 		returned_state.action = Action::Terminate;
 		return;
@@ -634,6 +640,10 @@ void FailsafeBase::clearDelayIfNeeded(const State &state,
 
 uint8_t FailsafeBase::modeFromAction(const Action &action, uint8_t user_intended_mode)
 {
+	// Override any failsafe action if the desired mode is ZTSS
+	if (user_intended_mode == vehicle_status_s::NAVIGATION_STATE_ZTSS) {
+		return user_intended_mode;
+	}
 	switch (action) {
 
 	case Action::FallbackPosCtrl: return vehicle_status_s::NAVIGATION_STATE_POSCTL;
