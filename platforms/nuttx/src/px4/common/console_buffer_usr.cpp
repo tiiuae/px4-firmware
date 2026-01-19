@@ -69,23 +69,22 @@ int px4_console_buffer_size()
 
 int px4_console_buffer_read(char *buffer, int buffer_length, int *offset)
 {
-	FILE *fp;
 	ssize_t nread;
 
-	/* Open a file stream to keep track of offset */
-	fp = fdopen(dup(console_fd), "r");
+	// If offset is -1, seek to the beginning (first read)
+	if (*offset == -1) {
+		*offset = (int)lseek(console_fd, 0, SEEK_SET);
 
-	if (fp == NULL) {
-		return -1;
+		if (*offset < 0) {
+			return -errno;
+		}
 	}
 
-	/* The driver does not utilize file position, we have to do it for it */
-	fseek(fp, *offset, SEEK_SET);
 	nread = read(console_fd, buffer, buffer_length);
-	*offset = fseek(fp, 0, SEEK_CUR);
 
-	/* Now we can close the file */
-	fclose(fp);
+	if (nread > 0) {
+		*offset += nread;
+	}
 
 	return (int)nread;
 }
