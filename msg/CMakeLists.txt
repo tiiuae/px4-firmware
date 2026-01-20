@@ -181,6 +181,7 @@ set(msg_files
 	RcChannels.msg
 	RcParameterMap.msg
 	RedundancyStatus.msg
+	RedundancyHwStatus.msg
 	RegisterExtComponentReply.msg
 	RegisterExtComponentRequest.msg
 	RoverStatus.msg
