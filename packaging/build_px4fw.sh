@@ -29,7 +29,7 @@ else
 
                if [ -z "$SIGNING_ARGS" ]; then
                    if [[ "$NAME" == "saluki-nxp93" || "$NAME" == "saluki-micro" || "$NAME" == "saluki-ft" ]]; then
-                       export SIGNING_ARGS=Tools/saluki-sec-scripts/test_keys/saluki-nxp93/secp384r1_test_key1.pem
+                       export SIGNING_ARGS=Tools/saluki-sec-scripts/test_keys/$NAME/secp384r1_test_key1.pem
                    else
                        export SIGNING_ARGS=Tools/saluki-sec-scripts/test_keys/$NAME/ed25519_test_key.pem
                    fi
