@@ -188,6 +188,7 @@ set(msg_files
 	RcChannels.msg
 	RcParameterMap.msg
 	RedundancyStatus.msg
+	RedundancyHwStatus.msg
 	RoverAttitudeSetpoint.msg
 	RoverAttitudeStatus.msg
 	RoverPositionSetpoint.msg
