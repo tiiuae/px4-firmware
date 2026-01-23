@@ -8,7 +8,6 @@
 #include <any>
 
 
-template<int NUMBER_OF_INPUTS>
 class ZtssCaseDummy : public ModuleParams
 {
 
@@ -26,12 +25,13 @@ void publish_use_case_status();
 private:
 
 // Publications
-uORB::Publication<ztss_monitor_use_case_output_s> _ztss_use_case_dummy_pub{ORB_ID(ztss_use_case_dummy)};
+uORB::Publication<ztss_monitor_use_case_output_s> ztss_use_case_dummy_pub_{ORB_ID(ztss_use_case_dummy)};
 
 private:
-std::array<bool, NUMBER_OF_INPUTS> updated_subcribers_;
-std::array<uORB::Subscription, NUMBER_OF_INPUTS> subscriptions_;
-std::array<dataman_request_s, NUMBER_OF_INPUTS> messages_;
+bool updated_subcriber_;
+dataman_request_s input_message_{};
 ztss_monitor_use_case_output_s use_case_output_;
+
+uORB::Subscription ztss_dummy_case_subscription_{ORB_ID(ztss_dummy_trigger)};
 
 };

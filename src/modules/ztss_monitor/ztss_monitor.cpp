@@ -34,7 +34,7 @@ int ZtssMonitor::task_spawn(int argc, char *argv[])
 	// run_trampoline() calls run() → main loop starts
 	_task_id = px4_task_spawn_cmd("ztss_monitor",
 				      SCHED_DEFAULT,
-				      SCHED_PRIORITY_DEFAULT + 40,
+				      SCHED_PRIORITY_DEFAULT + 20,
 				      PX4_STACK_ADJUSTED(3250), // to be adjusted
 				      (px4_main_t)&run_trampoline,
 				      (char *const *)argv);

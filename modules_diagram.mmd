@@ -1,0 +1,191 @@
+flowchart TB
+  %% --- 1. LAYOUT & NODE DEFINITIONS ---
+
+  %% Place Hardware Override First (Forces Left Positioning)
+  HardKill["**Hardware Override**<br>(RC Switch / FTS)"]
+
+
+
+  %% Main Application Processor
+  subgraph App["**A55 Processor**"]
+    direction TB
+    subgraph Sources["Reference Input uORB Topics"]
+        direction TB
+        RC["Manual Mode"]
+        Pos["Position Mode"]
+        RTL["RTL Mode"]
+        Comp["Offboard Mode"]
+        HWData["HW Data"]
+        others["..."]
+    end
+
+    subgraph ZTSS["ZTSS/SRTA Module"]
+        direction TB
+        Monitor["**Monitor**<br>Flight Mode Viability"]
+      end
+
+    subgraph DecisionBlock["Decision Engine"]
+      direction TB
+      DecisionCore["Decision Core"]
+    end
+    subgraph Execution["Control Logic"]
+        direction TB
+        Navigator["Navigator"]
+        Ctl["BaselineController"]
+        Act["Actuators"]
+    end
+    subgraph SafeActions["Safe Actions Module"]
+      direction TB
+      MRM["MRM (Safe Land)"]
+      RME["RME (Hover / RTL)"]
+      CPE["CPE (Kill Motors)"]
+    end
+
+    ParachutePrimary["**Parachute Actuator**"]
+  end
+
+  %% Secondary Application Processor
+  subgraph SecApp["**Secondary A55 Processor**"]
+    direction TB
+    subgraph SecondarySources["Secondary Reference Input uORB Topics"]
+        direction TB
+        RCSec["Manual Mode"]
+        PosSec["Position Mode"]
+        RTLSec["RTL Mode"]
+        CompSec["Offboard Mode"]
+        HWDataSec["HW Data"]
+        othersSec["..."]
+    end
+    subgraph ZTSSSec["ZTSS/SRTA Module"]
+        direction TB
+        MonitorSec["**Monitor**<br>Flight Mode Viability"]
+      end
+    subgraph DecisionBlockSec["Decision Engine"]
+      direction TB
+      DecisionCoreSec["Decision Core"]
+    end
+    subgraph BaseController["Control Logic"]
+        direction TB
+        Base["BaselineController"]
+        Actuators["Actuators"]
+        NavigatorSecondary["**Navigator**"]
+    end
+    subgraph SafeActions_Exec["Safe Actions Module"]
+      direction TB
+      MRM_Exec["MRM-Executor (Safe Land)"]
+      RME_Exec["RME-Executor (Hover / RTL)"]
+      CPE_Exec["CPE-Executor (Kill Motors)"]
+      CM_Exec["CM_Exec (Continue Mission)"]
+    end
+    ParachuteSecondary["**Parachute Actuator**"]
+  end
+
+    %% Safety Processor
+  subgraph FT["**M33 Processor** (Safety Core)"]
+    direction TB
+    Parachute["**Parachute Deployer**"]
+    SecFC["**SecFC**<br>(Failsafe Control)"]
+  end
+
+  subgraph FT-Sec["**M33 Processor** (Secondary Safety Core)"]
+    direction TB
+    ParachuteSec["**Parachute Deployer**"]
+    SecSecFC["**SecFC**<br>(Failsafe Control)"]
+  end
+
+  %% Connections
+  RC --> Monitor
+  Pos --> Monitor
+  RTL --> Monitor
+  Comp --> Monitor
+  HWData --> Monitor
+  others --> Monitor
+
+  RCSec --> MonitorSec
+  PosSec --> MonitorSec
+  RTLSec --> MonitorSec
+  CompSec --> MonitorSec
+  HWDataSec --> MonitorSec
+  othersSec --> MonitorSec
+
+  Navigator -- Set Points --> Ctl
+  Ctl -- Control Input --> Act
+  Ctl == Control Input ==> Monitor
+
+  Monitor --> DecisionCore
+  MonitorSec --> DecisionCoreSec
+
+  DecisionCore -- "Event Action Trigger" --> CPE
+  DecisionCore -- "Event Action Trigger" --> RME
+  DecisionCore -- "Event Action Trigger" --> MRM
+
+  DecisionCoreSec -- "Event Action Trigger" --> CM_Exec
+  DecisionCoreSec -- "Event Action Trigger" --> CPE_Exec
+  DecisionCoreSec -- "Event Action Trigger" --> RME_Exec
+  DecisionCoreSec -- "Event Action Trigger" --> MRM_Exec
+
+
+  MRM == RPMsg ==> FT
+  MRM -- Set Points --> Ctl
+  CPE == RPMsg ==> FT
+  CPE --> ParachutePrimary
+  RME ==> Ctl
+  FT == RPMsg ==> FT-Sec
+  HardKill ====> Parachute
+  NavigatorSecondary -- Set Point --> Base
+  Base -- Control Input --> Actuators
+  MRM_Exec --> Base
+  CPE_Exec --> Actuators
+  RME_Exec --> Base
+  CM_Exec --> NavigatorSecondary
+  CPE_Exec --> ParachuteSecondary
+  FT-Sec == RPMsg ==> SecApp
+
+  %% --- STYLING ---
+
+  style Monitor fill:#ffcc80,stroke:#333,stroke-width:2px
+  style MonitorSec fill:#ffcc80,stroke:#333,stroke-width:2px
+
+  style DecisionBlock fill:#ffab91,stroke:#d84315,stroke-width:2px
+  style DecisionCore fill:#ff5252,stroke:#b71c1c,stroke-width:2px,color:#fff
+
+  style DecisionBlockSec fill:#ffab91,stroke:#d84315,stroke-width:2px
+  style DecisionCoreSec fill:#ff5252,stroke:#b71c1c,stroke-width:2px,color:#fff
+
+  style ZTSS fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+  style ZTSSSec fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+
+  style MRM fill:#ffcc80,stroke:#333,stroke-width:2px
+  style CPE fill:#ffcc80,stroke:#333,stroke-width:2px
+  style RME fill:#ffcc80,stroke:#333,stroke-width:2px
+
+  style MRM_Exec fill:#ffcc80,stroke:#333,stroke-width:2px
+  style CPE_Exec fill:#ffcc80,stroke:#333,stroke-width:2px
+  style RME_Exec fill:#ffcc80,stroke:#333,stroke-width:2px
+  style CM_Exec fill:#ffcc80,stroke:#333,stroke-width:2px
+
+  style SafeActions fill:#ffcdd2,stroke:#c62828,stroke-width:2px
+  style SafeActions_Exec fill:#ffcdd2,stroke:#c62828,stroke-width:2px
+
+  style HardKill fill:#ff5252,stroke:#b71c1c,stroke-width:2px,color:#fff
+
+  style Parachute fill:#ffcdd2,stroke:#c62828,stroke-width:2px
+  style ParachuteSec fill:#ffcdd2,stroke:#c62828,stroke-width:2px
+  style ParachutePrimary fill:#ffcdd2,stroke:#c62828,stroke-width:2px
+  style ParachuteSecondary fill:#ffcdd2,stroke:#c62828,stroke-width:2px
+
+  style SecFC fill:#cfd8dc,stroke:#455a64,stroke-width:2px
+  style SecSecFC fill:#cfd8dc,stroke:#455a64,stroke-width:2px
+
+  style Execution fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+  style BaseController fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+
+
+
+  %% Legend
+  subgraph Legend["**Acronym Definitions**"]
+    Note["**CPE**: Crash Preparation Engaged
+            **MRM**: Minimum Risk Maneuver
+            **RME**: Reduced Mission Engaged
+            **FMC**: Full Mission Continues"]
+  end

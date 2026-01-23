@@ -128,5 +128,10 @@
         "yaml.schemas": {
                 "${workspaceFolder}/validation/module_schema.yaml": "${workspaceFolder}/src/modules/*/module.yaml"
         },
-        "ros.distro": "humble"
+        "ros.distro": "humble",
+
+        "clangd.path": "/usr/bin/clangd",
+        "clangd.arguments": ["--compile-commands-dir=build/px4_sitl_default"],
+        "C_Cpp.default.compileCommands": "${workspaceFolder}/build/px4_sitl_default/compile_commands.json"
+
 }

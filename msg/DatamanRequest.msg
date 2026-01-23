@@ -7,4 +7,4 @@ uint32 index
 uint8[56] data
 uint32 data_length
 
-# TOPICS dataman_request ztss_dummy_trigger_a ztss_dummy_trigger_b
+# TOPICS dataman_request ztss_dummy_trigger

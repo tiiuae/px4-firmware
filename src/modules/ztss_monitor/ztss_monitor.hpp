@@ -40,7 +40,7 @@ public:
 
 private:
 
-ZtssCaseDummy<2>  ztss_case_dummy_{this};
+ZtssCaseDummy ztss_case_dummy_{this};
 
 // perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
 

@@ -261,6 +261,7 @@ set(msg_files
 	Wind.msg
 	YawEstimatorStatus.msg
 	ZtssMonitorUseCaseOutput.msg
+	ZtssEventTrigger.msg
 )
 list(SORT msg_files)
 

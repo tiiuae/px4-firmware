@@ -1,0 +1,5 @@
+menuconfig MODULES_ZTSS_DECISION_ENGINE
+	bool "ztss_decision_engine"
+	default y
+	---help---
+		Enable ZTSS Decision Engine module for safety translation of facts to actions

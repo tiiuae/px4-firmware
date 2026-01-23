@@ -1,66 +1,58 @@
 #include "ztss_case_dummy.hpp"
 
-template<int NUMBER_OF_INPUTS>
-ZtssCaseDummy<NUMBER_OF_INPUTS>::ZtssCaseDummy(ModuleParams *parent): ModuleParams(parent)
+ZtssCaseDummy::ZtssCaseDummy(ModuleParams *parent): ModuleParams(parent)
 {
-	// _ztss_use_case_dummy_pub.advertise();
+	ztss_use_case_dummy_pub_.advertise();
 
-	subscriptions_ = std::array<uORB::Subscription, NUMBER_OF_INPUTS>{
-		uORB::Subscription{ORB_ID(ztss_dummy_trigger_a)},
-		uORB::Subscription{ORB_ID(ztss_dummy_trigger_b)}
-	};
 }
 
-template<int NUMBER_OF_INPUTS>
-void ZtssCaseDummy<NUMBER_OF_INPUTS>::update_subscribed_values()
+void ZtssCaseDummy::update_subscribed_values()
 {
-	for(size_t i =0; i<NUMBER_OF_INPUTS; i++)
-	{
-		if (subscriptions_[i].updated())
+
+
+		if (ztss_dummy_case_subscription_.updated())
 		{
-			updated_subcribers_[i] = true;
-			subscriptions_[i].copy(&messages_[i]);
-			continue;
+			updated_subcriber_ = true;
+			ztss_dummy_case_subscription_.copy(&input_message_);
+			PX4_INFO("Received a dummy tirgger %d", static_cast<int>(this->input_message_.request_type));
+			return;
 		}
-		updated_subcribers_[i]=false;
-	}
+		updated_subcriber_=false;
 }
 
-template<int NUMBER_OF_INPUTS>
-void ZtssCaseDummy<NUMBER_OF_INPUTS>::execute_use_case_safety_evaluation()
+void ZtssCaseDummy::execute_use_case_safety_evaluation()
 {
-	bool all_subcribers_updated = false;
 
-	for(size_t i =0; i < NUMBER_OF_INPUTS; i++)
-	{
-		all_subcribers_updated = all_subcribers_updated && updated_subcribers_[i];
-	}
 
-	if (all_subcribers_updated)
+	if (updated_subcriber_)
 	{
-		bool use_case_valid_operation = false;
-		for(size_t i =0; i < NUMBER_OF_INPUTS; i++)
+
+		if (this->input_message_.request_type == ztss_monitor_use_case_output_s::INFO)
 		{
-			use_case_valid_operation = use_case_valid_operation && messages_[i].request_type == ztss_monitor_use_case_output_s::VALID_EXECUTION;
+			this->use_case_output_.healthy = true;
+			this->use_case_output_.severity = ztss_monitor_use_case_output_s::INFO;
+			this->use_case_output_.margin = ztss_monitor_use_case_output_s::MARGIN_LOW;
 		}
-
-		this->use_case_output_.timestamp = hrt_absolute_time();
-		this->use_case_output_.use_case_status = ztss_monitor_use_case_output_s::VALID_EXECUTION;
-
-
-		if (!use_case_valid_operation)
+		if (this->input_message_.request_type == ztss_monitor_use_case_output_s::WARN)
 		{
-			this->use_case_output_.use_case_status = ztss_monitor_use_case_output_s::INVALID_EXECUTION;
+			this->use_case_output_.healthy = false;
+			this->use_case_output_.severity = ztss_monitor_use_case_output_s::WARN;
+			this->use_case_output_.margin = ztss_monitor_use_case_output_s::MARGIN_LOW;
+		}
+		if (this->input_message_.request_type == ztss_monitor_use_case_output_s::CRITICAL)
+		{
+			this->use_case_output_.healthy = false;
+			this->use_case_output_.severity = ztss_monitor_use_case_output_s::CRITICAL;
+			this->use_case_output_.margin = ztss_monitor_use_case_output_s::MARGIN_LOW;
 		}
 	}
 }
 
 
-template<int NUMBER_OF_INPUTS>
-void ZtssCaseDummy<NUMBER_OF_INPUTS>::publish_use_case_status()
+void ZtssCaseDummy::publish_use_case_status()
 {
-	this->_ztss_use_case_dummy_pub.publish(this->use_case_output_);
+	this->use_case_output_.timestamp= hrt_absolute_time();
+	this->ztss_use_case_dummy_pub_.publish(this->use_case_output_);
 }
 
 
-template class ZtssCaseDummy<2>;
