@@ -88,6 +88,7 @@
 #include <uORB/topics/obstacle_distance.h>
 #include <uORB/topics/offboard_control_mode.h>
 #include <uORB/topics/onboard_computer_status.h>
+#include <uORB/topics/param_value.h>
 #include <uORB/topics/ping.h>
 #include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/topics/radio_status.h>
@@ -187,6 +188,7 @@ private:
 	void handle_message_odometry(mavlink_message_t *msg);
 	void handle_message_onboard_computer_status(mavlink_message_t *msg);
 	void handle_message_optical_flow_rad(mavlink_message_t *msg);
+	void handle_message_param_value(mavlink_message_t *msg);
 	void handle_message_ping(mavlink_message_t *msg);
 	void handle_message_play_tune(mavlink_message_t *msg);
 	void handle_message_play_tune_v2(mavlink_message_t *msg);
@@ -317,6 +319,7 @@ private:
 	uORB::Publication<obstacle_distance_s>			_obstacle_distance_pub{ORB_ID(obstacle_distance)};
 	uORB::Publication<offboard_control_mode_s>		_offboard_control_mode_pub{ORB_ID(offboard_control_mode)};
 	uORB::Publication<onboard_computer_status_s>		_onboard_computer_status_pub{ORB_ID(onboard_computer_status)};
+	uORB::Publication<param_value_s>			_param_value_pub{ORB_ID(param_value)};
 	uORB::Publication<velocity_limits_s>			_velocity_limits_pub{ORB_ID(velocity_limits)};
 	uORB::Publication<generator_status_s>			_generator_status_pub{ORB_ID(generator_status)};
 	uORB::Publication<vehicle_angular_velocity_s>	_angular_velocity_groundtruth_pub{ORB_ID(vehicle_angular_velocity_groundtruth)};

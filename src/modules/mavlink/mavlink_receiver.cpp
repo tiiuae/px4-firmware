@@ -62,6 +62,7 @@
 #include "mavlink_receiver.h"
 
 #include <lib/drivers/device/Device.hpp> // For DeviceId union
+#include <uORB/topics/param_value.h>
 
 #ifdef CONFIG_NET
 #define MAVLINK_RECEIVER_NET_ADDED_STACK 1360
@@ -199,6 +200,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 
 	case MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE:
 		handle_message_rc_channels_override(msg);
+		break;
+
+	case MAVLINK_MSG_ID_PARAM_VALUE:
+		handle_message_param_value(msg);
 		break;
 
 	case MAVLINK_MSG_ID_HEARTBEAT:
@@ -3579,6 +3584,28 @@ void MavlinkReceiver::start(int priority)
 	pthread_create(&_thread, &receiveloop_attr, MavlinkReceiver::start_trampoline, (void *)this);
 
 	pthread_attr_destroy(&receiveloop_attr);
+}
+
+void
+MavlinkReceiver::handle_message_param_value(mavlink_message_t *msg)
+{
+	// Receive PARAM_VALUE confirmation
+	mavlink_param_value_t param_value_msg;
+	mavlink_msg_param_value_decode(msg, &param_value_msg);
+
+	// Publish to uORB for param_sync module
+	param_value_s response{};
+	response.timestamp = hrt_absolute_time();
+	response.source_sysid = msg->sysid;
+	response.source_compid = msg->compid;
+	response.parameter_index = param_value_msg.param_index;
+	response.value = param_value_msg.param_value;
+	strncpy(response.parameter_name, param_value_msg.param_id, sizeof(response.parameter_name));
+
+	// Publish response
+	_param_value_pub.publish(response);
+
+	PX4_DEBUG("Received PARAM_VALUE for %s from %d:%d", param_value_msg.param_id, msg->sysid, msg->compid);
 }
 
 void
