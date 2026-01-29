@@ -130,5 +130,8 @@ subscriptions:
   - topic: /fmu/in/gps_inject_data
     type: px4_msgs::msg::GpsInjectData
 
+  - topic: /fmu/in/battery_inject_data
+    type: px4_msgs::msg::BatteryInjectData
+
 # Create uORB::PublicationMulti
 subscriptions_multi:

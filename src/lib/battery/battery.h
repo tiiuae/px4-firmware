@@ -60,6 +60,8 @@
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/vehicle_thrust_setpoint.h>
 
+#include <uORB/topics/battery_inject_data.h>
+
 /**
  * BatteryBase is a base class for any type of battery.
  *
@@ -125,6 +127,7 @@ protected:
 		param_t emergen_thr;
 		param_t source;
 		param_t bat_avrg_current;
+		param_t ztss_extern_tte;
 	} _param_handles{};
 
 	struct {
@@ -139,6 +142,7 @@ protected:
 		float emergen_thr;
 		int32_t source;
 		float bat_avrg_current;
+		int32_t ztss_extern_tte;
 	} _params{};
 
 	const int _index;
@@ -150,10 +154,15 @@ private:
 	void sumDischarged(const hrt_abstime &timestamp, float current_a);
 	float calculateStateOfChargeVoltageBased(const float voltage_v, const float current_a);
 	void estimateStateOfCharge();
+
+	void pollExternalInjection();
+
 	uint8_t determineWarning(float state_of_charge);
 	uint16_t determineFaults();
 	void computeScale();
 	float computeRemainingTime(float current_a);
+
+	uORB::Subscription _battery_inject_data_sub{ORB_ID(battery_inject_data)};
 
 	uORB::Subscription _vehicle_thrust_setpoint_0_sub{ORB_ID(vehicle_thrust_setpoint)};
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
@@ -183,4 +192,6 @@ private:
 	bool _armed{false};
 	bool _vehicle_status_is_fw{false};
 	hrt_abstime _last_unconnected_timestamp{0};
+	float _external_time_remaining_s{NAN};
+	hrt_abstime _last_external_injection_time{0}; ///< Track freshness of data
 };

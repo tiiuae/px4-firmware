@@ -96,6 +96,8 @@ Battery::Battery(int index, ModuleParams *parent, const int sample_interval_us, 
 
 	_param_handles.bat_avrg_current = param_find("BAT_AVRG_CURRENT");
 
+	_param_handles.ztss_extern_tte = param_find("ZTSS_EXTERN_TTE");
+
 	updateParams();
 }
 
@@ -117,6 +119,8 @@ void Battery::updateBatteryStatus(const hrt_abstime &timestamp)
 		_voltage_filter_v.reset(_voltage_v);
 		_current_filter_a.reset(_current_a);
 	}
+
+	pollExternalInjection();
 
 	// Require minimum voltage otherwise override connected status
 	if (_voltage_filter_v.getState() < LITHIUM_BATTERY_RECOGNITION_VOLTAGE) {
@@ -302,8 +306,33 @@ void Battery::computeScale()
 	}
 }
 
+void Battery::pollExternalInjection()
+{
+	battery_inject_data_s battery_inject_data;
+	if (_battery_inject_data_sub.update(&battery_inject_data)) {
+		// TTE Injection
+		if (_params.ztss_extern_tte == 1) {
+			if (battery_inject_data.time_remaining_s > 0.0f) {
+				_external_time_remaining_s = battery_inject_data.time_remaining_s;
+				_last_external_injection_time = hrt_absolute_time();
+			} 
+		}
+		///< Future injected data fields
+	}
+}
+
 float Battery::computeRemainingTime(float current_a)
 {
+	const hrt_abstime now = hrt_absolute_time();
+	if (_params.ztss_extern_tte == 1) {
+		bool is_finite = PX4_ISFINITE(_external_time_remaining_s);
+		bool is_fresh = (now - _last_external_injection_time < 5_s);
+
+		if (is_finite && is_fresh) {
+			return _external_time_remaining_s;
+		} 
+	}
+
 	float time_remaining_s = NAN;
 
 	if (_vehicle_status_sub.updated()) {
@@ -337,6 +366,7 @@ float Battery::computeRemainingTime(float current_a)
 		time_remaining_s = remaining_capacity_mah / current_ma * 3600.f;
 	}
 
+
 	return time_remaining_s;
 }
 
@@ -353,6 +383,7 @@ void Battery::updateParams()
 	param_get(_param_handles.crit_thr, &_params.crit_thr);
 	param_get(_param_handles.emergen_thr, &_params.emergen_thr);
 	param_get(_param_handles.bat_avrg_current, &_params.bat_avrg_current);
+	param_get(_param_handles.ztss_extern_tte, &_params.ztss_extern_tte);
 
 	ModuleParams::updateParams();
 
