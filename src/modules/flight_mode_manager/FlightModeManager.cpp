@@ -135,6 +135,13 @@ void FlightModeManager::updateParams()
 
 void FlightModeManager::start_flight_task()
 {
+	// Dont run any flight tasks if ZTSS took control
+	if(_vehicle_control_mode_sub.get().flag_control_ztss_enabled || _vehicle_control_mode_sub.get().flag_control_offboard_enabled)
+	{
+		switchTask(FlightTaskIndex::None);
+		return;
+	}
+
 	// Do not run any flight task for VTOLs in fixed-wing mode
 	if ((_vehicle_status_sub.get().vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING)
 	    || ((_vehicle_status_sub.get().nav_state >= vehicle_status_s::NAVIGATION_STATE_EXTERNAL1)

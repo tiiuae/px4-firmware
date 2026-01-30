@@ -14,7 +14,6 @@ void ZtssCaseDummy::update_subscribed_values()
 		{
 			updated_subcriber_ = true;
 			ztss_dummy_case_subscription_.copy(&input_message_);
-			PX4_INFO("Received a dummy tirgger %d", static_cast<int>(this->input_message_.request_type));
 			return;
 		}
 		updated_subcriber_=false;
@@ -27,19 +26,24 @@ void ZtssCaseDummy::execute_use_case_safety_evaluation()
 	if (updated_subcriber_)
 	{
 
-		if (this->input_message_.request_type == ztss_monitor_use_case_output_s::INFO)
+		if (this->input_message_.request_type == uint8_t(0))
 		{
 			this->use_case_output_.healthy = true;
 			this->use_case_output_.severity = ztss_monitor_use_case_output_s::INFO;
 			this->use_case_output_.margin = ztss_monitor_use_case_output_s::MARGIN_LOW;
 		}
-		if (this->input_message_.request_type == ztss_monitor_use_case_output_s::WARN)
+		if (this->input_message_.request_type == uint8_t(1))
+		{
+			this->use_case_output_.healthy = false;
+			this->use_case_output_.severity = ztss_monitor_use_case_output_s::WARN;
+		}
+		if (this->input_message_.request_type == uint8_t(2))
 		{
 			this->use_case_output_.healthy = false;
 			this->use_case_output_.severity = ztss_monitor_use_case_output_s::WARN;
 			this->use_case_output_.margin = ztss_monitor_use_case_output_s::MARGIN_LOW;
 		}
-		if (this->input_message_.request_type == ztss_monitor_use_case_output_s::CRITICAL)
+		if (this->input_message_.request_type == uint8_t(3))
 		{
 			this->use_case_output_.healthy = false;
 			this->use_case_output_.severity = ztss_monitor_use_case_output_s::CRITICAL;

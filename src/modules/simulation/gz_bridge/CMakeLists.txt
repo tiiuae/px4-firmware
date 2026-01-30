@@ -32,13 +32,17 @@
 ############################################################################
 
 # Find the gz_Transport library
-# First look for GZ Harmonic libraries
+# First look for GZ Harmonic libraries (gz-transport13), then Garden (gz-transport12).
+# Prefer GZ Harmonic (gz-transport13). Try quietly first; if not found,
+# require GZ Garden (gz-transport12) so configuration fails early.
 find_package(gz-transport NAMES gz-transport13)
 
-# If Harmonic not found, look for GZ Garden libraries
+# If Harmonic not found, require Garden libraries (will fatal if missing).
 if(NOT gz-transport_FOUND)
-	find_package(gz-transport NAMES gz-transport12)
+    find_package(gz-transport NAMES gz-transport12 REQUIRED)
 endif()
+
+
 
 if(gz-transport_FOUND)
 

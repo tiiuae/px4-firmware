@@ -12,8 +12,14 @@ constexpr const char* action_names[] {
 };
 
 
-constexpr const char* severity_names[]  {
-    "INFO",
-    "WARN",
-    "CRITICAL"
+
+
+constexpr const char* execution_status_names[] = {
+    "EXECUTING",
+    "START_EXECUTING",
+    "END_EXECUTING",
+    "NOT_EXECUTING"
 };
+
+
+

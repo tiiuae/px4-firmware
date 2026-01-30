@@ -79,17 +79,17 @@ ZtssMonitor* ZtssMonitor::instantiate(int argc, char *argv[])
 // Commander::run()  ← MAIN LOOP STARTS HERE
 void ZtssMonitor::run()
 {
-	PX4_INFO("Ztss Monitor Started");
+	PX4_INFO("Ztss Monitor Module Started");
 
 	while (!should_exit())
 	{
 		this->ztss_case_dummy_.update_subscribed_values();
 		this->ztss_case_dummy_.execute_use_case_safety_evaluation();
 		this->ztss_case_dummy_.publish_use_case_status();
-		px4_usleep(10_ms);
+		px4_usleep(50_ms); // 20 hz
 	}
 
-	PX4_INFO("Ztss Monitor Stopped");
+	PX4_INFO("Ztss Monitor Module Stopped");
 
 }
 

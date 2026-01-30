@@ -132,3 +132,13 @@ param set-default SIM_GZ_EC_MAX1 1100
 param set-default SIM_GZ_EC_MAX2 1100
 param set-default SIM_GZ_EC_MAX3 1100
 param set-default SIM_GZ_EC_MAX4 1100
+
+
+param set-default SIM_GZ_SV_FUNC1 201
+param set-default SIM_GZ_SV_FUNC2 202
+param set-default SIM_GZ_SV_FUNC3 203
+param set-default SIM_GZ_SV_FUNC4 204
+param set-default SIM_GZ_SV_FUNC5 205
+param set-default SIM_GZ_SV_FUNC6 206
+param set-default SIM_GZ_SV_FUNC7 207
+param set-default SIM_GZ_SV_FUNC8 208

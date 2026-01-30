@@ -211,6 +211,10 @@ public:
 	 */
 	bool canRun(uint8_t nav_state) const
 	{
+		// Always allow ZTSS mode
+		if(nav_state == vehicle_status_s::NAVIGATION_STATE_ZTSS){
+			return true;
+		}
 		return _results[_current_result].arming_checks.valid &&
 		       (uint32_t)(_results[_current_result].arming_checks.can_run & getModeGroup(nav_state)) != 0;
 	}

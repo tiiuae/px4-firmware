@@ -733,12 +733,19 @@ Commander::~Commander()
 	perf_free(_preflight_check_perf);
 }
 
-bool
-Commander::handle_command(const vehicle_command_s &cmd)
+bool Commander::handle_command(const vehicle_command_s &cmd)
 {
+	/* only handle requests if the navigation state is different from ZTSS */
+	if(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_ZTSS && cmd.source_component != 250){
+		PX4_ERR("ZTSS active, ignoring command %u from component %u", cmd.command, cmd.source_component);
+		return false;
+	}
 	/* only handle commands that are meant to be handled by this system and component, or broadcast */
 	if (((cmd.target_system != _vehicle_status.system_id) && (cmd.target_system != 0))
 	    || ((cmd.target_component != _vehicle_status.component_id) && (cmd.target_component != 0))) {
+		PX4_ERR("ignoring command %u from component %u, target system %u component %u does not match ours (system %u component %u)",
+			 cmd.command, cmd.source_component, cmd.target_system, cmd.target_component,
+			 _vehicle_status.system_id, _vehicle_status.component_id);
 		return false;
 	}
 
@@ -801,7 +808,10 @@ Commander::handle_command(const vehicle_command_s &cmd)
 
 			if (base_mode & VEHICLE_MODE_FLAG_CUSTOM_MODE_ENABLED) {
 				/* use autopilot-specific mode */
-				if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_MANUAL) {
+				if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_ZTSS) {
+					desired_nav_state = vehicle_status_s::NAVIGATION_STATE_ZTSS; /* the vehicle command maps ZTSS PX4 MODE to the NAVIGATION_STATE_ZTSS */
+
+				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_MANUAL) {
 					desired_nav_state = vehicle_status_s::NAVIGATION_STATE_MANUAL;
 
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_ALTCTL) {
@@ -896,15 +906,24 @@ Commander::handle_command(const vehicle_command_s &cmd)
 			}
 
 			if (desired_nav_state != vehicle_status_s::NAVIGATION_STATE_MAX) {
-				if (_user_mode_intention.change(desired_nav_state, getSourceFromCommand(cmd))) {
+				// Sync with the signal given of ZTSS mode.
+				// Its not a request thats is checked by the commander but a signal to synchronize with.
+				if (desired_nav_state == vehicle_status_s::NAVIGATION_STATE_ZTSS) {
+					PX4_INFO("Synchronizing to ZTSS mode\t");
+					// force the user intention to ZTSS without checks, as this is a special mode that doesn't require the commander to check for anything. The commander just needs to know about it to synchronize the state and report it.
+					_user_mode_intention.change(desired_nav_state, getSourceFromCommand(cmd), false, true);
 					main_ret = TRANSITION_CHANGED;
 
 				} else {
-					if (cmd.from_external && cmd.source_component == 190) { // MAV_COMP_ID_MISSIONPLANNER
-						printRejectMode(desired_nav_state);
+					// Check for all other Requests of mode change
+					if (_user_mode_intention.change(desired_nav_state, getSourceFromCommand(cmd))) {
+						main_ret = TRANSITION_CHANGED;
+					} else {
+						if (cmd.from_external && cmd.source_component == 190) { // MAV_COMP_ID_MISSIONPLANNER
+							printRejectMode(desired_nav_state);
+						}
+						main_ret = TRANSITION_DENIED;
 					}
-
-					main_ret = TRANSITION_DENIED;
 				}
 			}
 
@@ -1839,8 +1858,9 @@ void Commander::run()
 
 		const bool nav_state_or_failsafe_changed = handleModeIntentionAndFailsafe();
 
-		// Run arming checks @ 10Hz
-		if ((now >= _last_health_and_arming_check + 100_ms) || _status_changed || nav_state_or_failsafe_changed) {
+		// Run arming checks @ 10Hz if the user intended mode is not ZTSS
+		if (((now >= _last_health_and_arming_check + 100_ms) || _status_changed || nav_state_or_failsafe_changed)
+			&& _vehicle_status.nav_state_user_intention != _vehicle_status.NAVIGATION_STATE_ZTSS) {
 			_last_health_and_arming_check = now;
 
 			perf_begin(_preflight_check_perf);
@@ -1914,11 +1934,15 @@ void Commander::run()
 
 			// publish actuator_armed first (used by output modules)
 			_actuator_armed.timestamp = hrt_absolute_time();
-			_actuator_armed_pub.publish(_actuator_armed);
 
-			// update and publish vehicle_control_mode
-			updateControlMode();
 
+
+			if(_vehicle_status.nav_state != vehicle_status_s::NAVIGATION_STATE_ZTSS){
+				// update and publish vehicle_control_mode
+				updateControlMode();
+				// Dont publish the vehicle control mode input to the controller when ZTSS kicks in.
+				_actuator_armed_pub.publish(_actuator_armed);
+			}
 			// vehicle_status publish (after prearm/preflight updates above)
 			_mode_management.getModeStatus(_vehicle_status.valid_nav_states_mask, _vehicle_status.can_set_nav_states_mask);
 			_vehicle_status.timestamp = hrt_absolute_time();

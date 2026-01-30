@@ -1,12 +1,13 @@
 #pragma once
 #include <cstddef>
+#include <uORB/topics/ztss_event_trigger.h>
 #include "actions.hpp"
 #include "health_bits.hpp"
 
 struct Rule {
   HealthMask required_faults;
   HealthMask required_ok;
-  Action action;
+  uint8_t action;
   uint8_t priority;
 };
 
@@ -14,21 +15,28 @@ struct Rule {
 /*
 Rule need to reflect the full system state of required ok flags and required faulty flags
 */
-const Rule RULE_TABLE[2] = {
+const Rule RULE_TABLE[3] = {
+
+  {
+    .required_faults = S_DUMMY_WARN,
+    .required_ok     = 0ull,
+    .action          = ztss_event_trigger_s::ACTION_HOLD_POSITION,
+    .priority        = 10
+  },
 
   {
     .required_faults = S_DUMMY_WARN | S_DUMMY_MARGIN_LOW,
-    .required_ok     = 1ull,
-    .action          = ACTION_HOLD,
-    .priority        = 40
+    .required_ok     = 0ull,
+    .action          = ztss_event_trigger_s::ACTION_HOLD_ATTITUDE,
+    .priority        = 50
   },
 
   {
-    .required_faults = S_DUMMY_CRITICAL | S_DUMMY_MARGIN_LOW,
-    .required_ok     = 1ull,
-    .action          = ACTION_LAND,
-    .priority        = 40
-  },
+    .required_faults = S_DUMMY_CRITICAL,
+    .required_ok     = 0ull,
+    .action          = ztss_event_trigger_s::ACTION_PARACHUTE,
+    .priority        = 100
+  }
 
 };
 

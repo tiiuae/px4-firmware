@@ -1,0 +1,5 @@
+menuconfig MODULES_ZTSS_SAFE_ACTIONS
+	bool "ztss_safe_actions"
+	default y
+	---help---
+		Enable ZTSS safe actions module for safety actuation

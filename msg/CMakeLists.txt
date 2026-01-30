@@ -262,6 +262,7 @@ set(msg_files
 	YawEstimatorStatus.msg
 	ZtssMonitorUseCaseOutput.msg
 	ZtssEventTrigger.msg
+	ZtssSafeActionsStatus.msg
 )
 list(SORT msg_files)
 

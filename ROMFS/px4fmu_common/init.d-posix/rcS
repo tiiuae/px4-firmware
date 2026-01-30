@@ -265,7 +265,14 @@ rc_update start
 manual_control start
 sensors start
 commander start
+
+
+#
+# Start ZTSS modules (Zero Trust Safety System)
+#
 ztss_monitor start
+ztss_decision_engine start
+ztss_safe_actions start
 
 #
 # state estimator selection

@@ -36,6 +36,9 @@ Rule evaluation must be pure and deterministic.
 // set max 64 bit
 bool matches(const Rule &rule, const MonitorHealthMask &health_input)
 {
+  if(rule.required_faults == DEFAULT_FAULT_MASK) return false;
+  // if(rule.required_ok == DEFAULT_OK_MASK) return false;
+
   return
     ((health_input.fault_mask & rule.required_faults) == rule.required_faults) &&
     ((health_input.ok_mask     & rule.required_ok)     == rule.required_ok);
@@ -44,7 +47,7 @@ bool matches(const Rule &rule, const MonitorHealthMask &health_input)
 
 HealthMask DecisionEngine::make_fault_mask(const ztss_monitor_use_case_output_s & monitor_output, size_t idx_use_case)
 {
-  HealthMask fault_maks = 1ull;
+  HealthMask fault_maks = DEFAULT_FAULT_MASK;
 	if ((monitor_output.timestamp - monitor_use_cases_last_timestamp_[idx_use_case])>250_ms) fault_maks = fault_maks | HealthFlagsCases[idx_use_case].S_NOT_SYNC;
 
   if(!monitor_output.healthy)
@@ -58,7 +61,7 @@ HealthMask DecisionEngine::make_fault_mask(const ztss_monitor_use_case_output_s 
 HealthMask DecisionEngine::make_ok_mask(const ztss_monitor_use_case_output_s & monitor_output, size_t idx_use_case)
 {
 
-  HealthMask ok_masks = 1ull;
+  HealthMask ok_masks = DEFAULT_OK_MASK;
 
   if(monitor_output.healthy) ok_masks = ok_masks | HealthFlagsCases[idx_use_case].S_OK;
 
@@ -126,7 +129,7 @@ void DecisionEngine::run()
     this->populate_use_cases_masks();
     this->evaluate_health_against_rules();
     this->publish_event_trigger();
-    px4_usleep(10_ms);
+    px4_usleep(100_ms); // 10 hz
   }
 };
 
@@ -135,8 +138,8 @@ int DecisionEngine::print_status() {return 0;};
 void DecisionEngine::populate_use_cases_masks()
 {
   // reset health masks
-  HealthMask fault_status = 1ull;
-  HealthMask ok_status = 1ull;
+  HealthMask fault_status = DEFAULT_FAULT_MASK;
+  HealthMask ok_status = DEFAULT_OK_MASK;
 
   // use case --> dummy
   if (monitor_use_cases_subscriptions_[IDX_USE_CASE_DUMMY].updated())
@@ -158,13 +161,14 @@ void DecisionEngine::populate_use_cases_masks()
 
 void DecisionEngine::evaluate_health_against_rules()
 {
-  Action action_selected = ACTION_NONE;
+  uint8_t action_selected = ztss_event_trigger_s::ACTION_NONE;
   uint8_t best_prio = 0;
 
   // evaluation: NUM_RULES times.
   for (size_t idx_rule = 0; idx_rule< NUM_RULES; idx_rule++)
   {
       if (matches(RULE_TABLE[idx_rule], monitor_status_masks_)) {
+
         if (RULE_TABLE[idx_rule].priority > best_prio) {
           best_prio = RULE_TABLE[idx_rule].priority;
           action_selected = RULE_TABLE[idx_rule].action;
@@ -186,7 +190,7 @@ void DecisionEngine::publish_event_trigger()
   uint64_t time_now = hrt_absolute_time();
   if ((time_now - event_.timestamp) > MAX_PERIOD_MS) return;
 
-  PX4_INFO("Triggered event %d", static_cast<int>(event_.action_id));
+  // PX4_INFO("Triggered event %d", static_cast<int>(event_.action_id));
 
   ztss_event_pub_.publish(event_);
 }

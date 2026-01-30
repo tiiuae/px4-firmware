@@ -2,6 +2,9 @@
 #include "health_types.hpp"
 #include <array>
 
+HealthMask DEFAULT_OK_MASK = 0ull;
+HealthMask DEFAULT_FAULT_MASK = 0ull;
+
 enum Okbits : HealthMask {
 	OK_BIT_00	= 1ull << 0,
 	OK_BIT_01	= 1ull << 1,
