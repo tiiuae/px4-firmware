@@ -132,12 +132,15 @@ if (NOT CONFIG_BUILD_FLAT)
 
 	add_custom_command(OUTPUT ${KERNEL_BUILTIN_DIR}/kernel_builtin_list.h ${KERNEL_BUILTIN_DIR}/kernel_builtin_proto.h
 		WORKING_DIRECTORY  ${KERNEL_BUILTIN_DIR}
-		COMMAND ${CMAKE_COMMAND} -E remove -f kernel_builtin_list.h kernel_builtin_proto.h
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/px4_kernel.bdat kernel_builtin_list.h
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/px4_kernel.pdat kernel_builtin_proto.h
 	)
 
 	add_custom_target(px4_kernel_builtin_list_target DEPENDS ${KERNEL_BUILTIN_DIR}/kernel_builtin_list.h ${KERNEL_BUILTIN_DIR}/kernel_builtin_proto.h)
+
+	# Remove any existing leftover builtin headers from previous "flat" build, so that they are not
+	# included in the libapps dependencies below.
+	file(REMOVE ${APPS_DIR}/builtin/builtin_list.h ${APPS_DIR}/builtin/builtin_proto.h)
 
 endif() # NOT CONFIG_BUILD_FLAT
 
