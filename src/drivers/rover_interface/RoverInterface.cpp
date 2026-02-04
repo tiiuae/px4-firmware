@@ -12,7 +12,7 @@ RoverInterface::RoverInterface(uint8_t rover_type, uint32_t bitrate, float vehic
 	  _rover_type(rover_type),
 	  _bitrate(bitrate),
 	  _vehicle_speed_max(vehicle_speed_max),
-	  _battery(1, nullptr, RoverStatusPublishIntervalMs, battery_status_s::BATTERY_SOURCE_POWER_MODULE)
+	  _battery(1, nullptr, RoverStatusPublishIntervalMs, battery_status_s::BATTERY_SOURCE_EXTERNAL)
 {
 	pthread_mutex_init(&_node_mutex, nullptr);
 }
