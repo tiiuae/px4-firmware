@@ -21,6 +21,7 @@ param set-default RI_MAN_SPD_SC 1.0
 param set-default BAT1_N_CELLS 7
 param set-default BAT1_V_EMPTY 3.3
 param set-default BAT1_V_CHARGED 4.2
+param set-default BAT1_SOURCE 1  # Use EXTERNAL source (prevents battery_status ADC module from starting)
 param set-default SENS_EN_INA238 0
 param set-default SENS_EN_INA228 0
 param set-default SENS_EN_INA226 0
