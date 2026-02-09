@@ -262,8 +262,8 @@ PWMESC::PWMESC(bool hitl) :
 	_task(-1),
 	_task_should_exit(false),
 	_perf_update(perf_alloc(PC_ELAPSED, "pwm update")),
-	_mixing_output(hitl ? "PWM_MAIN" : PARAM_PREFIX, PWMESC_N_CHANNELS, *this, MixingOutput::SchedulingPolicy::Auto,
-		       true),
+	_mixing_output(hitl || !PX4_MFT_HW_SUPPORTED(PX4_MFT_PX4IO) ? "PWM_MAIN" : "PWM_AUX",
+		       PWMESC_N_CHANNELS, *this, MixingOutput::SchedulingPolicy::Auto, true),
 	_hitl_mode(hitl)
 {
 	/* initialize tick semaphores */
