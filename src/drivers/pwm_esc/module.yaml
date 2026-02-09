@@ -6,7 +6,7 @@ actuator_output:
       channel_label_module_name_prefix: false
       num_channels: 12
       standard_params:
-        disarmed: { min: 800, max: 2200, default: 900 }
+        disarmed: { min: 800, max: 2200, default: 1000 }
         min: { min: 800, max: 1400, default: 1000 }
         max: { min: 1600, max: 2200, default: 2000 }
         failsafe: { min: 800, max: 2200 }
