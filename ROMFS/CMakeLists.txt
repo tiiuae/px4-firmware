@@ -193,6 +193,7 @@ list(APPEND OPTIONAL_BOARD_RC
 	common_init/rc.m_state
 	common_init/rc.o_state
 	common_init/rc.i_state
+	common_init/rc.common_paths
 )
 
 foreach(board_rc_file ${OPTIONAL_BOARD_RC})
