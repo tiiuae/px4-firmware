@@ -5,7 +5,6 @@ actuator_output:
       param_prefix: PWM_MAIN
       channel_labels: ['MAIN', 'Capture']
       channel_label_module_name_prefix: false
-      timer_config_file: "boards/px4/io-v2/src/timer_config.cpp"
       standard_params:
         disarmed: { min: 800, max: 2200, default: 1000 }
         min: { min: 800, max: 1400, default: 1000 }
