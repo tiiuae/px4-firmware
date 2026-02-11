@@ -179,6 +179,7 @@ private:
 
 	bool				_healthy{false};				///< flag to signal if the GPS is ok
 	bool				_mode_auto;					///< if true, auto-detect which GPS is attached
+	bool				_listen_only{false};				///< if true, skip configuration and only listen for GPS messages
 
 	gps_driver_mode_t		_mode;						///< current mode
 
@@ -846,7 +847,7 @@ GPS::run()
 		/* FALLTHROUGH */
 		case gps_driver_mode_t::UBX:
 			_helper = new GPSDriverUBX(_interface, &GPS::callback, this, &_report_gps_pos, _p_report_sat_info,
-						   gps_ubx_dynmodel, heading_offset, f9p_uart2_baudrate, ubx_mode);
+						   gps_ubx_dynmodel, heading_offset, f9p_uart2_baudrate, ubx_mode, _listen_only);
 			set_device_type(DRV_GPS_DEVTYPE_UBX);
 			break;
 #ifndef CONSTRAINED_FLASH
@@ -1342,6 +1343,7 @@ $ gps reset warm
 	PRINT_MODULE_USAGE_PARAM_STRING('i', "uart", "spi|uart", "GPS interface", true);
 	PRINT_MODULE_USAGE_PARAM_STRING('j', "uart", "spi|uart", "secondary GPS interface", true);
 	PRINT_MODULE_USAGE_PARAM_STRING('p', nullptr, "ubx|mtk|ash|eml|fem|nmea", "GPS Protocol (default=auto select)", true);
+	PRINT_MODULE_USAGE_PARAM_FLAG('l', "Listen-only mode (skip configuration, only receive)", true);
 
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 	PRINT_MODULE_USAGE_COMMAND_DESCR("reset", "Reset GPS device");
@@ -1407,6 +1409,7 @@ GPS *GPS::instantiate(int argc, char *argv[], Instance instance)
 	const char *device_name_secondary = nullptr;
 	int baudrate_main = 0;
 	int baudrate_secondary = 0;
+	bool listen_only = false;
 	GPSHelper::Interface interface = GPSHelper::Interface::UART;
 	GPSHelper::Interface interface_secondary = GPSHelper::Interface::UART;
 	gps_driver_mode_t mode = gps_driver_mode_t::None;
@@ -1416,7 +1419,7 @@ GPS *GPS::instantiate(int argc, char *argv[], Instance instance)
 	int ch;
 	const char *myoptarg = nullptr;
 
-	while ((ch = px4_getopt(argc, argv, "b:d:e:g:i:j:p:", &myoptind, &myoptarg)) != EOF) {
+	while ((ch = px4_getopt(argc, argv, "b:d:e:g:i:j:lp:", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 'b':
 			if (px4_get_parameter_value(myoptarg, baudrate_main) != 0) {
@@ -1465,6 +1468,10 @@ GPS *GPS::instantiate(int argc, char *argv[], Instance instance)
 			}
 			break;
 
+		case 'l':
+			listen_only = true;
+			break;
+
 		case 'p':
 			if (!strcmp(myoptarg, "ubx")) {
 				mode = gps_driver_mode_t::UBX;
@@ -1510,6 +1517,9 @@ GPS *GPS::instantiate(int argc, char *argv[], Instance instance)
 	if (instance == Instance::Main) {
 		if (Serial::validatePort(device_name)) {
 			gps = new GPS(device_name, mode, interface, instance, baudrate_main);
+			if (gps) {
+				gps->_listen_only = listen_only;
+			}
 
 		} else {
 			PX4_ERR("invalid device (-d) %s", device_name ? device_name  : "");
