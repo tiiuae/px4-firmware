@@ -99,3 +99,27 @@ PARAM_DEFINE_FLOAT(BAT_EMERGEN_THR, 0.05f);
  * @increment 0.1
  */
 PARAM_DEFINE_FLOAT(BAT_AVRG_CURRENT, 15.0f);
+
+/**
+ * External Time To Empty enable
+ *
+ * Enable/Disable external time to empty estimate override.
+ *
+ * @boolean
+ * @group Battery Calibration
+ */
+PARAM_DEFINE_INT32(ZTSS_BAT_TTE_EXT, 0);
+
+/**
+ * External BatteryInjectData timeout to clear buffer
+ *
+ * The timeout represents time the module will wait before clearing the memory
+ * of the externally injected battery data.
+ *
+ * @group Battery Calibration
+ * @unit s
+ * @min 0
+ * @max 100.0
+ * @increment 0.1
+ */
+PARAM_DEFINE_FLOAT(ZTSS_BAT_TIMEOUT, 5.0f);

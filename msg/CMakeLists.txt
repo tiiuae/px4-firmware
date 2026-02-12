@@ -51,6 +51,7 @@ set(msg_files
 	AirspeedWind.msg
 	AutotuneAttitudeControlStatus.msg
 	BatteryStatus.msg
+	BatteryInjectData.msg
 	ButtonEvent.msg
 	CameraCapture.msg
 	CameraStatus.msg
