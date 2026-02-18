@@ -50,6 +50,9 @@ UavcanEscController::UavcanEscController(uavcan::INode &node) :
 	_node(node),
 	_uavcan_pub_raw_cmd(node),
 	_uavcan_sub_status(node)
+#ifdef CONFIG_MODULES_REDUNDANCY
+	, _uavcan_sub_raw_cmd(node)
+#endif
 {
 	_uavcan_pub_raw_cmd.setPriority(uavcan::TransferPriority::NumericallyMin); // Highest priority
 	param_get(param_find("UAVCAN_ESC_RL"), &_uavcan_rate_limit_enable);
@@ -85,6 +88,14 @@ UavcanEscController::init()
 
 	if (param_get(param_find("FT_N_SPARE_FCS"), &spare_autopilots) == PX4_OK && spare_autopilots > 0
 	    && spare_autopilots < MAX_N_FCS) {
+		/* Start RawCommand subscriber to monitor other FC's CAN traffic */
+		res = _uavcan_sub_raw_cmd.start(RawCommandCbBinder(this, &UavcanEscController::raw_cmd_sub_cb));
+
+		if (res < 0) {
+			PX4_ERR("RawCommand sub failed %i", res);
+			return res;
+		}
+
 		/* Find out which actuator_outputs instance we are publishing.
 		 * Note: there is a race condition in here in theory; if
 		 * drivers publishing actuator outputs are started in parallel
@@ -156,12 +167,9 @@ UavcanEscController::update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUA
 #ifdef CONFIG_MODULES_REDUNDANCY
 	/* For UAVCAN ESC redundancy:
 	 * - Only send CAN commands if this FC is armed
-	 * - If another FC is in control and we hear its actuator outputs on the CAN bus,
-	 *   suppress our output completely (don't send anything)
-	 * - This prevents both FCs from simultaneously sending commands with different CAN IDs
-	 *
-	 * As a sanity check, verify that the redundancy status and any redundant actuator
-	 * outputs are less than 50 ms old.
+	 * - If another FC is in control but NOT sending on CAN bus, relay their actuator outputs
+	 * - This ensures there are always ESC commands on CAN bus when armed
+	 * - If we hear the other FC on CAN bus, don't send anything (they're handling it)
 	 */
 
 	if (_redundant_actuator_control_enabled) {
@@ -174,7 +182,7 @@ UavcanEscController::update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUA
 			return;
 		}
 
-		/* Check if another FC is in control and actively sending on the CAN bus */
+		/* Check if another FC is in control */
 		if (_redundancy_status_sub.copy(&rstatus) &&
 		    hrt_elapsed_time(&rstatus.timestamp) < 50_ms &&
 		    rstatus.fc_number != rstatus.fc_in_act_control &&
@@ -183,14 +191,28 @@ UavcanEscController::update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUA
 		    rstatus.fc_in_act_control >= redundancy_status_s::FC1 &&
 		    rstatus.fc_in_act_control < redundancy_status_s::FC1 + MAX_N_FCS) {
 
-			/* Another FC is in control, check if we hear it on the CAN bus */
+			/* Check if we hear RawCommand from the other FC on the CAN bus */
+			if (hrt_elapsed_time(&_last_other_fc_rawcmd_time) < 50_ms) {
+				/* We hear the other FC actively sending on CAN bus, don't send anything */
+				return;
+			}
+
+			/* We DON'T hear the other FC on CAN bus, but they're in control (MAVLink).
+			 * Act as a relay and send their actuator outputs to ensure CAN bus has commands.
+			 */
 			int fc_idx = rstatus.fc_in_act_control - redundancy_status_s::FC1;
 			actuator_outputs_s ract_outputs;
 
 			if (_redundant_actuator_outputs_sub[fc_idx]->copy(&ract_outputs) &&
 			    hrt_elapsed_time(&ract_outputs.timestamp) < 50_ms) {
-				/* We hear the controlling FC on the CAN bus, suppress our output */
-				return;
+				/* Use the other FC's outputs instead of our own */
+				num_outputs = math::min(num_outputs, (unsigned)ract_outputs.noutputs);
+
+				for (unsigned i = 0; i < num_outputs; i++) {
+					outputs[i] = ract_outputs.output[i];
+				}
+
+				stop_motors = false; // Use their stop_motors state implicitly through output values
 			}
 		}
 	}
@@ -296,3 +318,18 @@ UavcanEscController::check_escs_status()
 
 	return esc_status_flags;
 }
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+void
+UavcanEscController::raw_cmd_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::esc::RawCommand> &msg)
+{
+	/* Check if this message is from another FC (node ID 1-MAX_N_FCS, but not this node) */
+	uint8_t src_node_id = msg.getSrcNodeID().get();
+	uint8_t this_node_id = _node.getNodeID().get();
+
+	if (src_node_id >= 1 && src_node_id <= MAX_N_FCS && src_node_id != this_node_id) {
+		/* Update timestamp - we heard another FC sending ESC commands on CAN bus */
+		_last_other_fc_rawcmd_time = hrt_absolute_time();
+	}
+}
+#endif
