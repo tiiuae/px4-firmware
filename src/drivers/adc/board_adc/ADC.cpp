@@ -198,8 +198,11 @@ void ADC::update_system_power(hrt_abstime now)
 #if defined (BOARD_ADC_USB_CONNECTED)
 	system_power_s system_power {};
 
-	/* Assume HW provides only ADC_SCALED_V5_SENSE */
-	int cnt = 1;
+	int cnt = 0;
+
+# if defined(ADC_SCALED_V5_SENSE)
+	cnt++;
+# endif
 	/* HW provides both ADC_SCALED_V5_SENSE and ADC_SCALED_V3V3_SENSORS_SENSE */
 #  if defined(ADC_SCALED_V5_SENSE) && defined(ADC_SCALED_V3V3_SENSORS_SENSE)
 	cnt += ADC_SCALED_V3V3_SENSORS_COUNT;
