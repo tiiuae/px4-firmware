@@ -34,3 +34,7 @@
 px4_add_library(arch_adc
 	adc.cpp
 )
+
+# Need clock control module (CCM) from nuttx
+
+target_link_libraries(arch_adc PRIVATE nuttx_arch)
