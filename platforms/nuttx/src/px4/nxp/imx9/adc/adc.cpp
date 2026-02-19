@@ -32,27 +32,78 @@
  ****************************************************************************/
 
 #include <board_config.h>
+#include <errno.h>
 #include <stdint.h>
 #include <drivers/drv_adc.h>
+#include <drivers/drv_hrt.h>
+#include <nuttx/analog/adc.h>
+#include <px4_arch/adc.h>
+
+#include <debug.h>
+
+#include <imx9_adc.h>
+
+static bool g_adc_configured = false;
+static struct adc_dev_s *g_adc_dev = nullptr;
+
 
 int px4_arch_adc_init(uint32_t base_address)
 {
+	int ret = -ENODEV;
+
+	if (!g_adc_configured) {
+		g_adc_dev = imx9_adc_initialize(base_address);
+
+		if (g_adc_dev == nullptr) {
+			return ret;
+		}
+
+		ret = ADC_SETUP(g_adc_dev);
+		if (ret < 0) {
+			g_adc_dev = nullptr;
+			return ret;
+		}
+
+		g_adc_configured = true;
+	}
 	return 0;
 }
 
 void px4_arch_adc_uninit(uint32_t base_address)
 {
+	(void)base_address;
 
+	if (g_adc_dev != nullptr) {
+		ADC_SHUTDOWN(g_adc_dev);
+		g_adc_dev = nullptr;
+	}
+
+	g_adc_configured = false;
 }
 
 uint32_t px4_arch_adc_sample(uint32_t base_address, unsigned channel)
 {
-	return 0xffffffffu;
+	(void)base_address;
+
+	if (!g_adc_configured || g_adc_dev == nullptr) {
+		return UINT32_MAX;
+	}
+
+	uint16_t result = 0;
+
+	int ret = imx9_adc_read_channel(g_adc_dev,
+			  static_cast<uint8_t>(channel), &result);
+
+	if (ret < 0) {
+		return UINT32_MAX;
+	}
+
+	return result;
 }
 
 float px4_arch_adc_reference_v()
 {
-	return 0.0f;
+	return BOARD_ADC_POS_REF_V;
 }
 
 uint32_t px4_arch_adc_temp_sensor_mask()
@@ -64,5 +115,5 @@ uint32_t px4_arch_adc_temp_sensor_mask()
 
 uint32_t px4_arch_adc_dn_fullcount()
 {
-	return 0;
+	return 1u << 12;
 }

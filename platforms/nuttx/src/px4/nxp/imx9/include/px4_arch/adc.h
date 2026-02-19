@@ -32,4 +32,14 @@
  ****************************************************************************/
 #pragma once
 
-#define SYSTEM_ADC_BASE 0 // not used
+#include <board_config.h>
+
+#if !defined(HW_REV_VER_ADC_BASE)
+#  define HW_REV_VER_ADC_BASE IMX9_ADC1_BASE
+#endif
+
+#if !defined(SYSTEM_ADC_BASE)
+#  define SYSTEM_ADC_BASE IMX9_ADC1_BASE
+#endif
+
+#include <px4_platform/adc.h>
