@@ -336,8 +336,8 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		break;
 #endif
 
-	case MAVLINK_MSG_ID_ACTUATOR_OUTPUT_STATUS:
-		handle_message_actuator_output_status(msg);
+	case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW:
+		handle_message_servo_output_raw(msg);
 		break;
 
 	case MAVLINK_MSG_ID_ATTITUDE_TARGET:
@@ -3098,37 +3098,40 @@ MavlinkReceiver::handle_message_gimbal_device_attitude_status(mavlink_message_t 
 }
 
 void
-MavlinkReceiver::handle_message_actuator_output_status(mavlink_message_t *msg)
+MavlinkReceiver::handle_message_servo_output_raw(mavlink_message_t *msg)
 {
 	int fc_idx = msg->compid - MAV_COMP_ID_AUTOPILOT1;
-	mavlink_actuator_output_status_t actuator_output_status_msg;
-	mavlink_msg_actuator_output_status_decode(msg, &actuator_output_status_msg);
+	mavlink_servo_output_raw_t servo_output_raw_msg;
+	mavlink_msg_servo_output_raw_decode(msg, &servo_output_raw_msg);
 	hrt_abstime now = hrt_absolute_time();
+
+	unsigned inst = servo_output_raw_msg.port;
 	static constexpr unsigned max_instances = sizeof(_redundant_actuator_outputs_pub[0]) / sizeof(
 				_redundant_actuator_outputs_pub[0][0]); /* Number of actuator_outputs instances */
 
+	if (inst >= max_instances) {
+		return;
+	}
+
 	if (fc_idx >= 0 && fc_idx < vehicle_status_s::MAX_REDUNDANT_CONTROLLERS) {
-		for (unsigned inst = 0; inst < max_instances; inst++) {
-			actuator_outputs_s actuator_outputs{};
-			static constexpr unsigned mavlink_actuator_output_status_size = sizeof(actuator_output_status_msg.actuator) / sizeof(
-						actuator_output_status_msg.actuator[0]) / max_instances;
-			static constexpr unsigned actuator_outputs_size = sizeof(actuator_outputs.output) / sizeof(actuator_outputs.output[0]);
+		actuator_outputs_s actuator_outputs{};
+		int i;
 
-			/* Check that all the data from the mavlink message fits into uORB */
+		uint16_t *val = (uint16_t *)&servo_output_raw_msg.servo1_raw;
 
-			static_assert(actuator_outputs_size >= mavlink_actuator_output_status_size);
-
-			uint32_t i;
-
-			for (i = 0; i < mavlink_actuator_output_status_size
-			     && PX4_ISFINITE(actuator_output_status_msg.actuator[inst * mavlink_actuator_output_status_size + i]); i++) {
-				actuator_outputs.output[i] = actuator_output_status_msg.actuator[inst * mavlink_actuator_output_status_size + i];
-			}
-
-			actuator_outputs.noutputs = i;
-			actuator_outputs.timestamp = now;
-			_redundant_actuator_outputs_pub[fc_idx][inst].publish(actuator_outputs);
+		for (i = 0; i < 8 && *val != 0xffff; i++) {
+			actuator_outputs.output[i] = (float) * val++;
 		}
+
+		val = (uint16_t *)&servo_output_raw_msg.servo9_raw;
+
+		for (; i < 16 && *val != 0xffff; i++) {
+			actuator_outputs.output[i] = (float) * val++;
+		}
+
+		actuator_outputs.noutputs = i;
+		actuator_outputs.timestamp = now;
+		_redundant_actuator_outputs_pub[fc_idx][inst].publish(actuator_outputs);
 	}
 }
 

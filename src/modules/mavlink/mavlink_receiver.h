@@ -213,7 +213,7 @@ private:
 	void handle_message_gimbal_manager_set_manual_control(mavlink_message_t *msg);
 	void handle_message_gimbal_device_information(mavlink_message_t *msg);
 	void handle_message_gimbal_device_attitude_status(mavlink_message_t *msg);
-	void handle_message_actuator_output_status(mavlink_message_t *msg);
+	void handle_message_servo_output_raw(mavlink_message_t *msg);
 	void handle_message_attitude_target(mavlink_message_t *msg);
 
 #if !defined(CONSTRAINED_FLASH)
@@ -339,8 +339,9 @@ private:
 	uORB::Publication<vehicle_trajectory_waypoint_s>	_trajectory_waypoint_pub{ORB_ID(vehicle_trajectory_waypoint)};
 	uORB::Publication<vehicle_status_s>			_redundant_status_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_status0), ORB_ID(redundant_status1)};
 	uORB::PublicationMulti<actuator_outputs_s>
-	_redundant_actuator_outputs_pub[2][vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {{ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs0)},
-		{ORB_ID(redundant_actuator_outputs1), ORB_ID(redundant_actuator_outputs1)}
+	_redundant_actuator_outputs_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS][4] {
+		{ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs0)},
+		{ORB_ID(redundant_actuator_outputs1), ORB_ID(redundant_actuator_outputs1), ORB_ID(redundant_actuator_outputs1), ORB_ID(redundant_actuator_outputs1)}
 	};
 
 	uORB::Publication<vehicle_rates_setpoint_s>
