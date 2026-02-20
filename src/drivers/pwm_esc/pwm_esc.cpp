@@ -314,8 +314,6 @@ PWMESC::init(bool hitl_mode)
 
 	if (param_get(param_find("FT_N_SPARE_FCS"), &spare_autopilots) == PX4_OK && spare_autopilots > 0
 	    && spare_autopilots < MAX_N_FCS) {
-		_redundant_actuator_control_enabled = true;
-
 		/* Find out which actuator_outputs instance we are publishing.
 		 * Note: there is a race condition in here in theory; if
 		 * drivers publishing actuator outputs are started in parallel
@@ -326,12 +324,12 @@ PWMESC::init(bool hitl_mode)
 
 		int actuator_output_instance = orb_group_count(ORB_ID(actuator_outputs)) - 1;
 
-		/* Sanity check; this only supports two instances, since the current
+		/* Sanity check; this only supports 4 instances, since the current
 		 * redundancy communication interface (mavlink) doesn't support
 		 * sharing more
 		 */
 
-		if (actuator_output_instance < 0 || actuator_output_instance > 1) {
+		if (actuator_output_instance < 0 || actuator_output_instance > 3) {
 			return PX4_ERROR;
 		}
 
@@ -368,9 +366,12 @@ PWMESC::init(bool hitl_mode)
 			_redundant_actuator_outputs_sub[i] = new uORB::Subscription(meta, actuator_output_instance);
 
 			if (!_redundant_actuator_outputs_sub[i]) {
+				PX4_ERR("redundant_actuator_outputs%d not available\n", i);
 				return PX4_ERROR;
 			}
 		}
+
+		_redundant_actuator_control_enabled = true;
 	}
 
 #endif
@@ -430,8 +431,9 @@ PWMESC::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigne
 		if (_redundancy_status_sub.copy(&rstatus) &&
 		    hrt_elapsed_time(&rstatus.timestamp) < 50_ms &&
 		    rstatus.fc_number != rstatus.fc_in_act_control &&
-		    rstatus.fc_number >= redundancy_status_s::FC1 && rstatus.fc_number <= MAX_N_FCS &&
-		    rstatus.fc_in_act_control >= redundancy_status_s::FC1 && rstatus.fc_in_act_control <= MAX_N_FCS) {
+		    rstatus.fc_number >= redundancy_status_s::FC1 && rstatus.fc_number < redundancy_status_s::FC1 + MAX_N_FCS &&
+		    rstatus.fc_in_act_control >= redundancy_status_s::FC1
+		    && rstatus.fc_in_act_control < redundancy_status_s::FC1 + MAX_N_FCS) {
 			actuator_outputs_s ract_outputs;
 			int fc_idx = rstatus.fc_in_act_control - redundancy_status_s::FC1;
 
