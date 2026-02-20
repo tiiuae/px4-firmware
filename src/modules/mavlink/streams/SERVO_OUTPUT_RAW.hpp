@@ -50,6 +50,12 @@ public:
 
 		case 1:
 			return "SERVO_OUTPUT_RAW_1";
+
+		case 2:
+			return "SERVO_OUTPUT_RAW_2";
+
+		case 3:
+			return "SERVO_OUTPUT_RAW_3";
 		}
 
 		return "SERVO_OUTPUT_RAW";
@@ -75,28 +81,29 @@ private:
 		actuator_outputs_s act;
 
 		if (_act_sub.update(&act)) {
-			mavlink_servo_output_raw_t msg{};
+			mavlink_servo_output_raw_t msg;
+			unsigned i;
 
 			static_assert(sizeof(act.output) / sizeof(act.output[0]) >= 16, "mavlink message requires at least 16 outputs");
 
+			/* Initally, fill all _raw values with 0xff (invalid) */
+
+			memset(&msg, 0xff, sizeof(msg));
+
 			msg.time_usec = act.timestamp;
 			msg.port = N;
-			msg.servo1_raw = act.output[0];
-			msg.servo2_raw = act.output[1];
-			msg.servo3_raw = act.output[2];
-			msg.servo4_raw = act.output[3];
-			msg.servo5_raw = act.output[4];
-			msg.servo6_raw = act.output[5];
-			msg.servo7_raw = act.output[6];
-			msg.servo8_raw = act.output[7];
-			msg.servo9_raw = act.output[8];
-			msg.servo10_raw = act.output[9];
-			msg.servo11_raw = act.output[10];
-			msg.servo12_raw = act.output[11];
-			msg.servo13_raw = act.output[12];
-			msg.servo14_raw = act.output[13];
-			msg.servo15_raw = act.output[14];
-			msg.servo16_raw = act.output[15];
+
+			/* Assume msg is packed without filler bytes between servo values */
+			static_assert((&msg.servo16_raw - &msg.servo9_raw + 1) == 8);
+			static_assert((&msg.servo8_raw - &msg.servo1_raw + 1) == 8);
+
+			for (i = 0; i < act.noutputs && i < 8; i++) {
+				(&msg.servo1_raw)[i] = act.output[i];
+			}
+
+			for (; i < act.noutputs && i < 16; i++) {
+				(&msg.servo9_raw)[i - 8] = act.output[i];
+			}
 
 			mavlink_msg_servo_output_raw_send_struct(_mavlink->get_channel(), &msg);
 
