@@ -324,12 +324,12 @@ PWMESC::init(bool hitl_mode)
 
 		int actuator_output_instance = orb_group_count(ORB_ID(actuator_outputs)) - 1;
 
-		/* Sanity check; this only supports two instances, since the current
+		/* Sanity check; this only supports 4 instances, since the current
 		 * redundancy communication interface (mavlink) doesn't support
 		 * sharing more
 		 */
 
-		if (actuator_output_instance < 0 || actuator_output_instance > 1) {
+		if (actuator_output_instance < 0 || actuator_output_instance > 3) {
 			return PX4_ERROR;
 		}
 
