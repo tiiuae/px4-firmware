@@ -362,6 +362,8 @@ static const StreamListItem streams_list[] = {
 #if defined(SERVO_OUTPUT_RAW_HPP)
 	create_stream_list_item<MavlinkStreamServoOutputRaw<0> >(),
 	create_stream_list_item<MavlinkStreamServoOutputRaw<1> >(),
+	create_stream_list_item<MavlinkStreamServoOutputRaw<2> >(),
+	create_stream_list_item<MavlinkStreamServoOutputRaw<3> >(),
 #endif // SERVO_OUTPUT_RAW_HPP
 #if defined(HIL_ACTUATOR_CONTROLS_HPP)
 	create_stream_list_item<MavlinkStreamHILActuatorControls>(),
