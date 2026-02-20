@@ -247,7 +247,7 @@ private:
 #if defined(MAVLINK_MSG_ID_RANGING_BEACON)
 	void handle_message_ranging_beacon(mavlink_message_t *msg);
 #endif // MAVLINK_MSG_ID_RANGING_BEACON
-	void handle_message_actuator_output_status(mavlink_message_t *msg);
+	void handle_message_servo_output_raw(mavlink_message_t *msg);
 	void handle_message_attitude_target(mavlink_message_t *msg);
 
 #if !defined(CONSTRAINED_FLASH)
@@ -391,8 +391,9 @@ private:
 #endif
 	uORB::Publication<vehicle_status_s>			_redundant_status_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {ORB_ID(redundant_status0), ORB_ID(redundant_status1)};
 	uORB::PublicationMulti<actuator_outputs_s>
-	_redundant_actuator_outputs_pub[2][vehicle_status_s::MAX_REDUNDANT_CONTROLLERS] {{ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs0)},
-		{ORB_ID(redundant_actuator_outputs1), ORB_ID(redundant_actuator_outputs1)}
+	_redundant_actuator_outputs_pub[vehicle_status_s::MAX_REDUNDANT_CONTROLLERS][4] {
+		{ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs0), ORB_ID(redundant_actuator_outputs0)},
+		{ORB_ID(redundant_actuator_outputs1), ORB_ID(redundant_actuator_outputs1), ORB_ID(redundant_actuator_outputs1), ORB_ID(redundant_actuator_outputs1)}
 	};
 
 	uORB::Publication<vehicle_rates_setpoint_s>
