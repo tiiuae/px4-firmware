@@ -187,7 +187,6 @@ list(APPEND OPTIONAL_BOARD_RC
 	rc.board_sensors
 	rc.board_extras
 	rc.board_mavlink
-	rc.board_mavlink_moi
 	common_init/rcS.0
 	common_init/rc.moi
 	common_init/rc.m_state
