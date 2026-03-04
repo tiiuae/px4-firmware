@@ -163,3 +163,6 @@
 [submodule "src/modules/enroll_agent"]
 	path = src/modules/enroll_agent
 	url = git@github.com:tiiuae/px4_enroll_agent.git
+[submodule "src/modules/fota_zenoh"]
+	path = src/modules/fota_zenoh
+	url = git@github.com:tiiuae/px4-fota-zenoh.git
