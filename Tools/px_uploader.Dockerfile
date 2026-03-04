@@ -12,9 +12,11 @@ WORKDIR /firmware
 ENTRYPOINT ["/entrypoint.sh"]
 
 # tools needed to extract binaries from px4 files
-RUN apk add pigz jq
+# + zenoh uploader support (REST publish + blake2b)
+RUN apk add pigz jq curl coreutils
 
 ADD px4-firmware/Tools/px_uploader.entrypoint /entrypoint.sh
+ADD px4-firmware/Tools/px_uploader_zenoh.entrypoint /entrypoint_zenoh.sh
 
 # copy /bin/* -> /firmware/*
 ADD bin/ /firmware/

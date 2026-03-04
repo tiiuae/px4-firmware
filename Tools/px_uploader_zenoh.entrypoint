@@ -1,0 +1,215 @@
+#!/bin/sh
+set -eu
+
+SALUKI_FILE_INFO_JSON="${SALUKI_FILE_INFO_JSON:-/saluki_file_info.json}"
+FIRMWARE_DIR="${FIRMWARE_DIR:-/firmware}"
+PX4_HW_TARGET="${PX4_HW_TARGET:-}"
+ZENOH_REST_URL="${ZENOH_REST_URL:-http://zenoh-router:8000}"
+CHUNK_SIZE_BYTES="${CHUNK_SIZE_BYTES:-4096}"
+PUBLISH_RETRIES="${PUBLISH_RETRIES:-3}"
+CLEANUP_PREVIOUS="${CLEANUP_PREVIOUS:-false}"
+PX4_DEVICE_SERIAL="${PX4_DEVICE_SERIAL:-}"
+
+log() { echo "[px_uploader_zenoh] $*"; }
+warn() { echo "[px_uploader_zenoh][WARN] $*" >&2; }
+err() { echo "[px_uploader_zenoh][ERROR] $*" >&2; }
+
+require_cmd() {
+    for c in "$@"; do
+        command -v "$c" >/dev/null 2>&1 || {
+            err "Missing required command: $c"
+            exit 1
+        }
+    done
+}
+
+zenoh_put_bytes() {
+    key="$1"
+    file_path="$2"
+    content_type="${3:-application/octet-stream}"
+    curl -fsS -X PUT "${ZENOH_REST_URL}/${key}" \
+        -H "Content-Type: ${content_type}" \
+        --data-binary "@${file_path}" >/dev/null
+}
+
+zenoh_put_text() {
+    key="$1"
+    payload="$2"
+    content_type="${3:-text/plain}"
+    curl -fsS -X PUT "${ZENOH_REST_URL}/${key}" \
+        -H "Content-Type: ${content_type}" \
+        --data "${payload}" >/dev/null
+}
+
+zenoh_get_value() {
+    key="$1"
+    curl -fsS "${ZENOH_REST_URL}/${key}" | jq -r 'if (type=="array" and length>0) then .[0].value else empty end'
+}
+
+best_effort_warn_current_hw_mismatch() {
+    if [ -z "${PX4_DEVICE_SERIAL}" ]; then
+        return 0
+    fi
+
+    current_key="firmware/px4/${PX4_DEVICE_SERIAL}/current"
+    current_json="$(curl -fsS "${ZENOH_REST_URL}/${current_key}" 2>/dev/null || true)"
+    if [ -z "${current_json}" ] || [ "${current_json}" = "[]" ]; then
+        return 0
+    fi
+
+    observed_hw="$(echo "${current_json}" | jq -r 'if (type=="array" and length>0 and .[0].value.hw_target!=null) then .[0].value.hw_target else empty end' 2>/dev/null || true)"
+    if [ -n "${observed_hw}" ] && [ "${observed_hw}" != "${PX4_HW_TARGET}" ]; then
+        warn "Current topic hw_target mismatch: current='${observed_hw}' env='${PX4_HW_TARGET}' (publish continues with env target)"
+    fi
+}
+
+extract_bin_from_px4() {
+    src_px4="$1"
+    out_bin="$2"
+    cat "${src_px4}" | jq -r '.image' | base64 -d | pigz -d >"${out_bin}"
+}
+
+find_or_extract_bin() {
+    info_filename="$1"
+    out_bin="$2"
+
+    direct_path="${FIRMWARE_DIR}/${info_filename}"
+    case "${info_filename}" in
+        *.px4)
+            if [ -f "${direct_path}" ]; then
+                extract_bin_from_px4 "${direct_path}" "${out_bin}"
+                return 0
+            fi
+            ;;
+        *.bin)
+            if [ -f "${direct_path}" ]; then
+                cp "${direct_path}" "${out_bin}"
+                return 0
+            fi
+            ;;
+    esac
+
+    # Fallbacks for different package layouts.
+    name_only="$(basename "${info_filename}")"
+    found="$(find "${FIRMWARE_DIR}" -type f \( -name "${name_only}" -o -name "${name_only%.px4}.bin" \) | head -n 1 || true)"
+    if [ -z "${found}" ]; then
+        return 1
+    fi
+
+    case "${found}" in
+        *.px4) extract_bin_from_px4 "${found}" "${out_bin}" ;;
+        *) cp "${found}" "${out_bin}" ;;
+    esac
+}
+
+publish_with_retries() {
+    attempt=1
+    while [ "${attempt}" -le "${PUBLISH_RETRIES}" ]; do
+        if "$@"; then
+            return 0
+        fi
+        if [ "${attempt}" -lt "${PUBLISH_RETRIES}" ]; then
+            sleep_s=$((1 << (attempt - 1)))
+            if [ "${sleep_s}" -gt 30 ]; then sleep_s=30; fi
+            warn "Publish attempt ${attempt} failed, retrying in ${sleep_s}s"
+            sleep "${sleep_s}"
+        fi
+        attempt=$((attempt + 1))
+    done
+    return 1
+}
+
+main() {
+    require_cmd jq curl base64 pigz b2sum dd wc mktemp
+
+    if [ -z "${PX4_HW_TARGET}" ]; then
+        err "PX4_HW_TARGET is required"
+        exit 1
+    fi
+    if [ ! -f "${SALUKI_FILE_INFO_JSON}" ]; then
+        err "Missing ${SALUKI_FILE_INFO_JSON}"
+        exit 1
+    fi
+
+    info_item="$(jq -c --arg hw "${PX4_HW_TARGET}" '.files[] | select(.type=="px4-bin" and .hw==$hw) | . ' "${SALUKI_FILE_INFO_JSON}" | head -n 1 || true)"
+    if [ -z "${info_item}" ]; then
+        err "No px4-bin entry found for hw target '${PX4_HW_TARGET}'"
+        exit 1
+    fi
+
+    filename="$(echo "${info_item}" | jq -r '.filename')"
+    if [ -z "${filename}" ] || [ "${filename}" = "null" ]; then
+        err "Invalid file info: missing filename"
+        exit 1
+    fi
+
+    # Use filename stem as stable release pointer (<ver>).
+    ver="$(basename "${filename}")"
+    ver="${ver%.*}"
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "${tmp_dir}"' EXIT INT TERM
+
+    bin_file="${tmp_dir}/image.bin"
+    if ! find_or_extract_bin "${filename}" "${bin_file}"; then
+        err "Could not locate/extract firmware image for '${filename}' under '${FIRMWARE_DIR}'"
+        exit 1
+    fi
+
+    size="$(wc -c < "${bin_file}" | tr -d ' ')"
+    chunk_count=$(((size + CHUNK_SIZE_BYTES - 1) / CHUNK_SIZE_BYTES))
+    blake2b="$(b2sum "${bin_file}" | awk '{print $1}')"
+
+    metadata_file="${tmp_dir}/metadata.json"
+    echo "${info_item}" | jq -c \
+        --arg hw "${PX4_HW_TARGET}" \
+        --arg blake2b "${blake2b}" \
+        --argjson size "${size}" \
+        --argjson chunk_count "${chunk_count}" \
+        --arg ver "${ver}" \
+        '.hw=$hw | .blake2b=$blake2b | .size=$size | .chunk_count=$chunk_count | .version=$ver' \
+        > "${metadata_file}"
+
+    latest_key="firmware/px4/${PX4_HW_TARGET}/latest"
+    metadata_key="firmware/px4/${PX4_HW_TARGET}/${ver}/metadata"
+
+    best_effort_warn_current_hw_mismatch
+
+    previous_latest="$(zenoh_get_value "${latest_key}" 2>/dev/null || true)"
+
+    log "Publishing metadata: ${metadata_key}"
+    publish_with_retries zenoh_put_bytes "${metadata_key}" "${metadata_file}" "application/json" || {
+        err "Failed publishing metadata"
+        exit 1
+    }
+
+    i=0
+    while [ "${i}" -lt "${chunk_count}" ]; do
+        chunk_file="${tmp_dir}/chunk_${i}.bin"
+        dd if="${bin_file}" of="${chunk_file}" bs="${CHUNK_SIZE_BYTES}" skip="${i}" count=1 status=none
+        chunk_key="firmware/px4/${PX4_HW_TARGET}/${ver}/chunk/${i}"
+        publish_with_retries zenoh_put_bytes "${chunk_key}" "${chunk_file}" "application/octet-stream" || {
+            err "Failed publishing chunk ${i}"
+            exit 1
+        }
+        i=$((i + 1))
+    done
+
+    log "Publishing latest pointer: ${latest_key}='${ver}'"
+    publish_with_retries zenoh_put_text "${latest_key}" "${ver}" "text/plain" || {
+        err "Failed publishing latest"
+        exit 1
+    }
+
+    if [ "${CLEANUP_PREVIOUS}" = "true" ] && [ -n "${previous_latest}" ] && [ "${previous_latest}" != "${ver}" ]; then
+        old_keyexpr="firmware/px4/${PX4_HW_TARGET}/${previous_latest}/**"
+        if curl -fsS -X DELETE "${ZENOH_REST_URL}/${old_keyexpr}" >/dev/null 2>&1; then
+            log "Cleanup old keyexpr succeeded: ${old_keyexpr}"
+        else
+            warn "Cleanup old keyexpr failed (ignored): ${old_keyexpr}"
+        fi
+    fi
+
+    log "Publish complete hw='${PX4_HW_TARGET}' ver='${ver}' size='${size}' chunk_count='${chunk_count}'"
+}
+
+main "$@"
