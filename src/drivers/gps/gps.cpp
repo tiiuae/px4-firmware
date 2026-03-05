@@ -1517,9 +1517,6 @@ GPS *GPS::instantiate(int argc, char *argv[], Instance instance)
 	if (instance == Instance::Main) {
 		if (Serial::validatePort(device_name)) {
 			gps = new GPS(device_name, mode, interface, instance, baudrate_main);
-			if (gps) {
-				gps->_listen_only = listen_only;
-			}
 
 		} else {
 			PX4_ERR("invalid device (-d) %s", device_name ? device_name  : "");
@@ -1547,6 +1544,10 @@ GPS *GPS::instantiate(int argc, char *argv[], Instance instance)
 		} else {
 			PX4_ERR("invalid secondary device (-g) %s", device_name_secondary ? device_name_secondary : "");
 		}
+	}
+
+	if (gps) {
+		gps->_listen_only = listen_only;
 	}
 
 	return gps;
