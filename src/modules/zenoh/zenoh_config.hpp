@@ -49,7 +49,13 @@
 #include <zenoh-pico.h>
 
 #define ZENOH_MAX_PATH_LENGTH (128 + 40)
+#ifdef CONFIG_BOARD_ROOT_PATH
 #define ZENOH_ROOT_PATH       CONFIG_BOARD_ROOT_PATH"/zenoh"
+#else
+// Compatibility fallback for boards without CONFIG_BOARD_ROOT_PATH
+#define ZENOH_ROOT_PATH       "/fs/microsd/zenoh"
+#endif
+
 #define ZENOH_PUB_CONFIG_PATH ZENOH_ROOT_PATH"/pub.csv"
 #define ZENOH_SUB_CONFIG_PATH ZENOH_ROOT_PATH"/sub.csv"
 #define ZENOH_NET_CONFIG_PATH ZENOH_ROOT_PATH"/net.txt"

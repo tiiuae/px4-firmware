@@ -50,7 +50,7 @@ class uORB_Zenoh_Subscriber : public Zenoh_Subscriber
 {
 public:
 	// d_instance: < (default if not in CSV) if we should create a new instance (safe), nonzero if we should use the 0 instance
-	uORB_Zenoh_Subscriber(const orb_metadata *meta, const uint32_t *ops, int d_instance) :
+	uORB_Zenoh_Subscriber(const orb_metadata *meta, const uint32_t *ops, int d_instance = -1) :
 		Zenoh_Subscriber(),
 		_uorb_meta{meta},
 		_cdr_ops(ops)

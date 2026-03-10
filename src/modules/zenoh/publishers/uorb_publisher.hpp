@@ -50,7 +50,7 @@
 class uORB_Zenoh_Publisher : public Zenoh_Publisher
 {
 public:
-	uORB_Zenoh_Publisher(const orb_metadata *meta, const uint32_t *ops, int instance) :
+	uORB_Zenoh_Publisher(const orb_metadata *meta, const uint32_t *ops, int instance = -1) :
 		Zenoh_Publisher(),
 		_uorb_meta{meta},
 		_cdr_ops(ops)
@@ -63,7 +63,10 @@ public:
 		}
 	};
 
-	~uORB_Zenoh_Publisher() override = default;
+	~uORB_Zenoh_Publisher() override
+	{
+		orb_unsubscribe(_uorb_sub);
+	}
 
 	// Update the uORB Subscription and broadcast a Zenoh ROS2 message
 	virtual z_result_t update() override
@@ -99,10 +102,10 @@ public:
 		}
 	};
 
-	void setPollFD(px4_pollfd_struct_t *pfd)
+	bool hasUpdate()
 	{
-		pfd->fd = _uorb_sub;
-		pfd->events = POLLIN;
+		bool updated = false;
+		return orb_check(_uorb_sub, &updated) == PX4_OK && updated;
 	}
 
 	void print()
@@ -118,6 +121,6 @@ public:
 
 private:
 	const orb_metadata *_uorb_meta;
-	int _uorb_sub;
+	orb_sub_t _uorb_sub;
 	const uint32_t *_cdr_ops;
 };

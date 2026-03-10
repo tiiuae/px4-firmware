@@ -50,11 +50,9 @@
 #include "subscribers/uorb_subscriber.hpp"
 
 
-class ZENOH : public ModuleBase, public ModuleParams
+class ZENOH : public ModuleBase<ZENOH>, public ModuleParams
 {
 public:
-	static Descriptor desc;
-
 	ZENOH();
 
 	~ZENOH();
@@ -80,8 +78,6 @@ public:
 	 */
 	static int task_spawn(int argc, char *argv[]);
 
-	static int run_trampoline(int argc, char *argv[]);
-
 	static ZENOH *instantiate(int argc, char *argv[]);
 
 	void run() override;
@@ -96,7 +92,7 @@ private:
 	int generate_rmw_zenoh_topic_liveliness_keyexpr(const z_id_t *id, const char *topic, const uint8_t *rihs_hash,
 			char *type, char *keyexpr, const char *entity_str);
 	int setupSession();
-	int setupTopics(px4_pollfd_struct_t *pfds);
+	int setupTopics();
 
 	Zenoh_Config _config;
 

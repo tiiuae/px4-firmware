@@ -52,8 +52,6 @@
 // Auto-generated header to all uORB <-> CDR conversions
 #include <uorb_pubsub_factory.hpp>
 
-ModuleBase::Descriptor ZENOH::desc{task_spawn, custom_command, print_usage};
-
 #define Z_PUBLISH
 #define Z_SUBSCRIBE
 
@@ -110,10 +108,7 @@ int ZENOH::generate_rmw_zenoh_node_liveliness_keyexpr(const z_id_t *id, char *ke
 
 int ZENOH::generate_rmw_zenoh_topic_keyexpr(const char *topic, const uint8_t *rihs_hash, char *type, char *keyexpr)
 {
-	const char *type_name = getTypeName(type);
-
-	if (type_name) {
-		strncpy(type, type_name, TOPIC_INFO_SIZE);
+	if (type && type[0] != '\0') {
 		toCamelCase(type); // Convert uORB type to camel case
 
 #ifdef CONFIG_ZENOH_KEY_TYPE_HASH
@@ -261,7 +256,7 @@ int ZENOH::setupSession()
 	return ret;
 }
 
-int ZENOH::setupTopics(px4_pollfd_struct_t *pfds)
+int ZENOH::setupTopics()
 {
 	char keyexpr[KEYEXPR_SIZE];
 	int i;
@@ -308,10 +303,10 @@ int ZENOH::setupTopics(px4_pollfd_struct_t *pfds)
 
 		for (i = 0; i < _sub_count; i++) {
 			if (_config.getSubscriberMapping(topic, type, &instance_no)) {
-				_zenoh_subscribers[i] = genSubscriber(type, instance_no);
-				const uint8_t *rihs_hash = getRIHS01_Hash(type);
+				_zenoh_subscribers[i] = genSubscriber(type);
+				const uint8_t *rihs_hash = nullptr;
 
-				if (rihs_hash != NULL && _zenoh_subscribers[i] != 0 &&
+				if (_zenoh_subscribers[i] != 0 &&
 				    generate_rmw_zenoh_topic_keyexpr(topic, rihs_hash, type, keyexpr) > 0) {
 					_zenoh_subscribers[i]->declare_subscriber(_s, keyexpr);
 #ifdef CONFIG_ZENOH_RMW_LIVELINESS
@@ -365,13 +360,12 @@ int ZENOH::setupTopics(px4_pollfd_struct_t *pfds)
 
 		for (i = 0; i < _pub_count; i++) {
 			if (_config.getPublisherMapping(topic, type, &instance)) {
-				_zenoh_publishers[i] = genPublisher(type, instance);
-				const uint8_t *rihs_hash = getRIHS01_Hash(type);
+				_zenoh_publishers[i] = genPublisher(type);
+				const uint8_t *rihs_hash = nullptr;
 
-				if (rihs_hash && _zenoh_publishers[i] != 0 &&
+				if (_zenoh_publishers[i] != 0 &&
 				    generate_rmw_zenoh_topic_keyexpr(topic, rihs_hash, type, keyexpr) > 0) {
 					_zenoh_publishers[i]->declare_publisher(_s, keyexpr, (uint8_t *)&_px4_guid);
-					_zenoh_publishers[i]->setPollFD(&pfds[i]);
 #ifdef CONFIG_ZENOH_RMW_LIVELINESS
 
 					if (generate_rmw_zenoh_topic_liveliness_keyexpr(&self_id, topic, rihs_hash, type, keyexpr, "MP") > 0) {
@@ -421,7 +415,6 @@ void ZENOH::run()
 	int i;
 	_pub_count =  _config.getPubCount();
 	_sub_count =  _config.getSubCount();
-	px4_pollfd_struct_t pfds[_pub_count];
 
 	if (setupSession() < 0) {
 		PX4_ERR("Failed to setup Zenoh session");
@@ -432,7 +425,7 @@ void ZENOH::run()
 
 	PX4_INFO("Starting reading/writing tasks...");
 
-	if (setupTopics(pfds) < 0) {
+	if (setupTopics() < 0) {
 		PX4_ERR("Failed to setup topics");
 		return;
 	}
@@ -445,23 +438,17 @@ void ZENOH::run()
 	}
 
 	while (!should_exit()) {
-		int pret = px4_poll(pfds, _pub_count, 100);
+		for (i = 0; i < _pub_count; i++) {
+			if (_zenoh_publishers[i] && _zenoh_publishers[i]->hasUpdate()) {
+				ret = _zenoh_publishers[i]->update();
 
-		if (pret == 0) {
-			//PX4_INFO("Zenoh poll timeout\n");
-
-		} else {
-			for (i = 0; i < _pub_count; i++) {
-				if (pfds[i].revents & POLLIN) {
-					ret = _zenoh_publishers[i]->update();
-
-					if (ret < 0) {
-						PX4_WARN("%s Publisher error %i", _zenoh_publishers[i]->getName(), ret);
-
-					}
+				if (ret < 0) {
+					PX4_WARN("%s Publisher error %i", _zenoh_publishers[i]->getName(), ret);
 				}
 			}
 		}
+
+		usleep(10000);
 	}
 
 	// Exiting cleaning up publisher and subscribers
@@ -488,7 +475,7 @@ void ZENOH::run()
 	z_drop(z_session_move(&_s));
 
 	connected = false;
-	exit_and_cleanup(desc);
+	exit_and_cleanup();
 }
 
 int ZENOH::custom_command(int argc, char *argv[])
@@ -563,32 +550,24 @@ int ZENOH::print_status()
 	return 0;
 }
 
-int ZENOH::run_trampoline(int argc, char *argv[])
-{
-	return ModuleBase::run_trampoline_impl(desc, [](int ac, char *av[]) -> ModuleBase * {
-		return ZENOH::instantiate(ac, av);
-	}, argc, argv);
-}
-
 int ZENOH::task_spawn(int argc, char *argv[])
 {
-
-	int task_id = px4_task_spawn_cmd(
+	_task_id = px4_task_spawn_cmd(
 			      "zenoh",
 			      SCHED_DEFAULT,
 			      SCHED_PRIORITY_DEFAULT,
 			      4096,
-			      &run_trampoline,
+			      (px4_main_t)&run_trampoline,
 			      argv
 		      );
 
-	if (task_id < 0) {
-		return -errno;
-
-	} else {
-		desc.task_id = task_id;
-		return 0;
+	// check if task is up & running
+	if (_task_id < 0) {
+		_task_id = -1;
+		return -1;
 	}
+
+	return 0;
 }
 
 ZENOH *ZENOH::instantiate(int argc, char *argv[])
@@ -598,5 +577,5 @@ ZENOH *ZENOH::instantiate(int argc, char *argv[])
 
 int zenoh_main(int argc, char *argv[])
 {
-	return ModuleBase::main(ZENOH::desc, argc, argv);
+	return ZENOH::main(argc, argv);
 }
