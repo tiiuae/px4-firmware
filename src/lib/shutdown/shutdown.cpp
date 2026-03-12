@@ -178,7 +178,14 @@ static void shutdown_worker(void *arg)
 	const hrt_abstime now = hrt_absolute_time();
 	const bool delay_elapsed = (now > shutdown_time_us);
 
-	if (delay_elapsed && (done || (now > (shutdown_time_us + shutdown_timeout_us)))) {
+	/* Perform reset in case all conditions are met:
+	 * - Given shutdown delay has been expired
+	 * - EITHER forced reboot/shutdown OR no ongoing critical activities
+	 * - EITHER all shutdown hooks are completed OR maximum waiting time for competion has been expired
+	 */
+	if (delay_elapsed &&
+	    (shutdown_force || !is_ongoing_critical_activity()) &&
+	    (done || (now > (shutdown_time_us + shutdown_timeout_us)))) {
 		if (shutdown_args & SHUTDOWN_ARG_REBOOT) {
 #if defined(CONFIG_BOARDCTL_RESET)
 			PX4_INFO_RAW("Reboot NOW.");
@@ -247,13 +254,12 @@ int shutdown_set_force_flag(bool force)
 
 int px4_reboot_request(reboot_request_t request, uint32_t delay_us)
 {
-	if (shutdown_args & SHUTDOWN_ARG_IN_PROGRESS || shutdown_args & SHUTDOWN_ARG_REBOOT) {
-		return 0;
+	if (!shutdown_force && is_ongoing_critical_activity()) {
+		PX4_WARN("Critical activity ongoing => Reboot temporarily denied");
 	}
 
-	if (!shutdown_force && is_ongoing_critical_activity()) {
-		PX4_WARN("M-O-I Critical activity ongoing => Reboot/shutdown temporarily denied");
-		return -EBUSY;
+	if (shutdown_args & SHUTDOWN_ARG_IN_PROGRESS || shutdown_args & SHUTDOWN_ARG_REBOOT) {
+		return 0;
 	}
 
 	px4_indicate_external_reset_lockout(LockoutComponent::SystemShutdownLock, true);
@@ -292,13 +298,12 @@ int px4_reboot_request(reboot_request_t request, uint32_t delay_us)
 #if defined(BOARD_HAS_POWER_CONTROL) || defined(__PX4_POSIX)
 int px4_shutdown_request(uint32_t delay_us)
 {
-	if (shutdown_args & SHUTDOWN_ARG_IN_PROGRESS) {
-		return 0;
+	if (!shutdown_force && is_ongoing_critical_activity()) {
+		PX4_WARN("M-O-I Critical activity ongoing => shutdown temporarily denied");
 	}
 
-	if (!shutdown_force && is_ongoing_critical_activity()) {
-		PX4_WARN("M-O-I Critical activity ongoing => Reboot/shutdown temporarily denied");
-		return -EBUSY;
+	if (shutdown_args & SHUTDOWN_ARG_IN_PROGRESS) {
+		return 0;
 	}
 
 	px4_indicate_external_reset_lockout(LockoutComponent::SystemShutdownLock, true);
