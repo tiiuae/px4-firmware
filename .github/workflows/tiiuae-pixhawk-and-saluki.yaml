@@ -399,7 +399,7 @@ jobs:
         run: |
           set -eux
           echo "Building minimal OTA container"
-          PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-v3_flat ssrc_saluki-nxp93_flat ssrc_saluki-nxp93_default"
+          PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-v3_flat ssrc_saluki-nxp93_flat ssrc_saluki-nxp93_default ssrc_saluki-micro_default"
           REPACKAGE_DIR=$(mktemp -d)
           echo "REPACKAGE_DIR=${REPACKAGE_DIR}" >> "$GITHUB_ENV"
 
