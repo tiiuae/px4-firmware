@@ -185,22 +185,15 @@ UavcanEscController::update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUA
 	if (_redundant_actuator_control_enabled) {
 		actuator_armed_s actuator_armed;
 		redundancy_status_s rstatus;
-		bool rstatus_available = _redundancy_status_sub.copy(&rstatus);
 
-		if ((!_actuator_armed_sub.copy(&actuator_armed) || !actuator_armed.armed) &&
-		    (!rstatus_available || hrt_elapsed_time(&rstatus.timestamp) >= 50_ms ||
-		     rstatus.fc_number != rstatus.fc_in_act_control)) {
-			/* We are disarmed and (not in actuator control or don't know about the other FC).
-			 * Just don't send anything.
-			 * Note: For a better redundancy support, the ESCs would support receiving data from
-			 *       multiple FCs, and the switching logic (timeout) would be implemented there.
-			 *       in this case, we most likely wouldn't need this.
-			 */
+		/* Check if this FC is armed */
+		if (!_actuator_armed_sub.copy(&actuator_armed) || !actuator_armed.armed) {
+			/* Not armed, don't send any commands */
 			return;
 		}
 
 		/* Check if another FC is in control */
-		if (rstatus_available &&
+		if (_redundancy_status_sub.copy(&rstatus) &&
 		    hrt_elapsed_time(&rstatus.timestamp) < 50_ms &&
 		    rstatus.fc_number != rstatus.fc_in_act_control &&
 		    rstatus.fc_number >= redundancy_status_s::FC1 &&
