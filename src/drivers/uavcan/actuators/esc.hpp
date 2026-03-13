@@ -55,6 +55,8 @@
 #include <lib/mixer_module/mixer_module.hpp>
 #include <parameters/param.h>
 
+#include "actuator_redundancy.hpp"
+
 class UavcanEscController
 {
 public:
@@ -118,4 +120,8 @@ private:
 	uavcan::Subscriber<uavcan::equipment::esc::Status, StatusCbBinder>	_uavcan_sub_status;
 
 	param_t _param_handles[MAX_ACTUATORS] {PARAM_INVALID};
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+	ActuatorRedundancy<uavcan::equipment::esc::RawCommand> _actuator_redundancy;
+#endif
 };

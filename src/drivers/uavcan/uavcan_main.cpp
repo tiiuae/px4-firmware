@@ -545,6 +545,12 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 		}
 	}
 
+	ret = _servo_controller.init();
+
+	if (ret < 0) {
+		return ret;
+	}
+
 #endif
 
 #if defined(CONFIG_UAVCAN_HARDPOINT_CONTROLLER)
