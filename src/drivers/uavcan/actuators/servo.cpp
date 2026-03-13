@@ -40,13 +40,41 @@ using namespace time_literals;
 UavcanServoController::UavcanServoController(uavcan::INode &node) :
 	_node(node),
 	_uavcan_pub_array_cmd(node)
+#ifdef CONFIG_MODULES_REDUNDANCY
+	, _actuator_redundancy(node)
+#endif
 {
 	_uavcan_pub_array_cmd.setPriority(UAVCAN_COMMAND_TRANSFER_PRIORITY);
+}
+
+int
+UavcanServoController::init()
+{
+	int res = 0;
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+	res = _actuator_redundancy.Init();
+
+	if (res < 0) {
+		return res;
+	}
+
+#endif
+
+	return res;
 }
 
 void
 UavcanServoController::update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigned num_outputs)
 {
+#ifdef CONFIG_MODULES_REDUNDANCY
+
+	if (!_actuator_redundancy.RelayActiveOutputs(outputs, num_outputs, stop_motors)) {
+		return;
+	}
+
+#endif
+
 	uavcan::equipment::actuator::ArrayCommand msg;
 
 	for (unsigned i = 0; i < num_outputs; ++i) {

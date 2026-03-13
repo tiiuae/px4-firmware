@@ -54,6 +54,8 @@
 #include <drivers/drv_hrt.h>
 #include <lib/mixer_module/mixer_module.hpp>
 
+#include "actuator_redundancy.hpp"
+
 class UavcanEscController
 {
 public:
@@ -117,4 +119,8 @@ private:
 	 * ESC states
 	 */
 	uint8_t				_max_number_of_nonzero_outputs{0};
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+	ActuatorRedundancy<uavcan::equipment::esc::RawCommand> _actuator_redundancy;
+#endif
 };
