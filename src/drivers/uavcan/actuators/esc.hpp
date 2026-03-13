@@ -49,19 +49,12 @@
 #include <uavcan/equipment/esc/Status.hpp>
 #include <lib/perf/perf_counter.h>
 #include <uORB/PublicationMulti.hpp>
-#include <uORB/Subscription.hpp>
 #include <uORB/topics/actuator_outputs.h>
-#include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/esc_status.h>
 #include <drivers/drv_hrt.h>
 #include <lib/mixer_module/mixer_module.hpp>
 
-#ifdef CONFIG_MODULES_REDUNDANCY
-#include <uORB/topics/vehicle_status.h>
-#include <uORB/topics/redundancy_status.h>
-
-static constexpr int MaxNFCs = vehicle_status_s::MAX_REDUNDANT_CONTROLLERS;
-#endif
+#include "actuator_redundancy.hpp"
 
 class UavcanEscController
 {
@@ -74,7 +67,7 @@ public:
 
 
 	UavcanEscController(uavcan::INode &node);
-	~UavcanEscController();
+	~UavcanEscController() = default;
 
 	int init();
 
@@ -100,17 +93,11 @@ private:
 	 */
 	uint8_t check_escs_status();
 
-	void deleteSubscriptions();
-
 	typedef uavcan::MethodBinder<UavcanEscController *,
 		void (UavcanEscController::*)(const uavcan::ReceivedDataStructure<uavcan::equipment::esc::Status>&)> StatusCbBinder;
 
 	typedef uavcan::MethodBinder<UavcanEscController *,
 		void (UavcanEscController::*)(const uavcan::TimerEvent &)> TimerCbBinder;
-
-	typedef uavcan::MethodBinder<UavcanEscController *,
-		void (UavcanEscController::*)(const uavcan::ReceivedDataStructure<uavcan::equipment::esc::RawCommand>&)>
-		RawCommandCbBinder;
 
 	esc_status_s	_esc_status{};
 
@@ -128,27 +115,12 @@ private:
 	uavcan::Publisher<uavcan::equipment::esc::RawCommand>			_uavcan_pub_raw_cmd;
 	uavcan::Subscriber<uavcan::equipment::esc::Status, StatusCbBinder>	_uavcan_sub_status;
 
-#ifdef CONFIG_MODULES_REDUNDANCY
-	uavcan::Subscriber<uavcan::equipment::esc::RawCommand, RawCommandCbBinder> _uavcan_sub_raw_cmd;
-#endif
-
 	/*
 	 * ESC states
 	 */
 	uint8_t				_max_number_of_nonzero_outputs{0};
 
 #ifdef CONFIG_MODULES_REDUNDANCY
-	uORB::Subscription _actuator_armed_sub {ORB_ID(actuator_armed)};
-	uORB::Subscription _redundancy_status_sub {ORB_ID(redundancy_status)};
-
-	uORB::Subscription *_redundant_actuator_outputs_sub[MaxNFCs] = {nullptr, nullptr};
-
-	bool _redundant_actuator_control_enabled{false};
-	hrt_abstime _last_other_fc_rawcmd_time{0};	///< Last time we heard RawCommand from other FC on the bus
-
-	/**
-	 * RawCommand message reception callback (for monitoring other FC's CAN traffic)
-	 */
-	void raw_cmd_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::esc::RawCommand> &msg);
+	ActuatorRedundancy<uavcan::equipment::esc::RawCommand> _actuator_redundancy;
 #endif
 };

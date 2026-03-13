@@ -40,7 +40,6 @@
 #include "esc.hpp"
 #include <systemlib/err.h>
 #include <drivers/drv_hrt.h>
-#include <parameters/param.h>
 
 #define MOTOR_BIT(x) (1<<(x))
 
@@ -51,30 +50,11 @@ UavcanEscController::UavcanEscController(uavcan::INode &node) :
 	_uavcan_pub_raw_cmd(node),
 	_uavcan_sub_status(node)
 #ifdef CONFIG_MODULES_REDUNDANCY
-	, _uavcan_sub_raw_cmd(node)
+	, _actuator_redundancy(node)
 #endif
 {
 	_uavcan_pub_raw_cmd.setPriority(uavcan::TransferPriority::NumericallyMin); // Highest priority
 	param_get(param_find("UAVCAN_ESC_RL"), &_uavcan_rate_limit_enable);
-}
-
-UavcanEscController::~UavcanEscController()
-{
-	deleteSubscriptions();
-}
-
-void
-UavcanEscController::deleteSubscriptions()
-{
-#ifdef CONFIG_MODULES_REDUNDANCY
-
-	/* delete redundant_actuator_output subscriptions */
-	for (int i = 0; i < MaxNFCs; i++) {
-		delete _redundant_actuator_outputs_sub[i];
-		_redundant_actuator_outputs_sub[i] = nullptr;
-	}
-
-#endif
 }
 
 int
@@ -91,77 +71,10 @@ UavcanEscController::init()
 	_esc_status_pub.advertise();
 
 #ifdef CONFIG_MODULES_REDUNDANCY
-	int32_t spare_autopilots;
+	res = _actuator_redundancy.Init();
 
-	if (param_get(param_find("FT_N_SPARE_FCS"), &spare_autopilots) == PX4_OK && spare_autopilots > 0
-	    && spare_autopilots < MaxNFCs) {
-		/* Start RawCommand subscriber to monitor other FC's CAN traffic */
-		res = _uavcan_sub_raw_cmd.start(RawCommandCbBinder(this, &UavcanEscController::raw_cmd_sub_cb));
-
-		if (res < 0) {
-			PX4_ERR("RawCommand sub failed %i", res);
-			return res;
-		}
-
-		/* Find out which actuator_outputs instance we are publishing.
-		 * Note: there is a race condition in here in theory; if
-		 * drivers publishing actuator outputs are started in parallel
-		 * threads, this might give wrong results. However, in practice
-		 * all the actuator drivers are started at boot in a single
-		 * thread sequentially.
-		 */
-
-		int actuator_output_instance = orb_group_count(ORB_ID(actuator_outputs)) - 1;
-
-		/* Sanity check; this only supports 4 instances, since the current
-		 * redundancy communication interface (mavlink) doesn't support
-		 * sharing more
-		 */
-
-		if (actuator_output_instance < 0 || actuator_output_instance > 3) {
-			return PX4_ERROR;
-		}
-
-		/* Subscribe to the correct actuator outputs from the other FCs;
-		 * this assumes that the same actuator control drivers are running
-		 * on all FCs; that is, the topic instance numbers match.
-		 * There is typically one instance for UAVCAN and another for PWM_ESC.
-		 */
-
-		for (int i = 0; i < MaxNFCs; i++) {
-			const orb_metadata *meta;
-
-			switch (i + redundancy_status_s::FC1) {
-			case redundancy_status_s::FC1:
-				meta = ORB_ID(redundant_actuator_outputs0);
-				break;
-
-			case redundancy_status_s::FC2:
-				meta = ORB_ID(redundant_actuator_outputs1);
-				break;
-
-			case redundancy_status_s::FC3:
-				meta = ORB_ID(redundant_actuator_outputs2);
-				break;
-
-			case redundancy_status_s::FC4:
-				meta = ORB_ID(redundant_actuator_outputs3);
-				break;
-
-			default:
-				return PX4_ERROR;
-			}
-
-			_redundant_actuator_outputs_sub[i] = new uORB::Subscription(meta, actuator_output_instance);
-
-			if (!_redundant_actuator_outputs_sub[i]) {
-				PX4_ERR("redundant_actuator_outputs%d not available", i);
-				deleteSubscriptions();
-				return PX4_ERROR;
-			}
-		}
-
-		_redundant_actuator_control_enabled = true;
+	if (res < 0) {
+		return res;
 	}
 
 #endif
@@ -173,68 +86,9 @@ void
 UavcanEscController::update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigned num_outputs)
 {
 #ifdef CONFIG_MODULES_REDUNDANCY
-	/* For UAVCAN ESC redundancy:
-	 * - Only send CAN commands if this FC is armed
-	 * - If another FC is in control but not sending on CAN bus, relay their actuator outputs.
-	 *   This ensures there are always ESC commands on the bus when armed.
-	 * - If we hear the other FC on CAN bus, don't send anything
-	 * As a sanity check, verify that the redundancy status and any redundant actuator
-	 * outputs are less than 50 ms old.
-	 */
 
-	if (_redundant_actuator_control_enabled) {
-		actuator_armed_s actuator_armed;
-		redundancy_status_s rstatus;
-		bool rstatus_available = _redundancy_status_sub.copy(&rstatus);
-
-		if ((!_actuator_armed_sub.copy(&actuator_armed) || !actuator_armed.armed) &&
-		    (!rstatus_available || hrt_elapsed_time(&rstatus.timestamp) >= 50_ms ||
-		     rstatus.fc_number != rstatus.fc_in_act_control)) {
-			/* We are disarmed and (not in actuator control or don't know about the other FC).
-			 * Just don't send anything.
-			 * Note: For a better redundancy support, the ESCs would support receiving data from
-			 *       multiple FCs, and the switching logic (timeout) would be implemented there.
-			 *       in this case, we most likely wouldn't need this.
-			 */
-			return;
-		}
-
-		/* Check if another FC is in control */
-		if (rstatus_available &&
-		    hrt_elapsed_time(&rstatus.timestamp) < 50_ms &&
-		    rstatus.fc_number != rstatus.fc_in_act_control &&
-		    rstatus.fc_number >= redundancy_status_s::FC1 &&
-		    rstatus.fc_number < redundancy_status_s::FC1 + MaxNFCs &&
-		    rstatus.fc_in_act_control >= redundancy_status_s::FC1 &&
-		    rstatus.fc_in_act_control < redundancy_status_s::FC1 + MaxNFCs) {
-			/* Another FC is in control, check if we hear it on the CAN bus
-			 * Note: For a better redundancy support, the ESCs would support receiving data from
-			 *       multiple FCs, and the switching logic (timeout) would be implemented there.
-			 *       in this case, we should just always send the actuator outputs here.
-			 */
-			if (hrt_elapsed_time(&_last_other_fc_rawcmd_time) < 50_ms) {
-				/* Yes, don't send anything */
-				return;
-			}
-
-			/* We don't hear the other FCs on the bus, but someone else is in control.
-			 * Act as a relay and send the other FCs actuator outputs.
-			 */
-
-			int fc_idx = rstatus.fc_in_act_control - redundancy_status_s::FC1;
-			actuator_outputs_s ract_outputs;
-
-			if (_redundant_actuator_outputs_sub[fc_idx]->copy(&ract_outputs) &&
-			    hrt_elapsed_time(&ract_outputs.timestamp) < 50_ms) {
-				num_outputs = math::min(num_outputs, (unsigned)ract_outputs.noutputs);
-
-				for (unsigned i = 0; i < num_outputs; i++) {
-					outputs[i] = ract_outputs.output[i];
-				}
-
-				stop_motors = false;
-			}
-		}
+	if (!_actuator_redundancy.RelayActiveOutputs(outputs, num_outputs, stop_motors)) {
+		return;
 	}
 
 #endif
@@ -338,17 +192,3 @@ UavcanEscController::check_escs_status()
 
 	return esc_status_flags;
 }
-
-#ifdef CONFIG_MODULES_REDUNDANCY
-void
-UavcanEscController::raw_cmd_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::esc::RawCommand> &msg)
-{
-	/* Check if this message is from another FC */
-	uint8_t src_node_id = msg.getSrcNodeID().get();
-	uint8_t this_node_id = _node.getNodeID().get();
-
-	if (src_node_id >= 1 && src_node_id <= MaxNFCs && src_node_id != this_node_id) {
-		_last_other_fc_rawcmd_time = hrt_absolute_time();
-	}
-}
-#endif
