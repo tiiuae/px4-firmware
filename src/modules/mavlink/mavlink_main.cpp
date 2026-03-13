@@ -2967,6 +2967,7 @@ Mavlink::display_status()
 	printf("\tForwarding: %s\n", get_forwarding_on() ? "On" : "Off");
 	printf("\tMAVLink version: %" PRId32 "\n", _protocol_version);
 
+	printf("\tCriticalAction support: %s\n", is_crit_act_enabled() ? "On" : "Off");
 	printf("\ttransport protocol: ");
 
 	switch (_protocol) {
