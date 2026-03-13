@@ -52,6 +52,10 @@ serial_config:
         then
             set MAV_ARGS "${MAV_ARGS} -z"
         fi
+        if param compare MAV_${i}_CRIT_ACT 1
+        then
+            set MAV_ARGS "${MAV_ARGS} -y"
+        fi
         mavlink start ${MAV_ARGS} -x
       port_config_param:
         name: MAV_${i}_CONFIG
@@ -258,3 +262,16 @@ parameters:
             num_instances: *max_num_config_instances
             default: [0, 0, 0]
             requires_ethernet: true
+
+        MAV_${i}_CRIT_ACT:
+            description:
+                short: Enable critical activity support for inteface ${i}
+                long: |
+                    If enabled, MAVLink instance will request approval before starting any
+                    critical activity which prevents system reboot (e.g. log download). Request
+                    and response are transferred via uORB topic messages.
+
+            type: boolean
+            reboot_required: true
+            num_instances: *max_num_config_instances
+            default: [false, false, false]
