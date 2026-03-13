@@ -42,6 +42,8 @@
 #include <drivers/drv_hrt.h>
 #include <lib/mixer_module/mixer_module.hpp>
 
+#include "actuator_redundancy.hpp"
+
 class UavcanServoController
 {
 public:
@@ -52,9 +54,15 @@ public:
 	UavcanServoController(uavcan::INode &node);
 	~UavcanServoController() = default;
 
+	int init();
+
 	void update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigned num_outputs);
 
 private:
 	uavcan::INode								&_node;
 	uavcan::Publisher<uavcan::equipment::actuator::ArrayCommand> _uavcan_pub_array_cmd;
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+	ActuatorRedundancy<uavcan::equipment::actuator::ArrayCommand> _actuator_redundancy;
+#endif
 };

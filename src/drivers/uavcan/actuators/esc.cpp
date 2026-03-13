@@ -49,6 +49,9 @@ UavcanEscController::UavcanEscController(uavcan::INode &node) :
 	_node(node),
 	_uavcan_pub_raw_cmd(node),
 	_uavcan_sub_status(node)
+#ifdef CONFIG_MODULES_REDUNDANCY
+	, _actuator_redundancy(node)
+#endif
 {
 	_uavcan_pub_raw_cmd.setPriority(uavcan::TransferPriority::NumericallyMin); // Highest priority
 	param_get(param_find("UAVCAN_ESC_RL"), &_uavcan_rate_limit_enable);
@@ -67,12 +70,29 @@ UavcanEscController::init()
 
 	_esc_status_pub.advertise();
 
+#ifdef CONFIG_MODULES_REDUNDANCY
+	res = _actuator_redundancy.Init();
+
+	if (res < 0) {
+		return res;
+	}
+
+#endif
+
 	return res;
 }
 
 void
 UavcanEscController::update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigned num_outputs)
 {
+#ifdef CONFIG_MODULES_REDUNDANCY
+
+	if (!_actuator_redundancy.RelayActiveOutputs(outputs, num_outputs, stop_motors)) {
+		return;
+	}
+
+#endif
+
 	/*
 	 * Rate limiting - we don't want to congest the bus
 	 */
