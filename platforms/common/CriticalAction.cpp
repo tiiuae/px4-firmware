@@ -50,7 +50,11 @@ const uint32_t CRIT_ACT_CMD_RELEASE = vehicle_command_s::VEHICLE_CMD_CUSTOM_2;
 
 bool CriticalAction::request(uint8_t comp_id)
 {
-	if (!_enabled) {
+#ifdef CONFIG_MODULES_MOI_AGENT
+
+	if (!_enabled)
+#endif
+	{
 		return true;
 	}
 
@@ -112,7 +116,11 @@ bool CriticalAction::request(uint8_t comp_id)
 
 void CriticalAction::release(uint8_t comp_id)
 {
-	if (!_enabled) {
+#ifdef CONFIG_MODULES_MOI_AGENT
+
+	if (!_enabled)
+#endif
+	{
 		return;
 	}
 
