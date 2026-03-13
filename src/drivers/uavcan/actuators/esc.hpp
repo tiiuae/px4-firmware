@@ -57,6 +57,8 @@
 #include <uORB/topics/dronecan_node_status.h>
 #include "../node_info.hpp"
 
+#include "actuator_redundancy.hpp"
+
 class UavcanEscController
 {
 public:
@@ -137,4 +139,8 @@ private:
 	uavcan::Subscriber<uavcan::equipment::esc::StatusExtended, StatusExtendedCbBinder> _uavcan_sub_status_extended;
 
 	NodeInfoPublisher *_node_info_publisher{nullptr};
+
+#ifdef CONFIG_MODULES_REDUNDANCY
+	ActuatorRedundancy<uavcan::equipment::esc::RawCommand> _actuator_redundancy;
+#endif
 };
