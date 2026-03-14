@@ -68,6 +68,7 @@ static const char sz_ver_gcc_str[] 	= "gcc";
 static const char sz_ver_all_str[] 	= "all";
 static const char mcu_ver_str[]		= "mcu";
 static const char px4_guid_str[]         = "px4guid";
+static const char sz_ver_crash_str[]    = "crash";
 
 static void usage(const char *reason)
 {
@@ -140,6 +141,14 @@ extern "C" __EXPORT int ver_main(int argc, char *argv[])
 				} else {
 					PX4_ERR("Not enough arguments, try 'ver hwtypecmp {V2|V2M|V30|V31}'");
 				}
+
+				return 1;
+			}
+
+			// generate crash dump, used for testing crash handling and crash reason decoding
+			if (!strncmp(argv[1], sz_ver_crash_str, sizeof(sz_ver_crash_str))) {
+				volatile int *ptr = nullptr;
+				*ptr = 42;
 
 				return 1;
 			}
