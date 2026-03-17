@@ -31,6 +31,20 @@
 #
 ############################################################################
 
+set(pwm_esc_module_config module.yaml)
+set(pwm_esc_module_config2)
+
+# Optional board-specific override for pwm_esc module metadata/params
+# (if present, use boards/<vendor>/<board>/pwm_esc.yaml)
+set(board_module_config ${PX4_BOARD_DIR}/pwm_esc.yaml)
+set(board_module_config2 ${PX4_BOARD_DIR}/pwm_esc2.yaml)
+if(EXISTS ${board_module_config})
+	file(RELATIVE_PATH pwm_esc_module_config ${CMAKE_CURRENT_SOURCE_DIR} ${board_module_config})
+endif()
+if(EXISTS ${board_module_config2})
+	file(RELATIVE_PATH pwm_esc_module_config2 ${CMAKE_CURRENT_SOURCE_DIR} ${board_module_config2})
+endif()
+
 px4_add_module(
 	MODULE drivers__pwm_esc
 	MAIN pwm_esc
@@ -38,7 +52,8 @@ px4_add_module(
 	SRCS
 		pwm_esc.cpp
 	MODULE_CONFIG
-		module.yaml
+		${pwm_esc_module_config}
+		${pwm_esc_module_config2}
 	DEPENDS
 		mixer_module
 	)
