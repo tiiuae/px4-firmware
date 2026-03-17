@@ -59,6 +59,18 @@ def get_timer_groups(timer_config_file, verbose=False):
     with open(timer_config_file, 'r') as f:
         timer_config = f.read()
 
+    # Optional board hint for DShot-capable timer groups.
+    # Syntax in timer_config.cpp (comment): DSHOT_TIMERS: Timer1, Timer2
+    dshot_timers_hint = set()
+    dshot_timers_match = re.search(r'DSHOT_TIMERS\s*:\s*([^\n\r]+)', timer_config)
+
+    if dshot_timers_match:
+        for timer_name in re.split(r'[\s,]+', dshot_timers_match.group(1).strip()):
+            if timer_name:
+                dshot_timers_hint.add(timer_name)
+        if verbose:
+            print('found DSHOT_TIMERS hint:', sorted(dshot_timers_hint))
+
     # timers
     dshot_support = {} # key: timer
     timers_start_marker = 'io_timers_t io_timers'
@@ -86,7 +98,8 @@ def get_timer_groups(timer_config_file, verbose=False):
 
         if timer:
             if verbose: print('found timer def: {:}'.format(timer))
-            dshot_support[timer] = 'DMA' in line
+            timer_index = len(timers)
+            dshot_support[timer] = ('DMA' in line) or (timer in dshot_timers_hint)
             timers.append(timer)
         else:
             # Make sure we don't miss anything (e.g. for different syntax) or misparse (e.g. multi-line comments)
