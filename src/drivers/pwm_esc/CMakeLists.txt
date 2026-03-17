@@ -34,7 +34,7 @@
 set(pwm_esc_module_config module.yaml)
 
 # Optional board-specific override for pwm_esc module metadata/params
-# (if present, use boards/<vendor>/<board>/module.yaml)
+# (if present, use boards/<vendor>/<board>/pwm_esc.yaml)
 set(board_module_config ${PX4_BOARD_DIR}/pwm_esc.yaml)
 if(EXISTS ${board_module_config})
 	file(RELATIVE_PATH pwm_esc_module_config ${CMAKE_CURRENT_SOURCE_DIR} ${board_module_config})
