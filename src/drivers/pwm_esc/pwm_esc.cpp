@@ -43,6 +43,7 @@
 #include <px4_platform_common/sem.hpp>
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <debug.h>
@@ -61,6 +62,7 @@
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/actuator_outputs.h>
+#include <uORB/topics/esc_status.h>
 
 #ifdef CONFIG_MODULES_REDUNDANCY
 #include <uORB/topics/vehicle_status.h>
@@ -70,6 +72,13 @@
 #endif
 
 #include <nuttx/timers/pwm.h>
+#include <nuttx/timers/dshot.h>
+
+#if defined(CONFIG_DSHOT_NCHANNELS)
+#define DSHOT_MAX_CHANNELS CONFIG_DSHOT_NCHANNELS
+#else
+#define DSHOT_MAX_CHANNELS 8
+#endif
 
 #ifndef PWMESC_OUT_PATH
 #  define PWMESC_OUT_PATH "/dev/pwmX";
@@ -92,6 +101,24 @@
 
 #ifndef PWM_DEFAULT_RATE
 #  define PWM_DEFAULT_RATE 400
+#endif
+
+#define PROTOCOL_PWM_MIN         50
+#define PROTOCOL_DSHOT150        -5
+#define PROTOCOL_DSHOT300        -4
+#define PROTOCOL_DSHOT600        -3
+#define PROTOCOL_DSHOT1200       -2
+
+#ifndef PWMESC_DSHOT_PATH
+#  define PWMESC_DSHOT_PATH "/dev/dshot0"
+#endif
+
+#ifndef PWMESC_DSHOT_N_CHANNELS
+#  define PWMESC_DSHOT_N_CHANNELS 4
+#endif
+
+#ifndef PWMESC_DSHOT_N_TIMER_GROUPS
+#  define PWMESC_DSHOT_N_TIMER_GROUPS 2
 #endif
 
 using namespace time_literals;
@@ -187,14 +214,27 @@ private:
 
 	/* advertised topics */
 	uORB::PublicationMulti<actuator_outputs_s>		_actuator_outputs_sim_pub{ORB_ID(actuator_outputs_sim)};
+	uORB::PublicationMulti<esc_status_s>			_esc_status_pub{ORB_ID(esc_status)};
+	esc_status_s					_esc_status{};
 
 	actuator_armed_s		_actuator_armed;
 
 	bool                    _hitl_mode;     ///< Hardware-in-the-loop simulation mode - don't publish actuator_outputs
 
 	int		_pwm_fd[PWMESC_N_DEVICES];
+	uint32_t	_pwm_output_mask{(1u << PWMESC_N_CHANNELS) - 1};
 
 	int32_t		_pwm_rate{PWM_DEFAULT_RATE};
+
+#ifdef CONFIG_DSHOT
+	int		_dshot_fd {-1};
+	bool		_dshot_enabled{false};
+	bool		_dshot_armed{false};
+	uint32_t	_dshot_speed{DSHOT_SPEED_600};
+	uint32_t	_dshot_output_mask{0};
+	uint8_t		_dshot_nchannels{0};
+	bool		_dshot_bidir_enabled{false};
+#endif
 
 #ifdef CONFIG_MODULES_REDUNDANCY
 	uORB::Subscription _redundancy_status_sub {ORB_ID(redundancy_status)};
@@ -205,6 +245,9 @@ private:
 #endif
 
 	int		init_pwm_outputs();
+	void		update_protocol_config();
+	void		publish_dshot_telemetry();
+	uint32_t	all_output_mask() const { return (1u << PWMESC_N_CHANNELS) - 1; }
 
 	/* Singleton pointer */
 	static PWMESC	*_instance;
@@ -253,6 +296,7 @@ private:
 	 * and start or stop (request == PWMIOC_START / PWMIOC_STOP)
 	 */
 	int set_defaults(int fd, unsigned long request);
+	int set_defaults_for_device(int dev, int fd, unsigned long request);
 };
 
 PWMESC *PWMESC::_instance = nullptr;
@@ -272,6 +316,13 @@ PWMESC::PWMESC(bool hitl) :
 
 	/* clear armed status */
 	memset(&_actuator_armed, 0, sizeof(actuator_armed_s));
+
+	for (int i = 0; i < PWMESC_N_DEVICES; ++i) {
+		_pwm_fd[i] = -1;
+	}
+
+#ifdef CONFIG_DSHOT
+#endif
 }
 
 PWMESC::~PWMESC()
@@ -452,31 +503,80 @@ PWMESC::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigne
 
 	if (!_hitl_mode) {
 		/* When not in hitl, run PWMs */
-		unsigned n_out = 0;
+		unsigned channel_offset = 0;
 
 		for (int dev = 0; dev < PWMESC_N_DEVICES && _pwm_fd[dev] >= 0; dev++) {
 			memset(&pwm, 0, sizeof(struct pwm_info_s));
 			pwm.frequency = _pwm_rate;
 
-			unsigned i;
+			unsigned pwm_index = 0;
 
-			for (i = 0; i < ch_per_dev[dev] && n_out < num_outputs; i++) {
-				uint16_t pwm_val = outputs[n_out++];
-				pwm.channels[i].duty = ((((uint32_t)pwm_val) << 16) / (1000000 / _pwm_rate));
-				pwm.channels[i].channel = i + 1;
+			for (unsigned ch = 0; ch < ch_per_dev[dev] && (channel_offset + ch) < num_outputs; ch++) {
+				const unsigned output_index = channel_offset + ch;
+
+				if ((_pwm_output_mask & (1u << output_index)) == 0) {
+					continue;
+				}
+
+				uint16_t pwm_val = outputs[output_index];
+				pwm.channels[pwm_index].duty = ((((uint32_t)pwm_val) << 16) / (1000000 / _pwm_rate));
+				pwm.channels[pwm_index].channel = ch + 1;
+				pwm_index++;
 			}
 
-			if (i < CONFIG_PWM_NCHANNELS) {
-				pwm.channels[i].channel = -1;
+			if (pwm_index > 0) {
+				if (pwm_index < CONFIG_PWM_NCHANNELS) {
+					pwm.channels[pwm_index].channel = -1;
+				}
+
+				if (::ioctl(_pwm_fd[dev], PWMIOC_SETCHARACTERISTICS,
+					    (unsigned long)((uintptr_t)&pwm)) < 0) {
+					PX4_ERR("PWMIOC_SETCHARACTERISTICS for pwm%d failed: %d\n", dev,
+						errno);
+					ret = false;
+				}
 			}
 
-			if (::ioctl(_pwm_fd[dev], PWMIOC_SETCHARACTERISTICS,
-				    (unsigned long)((uintptr_t)&pwm)) < 0) {
-				PX4_ERR("PWMIOC_SETCHARACTERISTICS for pwm%d failed: %d\n", dev,
-					errno);
+			channel_offset += ch_per_dev[dev];
+		}
+
+#ifdef CONFIG_DSHOT
+
+		if (_dshot_enabled && _dshot_fd >= 0 && _dshot_nchannels > 0 && num_outputs >= _dshot_nchannels) {
+			const uint8_t dshot_nchannels = math::min(_dshot_nchannels, (uint8_t)DSHOT_MAX_CHANNELS);
+			struct dshot_throttle_s dshot_req {};
+
+			dshot_req.ch_mask = (1 << _dshot_nchannels) - 1;
+
+			for (unsigned i = 0; i < dshot_nchannels; ++i) {
+				const uint16_t pwm_val = outputs[i];
+				const uint16_t disarmed = _mixing_output.disarmedValue(i);
+				const uint16_t min = _mixing_output.minValue(i);
+				const uint16_t max = _mixing_output.maxValue(i);
+
+				if (stop_motors || pwm_val <= disarmed || max <= min) {
+					dshot_req.throttle[i] = 0;
+
+				} else {
+					const uint32_t throttle = 48u + (uint32_t)(pwm_val - min) * (2047u - 48u) / (max - min);
+					dshot_req.throttle[i] = math::constrain((int)throttle, 48, 2047);
+				}
+
+				/* Request telemetry from every channel */
+
+				dshot_req.telemetry_req |= _dshot_bidir_enabled ? 1 << i : 0;
+			}
+
+			if (::ioctl(_dshot_fd, DSHOTIOC_SET_THROTTLE, (unsigned long)((uintptr_t)&dshot_req)) < 0) {
+				PX4_ERR("DShot update failed: %d", errno);
 				ret = false;
+
+			} else {
+				publish_dshot_telemetry();
 			}
 		}
+
+#endif
 
 	} else {
 		// In hitl, publish actuator_outputs_sim
@@ -523,49 +623,261 @@ PWMESC::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigne
 int
 PWMESC::set_defaults(int fd, unsigned long request)
 {
+	for (int dev = 0; dev < PWMESC_N_DEVICES; dev++) {
+		if (_pwm_fd[dev] == fd) {
+			return set_defaults_for_device(dev, fd, request);
+		}
+	}
+
+	return -EINVAL;
+}
+
+int
+PWMESC::set_defaults_for_device(int dev, int fd, unsigned long request)
+{
 	/* Configure PWM to default rate, 1 as duty and start */
 
 	int ret = -1;
-	const int ch_per_dev[PWMESC_N_DEVICES] = PWMESC_CHANNELS_PER_DEV;
+	const unsigned ch_per_dev[PWMESC_N_DEVICES] = PWMESC_CHANNELS_PER_DEV;
 	struct pwm_info_s pwm;
+	unsigned channel_offset = 0;
 
-	for (int dev = 0; dev < PWMESC_N_DEVICES; dev++) {
-		memset(&pwm, 0, sizeof(struct pwm_info_s));
-		pwm.frequency = _pwm_rate;
+	for (int i = 0; i < dev; ++i) {
+		channel_offset += ch_per_dev[i];
+	}
 
-		int i;
+	memset(&pwm, 0, sizeof(struct pwm_info_s));
+	pwm.frequency = _pwm_rate;
 
-		for (i = 0; i < ch_per_dev[dev]; i++) {
-			pwm.channels[i].duty = 1; /* 0 is not allowed duty cycle value */
-			pwm.channels[i].channel = i + 1;
+	unsigned pwm_index = 0;
+
+	for (unsigned ch = 0; ch < ch_per_dev[dev] && (channel_offset + ch) < PWMESC_N_CHANNELS; ch++) {
+		if ((_pwm_output_mask & (1u << (channel_offset + ch))) == 0) {
+			continue;
 		}
 
-		if (i < CONFIG_PWM_NCHANNELS) {
-			pwm.channels[i].channel = -1;
-		}
+		pwm.channels[pwm_index].duty = 1; /* 0 is not allowed duty cycle value */
+		pwm.channels[pwm_index].channel = ch + 1;
+		pwm_index++;
+	}
 
-		/* Set the frequency and duty */
+	if (pwm_index == 0) {
+		return OK;
+	}
 
-		ret = ::ioctl(fd, PWMIOC_SETCHARACTERISTICS,
-			      (unsigned long)((uintptr_t)&pwm));
+	if (pwm_index < CONFIG_PWM_NCHANNELS) {
+		pwm.channels[pwm_index].channel = -1;
+	}
+
+	/* Set the frequency and duty */
+
+	ret = ::ioctl(fd, PWMIOC_SETCHARACTERISTICS,
+		      (unsigned long)((uintptr_t)&pwm));
+
+	if (ret < 0) {
+		PX4_ERR("PWMIOC_SETCHARACTERISTICS failed: %d\n",
+			errno);
+
+	} else {
+
+		/* Start / stop */
+
+		ret = ::ioctl(fd, request, 0);
 
 		if (ret < 0) {
-			PX4_ERR("PWMIOC_SETCHARACTERISTICS failed: %d\n",
-				errno);
-
-		} else {
-
-			/* Start / stop */
-
-			ret = ::ioctl(fd, request, 0);
-
-			if (ret < 0) {
-				PX4_ERR("PWMIOC_START/STOP failed: %d\n", errno);
-			}
+			PX4_ERR("PWMIOC_START/STOP failed: %d\n", errno);
 		}
 	}
 
 	return ret;
+}
+
+void
+PWMESC::publish_dshot_telemetry()
+{
+#ifdef CONFIG_DSHOT
+	static constexpr hrt_abstime ESC_STATUS_TIMEOUT = 20_ms;
+
+	if (!_dshot_enabled || !_dshot_bidir_enabled || _dshot_fd < 0) {
+		return;
+	}
+
+	struct dshot_telemetry_s telemetry {};
+
+	if (::ioctl(_dshot_fd, DSHOTIOC_GET_TELEMETRY, (unsigned long)((uintptr_t)&telemetry)) < 0) {
+		return;
+	}
+
+	const uint8_t max_channels = math::min(_dshot_nchannels, esc_status_s::CONNECTED_ESC_MAX);
+
+	_esc_status.timestamp = hrt_absolute_time();
+	_esc_status.esc_connectiontype = esc_status_s::ESC_CONNECTION_TYPE_DSHOT;
+	_esc_status.esc_count = math::max(_esc_status.esc_count, max_channels);
+	++_esc_status.counter;
+
+	for (uint8_t i = 0; i < max_channels; ++i) {
+		const uint8_t mask = 1u << i;
+
+		_esc_status.esc_online_flags |= mask;
+
+		if (_dshot_armed) {
+			_esc_status.esc_armed_flags |= mask;
+
+		} else {
+			_esc_status.esc_armed_flags &= ~mask;
+		}
+
+		_esc_status.esc[i].timestamp = ts_to_abstime(&telemetry.timestamp[i]);
+		_esc_status.esc[i].actuator_function = (uint16_t)_mixing_output.outputFunction(i);
+		_esc_status.esc[i].esc_rpm = telemetry.erpm[i];
+
+		if (hrt_elapsed_time(&_esc_status.esc[i].timestamp) > ESC_STATUS_TIMEOUT) {
+			_esc_status.esc_online_flags &= ~mask;
+			_esc_status.esc_armed_flags &= ~mask;
+		}
+	}
+
+	_esc_status_pub.publish(_esc_status);
+#endif
+}
+
+void
+PWMESC::update_protocol_config()
+{
+	_pwm_output_mask = all_output_mask();
+
+#ifdef CONFIG_DSHOT
+	int32_t tim_config[4] {};
+	int32_t dshot_mode = 0;
+	bool dshot_requested = false;
+	bool dshot_bidir = false;
+	param_t timing_param_handles[4] {PARAM_INVALID, PARAM_INVALID, PARAM_INVALID, PARAM_INVALID};
+	param_t dshot_bidir_param_handles[PWMESC_DSHOT_N_TIMER_GROUPS] {PARAM_INVALID, PARAM_INVALID};
+	bool supported_group_selected[PWMESC_DSHOT_N_TIMER_GROUPS] {};
+	uint8_t dshot_nchannels = 0;
+	constexpr int dshot_group_nchannels = PWMESC_DSHOT_N_CHANNELS / PWMESC_DSHOT_N_TIMER_GROUPS;
+	char param_name[17] {};
+
+	for (int timer = 0; timer < 4; ++timer) {
+		snprintf(param_name, sizeof(param_name), "%s_TIM%d", _mixing_output.paramPrefix(), timer);
+		timing_param_handles[timer] = param_find(param_name);
+
+		if (timing_param_handles[timer] != PARAM_INVALID) {
+			(void)param_get(timing_param_handles[timer], &tim_config[timer]);
+		}
+	}
+
+	for (int group = 0; group < PWMESC_DSHOT_N_TIMER_GROUPS; ++group) {
+		snprintf(param_name, sizeof(param_name), "%s_BIDIR%d", _mixing_output.paramPrefix(), group);
+		dshot_bidir_param_handles[group] = param_find(param_name);
+	}
+
+	for (int timer = PWMESC_DSHOT_N_TIMER_GROUPS; timer < 4; ++timer) {
+		if (tim_config[timer] <= PROTOCOL_DSHOT1200 && tim_config[timer] >= PROTOCOL_DSHOT150) {
+			PX4_ERR("TIM%d does not support DShot with pwm_esc, reverting to PWM %d Hz", timer, PWM_DEFAULT_RATE);
+
+			if (timing_param_handles[timer] != PARAM_INVALID) {
+				int32_t pwm_mode = PWM_DEFAULT_RATE;
+				param_set_no_notification(timing_param_handles[timer], &pwm_mode);
+				tim_config[timer] = pwm_mode;
+			}
+		}
+	}
+
+	for (int timer = 0; timer < PWMESC_DSHOT_N_TIMER_GROUPS; ++timer) {
+		if (tim_config[timer] <= PROTOCOL_DSHOT1200 && tim_config[timer] >= PROTOCOL_DSHOT150) {
+			supported_group_selected[timer] = true;
+
+			if (!dshot_requested) {
+				dshot_requested = true;
+				dshot_mode = tim_config[timer];
+
+			} else if (tim_config[timer] != dshot_mode) {
+				PX4_WARN("TIM%d protocol mismatch, enforcing single DShot speed", timer);
+
+				if (timing_param_handles[timer] != PARAM_INVALID) {
+					param_set_no_notification(timing_param_handles[timer], &dshot_mode);
+					tim_config[timer] = dshot_mode;
+				}
+			}
+		}
+	}
+
+	if (supported_group_selected[1] && !supported_group_selected[0]) {
+		PX4_ERR("TIM1 DShot on pwm_esc requires TIM0 DShot (contiguous AUX1..N), reverting TIM1 to PWM %d Hz",
+			PWM_DEFAULT_RATE);
+
+		if (timing_param_handles[1] != PARAM_INVALID) {
+			int32_t pwm_mode = PWM_DEFAULT_RATE;
+			param_set_no_notification(timing_param_handles[1], &pwm_mode);
+			tim_config[1] = pwm_mode;
+		}
+
+		supported_group_selected[1] = false;
+		dshot_requested = supported_group_selected[0];
+	}
+
+	for (int group = 0; group < PWMESC_DSHOT_N_TIMER_GROUPS; ++group) {
+		if (supported_group_selected[group]) {
+			dshot_nchannels += dshot_group_nchannels;
+		}
+	}
+
+	for (int group = 0; group < PWMESC_DSHOT_N_TIMER_GROUPS; ++group) {
+		if (supported_group_selected[group] && dshot_bidir_param_handles[group] != PARAM_INVALID) {
+			int32_t bidir = 0;
+
+			if (param_get(dshot_bidir_param_handles[group], &bidir) == PX4_OK && bidir != 0) {
+				dshot_bidir = true;
+			}
+		}
+	}
+
+	if (dshot_requested && _dshot_fd >= 0) {
+		switch (dshot_mode) {
+		case PROTOCOL_DSHOT150:
+			_dshot_speed = DSHOT_SPEED_150;
+			break;
+
+		case PROTOCOL_DSHOT300:
+			_dshot_speed = DSHOT_SPEED_300;
+			break;
+
+		case PROTOCOL_DSHOT1200:
+			_dshot_speed = DSHOT_SPEED_1200;
+			break;
+
+		case PROTOCOL_DSHOT600:
+		default:
+			_dshot_speed = DSHOT_SPEED_600;
+			break;
+		}
+
+		struct dshot_config_s config {};
+
+		config.speed = _dshot_speed;
+
+		config.bidir = dshot_bidir ? 1 : 0;
+
+		config.active_mask = 1;//(1u << dshot_nchannels) - 1u;
+
+		if (::ioctl(_dshot_fd, DSHOTIOC_CONFIGURE, (unsigned long)((uintptr_t)&config)) < 0) {
+			PX4_ERR("DShot configure failed: %d", errno);
+			dshot_requested = false;
+		}
+	}
+
+	_dshot_enabled = dshot_requested;
+	_dshot_nchannels = _dshot_enabled ? dshot_nchannels : 0;
+	_dshot_bidir_enabled = _dshot_enabled && dshot_bidir;
+	_dshot_output_mask = _dshot_enabled ? ((1u << _dshot_nchannels) - 1u) : 0;
+	_pwm_output_mask = all_output_mask() & ~_dshot_output_mask;
+
+	if (!_dshot_enabled) {
+		_dshot_armed = false;
+	}
+
+#endif
 }
 
 int
@@ -575,6 +887,7 @@ PWMESC::init_pwm_outputs()
 
 	_mixing_output.setIgnoreLockdown(_hitl_mode);
 	_mixing_output.setMaxNumOutputs(PWMESC_N_CHANNELS);
+	update_protocol_config();
 	const int update_interval_in_us = math::constrain(1000000 / (_pwm_rate * 2), 500, 100000);
 	_mixing_output.setMaxTopicUpdateRate(update_interval_in_us);
 
@@ -591,7 +904,7 @@ PWMESC::init_pwm_outputs()
 		if (_pwm_fd[i] >= 0) {
 			/* Configure PWM to default rate, 0 pulse and start */
 
-			ret = set_defaults(_pwm_fd[i], PWMIOC_START);
+			ret = set_defaults_for_device(i, _pwm_fd[i], PWMIOC_START);
 
 			if (ret != 0) {
 				PX4_ERR("Init failed for %s errno %d", pwm_device_name, errno);
@@ -600,11 +913,16 @@ PWMESC::init_pwm_outputs()
 		}
 	}
 
+	/* Open the DSHOT devnode */
+
+	_dshot_fd = ::open(PWMESC_DSHOT_PATH, O_RDONLY);
+
 	if (ret != 0) {
 		PX4_ERR("PWM init failed");
 	}
 
-	return ret;
+	return 0;
+	//	return ret;
 }
 
 void
@@ -684,6 +1002,7 @@ void PWMESC::update_params()
 
 	/* Call MixingOutput::updateParams */
 	updateParams();
+	update_protocol_config();
 }
 
 extern "C" __EXPORT int pwm_esc_main(int argc, char *argv[]);
