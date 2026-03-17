@@ -59,6 +59,19 @@ def get_timer_groups(timer_config_file, verbose=False):
     with open(timer_config_file, 'r') as f:
         timer_config = f.read()
 
+    # Optional board hint for DShot-capable timer groups.
+    # Syntax in timer_config.cpp (comment): DSHOT_TIMERS: Timer1, Timer2
+    dshot_timers_hint = set()
+    dshot_timers_match = re.search(r'DSHOT_TIMERS\s*:\s*([^\n\r]+)', timer_config)
+
+    if dshot_timers_match:
+        for timer_name in re.split(r'[\s,]+', dshot_timers_match.group(1).strip()):
+            if timer_name:
+                dshot_timers_hint.add(timer_name)
+
+        if verbose:
+            print('found DSHOT_TIMERS hint:', sorted(dshot_timers_hint))
+
     # timers
     dshot_support = {} # key: timer
     timers_start_marker = 'io_timers_t io_timers'
@@ -86,7 +99,7 @@ def get_timer_groups(timer_config_file, verbose=False):
 
         if timer:
             if verbose: print('found timer def: {:}'.format(timer))
-            dshot_support[timer] = 'DMA' in line
+            dshot_support[timer] = ('DMA' in line) or (timer in dshot_timers_hint)
             timers.append(timer)
         else:
             # Make sure we don't miss anything (e.g. for different syntax) or misparse (e.g. multi-line comments)
@@ -188,10 +201,18 @@ def get_output_groups(timer_groups, param_prefix="PWM_MAIN",
                 ]
 
             if dshot_support:
+                bidir_param_name = param_prefix+'_BIDIR'+str(timer_index)
+
                 # don't show pwm limit params when dshot enabled
 
                 for standard_param in group['standard_params']:
                     group['standard_params'][standard_param]['show_if'] = timer_param_name + '>=-1'
+
+                group['config_parameters'].append({
+                        'param': bidir_param_name,
+                        'label': 'Bidirectional DShot',
+                        'show_if': timer_param_name + '<-1',
+                    })
 
                 # indicate support for changing motor spin direction
                 group['supported_actions'] = {
@@ -204,6 +225,20 @@ def get_output_groups(timer_groups, param_prefix="PWM_MAIN",
                             'actuator_types': ['motor']
                         },
                     }
+
+                timer_params[bidir_param_name] = {
+                    'description': {
+                        'short': 'Bidirectional DShot for ${label}',
+                        'long':
+'''Enable bidirectional DShot for ${label}.
+
+When enabled, ESC telemetry can be retrieved over the same signal line if the output driver and ESC support it.
+'''
+                        },
+                    'type': 'boolean',
+                    'default': 1,
+                    'reboot_required': True,
+                }
             else:
                 # remove dshot entries if no dshot support
                 values = pwm_timer_param_cp['values']
@@ -215,6 +250,13 @@ def get_output_groups(timer_groups, param_prefix="PWM_MAIN",
                 descr = pwm_timer_param_cp['description'][descr_type]
                 pwm_timer_param_cp['description'][descr_type] = \
                     descr.replace('${label}', group_label)
+
+            if dshot_support:
+                for descr_type in ['short', 'long']:
+                    descr = timer_params[bidir_param_name]['description'][descr_type]
+                    timer_params[bidir_param_name]['description'][descr_type] = \
+                        descr.replace('${label}', group_label)
+
             timer_params[timer_param_name] = pwm_timer_param_cp
         output_groups.append(group)
         instance_start += group_count
