@@ -11,6 +11,11 @@ on:
         required: false
         type: boolean
         default: true
+      include_in_packaging:
+        required: false
+        type: boolean
+        default: true
+        description: 'If false, artifact will be uploaded with build-only- prefix to exclude from final packaging'
     secrets:
       GH_REPO_TOKEN:
         required: false
@@ -39,8 +44,16 @@ jobs:
           ./clone_public.sh
           ./build.sh ../bin/ ${{ inputs.product }}
       - name: Upload ${{ inputs.product }}
+        if: ${{ inputs.include_in_packaging }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.product }}
+          path: bin/
+          retention-days: 1
+      - name: Upload ${{ inputs.product }} (build-only)
+        if: ${{ !inputs.include_in_packaging }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-only-${{ inputs.product }}
           path: bin/
           retention-days: 1
