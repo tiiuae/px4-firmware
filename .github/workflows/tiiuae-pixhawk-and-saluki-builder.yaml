@@ -25,7 +25,7 @@ jobs:
     if: ${{ inputs.enabled }}
     steps:
       - name: Checkout px4-firmware
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.GH_REPO_TOKEN }}
           # if we clone_public, then do not clone submodules, otherwise 'recursive'
@@ -45,14 +45,14 @@ jobs:
           ./build.sh ../bin/ ${{ inputs.product }}
       - name: Upload ${{ inputs.product }}
         if: ${{ inputs.include_in_packaging }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.product }}
           path: bin/
           retention-days: 1
       - name: Upload ${{ inputs.product }} (build-only)
         if: ${{ !inputs.include_in_packaging }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-only-${{ inputs.product }}
           path: bin/
