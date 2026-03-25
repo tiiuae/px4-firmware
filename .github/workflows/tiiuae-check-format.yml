@@ -10,9 +10,9 @@ jobs:
     name: Validate testfile
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-    - name: Lint
-      run:  |
-            sudo apt update -y && sudo apt install -y --no-install-recommends make astyle
-            make check_format
+      - name: Lint
+        run:  |
+          sudo apt update -y && sudo apt install -y --no-install-recommends make astyle
+          make check_format
