@@ -74,7 +74,7 @@ jobs:
     with:
       product: ${{ matrix.product }}
       keys: ${{ matrix.keys }}
-      include_in_packaging: ${{ matrix.include_in_packaging != false }}
+      include_in_packaging: ${{ matrix.include_in_packaging == null || matrix.include_in_packaging == true }}
       # old workflow had condition to run only if PR is done to current repo (or triggered with other event)
       enabled: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     secrets: inherit
@@ -149,26 +149,26 @@ jobs:
       - fc_matrix
     steps:
       - name: Checkout px4-firmware
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: px4-firmware
           submodules: true
           token: ${{ secrets.GH_REPO_TOKEN }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Download pixhawk artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: bin
           pattern: saluki-*
           merge-multiple: true
       - name: Firmware flasher - Container metadata
         id: containermeta # referenced from later step
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/tiiuae/px4-firmware
           tags: |
@@ -177,7 +177,7 @@ jobs:
             type=semver,pattern={{version}}
             type=sha
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -238,7 +238,7 @@ jobs:
           check-jsonschema --schemafile px4-firmware/Tools/saluki_packaging/saluki_file_info-schema.json saluki_file_info.json
 
       - name: Firmware flasher - Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           push: true
           context: .
@@ -365,26 +365,26 @@ jobs:
       - fc_matrix
     steps:
       - name: Checkout px4-firmware
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: px4-firmware
           submodules: true
           token: ${{ secrets.GH_REPO_TOKEN }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Download pixhawk artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: ${{ env.BUILD_DIR }}
           pattern: saluki-*
           merge-multiple: true
       - name: Firmware flasher - Container metadata
         id: containermeta # referenced from later step
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/tiiuae/px4-firmware-ota-container
           tags: |
@@ -393,7 +393,7 @@ jobs:
             type=semver,pattern={{version}}
             type=sha
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -446,7 +446,7 @@ jobs:
           cp ${{ github.workspace }}/px4-firmware/Tools/px_uploader.entrypoint ${REPACKAGE_DIR}/px4-firmware/Tools/
           cp ${{ github.workspace }}/px4-firmware/Tools/validate_ota_extraction.sh ${REPACKAGE_DIR}/px4-firmware/Tools/
       - name: Firmware flasher - Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           push: true
           context: ${{ env.REPACKAGE_DIR }}
