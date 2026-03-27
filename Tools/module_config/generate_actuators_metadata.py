@@ -157,6 +157,8 @@ def get_actuator_output(yaml_config, output_functions, timer_config_file, verbos
                 param['label'] = config_param['label']
             if 'function' in config_param:
                 param['function'] = config_param['function']
+            if 'show_if' in config_param:
+                param['show-if'] = config_param['show_if']
             parameters.append(param)
         return parameters
 
