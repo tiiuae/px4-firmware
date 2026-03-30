@@ -742,6 +742,22 @@ Commander::handle_command(const vehicle_command_s &cmd)
 		return false;
 	}
 
+#ifdef CONFIG_MODULES_REDUNDANCY
+	redundancy_status_s redundancy_status;
+
+	/* If redundancy_status.target_nav_state is set to anything else than
+	 * NAVIGATION_STATE_MAX, commands are not handled; the FC is entirely
+	 * in the redundancy module's control
+	 */
+
+	if (_redundancy_status_sub.copy(&redundancy_status) &&
+	    redundancy_status.target_nav_state < vehicle_status_s::NAVIGATION_STATE_MAX) {
+		answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED);
+		return true;
+	}
+
+#endif
+
 	/* result of the command */
 	unsigned cmd_result = vehicle_command_ack_s::VEHICLE_CMD_RESULT_UNSUPPORTED;
 
@@ -2914,6 +2930,21 @@ void Commander::battery_status_check()
 
 void Commander::manualControlCheck()
 {
+#ifdef CONFIG_MODULES_REDUNDANCY
+	redundancy_status_s redundancy_status;
+
+	/* If redundancy_status.target_nav_state is set to anything else than
+	 * NAVIGATION_STATE_MAX, manual controls are not handled; the FC is entirely
+	 * in the redundancy module's control
+	 */
+
+	if (_redundancy_status_sub.copy(&redundancy_status) &&
+	    redundancy_status.target_nav_state < vehicle_status_s::NAVIGATION_STATE_MAX) {
+		return;
+	}
+
+#endif
+
 	manual_control_setpoint_s manual_control_setpoint;
 	const bool manual_control_updated = _manual_control_setpoint_sub.update(&manual_control_setpoint);
 
