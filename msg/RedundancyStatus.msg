@@ -4,6 +4,7 @@ uint64 timestamp # time since system start (microseconds)
 
 uint8 fc_number # Number of this FC, 1-4, matches MAV_COMP_ID
 uint8 fc_in_act_control # Which FC is in actuator control, 0 - unknown
+uint8 target_nav_state # Redundancy requested navigation state lock, NAVIGATION_STATE_MAX when inactive
 
 uint8 FC_UNKNOWN = 0
 uint8 FC1 = 1
