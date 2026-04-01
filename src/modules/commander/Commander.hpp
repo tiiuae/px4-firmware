@@ -76,6 +76,9 @@
 #include <uORB/topics/offboard_control_mode.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/power_button_state.h>
+#ifdef CONFIG_MODULES_REDUNDANCY
+#include <uORB/topics/redundancy_status.h>
+#endif
 #include <uORB/topics/rtl_time_estimate.h>
 #include <uORB/topics/sensor_gps.h>
 #include <uORB/topics/system_power.h>
@@ -310,6 +313,9 @@ private:
 
 	uORB::SubscriptionData<mission_result_s>		_mission_result_sub{ORB_ID(mission_result)};
 	uORB::SubscriptionData<offboard_control_mode_s>		_offboard_control_mode_sub{ORB_ID(offboard_control_mode)};
+#ifdef CONFIG_MODULES_REDUNDANCY
+	uORB::Subscription					_redundancy_status_sub {ORB_ID(redundancy_status)};
+#endif
 
 	// Publications
 	uORB::Publication<actuator_armed_s>			_actuator_armed_pub{ORB_ID(actuator_armed)};
