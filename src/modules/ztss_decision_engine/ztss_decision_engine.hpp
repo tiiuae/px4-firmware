@@ -212,6 +212,12 @@ using timestamp_time = uint64_t;
 constexpr int NUMBER_OF_MONITORING_CASES = 1;
 constexpr size_t MAX_PERIOD_MS = 100_ms;
 
+// Guard: every active monitoring case must have a corresponding entry in
+// HealthFlagsCases. If NUMBER_OF_MONITORING_CASES exceeds the array size,
+// make_fault_mask/make_ok_mask will access out-of-bounds memory.
+static_assert(NUMBER_OF_MONITORING_CASES <= (int)HealthFlagsCases.size(),
+	"NUMBER_OF_MONITORING_CASES exceeds HealthFlagsCases size — add the missing HealthStatusFlags entry in health_bits.hpp");
+
 class DecisionEngine : public ModuleBase<DecisionEngine>, public ModuleParams
 {
 public:

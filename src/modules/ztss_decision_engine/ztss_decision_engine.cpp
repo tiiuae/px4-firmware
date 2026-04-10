@@ -29,6 +29,7 @@ Rule evaluation must be pure and deterministic.
 */
 
 #include "ztss_decision_engine.hpp"
+#include <inttypes.h>
 
 // | → set union
 // & → set intersection
@@ -149,6 +150,12 @@ void DecisionEngine::populate_use_cases_masks()
 
     fault_status = fault_status | make_fault_mask(monitor_output, IDX_USE_CASE_DUMMY);
     ok_status = ok_status | make_ok_mask(monitor_output, IDX_USE_CASE_DUMMY);
+  } else {
+    // No data received from this monitor use case.
+    // Fail-closed: treat absence of data as a fault (NOT_SYNC) rather than healthy.
+    // This prevents the decision engine from silently assuming "all OK" when the
+    // monitor has crashed, not yet started, or is publishing too slowly.
+    fault_status = fault_status | HealthFlagsCases[IDX_USE_CASE_DUMMY].S_NOT_SYNC;
   }
 
   // use case --> b
@@ -186,9 +193,17 @@ void DecisionEngine::evaluate_health_against_rules()
 
 void DecisionEngine::publish_event_trigger()
 {
-  // Check if for some reason the event timestamp has been left in the past
   uint64_t time_now = hrt_absolute_time();
-  if ((time_now - event_.timestamp) > MAX_PERIOD_MS) return;
+
+  if ((time_now - event_.timestamp) > MAX_PERIOD_MS) {
+    // Timestamp is stale — this should not happen under normal scheduling, but
+    // silently dropping the event is dangerous: a critical action such as
+    // ACTION_PARACHUTE would never reach ZtssSafeActions.
+    // Log the anomaly and refresh the timestamp so the event is always published.
+    PX4_ERR("ZTSS DecisionEngine: stale event timestamp (%" PRIu64 " us behind), refreshing and publishing",
+            (time_now - event_.timestamp));
+    event_.timestamp = time_now;
+  }
 
   // PX4_INFO("Triggered event %d", static_cast<int>(event_.action_id));
 

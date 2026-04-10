@@ -2,8 +2,11 @@
 #include "health_types.hpp"
 #include <array>
 
-HealthMask DEFAULT_OK_MASK = 0ull;
-HealthMask DEFAULT_FAULT_MASK = 0ull;
+// constexpr gives internal linkage in C++14, safe to define in headers.
+// Previously these were mutable non-const globals — an ODR violation causing
+// multiple definitions across translation units.
+constexpr HealthMask DEFAULT_OK_MASK = 0ull;
+constexpr HealthMask DEFAULT_FAULT_MASK = 0ull;
 
 enum Okbits : HealthMask {
 	OK_BIT_00	= 1ull << 0,
@@ -150,7 +153,8 @@ struct HealthStatusFlags
 //####################################################################
 // DUMMY CASE
 //####################################################################
-static HealthStatusFlags HealthBitsDummyCase
+// constexpr replaces static: avoids per-TU copies while keeping internal linkage.
+constexpr HealthStatusFlags HealthBitsDummyCase
 {
 	.S_OK 					= OK_BIT_00,
 	.S_WARN					= FAULT_BIT_00,
@@ -169,7 +173,7 @@ enum HealthBitsDummyCase : HealthMask{
 //####################################################################
 // NULL VALUES IN CONTROLLER CASE
 //####################################################################
-static HealthStatusFlags HealthBitsNullValuesControllerCase
+constexpr HealthStatusFlags HealthBitsNullValuesControllerCase
 {
 	.S_OK 					= OK_BIT_01,
 	.S_WARN					= FAULT_BIT_04,
@@ -188,7 +192,9 @@ enum HealthBitsNullValuesController : HealthMask{
 //####################################################################
 
 
-std::array<HealthStatusFlags,2> HealthFlagsCases
+// constexpr prevents ODR violation: previously this was a mutable global defined
+// in a header, giving every including TU its own silently independent copy.
+constexpr std::array<HealthStatusFlags,2> HealthFlagsCases
 {
 	HealthBitsDummyCase,
 	HealthBitsNullValuesControllerCase

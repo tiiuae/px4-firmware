@@ -15,7 +15,9 @@ struct Rule {
 /*
 Rule need to reflect the full system state of required ok flags and required faulty flags
 */
-const Rule RULE_TABLE[3] = {
+// constexpr gives internal linkage (C++14), fixing the ODR violation caused by
+// defining a const array in a header (each TU got its own silently separate copy).
+constexpr Rule RULE_TABLE[3] = {
 
   {
     .required_faults = S_DUMMY_WARN,
@@ -41,4 +43,4 @@ const Rule RULE_TABLE[3] = {
 };
 
 
-const size_t NUM_RULES = sizeof(RULE_TABLE)/sizeof(RULE_TABLE[0]);
+constexpr size_t NUM_RULES = sizeof(RULE_TABLE)/sizeof(RULE_TABLE[0]);
