@@ -83,9 +83,65 @@ void ZtssMonitor::run()
 
 	while (!should_exit())
 	{
-		this->ztss_case_dummy_.update_subscribed_values();
-		this->ztss_case_dummy_.execute_use_case_safety_evaluation();
-		this->ztss_case_dummy_.publish_use_case_status();
+		this->ztss_case_attitude_failure_.update_subscribed_values();
+		this->ztss_case_attitude_failure_.construct_internal_bussiness_data();
+		this->ztss_case_attitude_failure_.execute_use_case_safety_evaluation();
+		this->ztss_case_attitude_failure_.publish_use_case_status();
+
+		this->ztss_case_ekf_divergence_.update_subscribed_values();
+		this->ztss_case_ekf_divergence_.construct_internal_business_data();
+		this->ztss_case_ekf_divergence_.execute_use_case_safety_evaluation();
+		this->ztss_case_ekf_divergence_.publish_use_case_status();
+
+		this->ztss_case_gps_failure_.update_subscribed_values();
+		this->ztss_case_gps_failure_.construct_internal_business_data();
+		this->ztss_case_gps_failure_.execute_use_case_safety_evaluation();
+		this->ztss_case_gps_failure_.publish_use_case_status();
+
+
+		// Sensor check.
+
+		this->ztss_case_imu_failure_.update_subscribed_values();
+		this->ztss_case_imu_failure_.construct_internal_business_data();
+		this->ztss_case_imu_failure_.execute_use_case_safety_evaluation();
+		this->ztss_case_imu_failure_.publish_use_case_status();
+
+		this->ztss_case_magnetometer_failure_.update_subscribed_values();
+		this->ztss_case_magnetometer_failure_.construct_internal_business_data();
+		this->ztss_case_magnetometer_failure_.execute_use_case_safety_evaluation();
+		this->ztss_case_magnetometer_failure_.publish_use_case_status();
+
+		this->ztss_case_barometer_failure_.update_subscribed_values();
+		this->ztss_case_barometer_failure_.construct_internal_business_data();
+		this->ztss_case_barometer_failure_.execute_use_case_safety_evaluation();
+		this->ztss_case_barometer_failure_.publish_use_case_status();
+
+		// Actuators
+
+		this->ztss_case_motor_esc_failure_.update_subscribed_values();
+		this->ztss_case_motor_esc_failure_.construct_internal_business_data();
+		this->ztss_case_motor_esc_failure_.execute_use_case_safety_evaluation();
+		this->ztss_case_motor_esc_failure_.publish_use_case_status();
+
+		this->ztss_case_motor_saturation_.update_subscribed_values();
+		this->ztss_case_motor_saturation_.construct_internal_business_data();
+		this->ztss_case_motor_saturation_.execute_use_case_safety_evaluation();
+		this->ztss_case_motor_saturation_.publish_use_case_status();
+
+		// Base Functionality
+
+		this->ztss_case_pose_estimate_lost_.update_subscribed_values();
+		this->ztss_case_pose_estimate_lost_.construct_internal_business_data();
+		this->ztss_case_pose_estimate_lost_.execute_use_case_safety_evaluation();
+		this->ztss_case_pose_estimate_lost_.publish_use_case_status();
+
+		// Vibration
+
+		this->ztss_case_vibration_.update_subscribed_values();
+		this->ztss_case_vibration_.construct_internal_business_data();
+		this->ztss_case_vibration_.execute_use_case_safety_evaluation();
+		this->ztss_case_vibration_.publish_use_case_status();
+
 		px4_usleep(50_ms); // 20 hz
 	}
 

@@ -15,30 +15,38 @@ struct Rule {
 /*
 Rule need to reflect the full system state of required ok flags and required faulty flags
 */
-const Rule RULE_TABLE[3] = {
-
+const Rule RULE_TABLE[4] = {
+  // 1.a ATTITUDE FAILURE WARN - MARGIN LOW
   {
-    .required_faults = S_DUMMY_WARN,
-    .required_ok     = 0ull,
-    .action          = ztss_event_trigger_s::ACTION_HOLD_POSITION,
-    .priority        = 10
+    .required_faults = S_ATTITUDE_FAILURE_WARN | S_ATTITUDE_FAILURE_MARGIN_LOW,
+    .required_ok= H_ATT_EST_OK | H_MOTORS_OK,
+    .action=ztss_event_trigger_s::ACTION_HOLD_ATTITUDE,
+    .priority=50
+  },
+  // 1.b ATTITUDE FAILURE CRITICAL
+  {
+    .required_faults = S_ATTITUDE_FAILURE_CRITICAL,
+    .required_ok= 0ull,
+    .action= ztss_event_trigger_s::ACTION_PARACHUTE,
+    .priority=75
+  },
+  // 2.a EKF DIVERGENCE WARN
+  {
+    .required_faults = S_EKF_DIVERGENCE_FAILURE_WARN | S_EKF_DIVERGENCE_FAILURE_MARGIN_LOW,
+    .required_ok= H_POS_EST_OK | H_MOTORS_OK,
+    .action= ztss_event_trigger_s::ACTION_HOLD_POSITION,
+    .priority=49
+  },
+  // 2.b EKF DIVERGENCE CRITICAL
+  {
+    .required_faults = S_EKF_DIVERGENCE_FAILURE_CRITICAL,
+    .required_ok = H_POS_EST_OK | H_GPS_OK | H_MOTORS_OK,
+    .action=ztss_event_trigger_s::ACTION_HOLD_POSITION,
+    .priority=74
   },
 
-  {
-    .required_faults = S_DUMMY_WARN | S_DUMMY_MARGIN_LOW,
-    .required_ok     = 0ull,
-    .action          = ztss_event_trigger_s::ACTION_HOLD_ATTITUDE,
-    .priority        = 50
-  },
-
-  {
-    .required_faults = S_DUMMY_CRITICAL,
-    .required_ok     = 0ull,
-    .action          = ztss_event_trigger_s::ACTION_PARACHUTE,
-    .priority        = 100
-  }
 
 };
 
 
-const size_t NUM_RULES = sizeof(RULE_TABLE)/sizeof(RULE_TABLE[0]);
+constexpr size_t NUM_RULES = sizeof(RULE_TABLE)/sizeof(RULE_TABLE[0]);

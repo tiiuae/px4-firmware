@@ -1,0 +1,3 @@
+px4_add_library(ztss_velocity_estimate_lost
+	ztss_velocity_estimate_lost.cpp
+)

@@ -12,5 +12,5 @@ uint8 severity
 uint8 margin # e.g. innovation margin, sat count margin
 
 
-# TOPICS ztss_use_case_dummy ztss_use_case_nan_control_values
+# TOPICS ztss_use_case_attitude_failure ztss_use_case_barometer_failure ztss_use_case_ekf_divergence ztss_use_case_gps_failure ztss_use_case_imu_failure ztss_use_case_magnetometer_failure ztss_use_case_motor_esc_failure ztss_use_case_motor_saturation ztss_use_case_pose_estimate_lost ztss_use_case_vibration
 

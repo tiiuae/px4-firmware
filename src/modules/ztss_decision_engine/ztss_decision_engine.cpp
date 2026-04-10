@@ -76,8 +76,31 @@ DecisionEngine::DecisionEngine(): ModuleParams(nullptr)
   {
     monitor_use_cases_last_timestamp_[idx] = uint64_t(0);
   }
+  /* TOPICS
+   ztss_use_case_attitude_failure
+   ztss_use_case_ekf_divergence
+   ztss_use_case_barometer_failure
+   ztss_use_case_gps_failure
+   ztss_use_case_imu_failure
+   ztss_use_case_magnetometer_failure
+   ztss_use_case_motor_esc_failure
+   ztss_use_case_pose_estimate_lost
+   ztss_use_case_motor_saturation
+   ztss_use_case_vibration
+  */
   this->monitor_use_cases_subscriptions_ =
-    std::array<uORB::Subscription,NUMBER_OF_MONITORING_CASES>{uORB::Subscription{ORB_ID(ztss_use_case_dummy)}};
+    std::array<uORB::Subscription,NUMBER_OF_MONITORING_CASES>{
+      uORB::Subscription{ORB_ID(ztss_use_case_attitude_failure)},
+      uORB::Subscription{ORB_ID(ztss_use_case_ekf_divergence)},
+      uORB::Subscription{ORB_ID(ztss_use_case_barometer_failure)},
+      uORB::Subscription{ORB_ID(ztss_use_case_gps_failure)},
+      uORB::Subscription{ORB_ID(ztss_use_case_imu_failure)},
+      uORB::Subscription{ORB_ID(ztss_use_case_magnetometer_failure)},
+      uORB::Subscription{ORB_ID(ztss_use_case_motor_esc_failure)},
+      uORB::Subscription{ORB_ID(ztss_use_case_pose_estimate_lost)},
+      uORB::Subscription{ORB_ID(ztss_use_case_motor_saturation)},
+      uORB::Subscription{ORB_ID(ztss_use_case_vibration)}
+    };
   this->ztss_event_pub_.advertise();
 }
 
@@ -141,19 +164,85 @@ void DecisionEngine::populate_use_cases_masks()
   HealthMask fault_status = DEFAULT_FAULT_MASK;
   HealthMask ok_status = DEFAULT_OK_MASK;
 
-  // use case --> dummy
-  if (monitor_use_cases_subscriptions_[IDX_USE_CASE_DUMMY].updated())
+  // 1 use case --> attitude failure
+  if (monitor_use_cases_subscriptions_[IDX_USE_CASE_ATTITUDE_FAILURE].updated())
   {
-    ztss_monitor_use_case_output_s monitor_output;
-    monitor_use_cases_subscriptions_[IDX_USE_CASE_DUMMY].copy(&monitor_output);
+    ztss_monitor_use_case_output_s monitor_output_attitude_failure;
+    monitor_use_cases_subscriptions_[IDX_USE_CASE_ATTITUDE_FAILURE].copy(&monitor_output_attitude_failure);
 
-    fault_status = fault_status | make_fault_mask(monitor_output, IDX_USE_CASE_DUMMY);
-    ok_status = ok_status | make_ok_mask(monitor_output, IDX_USE_CASE_DUMMY);
+    fault_status = fault_status | make_fault_mask(monitor_output_attitude_failure, IDX_USE_CASE_ATTITUDE_FAILURE);
+    ok_status = ok_status | make_ok_mask(monitor_output_attitude_failure, IDX_USE_CASE_ATTITUDE_FAILURE);
   }
 
-  // use case --> b
-  // use case --> c
+  // 2 use case --> ekf divergence
+  if (monitor_use_cases_subscriptions_[IDX_USE_CASE_EKF_DIVERGENCE].updated())
+  {
+    ztss_monitor_use_case_output_s monitor_output_ekf_divergence;
+    monitor_use_cases_subscriptions_[IDX_USE_CASE_EKF_DIVERGENCE].copy(&monitor_output_ekf_divergence);
 
+    fault_status = fault_status | make_fault_mask(monitor_output_ekf_divergence, IDX_USE_CASE_EKF_DIVERGENCE);
+    ok_status = ok_status | make_ok_mask(monitor_output_ekf_divergence, IDX_USE_CASE_EKF_DIVERGENCE);
+  }
+
+  // 3 use case --> barometer failure
+  if (monitor_use_cases_subscriptions_[IDX_USE_CASE_BAROMETER_FAILURE].updated())
+  {
+    ztss_monitor_use_case_output_s monitor_output_barometer_failure;
+    monitor_use_cases_subscriptions_[IDX_USE_CASE_BAROMETER_FAILURE].copy(&monitor_output_barometer_failure);
+
+    fault_status = fault_status | make_fault_mask(monitor_output_barometer_failure, IDX_USE_CASE_BAROMETER_FAILURE);
+    ok_status = ok_status | make_ok_mask(monitor_output_barometer_failure, IDX_USE_CASE_BAROMETER_FAILURE);
+  }
+
+  // 4 use case --> gps failure
+  if (monitor_use_cases_subscriptions_[IDX_USE_CASE_GPS_FAILURE].updated())
+  {
+    ztss_monitor_use_case_output_s monitor_output_gps_failure;
+    monitor_use_cases_subscriptions_[IDX_USE_CASE_GPS_FAILURE].copy(&monitor_output_gps_failure);
+
+    fault_status = fault_status | make_fault_mask(monitor_output_gps_failure, IDX_USE_CASE_GPS_FAILURE);
+    ok_status = ok_status | make_ok_mask(monitor_output_gps_failure, IDX_USE_CASE_GPS_FAILURE);
+  }
+
+  // 5 use case --> imu failure
+  if (monitor_use_cases_subscriptions_[IDX_USE_CASE_IMU_FAILURE].updated())
+  {
+    ztss_monitor_use_case_output_s monitor_output_imu_failure;
+    monitor_use_cases_subscriptions_[IDX_USE_CASE_IMU_FAILURE].copy(&monitor_output_imu_failure);
+
+    fault_status = fault_status | make_fault_mask(monitor_output_imu_failure, IDX_USE_CASE_IMU_FAILURE);
+    ok_status = ok_status | make_ok_mask(monitor_output_imu_failure, IDX_USE_CASE_IMU_FAILURE);
+  }
+
+  // 6 use case --> magnetometer failure
+  if (monitor_use_cases_subscriptions_[IDX_USE_CASE_MAGNETOMETER_FAILURE].updated())
+  {
+    ztss_monitor_use_case_output_s monitor_output_magnetometer_failure;
+    monitor_use_cases_subscriptions_[IDX_USE_CASE_MAGNETOMETER_FAILURE].copy(&monitor_output_magnetometer_failure);
+
+    fault_status = fault_status | make_fault_mask(monitor_output_magnetometer_failure, IDX_USE_CASE_MAGNETOMETER_FAILURE);
+    ok_status = ok_status | make_ok_mask(monitor_output_magnetometer_failure, IDX_USE_CASE_MAGNETOMETER_FAILURE);
+  }
+
+  // 7 use case --> motor/esc failure
+  if (monitor_use_cases_subscriptions_[IDX_USE_CASE_MOTOR_ESC_FAILURE].updated())
+  {
+    ztss_monitor_use_case_output_s monitor_output_motor_esc_failure;
+    monitor_use_cases_subscriptions_[IDX_USE_CASE_MOTOR_ESC_FAILURE].copy(&monitor_output_motor_esc_failure);
+
+    fault_status = fault_status | make_fault_mask(monitor_output_motor_esc_failure, IDX_USE_CASE_MOTOR_ESC_FAILURE);
+    ok_status = ok_status | make_ok_mask(monitor_output_motor_esc_failure, IDX_USE_CASE_MOTOR_ESC_FAILURE);
+  }
+
+  // 8 use case --> pose estimate lost
+  if (monitor_use_cases_subscriptions_[IDX_USE_CASE_POSE_ESTIMATE_FAILURE].updated())
+  {
+    ztss_monitor_use_case_output_s monitor_output_pose_estimate_failure;
+    monitor_use_cases_subscriptions_[IDX_USE_CASE_POSE_ESTIMATE_FAILURE].copy(&monitor_output_pose_estimate_failure);
+
+    fault_status = fault_status | make_fault_mask(monitor_output_pose_estimate_failure, IDX_USE_CASE_POSE_ESTIMATE_FAILURE);
+    ok_status = ok_status | make_ok_mask(monitor_output_pose_estimate_failure, IDX_USE_CASE_POSE_ESTIMATE_FAILURE);
+  }
 
   this->monitor_status_masks_.ok_mask = ok_status;
   this->monitor_status_masks_.fault_mask = fault_status;

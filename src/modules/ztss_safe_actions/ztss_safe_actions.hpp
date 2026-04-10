@@ -109,6 +109,7 @@ private:
 	uORB::Subscription 							local_pos_sub_{ORB_ID(vehicle_local_position)};
 	uORB::Subscription 							hover_thrust_estimate_sub_{ORB_ID(hover_thrust_estimate)};
 	uORB::Subscription							trajectory_setpoint_sub_{ORB_ID(trajectory_setpoint)};
+	uORB::Subscription							vehicle_land_detected_sub_{ORB_ID(vehicle_land_detected)};
 
 	// Publications
 	uORB::Publication<trajectory_setpoint_s>				trajectory_setpoint_pub_{ORB_ID(ztss_trajectory_setpoint)};
@@ -122,6 +123,7 @@ private:
 	trajectory_setpoint_s 							placeholder_incoming_trajectory_setpoint_{};
 	trajectory_setpoint_s							safe_trajectory_setpoint_{};
 	px4_custom_mode 							previous_safe_actions_custom_mode_{};
+	vehicle_land_detected_s							vehicle_land_detected_{};
 
 	// Resources
 	std::array<SafeActionBase*, NUMBER_OF_SAFE_ACTIONS> 			safe_actions_;

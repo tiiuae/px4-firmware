@@ -109,6 +109,10 @@ void ZtssSafeActions::Run()
 		vehicle_status_sub_.copy(&vehicle_status);
 	}
 
+	if(vehicle_land_detected_sub_.updated()){
+		vehicle_land_detected_sub_.copy(&vehicle_land_detected_);
+	}
+
 
 
 	// Update vehicle state
@@ -178,20 +182,25 @@ void ZtssSafeActions::Run()
 		trajectory_setpoint_pub_.publish(safe_trajectory_setpoint_);
 	}
 
-	// arm the actuators
-	actuator_armed_.timestamp = hrt_absolute_time();
-	actuator_armed_.armed = true; //TODO(renzo) Disarm if landed, arm otherwise. use accelerometers
-	actuator_armed_.force_failsafe= false;
-	actuator_armed_.in_esc_calibration_mode= false;
-	actuator_armed_.ready_to_arm = true;
-	actuator_armed_.lockdown = false;
-	actuator_armed_.manual_lockdown = false;
-	actuator_armed_.prearmed = false;
 
-	// Control the arming process of the motors
-	if(vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_ZTSS && prepare_for_crash_)
+	// kill motors if it touches the ground or prepare for crash
+	if(vehicle_land_detected_.ground_contact || event_trigger.action_id == ztss_event_trigger_s::ACTION_PARACHUTE)
 	{
 		actuator_armed_.armed = false;
+	}
+
+
+	// Control the arming process of the motors
+	if(vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_ZTSS )
+	{
+		// arm the actuators
+		actuator_armed_.timestamp = hrt_absolute_time();
+		// actuator_armed_.force_failsafe= false;
+		// actuator_armed_.in_esc_calibration_mode= false;
+		// actuator_armed_.ready_to_arm = true;
+		// actuator_armed_.lockdown = false;
+		// actuator_armed_.manual_lockdown = false;
+		// actuator_armed_.prearmed = false;
 		actuator_armed_pub_.publish(actuator_armed_);
 	}
 

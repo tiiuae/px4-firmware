@@ -137,70 +137,9 @@ enum Faultbits : HealthMask {
 	FAULT_BIT_62	= 1ull << 62,
 };
 
-
-struct HealthStatusFlags
-{
-	HealthMask S_OK;
-	HealthMask S_WARN;
-	HealthMask S_CRITICAL;
-	HealthMask S_MARGIN_LOW;
-	HealthMask S_NOT_SYNC;
-};
-
-//####################################################################
-// DUMMY CASE
-//####################################################################
-static HealthStatusFlags HealthBitsDummyCase
-{
-	.S_OK 					= OK_BIT_00,
-	.S_WARN					= FAULT_BIT_00,
-	.S_CRITICAL				= FAULT_BIT_01,
-	.S_MARGIN_LOW				= FAULT_BIT_02,
-	.S_NOT_SYNC				= FAULT_BIT_03,
-};
-
-enum HealthBitsDummyCase : HealthMask{
-	S_DUMMY_OK 					= OK_BIT_00,
-	S_DUMMY_WARN					= FAULT_BIT_00,
-	S_DUMMY_CRITICAL				= FAULT_BIT_01,
-	S_DUMMY_MARGIN_LOW				= FAULT_BIT_02,
-	S_DUMMY_NOT_SYNC				= FAULT_BIT_03,
-};
-//####################################################################
-// NULL VALUES IN CONTROLLER CASE
-//####################################################################
-static HealthStatusFlags HealthBitsNullValuesControllerCase
-{
-	.S_OK 					= OK_BIT_01,
-	.S_WARN					= FAULT_BIT_04,
-	.S_CRITICAL				= FAULT_BIT_05,
-	.S_MARGIN_LOW				= FAULT_BIT_06,
-	.S_NOT_SYNC				= FAULT_BIT_07,
-};
-
-enum HealthBitsNullValuesController : HealthMask{
-	S_NULL_CTL_OK 					= OK_BIT_01,
-	S_NULL_CTL_WARN					= FAULT_BIT_04,
-	S_NULL_CTL_CRITICAL				= FAULT_BIT_05,
-	S_NULL_CTL_MARGIN_LOW				= FAULT_BIT_06,
-	S_NULL_CTL_NOT_SYNC				= FAULT_BIT_07,
-};
-//####################################################################
-
-
-std::array<HealthStatusFlags,2> HealthFlagsCases
-{
-	HealthBitsDummyCase,
-	HealthBitsNullValuesControllerCase
-};
-
-// static HealthStatusFlags HealthBitsPx4Modules
-// {
-
-// };
-
 enum HealthBitsHW : HealthMask {
 	// Core sensors
+	H_MAG_OK             	= OK_BIT_52,
 	H_IMU_OK             	= OK_BIT_53,
 	H_GPS_OK             	= OK_BIT_54,
 	H_BARO_OK            	= OK_BIT_55,
@@ -222,6 +161,16 @@ enum HealthBitsHW : HealthMask {
 	// Hard safety
   	H_GEOFENCE_OK        	= OK_BIT_62,
 
+	// Faults
+
+	// Sensor Sync
+	H_POS_EST_NOT_SYNC      = FAULT_BIT_54,
+	H_MOTORS_NOT_SYNC	= FAULT_BIT_55,
+	H_MAG_NOT_SYNC		= FAULT_BIT_56,
+	H_BARO_NOT_SYNC		= FAULT_BIT_57,
+	H_GPS_NOT_SYNC		= FAULT_BIT_58,
+	H_IMU_NOT_SYNC		= FAULT_BIT_59,
+
 	// Power
 	H_BATTERY_CRITICAL   	= FAULT_BIT_60,
 
@@ -229,5 +178,210 @@ enum HealthBitsHW : HealthMask {
 	H_GPS_CRITICAL		= FAULT_BIT_61,
 
 
-
 };
+
+
+
+struct HealthStatusFlags
+{
+	HealthMask S_OK;
+	HealthMask S_WARN;
+	HealthMask S_CRITICAL;
+	HealthMask S_MARGIN_LOW;
+	HealthMask S_NOT_SYNC;
+};
+
+
+
+//####################################################################
+// 1. ATTITUDE FAILURE CASES
+//####################################################################
+static HealthStatusFlags HealthBitsAttiudeCase
+{
+	.S_OK 					= OK_BIT_01,
+	.S_WARN					= FAULT_BIT_01,
+	.S_CRITICAL				= FAULT_BIT_02,
+	.S_MARGIN_LOW				= FAULT_BIT_03,
+	.S_NOT_SYNC				= FAULT_BIT_04,
+};
+
+enum HealthBitsAttiude : HealthMask{
+	S_ATTITUDE_FAILURE_OK 			= OK_BIT_01,
+	S_ATTITUDE_FAILURE_WARN			= FAULT_BIT_01,
+	S_ATTITUDE_FAILURE_CRITICAL		= FAULT_BIT_02,
+	S_ATTITUDE_FAILURE_MARGIN_LOW		= FAULT_BIT_03,
+	S_ATTITUDE_FAILURE_NOT_SYNC		= FAULT_BIT_04,
+};
+//####################################################################
+// 2. EKF_DIVERGENCE
+//####################################################################
+static HealthStatusFlags HealthBitsEkfDivergenceCase
+{
+	.S_OK 					= OK_BIT_02,
+	.S_WARN					= FAULT_BIT_05,
+	.S_CRITICAL				= FAULT_BIT_06,
+	.S_MARGIN_LOW				= FAULT_BIT_07,
+	.S_NOT_SYNC				= FAULT_BIT_08,
+};
+
+enum HealthBitsEkfDivergence : HealthMask{
+	S_EKF_DIVERGENCE_FAILURE_OK 			= OK_BIT_02,
+	S_EKF_DIVERGENCE_FAILURE_WARN			= FAULT_BIT_05,
+	S_EKF_DIVERGENCE_FAILURE_CRITICAL		= FAULT_BIT_06,
+	S_EKF_DIVERGENCE_FAILURE_MARGIN_LOW		= FAULT_BIT_07,
+	S_EKF_DIVERGENCE_FAILURE_NOT_SYNC		= FAULT_BIT_08,
+};
+//####################################################################
+// 3. Barometer Failure
+//####################################################################
+static HealthStatusFlags HealthBitsBarometerFailureCase
+{
+	.S_OK 					= H_BARO_OK,
+	.S_WARN					= 0ull,
+	.S_CRITICAL				= 0ull,
+	.S_MARGIN_LOW				= 0ull,
+	.S_NOT_SYNC				= H_BARO_NOT_SYNC,
+};
+
+enum HealthBitsBarometerFailure : HealthMask{
+	S_BARO_FAILURE_OK 			= H_BARO_OK,
+	S_BARO_FAILURE_NOT_SYNC			= H_BARO_NOT_SYNC,
+};
+//####################################################################
+// 4. GPS Failure
+//####################################################################
+static HealthStatusFlags HealthBitsGpsFailureCase
+{
+	.S_OK 					= H_GPS_OK,
+	.S_WARN					= 0ull,
+	.S_CRITICAL				= H_GPS_CRITICAL,
+	.S_MARGIN_LOW				= 0ull,
+	.S_NOT_SYNC				= H_GPS_NOT_SYNC,
+};
+
+enum HealthBitsGpsFailure : HealthMask{
+	S_GPS_FAILURE_OK 			= H_GPS_OK,
+	S_GPS_FAILURE_CRITICAL			= H_GPS_CRITICAL,
+	S_GPS_FAILURE_NOT_SYNC			= H_GPS_NOT_SYNC,
+};
+//####################################################################
+// 5. IMU Failure
+//####################################################################
+static HealthStatusFlags HealthBitsImuFailureCase
+{
+	.S_OK 					= H_IMU_OK,
+	.S_WARN					= 0ull,
+	.S_CRITICAL				= 0ull,
+	.S_MARGIN_LOW				= 0ull,
+	.S_NOT_SYNC				= H_IMU_NOT_SYNC,
+};
+
+enum HealthBitsImuFailure : HealthMask{
+	S_IMU_FAILURE_OK 			= H_IMU_OK,
+	S_IMU_FAILURE_NOT_SYNC		= H_IMU_NOT_SYNC,
+};
+//####################################################################
+// 6. Magnetometer Failure
+//####################################################################
+static HealthStatusFlags HealthBitsMagnetometerFailureCase
+{
+	.S_OK 					= H_MAG_OK,
+	.S_WARN					= 0ull,
+	.S_CRITICAL				= 0ull,
+	.S_MARGIN_LOW				= 0ull,
+	.S_NOT_SYNC				= H_MAG_NOT_SYNC,
+};
+
+enum HealthBitsMagnetometerFailure : HealthMask{
+	S_MAG_FAILURE_OK 			= H_MAG_OK,
+	S_MAG_FAILURE_NOT_SYNC			= H_MAG_NOT_SYNC,
+};
+//####################################################################
+// 7. MOTOR ESC Failure
+//####################################################################
+static HealthStatusFlags HealthBitsMotorEscCase
+{
+	.S_OK 					= H_MOTORS_OK,
+	.S_WARN					= 0ull,
+	.S_CRITICAL				= 0ull,
+	.S_MARGIN_LOW				= 0ull,
+	.S_NOT_SYNC				= H_MOTORS_NOT_SYNC,
+};
+
+enum HealthBitsMotorEsc : HealthMask{
+	S_MOTOR_ESC_FAILURE_OK 			= H_MOTORS_OK,
+	S_MOTOR_ESC_FAILURE_NOT_SYNC		= H_MOTORS_NOT_SYNC,
+};
+//####################################################################
+// 8. POSE ESTIMATE Failure
+//####################################################################
+static HealthStatusFlags HealthBitsPoseEstimateCase
+{
+	.S_OK 					= H_POS_EST_OK,
+	.S_WARN					= 0ull,
+	.S_CRITICAL				= 0ull,
+	.S_MARGIN_LOW				= 0ull,
+	.S_NOT_SYNC				= H_POS_EST_NOT_SYNC,
+};
+
+enum HealthBitsPoseEstimate : HealthMask{
+	S_POSE_ESTIMATE_FAILURE_OK 		= H_POS_EST_OK,
+	S_POSE_ESTIMATE_FAILURE_NOT_SYNC	= H_POS_EST_NOT_SYNC,
+};
+
+//####################################################################
+// 9. Motor Saturation
+//####################################################################
+static HealthStatusFlags HealthBitsMotorSaturationCase
+{
+	.S_OK 					= OK_BIT_03,
+	.S_WARN					= FAULT_BIT_09,
+	.S_CRITICAL				= FAULT_BIT_10,
+	.S_MARGIN_LOW				= FAULT_BIT_11,
+	.S_NOT_SYNC				= FAULT_BIT_12,
+};
+
+enum HealthBitsMotorSaturation : HealthMask{
+	S_MOTOR_SATURATION_FAILURE_OK 			= OK_BIT_03,
+	S_MOTOR_SATURATION_FAILURE_WARN			= FAULT_BIT_09,
+	S_MOTOR_SATURATION_FAILURE_CRITICAL		= FAULT_BIT_10,
+	S_MOTOR_SATURATION_FAILURE_MARGIN_LOW		= FAULT_BIT_11,
+	S_MOTOR_SATURATION_FAILURE_NOT_SYNC		= FAULT_BIT_12,
+};
+
+//####################################################################
+// 9. Vibration Use case
+//####################################################################
+static HealthStatusFlags HealthBitsVibrationCase
+{
+	.S_OK 					= OK_BIT_04,
+	.S_WARN					= FAULT_BIT_13,
+	.S_CRITICAL				= FAULT_BIT_14,
+	.S_MARGIN_LOW				= FAULT_BIT_15,
+	.S_NOT_SYNC				= FAULT_BIT_16,
+};
+
+enum HealthBitsVibration : HealthMask{
+	S_VIBRATION_FAILURE_OK 			= OK_BIT_04,
+	S_VIBRATION_FAILURE_WARN		= FAULT_BIT_13,
+	S_VIBRATION_FAILURE_CRITICAL		= FAULT_BIT_14,
+	S_VIBRATION_FAILURE_MARGIN_LOW		= FAULT_BIT_15,
+	S_VIBRATION_FAILURE_NOT_SYNC		= FAULT_BIT_16,
+};
+
+std::array<HealthStatusFlags,10> HealthFlagsCases
+{
+	HealthBitsAttiudeCase,			// 1
+	HealthBitsEkfDivergenceCase,		// 2
+	HealthBitsBarometerFailureCase,		// 3
+	HealthBitsGpsFailureCase,		// 4
+	HealthBitsImuFailureCase,		// 5
+	HealthBitsMagnetometerFailureCase,	// 6
+	HealthBitsMotorEscCase,			// 7
+	HealthBitsPoseEstimateCase,		// 8
+	HealthBitsMotorSaturationCase, 		// 9
+	HealthBitsVibrationCase,
+};
+
+
+

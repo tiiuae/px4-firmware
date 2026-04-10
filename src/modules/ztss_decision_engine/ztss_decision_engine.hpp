@@ -209,7 +209,7 @@ Mapping back to Simplex / RTA
 
 using namespace time_literals;
 using timestamp_time = uint64_t;
-constexpr int NUMBER_OF_MONITORING_CASES = 1;
+constexpr int NUMBER_OF_MONITORING_CASES = 10;
 constexpr size_t MAX_PERIOD_MS = 100_ms;
 
 class DecisionEngine : public ModuleBase<DecisionEngine>, public ModuleParams
@@ -251,11 +251,15 @@ public:
 
 private:
 
+
+// Inputs
 std::array<uORB::Subscription, NUMBER_OF_MONITORING_CASES> 	monitor_use_cases_subscriptions_;
 
 MonitorHealthMask monitor_status_masks_;
 std::array<timestamp_time, NUMBER_OF_MONITORING_CASES> 		monitor_use_cases_last_timestamp_;
 
+
+// Publication
 uORB::Publication<ztss_event_trigger_s> ztss_event_pub_{ORB_ID(ztss_event)};
 
 ztss_event_trigger_s event_{};
