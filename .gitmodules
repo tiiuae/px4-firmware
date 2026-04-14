@@ -89,6 +89,7 @@
 [submodule "boards/ssrc/common"]
 	path = boards/ssrc/common
 	url = git@github.com:tiiuae/px4_boards_ssrc.git
+	branch = saluki-ft-release
 [submodule "src/drivers/pfsoc_keystore"]
 	path = src/drivers/pfsoc_keystore
 	url = ../pfsoc_keystore.git
