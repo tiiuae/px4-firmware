@@ -21,7 +21,7 @@
 [submodule "platforms/nuttx/NuttX/nuttx"]
 	path = platforms/nuttx/NuttX/nuttx
 	url = https://github.com/tiiuae/nuttx.git
-	branch = master
+	branch = saluki-ft-release
 [submodule "platforms/nuttx/NuttX/apps"]
 	path = platforms/nuttx/NuttX/apps
 	url = https://github.com/tiiuae/nuttx-apps.git
@@ -82,21 +82,10 @@
 [submodule "boards/modalai/voxl2/libfc-sensor-api"]
 	path = boards/modalai/voxl2/libfc-sensor-api
 	url = https://gitlab.com/voxl-public/voxl-sdk/core-libs/libfc-sensor-api.git
-[submodule "boards/ssrc/saluki-v1"]
-	path = boards/ssrc/saluki-v1
-	url = ../saluki-v1.git
-[submodule "boards/ssrc/saluki-v2"]
-	path = boards/ssrc/saluki-v2
-	url = ../saluki-v2.git
-[submodule "boards/ssrc/saluki-pi"]
-	path = boards/ssrc/saluki-pi
-	url = ../saluki-pi.git
-[submodule "boards/ssrc/saluki-v3"]
-	path = boards/ssrc/saluki-v3
-	url = ../saluki-v3.git
 [submodule "boards/ssrc/saluki-nxp93"]
 	path = boards/ssrc/saluki-nxp93
 	url = ../saluki-nxp93.git
+	branch = saluki-ft-release
 [submodule "boards/ssrc/common"]
 	path = boards/ssrc/common
 	url = git@github.com:tiiuae/px4_boards_ssrc.git
@@ -157,6 +146,7 @@
 [submodule "boards/ssrc/saluki-ft"]
 	path = boards/ssrc/saluki-ft
 	url = ../saluki-ft.git
+	branch = saluki-ft-release
 [submodule "src/lib/libatt/libatt"]
 	path = src/lib/libatt/libatt
 	url = git@github.com:tiiuae/libatt.git
