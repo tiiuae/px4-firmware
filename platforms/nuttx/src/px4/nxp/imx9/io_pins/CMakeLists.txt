@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2024 Technology Innovation Institute. All rights reserved.
+#   Copyright (c) 2026 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,12 +31,6 @@
 #
 ############################################################################
 
-add_subdirectory(board_critmon board_critmon)
-add_subdirectory(adc adc)
-add_subdirectory(dshot dshot)
-add_subdirectory(io_pins io_pins)
-add_subdirectory(board_reset board_reset)
-add_subdirectory(hrt hrt)
-add_subdirectory(tone_alarm tone_alarm)
-add_subdirectory(version version)
-add_subdirectory(px4io_serial)
+px4_add_library(arch_io_pins
+	io_timer.c
+)
