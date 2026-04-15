@@ -40,8 +40,6 @@ endif()
 px4_add_module(
 	MODULE drivers__dshot
 	MAIN dshot
-	COMPILE_FLAGS
-		-DPARAM_PREFIX="${PARAM_PREFIX}"
 	SRCS
 		DShot.cpp
 		DShotTelemetry.cpp
