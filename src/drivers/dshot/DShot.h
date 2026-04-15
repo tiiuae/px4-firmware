@@ -41,6 +41,7 @@
 #include <uORB/topics/vehicle_command_ack.h>
 
 #include "DShotTelemetry.h"
+#include <px4_platform_common/px4_config.h>
 
 using namespace time_literals;
 
@@ -139,7 +140,8 @@ private:
 
 	uint16_t convert_output_to_3d_scaling(uint16_t output);
 
-	MixingOutput _mixing_output{PARAM_PREFIX, DIRECT_PWM_OUTPUT_CHANNELS, *this, MixingOutput::SchedulingPolicy::Auto, false, false};
+	const char *_param_prefix;
+	MixingOutput _mixing_output;
 	uint32_t _reversible_outputs{};
 
 	DShotTelemetry *_telemetry{nullptr};
