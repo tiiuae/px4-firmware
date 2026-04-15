@@ -36,6 +36,7 @@
 #include <lib/mixer_module/mixer_module.hpp>
 #include <px4_platform_common/getopt.h>
 #include <px4_platform_common/module.h>
+#include <px4_platform_common/px4_config.h>
 #include <uORB/topics/esc_status.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_command_ack.h>
@@ -135,7 +136,7 @@ private:
 	void handle_esc_request_eeprom(const vehicle_command_s &command);
 
 	// Mixer
-	MixingOutput _mixing_output{PARAM_PREFIX, DSHOT_MAXIMUM_CHANNELS, *this, MixingOutput::SchedulingPolicy::Auto, false, false};
+	MixingOutput _mixing_output{!PX4_MFT_HW_SUPPORTED(PX4_MFT_PX4IO) ? "PWM_MAIN" : "PWM_AUX", DSHOT_MAXIMUM_CHANNELS, *this, MixingOutput::SchedulingPolicy::Auto, false, false};
 
 	// Actuator-order masks (indexed by output channel)
 	uint32_t _output_mask{0};
