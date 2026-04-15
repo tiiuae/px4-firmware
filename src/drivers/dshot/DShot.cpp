@@ -41,7 +41,9 @@ char DShot::_telemetry_device[] {};
 px4::atomic_bool DShot::_request_telemetry_init{false};
 
 DShot::DShot() :
-	OutputModuleInterface(MODULE_NAME, px4::wq_configurations::hp_default)
+	OutputModuleInterface(MODULE_NAME, px4::wq_configurations::hp_default),
+	_param_prefix(!PX4_MFT_HW_SUPPORTED(PX4_MFT_PX4IO) ? "PWM_MAIN" : "PWM_AUX"),
+	_mixing_output(_param_prefix, DIRECT_PWM_OUTPUT_CHANNELS, *this, MixingOutput::SchedulingPolicy::Auto, false, false)
 {
 	_mixing_output.setAllDisarmedValues(DSHOT_DISARM_VALUE);
 	_mixing_output.setAllMinValues(DSHOT_MIN_THROTTLE);
