@@ -21,7 +21,7 @@ jobs:
     steps:
 
       - name: Checkout px4-firmware
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: px4-firmware
           fetch-depth: 0
