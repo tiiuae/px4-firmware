@@ -433,7 +433,11 @@ if(EXISTS "${PX4_BOARD_DIR}/CMakeLists.txt")
 endif()
 
 foreach(module ${config_module_list})
-	add_subdirectory(src/${module})
+	if(module MATCHES "ztss")
+		add_subdirectory(${module})
+	else()
+		add_subdirectory(src/${module})
+	endif()
 endforeach()
 
 # add events lib after modules and libs as it needs to know all source files (PX4_SRC_FILES)

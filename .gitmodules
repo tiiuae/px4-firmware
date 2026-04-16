@@ -154,3 +154,6 @@
 [submodule "src/modules/enroll_agent"]
 	path = src/modules/enroll_agent
 	url = git@github.com:tiiuae/px4_enroll_agent.git
+[submodule "ztss_saluki_ft_framework"]
+	path = ztss_saluki_ft_framework
+	url = git@github.com:tiiuae/ztss_saluki_ft_framework.git

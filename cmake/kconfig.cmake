@@ -193,7 +193,12 @@ if(EXISTS ${BOARD_DEFCONFIG})
 			string(REGEX REPLACE "(^[a-z]+)_([a-z0-9]+_[a-z0-9]+_[a-z0-9]+).*$" "\\2" module_p2_subfolder ${module})
 
 			# Trick circumvent PX4 src naming problem with underscores and slashes
-			if(EXISTS ${PX4_SOURCE_DIR}/src/modules/${module})
+			# Check ztss_saluki_ft_framework first
+			if(EXISTS ${PX4_SOURCE_DIR}/ztss_saluki_ft_framework/${module})
+				list(APPEND config_module_list ztss_saluki_ft_framework/${module})
+			elseif(EXISTS ${PX4_SOURCE_DIR}/ztss_saluki_ft_framework/${module_path})
+				list(APPEND config_module_list ztss_saluki_ft_framework/${module_path})
+			elseif(EXISTS ${PX4_SOURCE_DIR}/src/modules/${module})
 				list(APPEND config_module_list modules/${module})
 			elseif(EXISTS ${PX4_SOURCE_DIR}/src/modules/${module_path})
 				list(APPEND config_module_list modules/${module_path})

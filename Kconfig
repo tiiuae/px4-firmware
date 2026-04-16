@@ -193,6 +193,8 @@ menu "modules"
 source "src/modules/Kconfig"
 endmenu
 
+source "ztss_saluki_ft_framework/Kconfig"
+
 menu "systemcmds"
 source "src/systemcmds/Kconfig"
 endmenu
