@@ -33,6 +33,28 @@ parameters:
                     When mixer outputs 1000 or value inside DSHOT 3D deadband, DShot 0 is sent.
             type: boolean
             default: 0
+        DSHOT_BIDIR_EN:
+            description:
+                short: Enable bidirectional DShot
+                long: |
+                    This parameter enables bidirectional DShot and publishes RPM feedback over esc_status.
+                    This requires ESCs and board support for bidirectional DShot on the same signal line.
+                    This is separate from UART telemetry configured via DSHOT_TEL_CFG.
+            type: boolean
+            default: 0
+            reboot_required: true
+        DSHOT_TLM_FMULT:
+            description:
+                short: Set Dshot telemetry frequency multiplier
+                long: |
+                    Expected telemetry bit rate w.r.t the DSHOT_CONF rate.
+                    The standard is 1.25 which results e.g. 750kHz for Dshot600. Some ESCs may have inaccurate
+                    telemetry frequency, and for those this can be tuned. For example for T-Motor F55A pro II,
+                    use 1.15.
+            type: float
+            default: 1.25
+            reboot_required: true
+
         DSHOT_3D_DEAD_H:
             description:
                 short: DSHOT 3D deadband high

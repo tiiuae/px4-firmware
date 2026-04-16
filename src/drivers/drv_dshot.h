@@ -91,7 +91,8 @@ typedef enum {
  * @param dshot_pwm_freq	Frequency of DSHOT signal. Usually DSHOT150, DSHOT300, DSHOT600 or DSHOT1200
  * @return <0 on error, the initialized channels mask.
  */
-__EXPORT extern int up_dshot_init(uint32_t channel_mask, unsigned dshot_pwm_freq);
+__EXPORT extern int up_dshot_init(uint32_t channel_mask, unsigned dshot_freq, unsigned dshot_tlm_freq,
+				  bool enable_bidirectional_dshot);
 
 /**
  * Set Dshot motor data, used by up_dshot_motor_data_set() and up_dshot_motor_command() (internal method)
@@ -136,5 +137,38 @@ __EXPORT extern void up_dshot_trigger(void);
  *			are disarmed.
  */
 __EXPORT extern int up_dshot_arm(bool armed);
+
+__EXPORT extern void up_bdshot_status(void);
+
+/**
+ * Get bitmask of channels that have processed BDShot data ready to read.
+ * Each bit corresponds to an output channel index.
+ */
+__EXPORT extern uint16_t up_bdshot_get_ready_mask(void);
+
+/**
+ * Get number of bidirectional telemetry errors for a channel.
+ * @param channel Dshot channel
+ * @return number of errors
+ */
+__EXPORT extern int up_bdshot_num_errors(uint8_t channel);
+
+__EXPORT extern int up_bdshot_get_erpm(uint8_t channel, int *erpm);
+
+/**
+ * Get bidirectional dshot extended telemetry value for a channel.
+ * @param channel Dshot channel
+ * @param type extended telemetry type
+ * @param value pointer to value output
+ * @return <0 on error, OK on success
+ */
+__EXPORT extern int up_bdshot_get_extended_telemetry(uint8_t channel, int type, uint8_t *value);
+
+/**
+ * Get bidirectional dshot online status for a channel.
+ * @param channel Dshot channel
+ * @return <0 on error/not supported, 0 offline, 1 online
+ */
+__EXPORT extern int up_bdshot_channel_online(uint8_t channel);
 
 __END_DECLS
