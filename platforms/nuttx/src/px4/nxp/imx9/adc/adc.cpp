@@ -34,25 +34,35 @@
 #include <board_config.h>
 #include <stdint.h>
 #include <drivers/drv_adc.h>
+#include <imx9_sar_adc.h>
 
 int px4_arch_adc_init(uint32_t base_address)
 {
-	return 0;
+	(void)base_address;
+	return imx9_sar_adc_init(ADC_CHANNELS);
 }
 
 void px4_arch_adc_uninit(uint32_t base_address)
 {
-
+	(void)base_address;
+	imx9_sar_adc_deinit();
 }
 
 uint32_t px4_arch_adc_sample(uint32_t base_address, unsigned channel)
 {
-	return 0xffffffffu;
+	(void)base_address;
+	uint32_t value = 0;
+
+	if (imx9_sar_adc_read_channel(channel, &value) < 0) {
+		return UINT32_MAX;
+	}
+
+	return value;
 }
 
 float px4_arch_adc_reference_v()
 {
-	return 0.0f;
+	return 1.8f;
 }
 
 uint32_t px4_arch_adc_temp_sensor_mask()
@@ -64,5 +74,5 @@ uint32_t px4_arch_adc_temp_sensor_mask()
 
 uint32_t px4_arch_adc_dn_fullcount()
 {
-	return 0;
+	return 1 << 12;
 }

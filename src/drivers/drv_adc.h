@@ -44,6 +44,7 @@
 #include <sys/ioctl.h>
 #include <systemlib/px4_macros.h>
 #include <uORB/topics/adc_report.h>
+#include <drivers/drv_sensor.h>
 
 /* Define the PX4 low level format ADC and the maximum
  * number of channels that can be returned by a lowlevel
@@ -58,7 +59,7 @@ typedef struct __attribute__((packed)) px4_adc_msg_t {
 } px4_adc_msg_t;
 
 
-#define BUILTIN_ADC_DEVID	0xffffffff	// TODO: integrate into existing ID management
+#define BUILTIN_ADC_DEVID	((DRV_ADC_DEVTYPE_INTERNAL << 16) | (1u << 8))
 
 
 __BEGIN_DECLS
