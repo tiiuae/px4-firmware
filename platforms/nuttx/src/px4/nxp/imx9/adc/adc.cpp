@@ -35,24 +35,55 @@
 #include <stdint.h>
 #include <drivers/drv_adc.h>
 
+#if defined(CONFIG_IMX9_SAR_ADC)
+#include <imx9_sar_adc.h>
+#endif
+
 int px4_arch_adc_init(uint32_t base_address)
 {
+	(void)base_address;
+
+#if defined(CONFIG_IMX9_SAR_ADC)
+	return imx9_sar_adc_init(ADC_CHANNELS);
+#else
 	return 0;
+#endif
 }
 
 void px4_arch_adc_uninit(uint32_t base_address)
 {
+	(void)base_address;
 
+#if defined(CONFIG_IMX9_SAR_ADC)
+	imx9_sar_adc_deinit();
+#endif
 }
 
 uint32_t px4_arch_adc_sample(uint32_t base_address, unsigned channel)
 {
-	return 0xffffffffu;
+	(void)base_address;
+
+#if defined(CONFIG_IMX9_SAR_ADC)
+	uint32_t value = 0;
+
+	if (imx9_sar_adc_read_channel(channel, &value) < 0) {
+		return UINT32_MAX;
+	}
+
+	return value;
+#else
+	(void)channel;
+	return UINT32_MAX;
+#endif
 }
 
 float px4_arch_adc_reference_v()
 {
+#if defined(CONFIG_IMX9_SAR_ADC)
+	return 1.8f;
+#else
 	return 0.0f;
+#endif
 }
 
 uint32_t px4_arch_adc_temp_sensor_mask()
@@ -64,5 +95,9 @@ uint32_t px4_arch_adc_temp_sensor_mask()
 
 uint32_t px4_arch_adc_dn_fullcount()
 {
+#if defined(CONFIG_IMX9_SAR_ADC)
+	return 1 << 12;
+#else
 	return 0;
+#endif
 }
