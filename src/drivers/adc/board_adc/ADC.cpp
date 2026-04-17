@@ -198,10 +198,11 @@ void ADC::update_system_power(hrt_abstime now)
 #if defined (BOARD_ADC_USB_CONNECTED)
 	system_power_s system_power {};
 
-	/* Assume HW provides only ADC_SCALED_V5_SENSE */
-	int cnt = 1;
-	/* HW provides both ADC_SCALED_V5_SENSE and ADC_SCALED_V3V3_SENSORS_SENSE */
-#  if defined(ADC_SCALED_V5_SENSE) && defined(ADC_SCALED_V3V3_SENSORS_SENSE)
+	int cnt = 0;
+#  if defined(ADC_SCALED_V5_SENSE)
+	cnt++;
+#  endif
+#  if defined(ADC_SCALED_V3V3_SENSORS_SENSE)
 	cnt += ADC_SCALED_V3V3_SENSORS_COUNT;
 #  endif
 # if defined(ADC_SCALED_PAYLOAD_SENSE)
@@ -374,7 +375,11 @@ int ADC::custom_command(int argc, char *argv[])
 
 int ADC::task_spawn(int argc, char *argv[])
 {
+#ifdef BOARD_ADC_FORCE_ADC_REPORT
+	bool publish_adc_report = true;
+#else
 	bool publish_adc_report = !(argc >= 2 && strcmp(argv[1], "-n") == 0);
+#endif
 	ADC *instance = new ADC(SYSTEM_ADC_BASE, ADC_CHANNELS, publish_adc_report);
 
 	if (instance) {
