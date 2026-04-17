@@ -41,6 +41,8 @@
 #include <uORB/topics/vehicle_command_ack.h>
 
 #include "DShotTelemetry.h"
+#include "BDShotTelemetry.h"
+#include <px4_platform_common/px4_config.h>
 
 using namespace time_literals;
 
@@ -120,18 +122,9 @@ private:
 		void clear() { num_repetitions = 0; }
 	};
 
-	struct Telemetry {
-		DShotTelemetry handler{};
-		uORB::PublicationMultiData<esc_status_s> esc_status_pub{ORB_ID(esc_status)};
-		int last_telemetry_index{-1};
-		uint8_t actuator_functions[esc_status_s::CONNECTED_ESC_MAX] {};
-	};
-
 	void enable_dshot_outputs(const bool enabled);
 
 	void init_telemetry(const char *device);
-
-	void handle_new_telemetry_data(const int telemetry_index, const DShotTelemetry::EscData &data);
 
 	int request_esc_info();
 
@@ -143,10 +136,12 @@ private:
 
 	void handle_vehicle_commands();
 
-	MixingOutput _mixing_output{PARAM_PREFIX, DIRECT_PWM_OUTPUT_CHANNELS, *this, MixingOutput::SchedulingPolicy::Auto, false, false};
+	const char *_param_prefix;
+	MixingOutput _mixing_output;
 	uint32_t _reversible_outputs{};
 
-	Telemetry *_telemetry{nullptr};
+	BDShotTelemetry *_telemetry{nullptr};
+	int8_t _output_to_telemetry_index[DIRECT_PWM_OUTPUT_CHANNELS] {};
 
 	static char _telemetry_device[20];
 	static px4::atomic_bool _request_telemetry_init;
@@ -158,6 +153,7 @@ private:
 	bool _outputs_initialized{false};
 	bool _outputs_on{false};
 	bool _waiting_for_esc_info{false};
+	bool _bidirectional_dshot_enabled{false};
 
 	static constexpr unsigned _num_outputs{DIRECT_PWM_OUTPUT_CHANNELS};
 	uint32_t _output_mask{0};
@@ -172,6 +168,7 @@ private:
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::DSHOT_MIN>)    _param_dshot_min,
+		(ParamBool<px4::params::DSHOT_BIDIR_EN>) _param_bidirectional_enable,
 		(ParamBool<px4::params::DSHOT_3D_ENABLE>) _param_dshot_3d_enable,
 		(ParamInt<px4::params::DSHOT_3D_DEAD_H>) _param_dshot_3d_dead_h,
 		(ParamInt<px4::params::DSHOT_3D_DEAD_L>) _param_dshot_3d_dead_l,

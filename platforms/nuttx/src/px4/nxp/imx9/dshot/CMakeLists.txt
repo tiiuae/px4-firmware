@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2019-2021 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2026 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,23 +31,7 @@
 #
 ############################################################################
 
-set(PARAM_PREFIX PWM_MAIN)
-
-if(CONFIG_BOARD_IO)
-	set(PARAM_PREFIX PWM_AUX)
-endif()
-
-px4_add_module(
-	MODULE drivers__dshot
-	MAIN dshot
-	SRCS
-		DShot.cpp
-		DShotTelemetry.cpp
-		BDShotTelemetry.cpp
-	DEPENDS
-		arch_io_pins
-		arch_dshot
-		mixer_module
-	MODULE_CONFIG
-		module.yaml
-	)
+px4_add_library(arch_dshot
+	dshot.c
+)
+target_compile_options(arch_dshot PRIVATE ${MAX_CUSTOM_OPT_LEVEL})

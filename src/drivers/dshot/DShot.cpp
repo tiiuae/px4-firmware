@@ -41,7 +41,9 @@ char DShot::_telemetry_device[] {};
 px4::atomic_bool DShot::_request_telemetry_init{false};
 
 DShot::DShot() :
-	OutputModuleInterface(MODULE_NAME, px4::wq_configurations::hp_default)
+	OutputModuleInterface(MODULE_NAME, px4::wq_configurations::hp_default),
+	_param_prefix(!PX4_MFT_HW_SUPPORTED(PX4_MFT_PX4IO) ? "PWM_MAIN" : "PWM_AUX"),
+	_mixing_output(_param_prefix, DIRECT_PWM_OUTPUT_CHANNELS, *this, MixingOutput::SchedulingPolicy::Auto, false, false)
 {
 	_mixing_output.setAllDisarmedValues(DSHOT_DISARM_VALUE);
 	_mixing_output.setAllMinValues(DSHOT_MIN_THROTTLE);
@@ -49,6 +51,8 @@ DShot::DShot() :
 
 	// Avoid using the PWM failsafe params
 	_mixing_output.setAllFailsafeValues(UINT16_MAX);
+
+	memset(_output_to_telemetry_index, -1, sizeof(_output_to_telemetry_index));
 }
 
 DShot::~DShot()
@@ -113,7 +117,13 @@ void DShot::enable_dshot_outputs(const bool enabled)
 
 			int32_t tim_config = 0;
 			param_t handle = param_find(param_name);
-			param_get(handle, &tim_config);
+
+			if (handle == PARAM_INVALID || param_get(handle, &tim_config) != PX4_OK) {
+				PX4_WARN("timer config param missing: %s", param_name);
+				_output_mask &= ~channels;
+				continue;
+			}
+
 			unsigned int dshot_frequency_request = 0;
 
 			if (tim_config == -5) {
@@ -144,7 +154,33 @@ void DShot::enable_dshot_outputs(const bool enabled)
 			}
 		}
 
-		int ret = up_dshot_init(_output_mask, dshot_frequency);
+		if (_output_mask == 0 || dshot_frequency == 0) {
+			PX4_INFO("No channels configured for DShot");
+			request_stop();
+			return;
+		}
+
+		_bidirectional_dshot_enabled = _param_bidirectional_enable.get();
+
+		if (_bidirectional_dshot_enabled && !_telemetry) {
+			_telemetry = new BDShotTelemetry{};
+
+			if (!_telemetry) {
+				PX4_ERR("telemetry alloc failed");
+				return;
+			}
+
+			update_telemetry_num_motors();
+		}
+
+		float dshot_telem_speed_mult;
+
+		if (param_get(param_find("DSHOT_TLM_FMULT"), &dshot_telem_speed_mult) != PX4_OK) {
+			dshot_telem_speed_mult = 1.25f;
+		}
+
+		int ret = up_dshot_init(_output_mask, dshot_frequency, dshot_frequency * dshot_telem_speed_mult,
+					_bidirectional_dshot_enabled);
 
 		if (ret < 0) {
 			PX4_ERR("up_dshot_init failed (%i)", ret);
@@ -181,22 +217,25 @@ void DShot::update_telemetry_num_motors()
 		return;
 	}
 
+	memset(_output_to_telemetry_index, -1, sizeof(_output_to_telemetry_index));
+
 	int motor_count = 0;
 
 	for (unsigned i = 0; i < _num_outputs; ++i) {
 		if (_mixing_output.isFunctionSet(i)) {
-			_telemetry->actuator_functions[motor_count] = (uint8_t)_mixing_output.outputFunction(i);
+			_output_to_telemetry_index[i] = motor_count;
+			_telemetry->setActuatorFunction(motor_count, (uint8_t)_mixing_output.outputFunction(i));
 			++motor_count;
 		}
 	}
 
-	_telemetry->handler.setNumMotors(motor_count);
+	_telemetry->setNumMotors(motor_count);
 }
 
 void DShot::init_telemetry(const char *device)
 {
 	if (!_telemetry) {
-		_telemetry = new Telemetry{};
+		_telemetry = new BDShotTelemetry{};
 
 		if (!_telemetry) {
 			PX4_ERR("alloc failed");
@@ -204,53 +243,13 @@ void DShot::init_telemetry(const char *device)
 		}
 	}
 
-	_telemetry->esc_status_pub.advertise();
-
-	int ret = _telemetry->handler.init(device);
+	int ret = _telemetry->init(device);
 
 	if (ret != 0) {
 		PX4_ERR("telemetry init failed (%i)", ret);
 	}
 
 	update_telemetry_num_motors();
-}
-
-void DShot::handle_new_telemetry_data(const int telemetry_index, const DShotTelemetry::EscData &data)
-{
-	// fill in new motor data
-	esc_status_s &esc_status = _telemetry->esc_status_pub.get();
-
-	if (telemetry_index < esc_status_s::CONNECTED_ESC_MAX) {
-		esc_status.esc_online_flags |= 1 << telemetry_index;
-
-		esc_status.esc[telemetry_index].actuator_function = _telemetry->actuator_functions[telemetry_index];
-		esc_status.esc[telemetry_index].timestamp       = data.time;
-		esc_status.esc[telemetry_index].esc_rpm         = (static_cast<int>(data.erpm) * 100) /
-				(_param_mot_pole_count.get() / 2);
-		esc_status.esc[telemetry_index].esc_voltage     = static_cast<float>(data.voltage) * 0.01f;
-		esc_status.esc[telemetry_index].esc_current     = static_cast<float>(data.current) * 0.01f;
-		esc_status.esc[telemetry_index].esc_temperature = static_cast<float>(data.temperature);
-		// TODO: accumulate consumption and use for battery estimation
-	}
-
-	// publish when motor index wraps (which is robust against motor timeouts)
-	if (telemetry_index <= _telemetry->last_telemetry_index) {
-		esc_status.timestamp = hrt_absolute_time();
-		esc_status.esc_connectiontype = esc_status_s::ESC_CONNECTION_TYPE_DSHOT;
-		esc_status.esc_count = _telemetry->handler.numMotors();
-		++esc_status.counter;
-		// FIXME: mark all ESC's as online, otherwise commander complains even for a single dropout
-		esc_status.esc_online_flags = (1 << esc_status.esc_count) - 1;
-		esc_status.esc_armed_flags = (1 << esc_status.esc_count) - 1;
-
-		_telemetry->esc_status_pub.update();
-
-		// reset esc data (in case a motor times out, so we won't send stale data)
-		memset(&esc_status.esc, 0, sizeof(_telemetry->esc_status_pub.get().esc));
-		esc_status.esc_online_flags = 0;
-	}
-
-	_telemetry->last_telemetry_index = telemetry_index;
 }
 
 int DShot::send_command_thread_safe(const dshot_command_t command, const int num_repetitions, const int motor_index)
@@ -317,7 +316,7 @@ void DShot::retrieve_and_print_esc_info_thread_safe(const int motor_index)
 
 int DShot::request_esc_info()
 {
-	_telemetry->handler.redirectOutput(*_request_esc_info.load());
+	_telemetry->serial().redirectOutput(*_request_esc_info.load());
 	_waiting_for_esc_info = true;
 
 	int motor_index = _request_esc_info.load()->motor_index;
@@ -348,11 +347,11 @@ bool DShot::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS],
 	if (_telemetry) {
 		// check for an ESC info request. We only process it when we're not expecting other telemetry data
 		if (_request_esc_info.load() != nullptr && !_waiting_for_esc_info && stop_motors
-		    && !_telemetry->handler.expectingData() && !_current_command.valid()) {
+		    && !_telemetry->expectingData() && !_current_command.valid()) {
 			requested_telemetry_index = request_esc_info();
 
 		} else {
-			requested_telemetry_index = _telemetry->handler.getRequestMotorIndex();
+			requested_telemetry_index = _telemetry->getRequestMotorIndex();
 		}
 	}
 
@@ -362,12 +361,15 @@ bool DShot::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS],
 
 		// when motors are stopped we check if we have other commands to send
 		for (int i = 0; i < (int)num_outputs; i++) {
+			const bool request_telemetry = _mixing_output.isFunctionSet(i)
+						       && (_bidirectional_dshot_enabled || (telemetry_index == requested_telemetry_index));
+
 			if (_current_command.valid() && (_current_command.motor_mask & (1 << i))) {
 				// for some reason we need to always request telemetry when sending a command
 				up_dshot_motor_command(i, _current_command.command, true);
 
 			} else {
-				up_dshot_motor_command(i, DShot_cmd_motor_stop, telemetry_index == requested_telemetry_index);
+				up_dshot_motor_command(i, DShot_cmd_motor_stop, request_telemetry);
 			}
 
 			telemetry_index += _mixing_output.isFunctionSet(i);
@@ -387,11 +389,13 @@ bool DShot::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS],
 		int telemetry_index = 0;
 
 		for (int i = 0; i < (int)num_outputs; i++) {
+			const bool request_telemetry = _mixing_output.isFunctionSet(i)
+						       && (_bidirectional_dshot_enabled || (telemetry_index == requested_telemetry_index));
 
 			uint16_t output = outputs[i];
 
 			if (output == DSHOT_DISARM_VALUE) {
-				up_dshot_motor_command(i, DShot_cmd_motor_stop, telemetry_index == requested_telemetry_index);
+				up_dshot_motor_command(i, DShot_cmd_motor_stop, request_telemetry);
 
 			} else {
 
@@ -425,7 +429,7 @@ bool DShot::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS],
 				}
 
 				up_dshot_motor_data_set(i, math::min(output, static_cast<uint16_t>(DSHOT_MAX_THROTTLE)),
-							telemetry_index == requested_telemetry_index);
+							request_telemetry);
 			}
 
 			telemetry_index += _mixing_output.isFunctionSet(i);
@@ -462,17 +466,12 @@ void DShot::Run()
 	}
 
 	if (_telemetry) {
-		int telem_update = _telemetry->handler.update();
+		_telemetry->update(_output_mask, _output_to_telemetry_index, _num_outputs,
+				   _bidirectional_dshot_enabled, _param_mot_pole_count.get());
 
-		// Are we waiting for ESC info?
-		if (_waiting_for_esc_info) {
-			if (telem_update != -1) {
-				_request_esc_info.store(nullptr);
-				_waiting_for_esc_info = false;
-			}
-
-		} else if (telem_update >= 0) {
-			handle_new_telemetry_data(telem_update, _telemetry->handler.latestESCData());
+		if (_waiting_for_esc_info && !_telemetry->serial().redirectActive()) {
+			_request_esc_info.store(nullptr);
+			_waiting_for_esc_info = false;
 		}
 	}
 
@@ -710,7 +709,7 @@ int DShot::print_status()
 
 	if (_telemetry) {
 		PX4_INFO("telemetry on: %s", _telemetry_device);
-		_telemetry->handler.printStatus();
+		_telemetry->printStatus();
 	}
 
 	return 0;

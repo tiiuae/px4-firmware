@@ -43,6 +43,7 @@
 #include <px4_platform_common/sem.hpp>
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <debug.h>
@@ -193,8 +194,9 @@ private:
 	bool                    _hitl_mode;     ///< Hardware-in-the-loop simulation mode - don't publish actuator_outputs
 
 	int		_pwm_fd[PWMESC_N_DEVICES];
-
 	int32_t		_pwm_rate{PWM_DEFAULT_RATE};
+
+	int _ch_config[PWMESC_N_DEVICES] {};
 
 #ifdef CONFIG_MODULES_REDUNDANCY
 	uORB::Subscription _redundancy_status_sub {ORB_ID(redundancy_status)};
@@ -204,7 +206,9 @@ private:
 	bool _redundant_actuator_control_enabled{false};
 #endif
 
-	int		init_pwm_outputs();
+	int		init_outputs();
+
+	bool updatePWMOutputs(int dev, uint16_t *outputs, unsigned num_outputs, int ch_offset, bool stop_motors);
 
 	/* Singleton pointer */
 	static PWMESC	*_instance;
@@ -252,7 +256,7 @@ private:
 	 * Set the PWMs on open device fd to 0 duty cycle
 	 * and start or stop (request == PWMIOC_START / PWMIOC_STOP)
 	 */
-	int set_defaults(int fd, unsigned long request);
+	int initialize_pwm(int dev, int fd, unsigned long request);
 };
 
 PWMESC *PWMESC::_instance = nullptr;
@@ -272,6 +276,10 @@ PWMESC::PWMESC(bool hitl) :
 
 	/* clear armed status */
 	memset(&_actuator_armed, 0, sizeof(actuator_armed_s));
+
+	for (int i = 0; i < PWMESC_N_DEVICES; ++i) {
+		_pwm_fd[i] = -1;
+	}
 }
 
 PWMESC::~PWMESC()
@@ -376,6 +384,10 @@ PWMESC::init(bool hitl_mode)
 
 #endif
 
+	/* Read the channel configurations */
+
+	update_params();
+
 	/* start the main task */
 	_task = px4_task_spawn_cmd("pwm_esc",
 				   SCHED_DEFAULT,
@@ -394,7 +406,7 @@ PWMESC::init(bool hitl_mode)
 	/* schedule workqueue */
 	ScheduleNow();
 
-	return OK;
+	return PX4_OK;
 }
 
 int
@@ -404,12 +416,48 @@ PWMESC::task_main_trampoline(int argc, char *argv[])
 	return 0;
 }
 
+
+bool
+PWMESC::updatePWMOutputs(int dev, uint16_t *outputs, unsigned num_outputs, int ch_offset, bool stop_motors)
+{
+	struct pwm_info_s pwm {};
+	bool ret = true;
+	unsigned i;
+
+	pwm.frequency = _pwm_rate;
+
+	/* Fill in the logical channels for the pwm structure */
+
+	for (i = 0; i < num_outputs; i++) {
+		const uint16_t disarmed = _mixing_output.disarmedValue(ch_offset + i);
+		uint16_t pwm_val = stop_motors ? disarmed : outputs[i];
+		pwm.channels[i].duty = ((((uint32_t)pwm_val) << 16) / (1000000 / _pwm_rate));
+		pwm.channels[i].channel = i + 1;
+	}
+
+	/* Set the last logical channel to -1 to indicate termination */
+
+	if (i < CONFIG_PWM_NCHANNELS) {
+		pwm.channels[i].channel = -1;
+	}
+
+	/* Send the IOCTL command */
+
+	if (::ioctl(_pwm_fd[dev], PWMIOC_SETCHARACTERISTICS,
+		    (unsigned long)((uintptr_t)&pwm)) < 0) {
+		PX4_ERR("PWMIOC_SETCHARACTERISTICS for pwm%d failed: %d\n", dev,
+			errno);
+		ret = false;
+	}
+
+	return ret;
+}
+
 bool
 PWMESC::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigned num_outputs,
 		      unsigned num_control_groups_updated)
 {
 	bool ret = true;
-	struct pwm_info_s pwm;
 	const unsigned ch_per_dev[PWMESC_N_DEVICES] = PWMESC_CHANNELS_PER_DEV;
 
 #ifdef CONFIG_MODULES_REDUNDANCY
@@ -452,30 +500,25 @@ PWMESC::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigne
 
 	if (!_hitl_mode) {
 		/* When not in hitl, run PWMs */
-		unsigned n_out = 0;
 
-		for (int dev = 0; dev < PWMESC_N_DEVICES && _pwm_fd[dev] >= 0; dev++) {
-			memset(&pwm, 0, sizeof(struct pwm_info_s));
-			pwm.frequency = _pwm_rate;
+		unsigned channel_offset = 0;
 
-			unsigned i;
+		for (int dev = 0; dev < PWMESC_N_DEVICES; dev++) {
+			uint16_t *out = &outputs[channel_offset]; /* First output for this device */
+			int n_out; /* Number of outputs for this device */
 
-			for (i = 0; i < ch_per_dev[dev] && n_out < num_outputs; i++) {
-				uint16_t pwm_val = outputs[n_out++];
-				pwm.channels[i].duty = ((((uint32_t)pwm_val) << 16) / (1000000 / _pwm_rate));
-				pwm.channels[i].channel = i + 1;
+			if (num_outputs >= channel_offset + ch_per_dev[dev]) {
+				n_out = ch_per_dev[dev];
+
+			} else {
+				n_out = num_outputs - (channel_offset + ch_per_dev[dev]);
 			}
 
-			if (i < CONFIG_PWM_NCHANNELS) {
-				pwm.channels[i].channel = -1;
+			if (n_out > 0 && _ch_config[dev] > 0) {
+				updatePWMOutputs(dev, out, n_out, channel_offset, stop_motors);
 			}
 
-			if (::ioctl(_pwm_fd[dev], PWMIOC_SETCHARACTERISTICS,
-				    (unsigned long)((uintptr_t)&pwm)) < 0) {
-				PX4_ERR("PWMIOC_SETCHARACTERISTICS for pwm%d failed: %d\n", dev,
-					errno);
-				ret = false;
-			}
+			channel_offset += ch_per_dev[dev];
 		}
 
 	} else {
@@ -521,47 +564,56 @@ PWMESC::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigne
 }
 
 int
-PWMESC::set_defaults(int fd, unsigned long request)
+PWMESC::initialize_pwm(int dev, int fd, unsigned long request)
 {
 	/* Configure PWM to default rate, 1 as duty and start */
 
-	int ret = -1;
-	const int ch_per_dev[PWMESC_N_DEVICES] = PWMESC_CHANNELS_PER_DEV;
+	int ret = PX4_ERROR;
+	const unsigned ch_per_dev[PWMESC_N_DEVICES] = PWMESC_CHANNELS_PER_DEV;
 	struct pwm_info_s pwm;
+	unsigned channel_offset = 0;
 
-	for (int dev = 0; dev < PWMESC_N_DEVICES; dev++) {
-		memset(&pwm, 0, sizeof(struct pwm_info_s));
-		pwm.frequency = _pwm_rate;
+	for (int i = 0; i < dev; ++i) {
+		channel_offset += ch_per_dev[i];
+	}
 
-		int i;
+	memset(&pwm, 0, sizeof(struct pwm_info_s));
 
-		for (i = 0; i < ch_per_dev[dev]; i++) {
-			pwm.channels[i].duty = 1; /* 0 is not allowed duty cycle value */
-			pwm.channels[i].channel = i + 1;
-		}
+	pwm.frequency = (_ch_config[dev] > 0) ? _ch_config[dev] : _pwm_rate;
 
-		if (i < CONFIG_PWM_NCHANNELS) {
-			pwm.channels[i].channel = -1;
-		}
+	unsigned pwm_index = 0;
 
-		/* Set the frequency and duty */
+	for (unsigned ch = 0; ch < ch_per_dev[dev] && (channel_offset + ch) < PWMESC_N_CHANNELS; ch++) {
+		pwm.channels[pwm_index].duty = 1; /* 0 is not allowed duty cycle value */
+		pwm.channels[pwm_index].channel = ch + 1;
+		pwm_index++;
+	}
 
-		ret = ::ioctl(fd, PWMIOC_SETCHARACTERISTICS,
-			      (unsigned long)((uintptr_t)&pwm));
+	if (pwm_index == 0) {
+		return PX4_OK;
+	}
+
+	if (pwm_index < CONFIG_PWM_NCHANNELS) {
+		pwm.channels[pwm_index].channel = -1;
+	}
+
+	/* Set the frequency and duty */
+
+	ret = ::ioctl(fd, PWMIOC_SETCHARACTERISTICS,
+		      (unsigned long)((uintptr_t)&pwm));
+
+	if (ret < 0) {
+		PX4_ERR("PWMIOC_SETCHARACTERISTICS failed: %d\n",
+			errno);
+
+	} else {
+
+		/* Start / stop */
+
+		ret = ::ioctl(fd, request, 0);
 
 		if (ret < 0) {
-			PX4_ERR("PWMIOC_SETCHARACTERISTICS failed: %d\n",
-				errno);
-
-		} else {
-
-			/* Start / stop */
-
-			ret = ::ioctl(fd, request, 0);
-
-			if (ret < 0) {
-				PX4_ERR("PWMIOC_START/STOP failed: %d\n", errno);
-			}
+			PX4_ERR("PWMIOC_START/STOP failed: %d\n", errno);
 		}
 	}
 
@@ -569,12 +621,13 @@ PWMESC::set_defaults(int fd, unsigned long request)
 }
 
 int
-PWMESC::init_pwm_outputs()
+PWMESC::init_outputs()
 {
 	int ret = -1;
 
 	_mixing_output.setIgnoreLockdown(_hitl_mode);
 	_mixing_output.setMaxNumOutputs(PWMESC_N_CHANNELS);
+
 	const int update_interval_in_us = math::constrain(1000000 / (_pwm_rate * 2), 500, 100000);
 	_mixing_output.setMaxTopicUpdateRate(update_interval_in_us);
 
@@ -588,20 +641,25 @@ PWMESC::init_pwm_outputs()
 
 		_pwm_fd[i] = ::open(pwm_device_name, O_RDONLY);
 
-		if (_pwm_fd[i] >= 0) {
-			/* Configure PWM to default rate, 0 pulse and start */
+		if (_ch_config[i] > 0) {
+			/* Configure PWM to correct rate, 0 pulse and start */
 
-			ret = set_defaults(_pwm_fd[i], PWMIOC_START);
+			ret = initialize_pwm(i, _pwm_fd[i], PWMIOC_START);
 
 			if (ret != 0) {
-				PX4_ERR("Init failed for %s errno %d", pwm_device_name, errno);
+				PX4_ERR("PWM init failed for %s errno %d", pwm_device_name, errno);
 				break;
 			}
+
+		} else {
+			/* Disabled / DShot / not configured, OK */
+
+			ret = 0;
 		}
 	}
 
 	if (ret != 0) {
-		PX4_ERR("PWM init failed");
+		PX4_ERR("Init failed");
 	}
 
 	return ret;
@@ -617,7 +675,7 @@ PWMESC::Run()
 void
 PWMESC::task_main()
 {
-	if (init_pwm_outputs() != 0) {
+	if (init_outputs() != 0) {
 		PX4_ERR("PWM initialization failed");
 		_task_should_exit = true;
 	}
@@ -666,9 +724,7 @@ PWMESC::task_main()
 	/* Configure PWM to default rate, 0 pulse and stop */
 
 	for (int i = 0; i < PWMESC_N_DEVICES; i++) {
-		if (_pwm_fd[i] >= 0) {
-			set_defaults(_pwm_fd[i], PWMIOC_STOP);
-		}
+		initialize_pwm(i, _pwm_fd[i], PWMIOC_STOP);
 	}
 
 	/* tell the dtor that we are exiting */
@@ -680,6 +736,18 @@ void PWMESC::update_params()
 	/* skip update when armed */
 	if (_actuator_armed.armed) {
 		return;
+	}
+
+	char param_name[17] {};
+
+	for (int dev = 0; dev < PWMESC_N_DEVICES; dev++) {
+		/* Channel configuration, PWM / DSHOT & speed for this device */
+
+		snprintf(param_name, sizeof(param_name), "%s_TIM%d", _mixing_output.paramPrefix(), dev);
+
+		if (param_get(param_find(param_name), &_ch_config[dev]) != PX4_OK) {
+			_ch_config[dev] = 400;
+		}
 	}
 
 	/* Call MixingOutput::updateParams */
@@ -709,7 +777,7 @@ PWMESC::start(int argc, char *argv[])
 		return -1;
 	}
 
-	if (OK != PWMESC::getInstance()->init(hitl_mode)) {
+	if (PWMESC::getInstance()->init(hitl_mode) != PX4_OK) {
 		delete PWMESC::getInstance();
 		PX4_ERR("Driver init failed");
 		return -1;
