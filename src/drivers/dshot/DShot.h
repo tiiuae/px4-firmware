@@ -40,7 +40,9 @@
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_command_ack.h>
 
+#include "BDShotTelemetry.h"
 #include "DShotTelemetry.h"
+#include "DShotTelemetryBase.h"
 #include <px4_platform_common/px4_config.h>
 
 using namespace time_literals;
@@ -92,7 +94,7 @@ public:
 	/** @see ModuleBase */
 	static int task_spawn(int argc, char *argv[]);
 
-	bool telemetry_enabled() const { return _telemetry != nullptr; }
+	bool telemetry_enabled() const { return _telemetry != nullptr && (_telemetry->handler != &_telemetry->no_telemetry); }
 
 	bool updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS],
 			   unsigned num_outputs, unsigned num_control_groups_updated) override;
@@ -122,17 +124,22 @@ private:
 	};
 
 	struct Telemetry {
-		DShotTelemetry handler{};
+		bool bidirectional{false};
+		DShotTelemetryBase no_telemetry{};
+		DShotTelemetry serial_handler{};
+		BDShotTelemetry bidir_handler{};
+		DShotTelemetryBase *handler{&no_telemetry};
 		uORB::PublicationMultiData<esc_status_s> esc_status_pub{ORB_ID(esc_status)};
 		int last_telemetry_index{-1};
 		uint8_t actuator_functions[esc_status_s::CONNECTED_ESC_MAX] {};
+		uint8_t output_channels[esc_status_s::CONNECTED_ESC_MAX] {};
 	};
 
 	void enable_dshot_outputs(const bool enabled);
 
 	void init_telemetry(const char *device);
 
-	void handle_new_telemetry_data(const int telemetry_index, const DShotTelemetry::EscData &data);
+	void handle_new_telemetry_data(const int telemetry_index, const DShotTelemetryBase::EscData &data);
 
 	int request_esc_info();
 
@@ -155,11 +162,12 @@ private:
 
 	px4::atomic<Command *> _new_command{nullptr};
 
-	px4::atomic<DShotTelemetry::OutputBuffer *> _request_esc_info{nullptr};
+	px4::atomic<DShotTelemetryBase::OutputBuffer *> _request_esc_info{nullptr};
 
 	bool _outputs_initialized{false};
 	bool _outputs_on{false};
 	bool _waiting_for_esc_info{false};
+	bool _bidirectional_dshot_enabled{false};
 
 	static constexpr unsigned _num_outputs{DIRECT_PWM_OUTPUT_CHANNELS};
 	uint32_t _output_mask{0};
@@ -174,6 +182,8 @@ private:
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::DSHOT_MIN>)    _param_dshot_min,
+		(ParamBool<px4::params::DSHOT_BIDIR_EN>) _param_dshot_bidir_en,
+		(ParamFloat<px4::params::DSHOT_TLM_FMULT>) _param_dshot_tlm_fmult,
 		(ParamBool<px4::params::DSHOT_3D_ENABLE>) _param_dshot_3d_enable,
 		(ParamInt<px4::params::DSHOT_3D_DEAD_H>) _param_dshot_3d_dead_h,
 		(ParamInt<px4::params::DSHOT_3D_DEAD_L>) _param_dshot_3d_dead_l,

@@ -42,6 +42,7 @@ px4_add_module(
 	MAIN dshot
 	SRCS
 		DShot.cpp
+		BDShotTelemetry.cpp
 		DShotTelemetry.cpp
 	DEPENDS
 		arch_io_pins
