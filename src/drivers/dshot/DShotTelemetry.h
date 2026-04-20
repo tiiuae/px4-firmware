@@ -33,31 +33,11 @@
 
 #pragma once
 
-#include <drivers/drv_hrt.h>
+#include "DShotTelemetryBase.h"
 
-class DShotTelemetry
+class DShotTelemetry : public DShotTelemetryBase
 {
 public:
-	struct EscData {
-		hrt_abstime time;
-		int8_t temperature;  ///< [deg C]
-		int16_t voltage;     ///< [0.01V]
-		int16_t current;     ///< [0.01A]
-		int16_t consumption; ///< [mAh]
-		int16_t erpm;        ///< [100ERPM]
-	};
-
-	static constexpr int esc_info_size_blheli32 = 64;
-	static constexpr int esc_info_size_kiss_v1 = 15;
-	static constexpr int esc_info_size_kiss_v2 = 21;
-	static constexpr int max_esc_info_size = esc_info_size_blheli32;
-
-	struct OutputBuffer {
-		uint8_t buffer[max_esc_info_size];
-		int buf_pos{0};
-		int motor_index;
-	};
-
 	~DShotTelemetry();
 
 	int init(const char *uart_device);
@@ -100,7 +80,9 @@ public:
 
 	void printStatus() const;
 
-	static void decodeAndPrintEscInfoPacket(const OutputBuffer &buffer);
+	void decodeAndPrintEscInfoPacket(const OutputBuffer &buffer);
+
+	bool supportsEscInfoRequest() const { return true; }
 
 private:
 	static constexpr int ESC_FRAME_SIZE = 10;
