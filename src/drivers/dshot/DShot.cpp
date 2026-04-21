@@ -155,6 +155,13 @@ void DShot::enable_dshot_outputs(const bool enabled)
 			return;
 		}
 
+		{
+			const uint64_t t_min_us = (16ULL * 1000000ULL + dshot_frequency - 1) / dshot_frequency;
+			_min_output_update_interval_us = _bidirectional_dshot_enabled ? (2ULL * t_min_us + 30ULL) : t_min_us;
+		}
+
+		_last_output_update_timestamp = 0;
+
 		int ret = up_dshot_init(_output_mask, dshot_frequency, _bidirectional_dshot_enabled);
 
 		if (ret < 0) {
@@ -387,6 +394,10 @@ bool DShot::updateOutputs(uint16_t outputs[MAX_ACTUATORS],
 		return false;
 	}
 
+	if (hrt_elapsed_time(&_last_output_update_timestamp) < _min_output_update_interval_us) {
+		return false;
+	}
+
 	int requested_telemetry_index = -1;
 
 	if (_telemetry) {
@@ -434,6 +445,7 @@ bool DShot::updateOutputs(uint16_t outputs[MAX_ACTUATORS],
 	}
 
 	up_dshot_trigger();
+	_last_output_update_timestamp = hrt_absolute_time();
 
 	return true;
 }
