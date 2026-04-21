@@ -158,6 +158,8 @@ private:
 	bool _outputs_initialized{false};
 	bool _outputs_on{false};
 	bool _bidirectional_dshot_enabled{false};
+	uint64_t _last_output_update_timestamp{0};
+	uint32_t _min_output_update_interval_us{0};
 
 	static constexpr unsigned _num_outputs{DIRECT_PWM_OUTPUT_CHANNELS};
 	uint32_t _output_mask{0};
