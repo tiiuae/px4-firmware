@@ -64,8 +64,6 @@ DShot::~DShot()
 
 int DShot::init()
 {
-	_output_mask = (1u << _num_outputs) - 1;
-
 	// Getting initial parameter values
 	update_params();
 
@@ -97,9 +95,23 @@ int DShot::task_spawn(int argc, char *argv[])
 	return PX4_ERROR;
 }
 
+uint32_t DShot::get_active_channel_mask()
+{
+	uint32_t mask = 0;
+
+	for (unsigned i = 0; i < _num_outputs; ++i) {
+		if (_mixing_output.isFunctionSet(i)) {
+			mask |= (1 << i);
+		}
+	}
+
+	return mask & _timer_filtered_output_mask;
+}
+
 void DShot::enable_dshot_outputs(const bool enabled)
 {
 	if (enabled && !_outputs_initialized) {
+		uint32_t timer_filtered_output_mask = (1u << _num_outputs) - 1;
 		unsigned int dshot_frequency = 0;
 		uint32_t dshot_frequency_param = 0;
 
@@ -131,7 +143,7 @@ void DShot::enable_dshot_outputs(const bool enabled)
 				dshot_frequency_request = DSHOT1200;
 
 			} else {
-				_output_mask &= ~channels; // don't use for dshot
+				timer_filtered_output_mask &= ~channels; // don't use for dshot
 			}
 
 			if (dshot_frequency_request != 0) {
@@ -146,9 +158,20 @@ void DShot::enable_dshot_outputs(const bool enabled)
 			}
 		}
 
-		if (_output_mask == 0 || dshot_frequency == 0) {
+		if (timer_filtered_output_mask == 0 || dshot_frequency == 0) {
 			PX4_DEBUG("No DShot timer groups configured on %s, skipping init", _mixing_output.paramPrefix());
 			request_stop();
+			return;
+		}
+
+		// Store timer-filtered mask for later use during parameter updates
+		// and update _output mask to have only the active (not disabled channels)
+
+		_timer_filtered_output_mask = timer_filtered_output_mask;
+		const uint32_t output_mask = get_active_channel_mask();
+
+		// In case channel functiona are not configured for the mixer, just return, re-try later
+		if (output_mask == 0) {
 			return;
 		}
 
@@ -160,6 +183,7 @@ void DShot::enable_dshot_outputs(const bool enabled)
 		if (dshot_telemetry_frequency > 0) {
 			const uint64_t t_min_us = (16ULL * 1000000ULL + dshot_telemetry_frequency - 1) /
 						  dshot_telemetry_frequency;
+
 			_min_output_update_interval_us = _bidirectional_dshot_enabled ? (2ULL * t_min_us + 30ULL) : t_min_us;
 
 		} else {
@@ -167,30 +191,20 @@ void DShot::enable_dshot_outputs(const bool enabled)
 		}
 
 		_last_output_update_timestamp = 0;
+		_dshot_frequency = dshot_frequency;
+		_dshot_telemetry_frequency = dshot_telemetry_frequency;
 
-		int ret = up_dshot_init(_output_mask, dshot_frequency, dshot_telemetry_frequency,
+		int ret = up_dshot_init(output_mask, dshot_frequency, dshot_telemetry_frequency,
 					_bidirectional_dshot_enabled);
 
-		if (ret < 0) {
-			PX4_ERR("up_dshot_init failed (%i)", ret);
-			return;
-		}
-
-		_output_mask = ret;
-
-		// disable unused functions
-		for (unsigned i = 0; i < _num_outputs; ++i) {
-			if (((1 << i) & _output_mask) == 0) {
-				_mixing_output.disableFunction(i);
-			}
-		}
-
-		if (_output_mask == 0) {
+		if (ret <= 0) {
 			// exit the module if no outputs used
+			PX4_ERR("up_dshot_init failed (%i)", ret);
 			request_stop();
 			return;
 		}
 
+		_output_mask = ret;
 		_outputs_initialized = true;
 
 		if (_bidirectional_dshot_enabled && !_telemetry) {
@@ -589,6 +603,24 @@ void DShot::Run()
 	// check at end of cycle (updateSubscriptions() can potentially change to a different WorkQueue thread)
 	_mixing_output.updateSubscriptions(true);
 
+	// Now that updateSubscriptions() has updated _function_assignment[], apply any
+	// pending output mask reconfiguration triggered by a parameter change.
+	if (_reconfigure_output_mask) {
+		_reconfigure_output_mask = false;
+		uint32_t output_mask = get_active_channel_mask();
+
+		if (output_mask != _output_mask) {
+			int ret = up_dshot_init(output_mask, _dshot_frequency, _dshot_telemetry_frequency, _bidirectional_dshot_enabled);
+
+			if (ret < 0) {
+				PX4_ERR("DShot initialization failed");
+
+			} else {
+				_output_mask = ret;
+			}
+		}
+	}
+
 	perf_end(_cycle_perf);
 }
 
@@ -674,6 +706,14 @@ void DShot::update_params()
 	_parameter_update_sub.copy(&pupdate);
 
 	updateParams();
+
+	// Schedule a reconfiguration check for after updateSubscriptions() has updated
+	// the function assignments. _function_assignment[] is not yet updated at this
+	// point (MixingOutput defers that to updateSubscriptions()), so we must not
+	// call get_active_channel_mask() here.
+	if (_outputs_initialized) {
+		_reconfigure_output_mask = true;
+	}
 
 	// we use a minimum value of 1, since 0 is for disarmed
 	_mixing_output.setAllMinValues(math::constrain(static_cast<int>((_param_dshot_min.get() *
