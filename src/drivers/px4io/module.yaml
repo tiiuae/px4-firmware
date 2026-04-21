@@ -2,6 +2,7 @@ module_name: PWM MAIN
 actuator_output:
   output_groups:
     - generator: pwm
+      timer_config_file: src/drivers/px4io/timer_config_metadata.cpp
       param_prefix: PWM_MAIN
       channel_labels: ['MAIN', 'Capture']
       channel_label_module_name_prefix: false
