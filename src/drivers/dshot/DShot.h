@@ -151,6 +151,8 @@ private:
 
 	void handle_vehicle_commands();
 
+	uint32_t get_active_channel_mask();
+
 	const char *_param_prefix;
 	MixingOutput _mixing_output;
 	uint32_t _reversible_outputs{};
@@ -168,11 +170,15 @@ private:
 	bool _outputs_on{false};
 	bool _waiting_for_esc_info{false};
 	bool _bidirectional_dshot_enabled{false};
+	bool _reconfigure_output_mask{false};
 	uint64_t _last_output_update_timestamp{0};
 	uint32_t _min_output_update_interval_us{0};
+	unsigned _dshot_frequency{0};
+	unsigned _dshot_telemetry_frequency{0};
 
 	static constexpr unsigned _num_outputs{DIRECT_PWM_OUTPUT_CHANNELS};
 	uint32_t _output_mask{0};
+	uint32_t _timer_filtered_output_mask{0};
 
 	perf_counter_t	_cycle_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
 
