@@ -128,6 +128,10 @@ bool DShot::updateOutputs(float *outputs, unsigned num_outputs, unsigned num_con
 		return false;
 	}
 
+	if (hrt_elapsed_time(&_last_output_update_timestamp) < _min_output_update_interval_us) {
+		return false;
+	}
+
 	uint16_t hw_outputs[MAX_ACTUATORS] = {};
 
 	for (unsigned i = 0; i < num_outputs; i++) {
@@ -157,6 +161,7 @@ bool DShot::updateOutputs(float *outputs, unsigned num_outputs, unsigned num_con
 	}
 
 	up_dshot_trigger();
+	_last_output_update_timestamp = hrt_absolute_time();
 
 	return true;
 }
@@ -998,6 +1003,10 @@ void DShot::mixerChanged()
 
 		_bdshot_motor_mask = new_bdshot_motor_mask;
 		PX4_DEBUG("Motor mask: 0x%" PRIx32 ", BDShot motor mask: 0x%" PRIx32, _motor_mask, _bdshot_motor_mask);
+
+		const uint64_t t_min_us = (16ULL * 1000000ULL + _dshot_frequency - 1) / _dshot_frequency;
+		_min_output_update_interval_us = _bdshot_output_mask != 0 ? (2ULL * t_min_us + 30ULL) : t_min_us;
+		_last_output_update_timestamp = 0;
 
 		up_dshot_init(_output_mask, _bdshot_output_mask, _dshot_frequency, _bdshot_edt_enabled);
 		up_dshot_arm(true);

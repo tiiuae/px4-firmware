@@ -198,6 +198,8 @@ private:
 
 	// Hardware initialization state
 	bool _hardware_initialized = false;
+	uint64_t _last_output_update_timestamp{0};
+	uint32_t _min_output_update_interval_us{0};
 	uint32_t _dshot_frequency = 0;
 	uint32_t _bdshot_timer_channels = 0;
 
