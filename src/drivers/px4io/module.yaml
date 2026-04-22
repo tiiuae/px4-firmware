@@ -1,5 +1,6 @@
-module_name: PWM MAIN
+module_name: I/O MAIN
 actuator_output:
+  show_subgroups_if: 'SYS_USE_IO>0'
   output_groups:
     - generator: pwm
       timer_config_file: src/drivers/px4io/timer_config_metadata.cpp
@@ -27,3 +28,16 @@ actuator_output:
             200: PWM 200 Hz
             400: PWM 400 Hz
         reboot_required: true
+
+parameters:
+  - group: System
+    definitions:
+      SYS_USE_IO:
+        description:
+          short: Use I/O board
+          long: |
+            Set to 1 to use the PX4IO board for PWM output on MAIN.
+            Set to 0 to disable PX4IO and use onboard PWM output instead.
+        type: boolean
+        reboot_required: true
+        default: true
