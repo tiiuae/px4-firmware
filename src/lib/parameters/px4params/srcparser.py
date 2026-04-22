@@ -16,8 +16,11 @@ class ParameterGroup(object):
 
     def AddParameter(self, param):
         """
-        Add parameter to the group
+        Add parameter to the group, ignoring duplicates
         """
+        for existing in self.params:
+            if existing.GetName() == param.GetName() and existing.GetFieldValue("board") == param.GetFieldValue("board"):
+                return
         self.params.append(param)
 
     def GetName(self):
@@ -377,10 +380,10 @@ class SourceParser(object):
                 name_plus_board = name + "+" + board
                 for seenParamName in seenParamNames:
                     if seenParamName == name_plus_board:
-                        sys.stderr.write("Duplicate parameter definition: {0}\n".format(name_plus_board))
-                        return False
-                seenParamNames.append(name_plus_board)
-                # Validate values
+                        sys.stderr.write("Duplicate parameter definition: {0} (ignored)\n".format(name_plus_board))
+                        break
+                else:
+                    seenParamNames.append(name_plus_board)                # Validate values
                 default = param.GetDefault()
                 min = param.GetFieldValue("min")
                 max = param.GetFieldValue("max")
