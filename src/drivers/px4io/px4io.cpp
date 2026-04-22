@@ -339,7 +339,8 @@ private:
 		(ParamInt<px4::params::RC_RSSI_PWM_CHAN>) _param_rc_rssi_pwm_chan,
 		(ParamInt<px4::params::RC_RSSI_PWM_MAX>) _param_rc_rssi_pwm_max,
 		(ParamInt<px4::params::RC_RSSI_PWM_MIN>) _param_rc_rssi_pwm_min,
-		(ParamInt<px4::params::SENS_EN_THERMAL>) _param_sens_en_themal
+		(ParamInt<px4::params::SENS_EN_THERMAL>) _param_sens_en_themal,
+		(ParamBool<px4::params::SYS_USE_IO>) _param_sys_use_io
 	)
 };
 
@@ -392,6 +393,12 @@ int PX4IO::init()
 	if (ret != OK) {
 		PX4_ERR("init failed %d", ret);
 		return ret;
+	}
+
+	/* Check if SYS_USE_IO parameter is enabled */
+	if (!_param_sys_use_io.get()) {
+		PX4_INFO("PX4IO disabled by SYS_USE_IO parameter");
+		return -1;
 	}
 
 	/* get some parameters */
