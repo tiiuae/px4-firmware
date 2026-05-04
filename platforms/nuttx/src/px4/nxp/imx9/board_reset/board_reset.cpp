@@ -44,6 +44,8 @@
 #include <nuttx/board.h>
 #include <nuttx/sched.h>
 #include "imx9_pmic.h"
+#include "post_panic_routines/panic_pmic_reset.h"
+#include "post_panic_routines/panic_flexspi_nor.h"
 
 #ifdef CONFIG_SMP
 /* The CPU mask for all (valid) CPUs */
@@ -62,7 +64,7 @@ static struct smp_call_data_s g_reboot_data;
 extern "C" void __start(void);
 extern "C" int psci_cpu_off(void);
 
-static void board_reset_enter_bootloader()
+static void board_reset_enter_bootloader(int status)
 {
 	/* WDOG_B pin is unused in current HW design.
 	* Related configuration bits (WDOG_B_CFG) from PMIC RESET_CTRL
@@ -71,35 +73,26 @@ static void board_reset_enter_bootloader()
 	* stay in bootloader: WDOG_B_CFG 11b
 	*/
 
+	switch (status) {
+	case 1: /* REBOOT_TO_BOOTLOADER */
+		imx9_pmic_set_reset_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT |
+					 IMX9_PMIC_RESET_CTRL_WDOG_COLD_RESET_MASK);
+		break;
+
+	case 4: /* REBOOT_FROM_PANIC */
+		/* Reset NOR flash first to prevent USB flashing mode */
+		px4_imx9_flexspi_nor_panic_reset(IMX9_FLEXSPI_BASE, 0);
+		px4_imx9_pmic_panic_reset_with_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT);
+
+		while (1);
+
+	default: /* REBOOT_TO_BOOTLOADER_CONTINUE */
+		imx9_pmic_set_reset_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT);
+	}
+
 #if defined(BOARD_HAS_ON_RESET)
 	board_on_reset(REBOOT_TO_BOOTLOADER);
 #endif
-
-	imx9_pmic_set_reset_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT |
-				 IMX9_PMIC_RESET_CTRL_WDOG_COLD_RESET_MASK);
-
-	/* Reset the whole SoC */
-
-	imx9_pmic_reset();
-
-	while (1);
-}
-
-static void board_reset_enter_bootloader_and_continue_boot()
-{
-	/* WDOG_B pin is unused in current HW design.
-	* Related configuration bits (WDOG_B_CFG) from PMIC RESET_CTRL
-	* register are borrowed for stay in bootloader reason delivery.
-	*
-	* With PMIC register power on value system will boot normally.
-	*/
-
-#if defined(BOARD_HAS_ON_RESET)
-	board_on_reset(REBOOT_TO_BOOTLOADER_CONTINUE);
-#endif
-
-	imx9_pmic_set_reset_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT);
-
 	/* Reset the whole SoC */
 
 	imx9_pmic_reset();
@@ -145,25 +138,8 @@ static int board_reset_enter_app(FAR void *arg)
 	return 0;
 }
 
-int board_reset(int status)
+int board_reset_warm()
 {
-	DEBUGASSERT(!up_interrupt_context());
-
-	/* First check if doing a PMIC reset */
-
-	if (status == REBOOT_TO_BOOTLOADER) {
-		/* PMIC reset, stay in bootloader */
-
-		board_reset_enter_bootloader();
-
-	} else if (status == REBOOT_TO_BOOTLOADER_CONTINUE) {
-		/* PMIC reset, reboot */
-
-		board_reset_enter_bootloader_and_continue_boot();
-	}
-
-	/* If we and up here, continue with warm boot */
-
 	/* Disable local interrupts */
 
 	up_irq_save();
@@ -193,6 +169,22 @@ int board_reset(int status)
 	/* Enter reboot function */
 
 	board_reset_enter_app(NULL);
+
+	return 0;
+}
+
+int board_reset(int status)
+{
+	if (status != REBOOT_FROM_PANIC) {
+		DEBUGASSERT(!up_interrupt_context());
+	}
+
+	if (status == REBOOT_REQUEST) {
+		board_reset_warm();
+
+	} else {
+		board_reset_enter_bootloader(status);
+	}
 
 	return 0;
 }

@@ -33,6 +33,9 @@
 
 px4_add_library(arch_board_reset
 	board_reset.cpp
+	post_panic_routines/panic_lpi2c.cpp
+	post_panic_routines/panic_pmic_reset.cpp
+	post_panic_routines/panic_flexspi_nor.cpp
 )
 
 if (NOT DEFINED CONFIG_BUILD_FLAT)
