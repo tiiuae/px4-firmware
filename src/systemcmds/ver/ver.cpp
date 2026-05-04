@@ -68,6 +68,7 @@ static const char sz_ver_gcc_str[] 	= "gcc";
 static const char sz_ver_all_str[] 	= "all";
 static const char mcu_ver_str[]		= "mcu";
 static const char px4_guid_str[]         = "px4guid";
+static const char px4_crash_str[]         = "crash";
 
 static void usage(const char *reason)
 {
@@ -86,6 +87,7 @@ static void usage(const char *reason)
 	PRINT_MODULE_USAGE_COMMAND_DESCR("bdate", "Build date and time");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("px4guid", "PX4 GUID");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("uri", "Build URI");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("crash", "Generate kernel Panic");
 
 	PRINT_MODULE_USAGE_COMMAND_DESCR("all", "Print all versions");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("hwcmp", "Compare hardware version (returns 0 on match)");
@@ -306,6 +308,14 @@ extern "C" __EXPORT int ver_main(int argc, char *argv[])
 
 				board_get_px4_guid_formated(px4guid_fmt_buffer, sizeof(px4guid_fmt_buffer));
 				PX4_INFO_RAW("PX4GUID: %s\n", px4guid_fmt_buffer);
+				ret = 0;
+			}
+
+
+			if (!strncmp(argv[1], px4_crash_str, sizeof(px4_crash_str))) {
+				uint64_t *ptr = 0;
+				uint64_t crash = *ptr;
+				PX4_INFO_RAW("Did not crash.. %lu\n", crash);
 				ret = 0;
 			}
 
