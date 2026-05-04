@@ -75,6 +75,7 @@ typedef enum {
 	REBOOT_TO_BOOTLOADER = 1,    ///< Reboot to PX4 bootloader
 	REBOOT_TO_ISP = 2,           ///< Reboot to ISP bootloader
 	REBOOT_TO_BOOTLOADER_CONTINUE = 3, // < Reboot to bootloader and continue TODO!
+	REBOOT_FROM_PANIC = 4,
 } reboot_request_t;
 
 /**
