@@ -46,6 +46,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <version/version.h>
+#include "imx9_pmic.h"
 
 #ifndef PX4_BL_VERSION
 #define PX4_BL_VERSION NULL
@@ -53,6 +54,12 @@
 #ifndef PX4_ACCEL_VERSION
 #define PX4_ACCEL_VERSION NULL
 #endif
+
+/*
+int imx9_pmic_get_reset_reason(uint8_t *value);
+int imx9_pmic_get_reset_ctrl(uint8_t *value);
+int imx9_pmic_set_reset_ctrl(uint8_t val);
+*/
 
 /* string constants for version commands */
 static const char sz_ver_hw_str[] 	= "hw";
@@ -68,6 +75,8 @@ static const char sz_ver_gcc_str[] 	= "gcc";
 static const char sz_ver_all_str[] 	= "all";
 static const char mcu_ver_str[]		= "mcu";
 static const char px4_guid_str[]         = "px4guid";
+static const char px4_crash_str[]         = "crash";
+static const char px4_pmic_str[]         = "pmic";
 
 static void usage(const char *reason)
 {
@@ -86,6 +95,8 @@ static void usage(const char *reason)
 	PRINT_MODULE_USAGE_COMMAND_DESCR("bdate", "Build date and time");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("px4guid", "PX4 GUID");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("uri", "Build URI");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("crash", "Generate kernel Panic");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("pmic", "Read and write PMIC registers");
 
 	PRINT_MODULE_USAGE_COMMAND_DESCR("all", "Print all versions");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("hwcmp", "Compare hardware version (returns 0 on match)");
@@ -306,6 +317,60 @@ extern "C" __EXPORT int ver_main(int argc, char *argv[])
 
 				board_get_px4_guid_formated(px4guid_fmt_buffer, sizeof(px4guid_fmt_buffer));
 				PX4_INFO_RAW("PX4GUID: %s\n", px4guid_fmt_buffer);
+				ret = 0;
+			}
+
+			if (!strncmp(argv[1], px4_crash_str, sizeof(px4_crash_str))) {
+				uint64_t *ptr = 0;
+				uint64_t crash = *ptr;
+				PX4_INFO_RAW("Did not crash.. %lu\n", crash);
+				ret = 0;
+			}
+
+			if (!strncmp(argv[1], px4_pmic_str, sizeof(px4_pmic_str))) {
+				uint8_t value = 0;
+
+				ret = imx9_pmic_get_reset_reason(&value);
+				if (ret < 0) {
+					return ret;
+				}
+				PX4_INFO_RAW("Reset reason: 0x%02x\n", value);
+				usleep(10000);
+
+				ret = imx9_pmic_get_reset_ctrl(&value);
+				if (ret < 0) {
+					return ret;
+				}
+
+				PX4_INFO_RAW("Reset ctrl (1): 0x%02x\n", value);
+				usleep(10000);
+
+				value = 0xe1;
+				ret = imx9_pmic_set_reset_ctrl(value);
+				if (ret < 0) {
+					return ret;
+				}
+
+				ret = imx9_pmic_get_reset_ctrl(&value);
+				if (ret < 0) {
+					return ret;
+				}
+				PX4_INFO_RAW("Reset ctrl (2): 0x%02x\n", value);
+				usleep(10000);
+
+				value = 0x21;
+				ret = imx9_pmic_set_reset_ctrl(value);
+				if (ret < 0) {
+					return ret;
+				}
+
+				ret = imx9_pmic_get_reset_ctrl(&value);
+				if (ret < 0) {
+					return ret;
+				}
+				PX4_INFO_RAW("Reset ctrl (3): 0x%02x\n", value);
+				usleep(10000);
+
 				ret = 0;
 			}
 
