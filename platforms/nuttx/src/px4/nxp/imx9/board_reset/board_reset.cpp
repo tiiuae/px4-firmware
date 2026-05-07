@@ -75,12 +75,10 @@ static void board_reset_enter_bootloader()
 	board_on_reset(REBOOT_TO_BOOTLOADER);
 #endif
 
-	imx9_pmic_set_reset_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT |
-				 IMX9_PMIC_RESET_CTRL_WDOG_COLD_RESET_MASK);
-
 	/* Reset the whole SoC */
 
-	imx9_pmic_reset();
+	imx9_pmic_forced_reset_with_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT |
+					 IMX9_PMIC_RESET_CTRL_WDOG_COLD_RESET_MASK);
 
 	while (1);
 }
@@ -98,11 +96,9 @@ static void board_reset_enter_bootloader_and_continue_boot()
 	board_on_reset(REBOOT_TO_BOOTLOADER_CONTINUE);
 #endif
 
-	imx9_pmic_set_reset_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT);
-
 	/* Reset the whole SoC */
 
-	imx9_pmic_reset();
+	imx9_pmic_forced_reset_with_ctrl(IMX9_PMIC_RESET_CTRL_DEFAULT);
 
 	while (1);
 }
@@ -147,8 +143,6 @@ static int board_reset_enter_app(FAR void *arg)
 
 int board_reset(int status)
 {
-	DEBUGASSERT(!up_interrupt_context());
-
 	/* First check if doing a PMIC reset */
 
 	if (status == REBOOT_TO_BOOTLOADER) {
@@ -163,6 +157,8 @@ int board_reset(int status)
 	}
 
 	/* If we and up here, continue with warm boot */
+
+	DEBUGASSERT(!up_interrupt_context());
 
 	/* Disable local interrupts */
 
