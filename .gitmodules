@@ -166,3 +166,6 @@
 [submodule "boards/ssrc/salukini"]
 	path = boards/ssrc/salukini
 	url = ../salukini.git
+[submodule "boards/ssrc/saluki-pro"]
+	path = boards/ssrc/saluki-pro
+	url = ../px4-saluki-pro.git
