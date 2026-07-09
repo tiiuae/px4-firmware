@@ -66,6 +66,7 @@ jobs:
           - saluki-micro_default
           - saluki-ft_default
           - salukini_default
+          - saluki-pro_default
         include:
           - product: saluki-v2_flat
             include_in_packaging: false
@@ -403,7 +404,7 @@ jobs:
         run: |
           set -eux
           echo "Building minimal OTA container"
-          PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-nxp93_default ssrc_saluki-micro_default ssrc_salukini_default"
+          PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-nxp93_default ssrc_saluki-micro_default ssrc_salukini_default ssrc_saluki-pro_default"
           REPACKAGE_DIR=$(mktemp -d)
           echo "REPACKAGE_DIR=${REPACKAGE_DIR}" >> "$GITHUB_ENV"
 
