@@ -26,6 +26,7 @@ usage() {
   echo "     saluki-nxp93_default"
   echo "     saluki-micro_default"
   echo "     saluki-ft_default"
+  echo "     saluki-pro_default"
   echo
   exit 1
 }
