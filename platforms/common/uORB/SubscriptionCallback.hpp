@@ -41,12 +41,21 @@
 #include <uORB/SubscriptionInterval.hpp>
 #include <containers/List.hpp>
 #include <px4_platform_common/px4_work_queue/WorkItem.hpp>
+#include <px4_platform_common/posix.h>
+#include <drivers/drv_hrt.h>
 
 namespace uORB
 {
 
 // Subscription wrapper class with callbacks on new publications
-class SubscriptionCallback : public SubscriptionInterval, public ListNode<SubscriptionCallback *>
+//
+// Uses SubscriptionIntervalAtomic because call() runs on the publishing thread
+// (synchronously from orb_publish) while the subscriber thread updates the
+// interval / last-update fields.
+class SubscriptionCallback : public SubscriptionIntervalAtomic
+#ifndef CONFIG_BUILD_FLAT
+	, public ListNode<SubscriptionCallback *>
+#endif
 {
 public:
 	/**
@@ -57,7 +66,7 @@ public:
 	 * @param instance The instance for multi sub.
 	 */
 	SubscriptionCallback(const orb_metadata *meta, uint32_t interval_us = 0, uint8_t instance = 0) :
-		SubscriptionInterval(meta, interval_us, instance)
+		SubscriptionIntervalAtomic(meta, interval_us, instance)
 	{
 	}
 
@@ -66,39 +75,9 @@ public:
 		unregisterCallback();
 	};
 
-	bool registerCallback()
-	{
-		if (!_registered) {
-			if (_subscription.get_node() && Manager::register_callback(_subscription.get_node(), this)) {
-				// registered
-				_registered = true;
+	bool registerCallback();
 
-			} else {
-				// force topic creation by subscribing with old API
-				int fd = orb_subscribe_multi(_subscription.get_topic(), _subscription.get_instance());
-
-				// try to register callback again
-				if (_subscription.subscribe()) {
-					if (_subscription.get_node() && Manager::register_callback(_subscription.get_node(), this)) {
-						_registered = true;
-					}
-				}
-
-				orb_unsubscribe(fd);
-			}
-		}
-
-		return _registered;
-	}
-
-	void unregisterCallback()
-	{
-		if (_subscription.get_node()) {
-			Manager::unregister_callback(_subscription.get_node(), this);
-		}
-
-		_registered = false;
-	}
+	void unregisterCallback();
 
 	/**
 	 * Change subscription instance
@@ -109,9 +88,9 @@ public:
 		bool ret = false;
 
 		if (instance != get_instance()) {
-			const bool registered = _registered;
+			const bool reg = registered();
 
-			if (registered) {
+			if (reg) {
 				unregisterCallback();
 			}
 
@@ -119,7 +98,7 @@ public:
 				ret = true;
 			}
 
-			if (registered) {
+			if (reg) {
 				registerCallback();
 			}
 
@@ -131,14 +110,33 @@ public:
 		return ret;
 	}
 
-	virtual void call() = 0;
+	virtual void call(unsigned generation) = 0;
 
-	bool registered() const { return _registered; }
+#ifndef CONFIG_BUILD_FLAT
+	bool do_call()
+	{
+		bool dequeued = DeviceNode::cb_dequeue(_subscription.get_node(), _cb_handle);
+
+		if (dequeued) {
+			call(_subscription.get_last_generation());
+		}
+
+		return dequeued;
+	}
+#endif
+
+	bool registered() const { return uorb_cb_handle_valid(_cb_handle); }
 
 protected:
 
-	bool _registered{false};
+	uorb_cb_handle_t _cb_handle{UORB_INVALID_CB_HANDLE};
 
+	// Node generation at our last ScheduleNow(), used by the count gate. Only ever
+	// touched from call() (which runs under the publishing node's lock, so it is
+	// serialized) - do NOT write it from the subscriber thread (e.g. in
+	// registerCallback()), or it becomes a cross-thread race. It self-initializes:
+	// the first call() sees a large delta and schedules once, then tracks normally.
+	unsigned _last_scheduled_generation{0};
 };
 
 // Subscription with callback that schedules a WorkItem
@@ -160,12 +158,21 @@ public:
 
 	virtual ~SubscriptionCallbackWorkItem() = default;
 
-	void call() override
+	void call(unsigned generation) override
 	{
-		// schedule immediately if updated (queue depth or subscription interval)
-		if ((_required_updates == 0)
-		    || (Manager::updates_available(_subscription.get_node(), _subscription.get_last_generation()) >= _required_updates)) {
-			if (updated()) {
+		// 'generation' is the publishing node's generation, handed in by the
+		// publisher - so unlike before we never read the subscriber's own cursor
+		// (_last_generation, mutated on the subscriber's thread) from here.
+		// Schedule once enough new samples have accrued since our last schedule
+		// (count gate), respecting the optional interval (interval gate).
+		const uint8_t req = _required_updates;
+
+		if ((generation - _last_scheduled_generation) >= req) {
+			const hrt_abstime last_update = _last_update.load();
+			const uint32_t interval_us = _interval_us.load();
+
+			if ((interval_us == 0) || (hrt_elapsed_time(&last_update) >= interval_us)) {
+				_last_scheduled_generation = generation;
 				_work_item->ScheduleNow();
 			}
 		}
@@ -186,6 +193,39 @@ private:
 	px4::WorkItem *_work_item;
 
 	uint8_t _required_updates{0};
+};
+
+class SubscriptionPollable : public SubscriptionInterval
+{
+public:
+	/**
+	 * Constructor
+	 *
+	 * @param meta The uORB metadata (usually from the ORB_ID() macro) for the topic.
+	 * @param interval The requested maximum update interval in microseconds.
+	 * @param instance The instance for multi sub.
+	 */
+	SubscriptionPollable(const orb_metadata *meta, uint32_t interval_us = 0, uint8_t instance = 0) :
+		SubscriptionInterval(meta, interval_us, instance)
+	{
+	}
+
+	~SubscriptionPollable() = default;
+
+	void registerPoll(int8_t lock_idx)
+	{
+		DeviceNode::register_callback(_subscription.get_node(), nullptr, lock_idx, _last_update.load(), _interval_us.load(), _cb_handle);
+	}
+
+	void unregisterPoll()
+	{
+		// Calling this while a poll is not registered is a no-op
+		if (uorb_cb_handle_valid(_cb_handle)) {
+			DeviceNode::unregister_callback(_subscription.get_node(), _cb_handle);
+		}
+	}
+private:
+	uorb_cb_handle_t _cb_handle{UORB_INVALID_CB_HANDLE};
 };
 
 } // namespace uORB

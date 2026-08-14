@@ -36,26 +36,24 @@
  *
  */
 
+#include <uORB/uORB.h>
 #include "Subscription.hpp"
-#include <px4_platform_common/defines.h>
+#include "uORBManager.hpp"
 
 namespace uORB
 {
 
-bool Subscription::subscribe()
+bool Subscription::subscribe(bool advertise)
 {
-	// check if already subscribed
-	if (_node != nullptr) {
+	if (orb_advert_valid(_node)) {
 		return true;
 	}
 
-	if (_orb_id != ORB_ID::INVALID && uORB::Manager::get_instance()) {
-		unsigned initial_generation;
-		void *node = uORB::Manager::orb_add_internal_subscriber(_orb_id, _instance, &initial_generation);
+	if (_orb_id != ORB_ID::INVALID) {
+		_node = uORB::Manager::orb_add_internal_subscriber(_orb_id, _instance, &_last_generation, advertise);
 
-		if (node) {
-			_node = node;
-			_last_generation = initial_generation;
+		if (orb_advert_valid(_node)) {
+			_advertiser = advertise;
 			return true;
 		}
 	}
@@ -65,28 +63,112 @@ bool Subscription::subscribe()
 
 void Subscription::unsubscribe()
 {
-	if (_node != nullptr) {
-		uORB::Manager::orb_remove_internal_subscriber(_node);
+	if (orb_advert_valid(_node)) {
+		uORB::Manager::orb_remove_internal_subscriber(_node, _advertiser);
 	}
 
-	_node = nullptr;
 	_last_generation = 0;
+}
+
+bool Subscription::update(void *dst)
+{
+	if (subscribe()) {
+		return Manager::orb_data_copy(_node, dst, _last_generation, true);
+	}
+
+	return false;
+}
+
+bool Subscription::copy(void *dst)
+{
+	if (subscribe()) {
+		return Manager::orb_data_copy(_node, dst, _last_generation, false);
+	}
+
+	return false;
 }
 
 bool Subscription::ChangeInstance(uint8_t instance)
 {
 	if (instance != _instance) {
-		if (uORB::Manager::orb_device_node_exists(_orb_id, instance)) {
-			// if desired new instance exists, unsubscribe from current
+		// Subscribe to the new existing node
+		unsigned generation;
+
+		if (orb_exists(get_topic(), instance) != PX4_OK) {
+			return false;
+		}
+
+		orb_advert_t new_node = uORB::Manager::orb_add_internal_subscriber(_orb_id, instance, &generation, false);
+
+		if (orb_advert_valid(new_node)) {
 			unsubscribe();
+			_node = new_node;
 			_instance = instance;
-			subscribe();
+			_last_generation = generation;
 			return true;
 		}
 
 	} else {
 		// already on desired index
 		return true;
+	}
+
+	return false;
+}
+
+Subscription::Subscription(ORB_ID id, uint8_t instance) :
+	_orb_id(id),
+	_instance(instance)
+{
+	subscribe();
+}
+
+Subscription::Subscription(const orb_metadata *meta, uint8_t instance) :
+	_orb_id((meta == nullptr) ? ORB_ID::INVALID : static_cast<ORB_ID>(meta->o_id)),
+	_instance(instance)
+{
+	subscribe();
+}
+
+Subscription::Subscription(const Subscription &other) : _orb_id(other._orb_id), _instance(other._instance) {}
+
+Subscription::Subscription(const Subscription &&other) noexcept : _orb_id(other._orb_id), _instance(other._instance) {}
+
+Subscription &Subscription::operator=(const Subscription &other)
+{
+	// Check for self-assignment
+	if (this == &other) {
+		return *this;
+	}
+
+	unsubscribe();
+	_orb_id = other._orb_id;
+	_instance = other._instance;
+	return *this;
+}
+
+Subscription &Subscription::operator=(Subscription &&other) noexcept
+{
+	unsubscribe();
+	_orb_id = other._orb_id;
+	_instance = other._instance;
+	return *this;
+}
+
+Subscription::~Subscription()
+{
+	unsubscribe();
+}
+
+bool Subscription::advertised()
+{
+	return Manager::has_publisher(_orb_id, _instance);
+}
+
+bool Subscription::updated()
+{
+	if (subscribe()) {
+		return Manager::updates_available(_node, _last_generation);
 	}
 
 	return false;

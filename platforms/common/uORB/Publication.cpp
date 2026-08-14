@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2016 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2012-2019 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,15 +30,76 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#pragma once
 
-/*
- * This file is a shim to bridge to the many SoC architecture supported by PX4
+/**
+ * @file Publication.cpp
+ *
+ * Out-of-line definitions of the type-independent PublicationBase machinery.
+ * Keeping advertise()/publish() out of the header emits them once instead of
+ * once per translation unit (PX4 links with bfd ld, no ICF, and no LTO).
  */
 
-// include arch-specific header
-#include <px4_arch/micro_hal.h>
+#include "Publication.hpp"
+#include "PublicationMulti.hpp"
 
-#ifndef PX4_ARCH_DCACHE_ALIGNMENT
-#define PX4_ARCH_DCACHE_ALIGNMENT 1
-#endif
+namespace uORB
+{
+
+PublicationBase::~PublicationBase()
+{
+	if (orb_advert_valid(_handle)) {
+		// don't automatically unadvertise queued publications (eg vehicle_command)
+		if (Manager::orb_get_queue_size(_handle) == 1) {
+			unadvertise();
+		}
+	}
+}
+
+bool PublicationBase::advertise()
+{
+	if (!advertised()) {
+		_handle = orb_advertise(get_topic(), nullptr);
+	}
+
+	return advertised();
+}
+
+bool PublicationBase::publish(const void *data)
+{
+	if (!advertised()) {
+		advertise();
+	}
+
+	return (Manager::orb_publish(get_topic(), _handle, data) == PX4_OK);
+}
+
+bool PublicationMultiBase::advertise()
+{
+	if (!advertised()) {
+		int instance = 0;
+		_handle = orb_advertise_multi(get_topic(), nullptr, &instance);
+	}
+
+	return advertised();
+}
+
+bool PublicationMultiBase::publish(const void *data)
+{
+	if (!advertised()) {
+		advertise();
+	}
+
+	return (orb_publish(get_topic(), _handle, data) == PX4_OK);
+}
+
+int PublicationMultiBase::get_instance()
+{
+	// advertise if not already advertised
+	if (advertise()) {
+		return Manager::orb_get_instance(_handle);
+	}
+
+	return -1;
+}
+
+} // namespace uORB

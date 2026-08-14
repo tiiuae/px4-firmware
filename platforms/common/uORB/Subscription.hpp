@@ -45,7 +45,6 @@
 #include <lib/mathlib/mathlib.h>
 
 #include "uORBManager.hpp"
-#include "uORBUtils.hpp"
 
 namespace uORB
 {
@@ -63,12 +62,7 @@ public:
 	 * @param id The uORB ORB_ID enum for the topic.
 	 * @param instance The instance for multi sub.
 	 */
-	Subscription(ORB_ID id, uint8_t instance = 0) :
-		_orb_id(id),
-		_instance(instance)
-	{
-		subscribe();
-	}
+	Subscription(ORB_ID id, uint8_t instance = 0);
 
 	/**
 	 * Constructor
@@ -76,92 +70,44 @@ public:
 	 * @param meta The uORB metadata (usually from the ORB_ID() macro) for the topic.
 	 * @param instance The instance for multi sub.
 	 */
-	Subscription(const orb_metadata *meta = nullptr, uint8_t instance = 0) :
-		_orb_id((meta == nullptr) ? ORB_ID::INVALID : static_cast<ORB_ID>(meta->o_id)),
-		_instance(instance)
-	{
-		subscribe();
-	}
+	Subscription(const orb_metadata *meta = nullptr, uint8_t instance = 0);
 
 	// Copy constructor
-	Subscription(const Subscription &other) : _orb_id(other._orb_id), _instance(other._instance) {}
+	Subscription(const Subscription &other);
 
 	// Move constructor
-	Subscription(const Subscription &&other) noexcept : _orb_id(other._orb_id), _instance(other._instance) {}
+	Subscription(const Subscription &&other) noexcept;
 
 	// copy assignment
-	Subscription &operator=(const Subscription &other)
-	{
-		unsubscribe();
-		_orb_id = other._orb_id;
-		_instance = other._instance;
-		return *this;
-	}
+	Subscription &operator=(const Subscription &other);
 
 	// move assignment
-	Subscription &operator=(Subscription &&other) noexcept
-	{
-		unsubscribe();
-		_orb_id = other._orb_id;
-		_instance = other._instance;
-		return *this;
-	}
+	Subscription &operator=(Subscription &&other) noexcept;
 
-	~Subscription()
-	{
-		unsubscribe();
-	}
+	~Subscription();
 
-	bool subscribe();
+	bool subscribe(bool advertise = false);
 	void unsubscribe();
 
-	bool valid() const { return _node != nullptr; }
-	bool advertised()
-	{
-		if (subscribe()) {
-			return Manager::is_advertised(_node);
-		}
-
-		return false;
-	}
+	bool valid() const { return orb_advert_valid(_node); }
+	bool advertised();
 
 	/**
 	 * Check if there is a new update.
 	 */
-	bool updated()
-	{
-		if (subscribe()) {
-			return Manager::updates_available(_node, _last_generation);
-		}
-
-		return false;
-	}
+	bool updated();
 
 	/**
 	 * Update the struct
 	 * @param dst The uORB message struct we are updating.
 	 */
-	bool update(void *dst)
-	{
-		if (subscribe()) {
-			return Manager::orb_data_copy(_node, dst, _last_generation, true);
-		}
-
-		return false;
-	}
+	bool update(void *dst);
 
 	/**
 	 * Copy the struct
 	 * @param dst The uORB message struct we are updating.
 	 */
-	bool copy(void *dst)
-	{
-		if (subscribe()) {
-			return Manager::orb_data_copy(_node, dst, _last_generation, false);
-		}
-
-		return false;
-	}
+	bool copy(void *dst);
 
 	/**
 	 * Change subscription instance
@@ -178,16 +124,18 @@ public:
 protected:
 
 	friend class SubscriptionCallback;
+	friend class SubscriptionPollable;
 	friend class SubscriptionCallbackWorkItem;
 
-	void *get_node() { return _node; }
+	orb_advert_t &get_node() { return _node; }
 
-	void *_node{nullptr};
+	orb_advert_t _node{ORB_ADVERT_INVALID};
 
 	unsigned _last_generation{0}; /**< last generation the subscriber has seen */
 
 	ORB_ID _orb_id{ORB_ID::INVALID};
 	uint8_t _instance{0};
+	bool _advertiser{false};
 };
 
 // Subscription wrapper class with data
