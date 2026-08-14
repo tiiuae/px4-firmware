@@ -33,8 +33,6 @@
 
 #include "SubscriptionInterval.hpp"
 
-#include <drivers/drv_hrt.h>
-
 namespace uORB
 {
 
@@ -46,8 +44,9 @@ template <bool ATOMIC>
 bool SubscriptionIntervalBase<ATOMIC>::updated()
 {
 	hrt_abstime last_update = _last_update.load();
+	const uint32_t interval_us = _interval_us.load();
 
-	if (advertised() && (hrt_elapsed_time(&last_update) >= _interval_us.load())) {
+	if (advertised() && (interval_us == 0 || static_cast<int64_t>(hrt_absolute_time() - last_update) >= interval_us)) {
 		return _subscription.updated();
 	}
 
