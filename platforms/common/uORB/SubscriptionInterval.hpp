@@ -122,7 +122,7 @@ public:
 
 	~SubscriptionIntervalBase() = default;
 
-	bool subscribe() { return _subscription.subscribe(); }
+	bool subscribe(bool create = false) { return _subscription.subscribe(create); }
 	void unsubscribe() { _subscription.unsubscribe(); }
 
 	bool advertised() { return _subscription.advertised(); }
@@ -155,15 +155,17 @@ public:
 
 	/**
 	 * Set the interval in microseconds
+	 * Make unread data immediately eligible.
 	 * @param interval The interval in microseconds.
 	 */
-	void		set_interval_us(uint32_t interval) { _interval_us.store(interval); }
+	void		set_interval_us(uint32_t interval) { _interval_us.store(interval); set_last_update(hrt_absolute_time() - interval); }
 
 	/**
 	 * Set the interval in milliseconds
+	 * Make unread data immediately eligible.
 	 * @param interval The interval in milliseconds.
 	 */
-	void		set_interval_ms(uint32_t interval) { _interval_us.store(interval * 1000); }
+	void		set_interval_ms(uint32_t interval) { set_interval_us(interval * 1000); }
 
 	/**
 	 * Set the last data update
