@@ -1,0 +1,5 @@
+menuconfig MODULES_LOG_ERASE_TRIGGER
+	bool "log_erase_trigger"
+	default n
+	---help---
+		Enable support for log_erase_trigger

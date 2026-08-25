@@ -108,3 +108,5 @@ src/systemcmds/topic_listener/listener_generated.cpp
 
 # colcon
 log/
+/.cache/clangd/index
+/.direnv

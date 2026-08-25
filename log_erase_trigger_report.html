@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PX4 Log Erase Trigger — Investigation Report (Saluki-NXP93)</title>
+<style>
+  /* ---- Light palette is the base; dark redefines only the tokens. ---- */
+  :root {
+    --bg: #f7f8fa;
+    --panel: #ffffff;
+    --panel2: #eef1f6;
+    --border: #d7dce5;
+    --border-strong: #b9c1ce;
+    --text: #1d2330;
+    --muted: #5d6779;
+    --accent: #1f5fd0;
+    --accent2: #0f7a5f;
+    --warn: #9a6400;
+    --danger: #b3261e;
+    --ok: #0f7a5f;
+    --code-bg: #fbfcfd;
+    --code-text: #1d2330;
+    --gutter: #9aa3b2;
+    --kw: #8829a0;
+    --ty: #8a5a00;
+    --st: #1a7f37;
+    --cm: #6a737d;
+    --fn: #1f5fd0;
+    --pp: #b3261e;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.05);
+    --fact-rail: #b9c1ce;
+    --proposal-bg: #f3f0fb;
+    --proposal-rail: #7a5af8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --panel2: #1e222b;
+      --border: #2a2f3a;
+      --border-strong: #3a414f;
+      --text: #d7dde8;
+      --muted: #8a93a6;
+      --accent: #6ea8ff;
+      --accent2: #56d9b0;
+      --warn: #ffb454;
+      --danger: #ff6b6b;
+      --ok: #56d9b0;
+      --code-bg: #0b0d12;
+      --code-text: #e6e9f0;
+      --gutter: #4b5363;
+      --kw: #c678dd;
+      --ty: #e5c07b;
+      --st: #98c379;
+      --cm: #7d8799;
+      --fn: #61afef;
+      --pp: #e06c75;
+      --shadow: none;
+      --fact-rail: #2a2f3a;
+      --proposal-bg: rgba(122,90,248,.10);
+      --proposal-rail: #a68bff;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel2: #1e222b;
+    --border: #2a2f3a;
+    --border-strong: #3a414f;
+    --text: #d7dde8;
+    --muted: #8a93a6;
+    --accent: #6ea8ff;
+    --accent2: #56d9b0;
+    --warn: #ffb454;
+    --danger: #ff6b6b;
+    --ok: #56d9b0;
+    --code-bg: #0b0d12;
+    --code-text: #e6e9f0;
+    --gutter: #4b5363;
+    --kw: #c678dd;
+    --ty: #e5c07b;
+    --st: #98c379;
+    --cm: #7d8799;
+    --fn: #61afef;
+    --pp: #e06c75;
+    --shadow: none;
+    --fact-rail: #2a2f3a;
+    --proposal-bg: rgba(122,90,248,.10);
+    --proposal-rail: #a68bff;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6; font-size: 15px; overflow-x: hidden;
+  }
+
+  /* ---- Shell: sticky TOC rail + content ---- */
+  .shell { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 36px; padding: 0 28px; }
+  .rail { position: sticky; top: 0; align-self: start; max-height: 100vh; overflow-y: auto; padding: 28px 0 40px; }
+  .rail h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 10px; }
+  .rail ol { list-style: none; margin: 0 0 22px; padding: 0; font-size: 13px; counter-reset: toc; }
+  .rail li { margin: 0; }
+  .rail a {
+    display: block; padding: 5px 10px; color: var(--muted); text-decoration: none;
+    border-left: 2px solid var(--border); line-height: 1.35;
+  }
+  .rail a:hover { color: var(--text); background: var(--panel2); }
+  .rail a.active { color: var(--accent); border-left-color: var(--accent); background: var(--panel2); font-weight: 600; }
+  .rail a.sub { padding-left: 22px; font-size: 12.5px; }
+  .rail .toolbar { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 0 16px; }
+  .btn {
+    font: inherit; font-size: 12px; cursor: pointer; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 4px 9px;
+  }
+  .btn:hover { color: var(--text); border-color: var(--border-strong); }
+  main { min-width: 0; padding: 40px 0 90px; }
+
+  header.doc { border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 8px; }
+  h1 { font-size: 27px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -.01em; }
+  h2 {
+    font-size: 20px; margin: 40px 0 14px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border); scroll-margin-top: 20px;
+  }
+  h3 { font-size: 15.5px; margin: 26px 0 8px; color: var(--accent); scroll-margin-top: 20px; }
+  h2 .num, h3 .num { color: var(--muted); font-weight: 500; margin-right: 8px; }
+  .anchor { color: var(--muted); text-decoration: none; opacity: 0; font-weight: 400; margin-left: 8px; font-size: .8em; }
+  h2:hover .anchor, h3:hover .anchor { opacity: 1; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .meta b { color: var(--text); font-weight: 600; }
+
+  /* ---- Chips ---- */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px; background: var(--panel2);
+    border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px;
+    font-size: 12px; color: var(--muted); text-decoration: none;
+  }
+  a.tag:hover { border-color: var(--border-strong); color: var(--text); }
+  .tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .tag.plain::before { display: none; }
+  .tag.ok { color: var(--ok); }
+  .tag.warn { color: var(--warn); }
+  .tag.danger { color: var(--danger); }
+  .tag.info { color: var(--accent); }
+  .legend { margin-top: 10px; font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+
+  /* ---- Panels: fact vs proposal ---- */
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; margin: 14px 0; box-shadow: var(--shadow);
+  }
+  .panel.compact { padding: 12px 14px; }
+  section.evidence { border-left: 3px solid var(--fact-rail); padding-left: 18px; margin-left: 1px; }
+  section.proposal { border-left: 3px solid var(--proposal-rail); padding-left: 18px; margin-left: 1px; }
+  section.proposal > h2 { color: var(--proposal-rail); }
+  section.proposal .panel, section.proposal table { background: var(--proposal-bg); }
+  .banner {
+    display: flex; gap: 10px; align-items: flex-start; font-size: 13px;
+    border: 1px dashed var(--proposal-rail); background: var(--proposal-bg);
+    border-radius: 8px; padding: 10px 14px; margin: 14px 0; color: var(--text);
+  }
+  .banner b { color: var(--proposal-rail); }
+  .kind {
+    display: inline-block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+    border: 1px solid var(--border-strong); border-radius: 4px; padding: 1px 6px;
+    color: var(--muted); vertical-align: 3px; margin-left: 10px; font-weight: 600;
+  }
+  .kind.verified { color: var(--ok); border-color: var(--ok); }
+  .kind.design { color: var(--proposal-rail); border-color: var(--proposal-rail); }
+  .kind.open { color: var(--warn); border-color: var(--warn); }
+
+  .callout { border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); padding: 10px 14px; margin: 12px 0; border-radius: 0 8px 8px 0; }
+  .callout.warn { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 9%, transparent); }
+  .callout.danger { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); }
+  .callout.ok { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, transparent); }
+  .callout p:first-child { margin-top: 0; }
+  .callout p:last-child { margin-bottom: 0; }
+
+  /* ---- Code ---- */
+  code, pre, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+  code { background: var(--panel2); border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .scroll-x { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--code-bg); }
+  figure.codeblock { margin: 12px 0; }
+  pre.code {
+    counter-reset: line var(--start0); margin: 0; padding: 9px 0;
+    font-size: 12.5px; line-height: 1.0; color: var(--code-text); min-width: max-content;
+  }
+  pre.code .l { display: block; padding: 0 16px 0 0; white-space: pre; }
+  pre.code .l::before {
+    counter-increment: line; content: counter(line);
+    display: inline-block; width: 4.2em; padding-right: 1.2em; margin-right: 1em;
+    text-align: right; color: var(--gutter); border-right: 1px solid var(--border);
+    user-select: none; position: sticky; left: 0; background: var(--code-bg);
+  }
+  pre.code .l:hover { background: var(--panel2); }
+  pre.code .kw { color: var(--kw); }
+  pre.code .ty { color: var(--ty); }
+  pre.code .st { color: var(--st); }
+  pre.code .cm { color: var(--cm); font-style: italic; }
+  pre.code .fn { color: var(--fn); }
+  pre.code .pp { color: var(--pp); }
+  figcaption { margin-top: 5px; font-size: 12px; }
+  .src {
+    color: var(--accent2); text-decoration: none;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px;
+  }
+  .src::before { content: "\1F4CE\00a0"; }
+  .src:hover { text-decoration: underline; }
+  pre.ascii { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 12.5px; }
+
+  /* ---- Tables ---- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--panel); }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  th { color: var(--muted); font-weight: 600; background: var(--panel2); white-space: nowrap; }
+  td code { white-space: nowrap; }
+  table.kv td:first-child { color: var(--muted); white-space: nowrap; width: 34%; }
+
+  .ref { font-size: 12.5px; color: var(--muted); }
+  .ref a { color: var(--accent); }
+  ul { margin: 8px 0; padding-left: 22px; }
+  li { margin: 5px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  figure.diagram { margin: 16px 0; }
+  figure.diagram svg { width: 100%; height: auto; display: block; }
+  .footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+  .footer code { font-size: 11.5px; }
+
+  @media (max-width: 1060px) {
+    .shell { grid-template-columns: 1fr; gap: 0; }
+    .rail {
+      position: static; max-height: none; padding: 18px 0 0;
+      border-bottom: 1px solid var(--border); margin-bottom: 10px;
+    }
+    .rail ol { columns: 2; column-gap: 20px; margin-bottom: 14px; }
+    .rail a.sub { display: none; }
+    .grid2 { grid-template-columns: 1fr; }
+    main { padding-top: 20px; }
+  }
+  @media print {
+    .rail, .anchor { display: none; }
+    .shell { display: block; max-width: none; }
+    body { font-size: 11pt; }
+    .panel, .scroll-x, .tablewrap { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="rail" aria-label="Contents">
+  <div class="toolbar">
+    <button class="btn" id="theme" type="button" title="Toggle light/dark">◐ Theme</button>
+  </div>
+  <h4>Contents</h4>
+  <ol id="toc"></ol>
+  <h4>Legend</h4>
+  <div class="legend" style="flex-direction:column; gap:7px">
+    <span><span class="dot" style="background:var(--fact-rail)"></span> Verified against source</span>
+    <span><span class="dot" style="background:var(--proposal-rail)"></span> Proposed / not in tree</span>
+  </div>
+</nav>
+
+<main>
+
+<header class="doc">
+  <h1>PX4 Log Erase Trigger — Investigation Report</h1>
+  <div class="meta">
+    Target board: <b>Saluki-NXP93</b> (NXP i.MX93, Cortex-A55, NuttX/AArch64) ·
+    Repo: <b>tiiuae/px4-firmware</b> · Branch: <b>main</b>
+  </div>
+  <div class="chips">
+    <a class="tag ok" href="#s4">NuttX confirmed</a>
+    <a class="tag ok" href="#s4-2">GPIO read/write API available</a>
+    <a class="tag ok" href="#s4-2">Edge IRQ available</a>
+    <a class="tag ok" href="#s5-3">Logger liveness topic exists</a>
+    <a class="tag warn" href="#s3">No shared log_utils lib</a>
+    <a class="tag warn" href="#s5-1">gpio shell cmd not built for this board</a>
+    <a class="tag info" href="#s5-2">Logs encrypted (orthogonal to erase)</a>
+  </div>
+  <div class="legend">
+    <span><span class="dot" style="background:var(--ok)"></span> capability present</span>
+    <span><span class="dot" style="background:var(--warn)"></span> missing / needs work</span>
+    <span><span class="dot" style="background:var(--accent)"></span> context to keep in mind</span>
+    <span><span class="dot" style="background:var(--danger)"></span> blocking</span>
+  </div>
+</header>
+
+<div class="panel compact" style="margin-top:18px">
+  <table class="kv">
+    <tr><td>Source tree</td><td><code>/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main</code></td></tr>
+    <tr><td>Pinned commit</td><td><code>49f5c40f4ccdea6222eb528798d117d3663c969f</code> ("Update boards/ssrc/common for UXRCE mission and dataman topics")</td></tr>
+    <tr><td>Working tree</td><td><b>dirty</b> — modified <code>.gitignore</code>; added <code>flake.nix</code>, <code>flake.lock</code>, <code>.envrc</code>. None of these touch the files cited below, so every line reference resolves against the pinned commit.</td></tr>
+    <tr><td>Method</td><td>Every code block below is emitted <b>verbatim and contiguous</b> from the cited file at the pinned commit by a generator script — gutter numbers are the real line numbers, not transcribed by hand. Click any <span class="src">path:line</span> to open it in your editor.</td></tr>
+    <tr><td>Changes made</td><td>Nothing in the firmware was modified. This report is analysis only.</td></tr>
+  </table>
+</div>
+
+<!-- ================= 1 ================= -->
+<section class="evidence" id="sec1">
+<h2 id="s1"><span class="num">1</span>Executive summary<a class="anchor" href="#s1">#</a></h2>
+<div class="panel">
+  <p>PX4 can erase all onboard logs today, but only via the MAVLink <code>LOG_ERASE</code> message. The erase routine is a recursive <code>unlink()</code>/<code>rmdir()</code> walk that is <b>private to <code>MavlinkLogHandler</code></b> and not reachable from another module. There is <b>no</b> <code>logger clear</code> shell command, <b>no</b> <code>log_erase</code> system command, and <b>no</b> shared log-utility library.</p>
+  <p>On Saluki-NXP93 the NuttX <code>px4_arch_gpioread()</code> API is available, edge interrupts are enabled, and the board already ships a polled-GPIO-input driver (<code>safety_button</code>) that is a direct structural template for a hold-to-trigger input. The recommended approach — factor the erase walk into a shared <code>log_utils</code> library and add a small <code>log_erase_trigger</code> work-queue module that polls a free GPIO — is viable on this target.</p>
+  <p>Two things to carry forward from the caveats: the <code>gpio</code> shell command is <b>not compiled into this board's firmware</b>, so pin bring-up must be done in code; and the erase must be interlocked against the logger, for which a ready-made uORB liveness signal already exists (<a href="#s5-3">§5.3</a>).</p>
+</div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section class="evidence" id="sec2">
+<h2 id="s2"><span class="num">2</span>The existing erase implementation (MAVLink path)<span class="kind verified">verified</span><a class="anchor" href="#s2">#</a></h2>
+
+<h3 id="s2-1">2.1 Log directory constants</h3>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 42"><code><span class="l"><span class="pp">#define</span> MOUNTPOINT PX4_STORAGEDIR</span>
+<span class="l"></span>
+<span class="l"><span class="kw">static</span> <span class="kw">const</span> <span class="kw">char</span> *kLogRoot    = MOUNTPOINT <span class="st">&quot;/log&quot;</span>;</span>
+<span class="l"><span class="kw">static</span> <span class="kw">const</span> <span class="kw">char</span> *kLogData    = MOUNTPOINT <span class="st">&quot;/logdata.txt&quot;</span>;</span>
+<span class="l"><span class="kw">static</span> <span class="kw">const</span> <span class="kw">char</span> *kTmpData    = MOUNTPOINT <span class="st">&quot;/$log$.txt&quot;</span>;</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/modules/mavlink/mavlink_log_handler.cpp:43" title="Open in editor at line 43">src/modules/mavlink/mavlink_log_handler.cpp:43-47</a></figcaption>
+</figure>
+<p>The log root resolves to <code>PX4_STORAGEDIR "/log"</code>. On NuttX:</p>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 65"><code><span class="l"><span class="pp">#define</span> PX4_ROOTFSDIR <span class="st">&quot;&quot;</span></span>
+<span class="l"><span class="pp">#define</span> PX4_STORAGEDIR PX4_ROOTFSDIR <span class="st">&quot;/fs/microsd&quot;</span></span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/platforms/common/include/px4_platform_common/defines.h:66" title="Open in editor at line 66">platforms/common/include/px4_platform_common/defines.h:66-67</a></figcaption>
+</figure>
+<p>So <code>kLogRoot</code> is <code>/fs/microsd/log</code> on this board — the same path a refactor would target.</p>
+
+<h3 id="s2-2">2.2 Dispatch on LOG_ERASE</h3>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 115"><code><span class="l">    <span class="kw">case</span> MAVLINK_MSG_ID_LOG_ERASE:</span>
+<span class="l">        <span class="fn">_log_request_erase</span>(msg);</span>
+<span class="l">        <span class="kw">break</span>;</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/modules/mavlink/mavlink_log_handler.cpp:116" title="Open in editor at line 116">src/modules/mavlink/mavlink_log_handler.cpp:116-118</a></figcaption>
+</figure>
+
+<h3 id="s2-3">2.3 The erase request handler</h3>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 259"><code><span class="l"><span class="kw">void</span></span>
+<span class="l"><span class="ty">MavlinkLogHandler</span>::<span class="fn">_log_request_erase</span>(<span class="kw">const</span> <span class="ty">mavlink_message_t</span> * <span class="cm">/*msg*/</span>)</span>
+<span class="l">{</span>
+<span class="l">    /*</span>
+<span class="l">    mavlink_log_erase_t request;</span>
+<span class="l">    <span class="fn">mavlink_msg_log_erase_decode</span>(msg, &amp;request);</span>
+<span class="l"><span class="cm">    */</span></span>
+<span class="l">    _current_status = <span class="ty">LogHandlerState</span>::Inactive;</span>
+<span class="l">    <span class="fn">_close_and_unlink_files</span>();</span>
+<span class="l"></span>
+<span class="l">    <span class="cm">//-- Delete all logs</span></span>
+<span class="l">    <span class="fn">_delete_all</span>(kLogRoot);</span>
+<span class="l">}</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/modules/mavlink/mavlink_log_handler.cpp:260" title="Open in editor at line 260">src/modules/mavlink/mavlink_log_handler.cpp:260-272</a></figcaption>
+</figure>
+<div class="callout">
+  Note the full sequence: the handler <b>resets handler state</b> (line 267) and <b>closes/unlinks its scratch files</b> (line 268) <i>before</i> walking the tree (line 271). A refactor must preserve all three steps, not just the delete.
+</div>
+
+<h3 id="s2-4">2.4 The recursive delete routine — the logic to reuse</h3>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 606"><code><span class="l"><span class="kw">void</span></span>
+<span class="l"><span class="ty">MavlinkLogHandler</span>::<span class="fn">_delete_all</span>(<span class="kw">const</span> <span class="kw">char</span> *dir)</span>
+<span class="l">{</span>
+<span class="l">    <span class="cm">//-- Open log directory</span></span>
+<span class="l">    <span class="ty">DIR</span> *dp = <span class="fn">opendir</span>(dir);</span>
+<span class="l"></span>
+<span class="l">    <span class="kw">if</span> (dp == <span class="kw">nullptr</span>) {</span>
+<span class="l">        <span class="kw">return</span>;</span>
+<span class="l">    }</span>
+<span class="l"></span>
+<span class="l">    <span class="kw">struct</span> <span class="ty">dirent</span> *result = <span class="kw">nullptr</span>;</span>
+<span class="l"></span>
+<span class="l">    <span class="kw">while</span> ((result = <span class="fn">readdir</span>(dp))) {</span>
+<span class="l">        <span class="cm">// no more entries?</span></span>
+<span class="l">        <span class="kw">if</span> (result == <span class="kw">nullptr</span>) {</span>
+<span class="l">            <span class="kw">break</span>;</span>
+<span class="l">        }</span>
+<span class="l"></span>
+<span class="l">        <span class="kw">if</span> (result-&gt;d_type == PX4LOG_DIRECTORY &amp;&amp; result-&gt;d_name[0] != <span class="st">&#x27;.&#x27;</span>) {</span>
+<span class="l">            <span class="kw">char</span> log_path[128];</span>
+<span class="l">            <span class="kw">int</span> ret = <span class="fn">snprintf</span>(log_path, <span class="kw">sizeof</span>(log_path), <span class="st">&quot;%s/%s&quot;</span>, dir, result-&gt;d_name);</span>
+<span class="l">            <span class="kw">bool</span> path_is_ok = (ret &gt; 0) &amp;&amp; (ret &lt; (<span class="kw">int</span>)<span class="kw">sizeof</span>(log_path));</span>
+<span class="l"></span>
+<span class="l">            <span class="kw">if</span> (path_is_ok) {</span>
+<span class="l">                <span class="fn">_delete_all</span>(log_path); <span class="cm">//Recursive call. TODO: consider add protection</span></span>
+<span class="l"></span>
+<span class="l">                <span class="kw">if</span> (<span class="fn">rmdir</span>(log_path)) {</span>
+<span class="l">                    <span class="fn">PX4LOG_WARN</span>(<span class="st">&quot;MavlinkLogHandler::delete_all Error removing %s&quot;</span>, log_path);</span>
+<span class="l">                }</span>
+<span class="l">            }</span>
+<span class="l">        }</span>
+<span class="l"></span>
+<span class="l">        <span class="kw">if</span> (result-&gt;d_type == PX4LOG_REGULAR_FILE) {</span>
+<span class="l">            <span class="kw">char</span> log_path[128];</span>
+<span class="l">            <span class="kw">int</span> ret = <span class="fn">snprintf</span>(log_path, <span class="kw">sizeof</span>(log_path), <span class="st">&quot;%s/%s&quot;</span>, dir, result-&gt;d_name);</span>
+<span class="l">            <span class="kw">bool</span> path_is_ok = (ret &gt; 0) &amp;&amp; (ret &lt; (<span class="kw">int</span>)<span class="kw">sizeof</span>(log_path));</span>
+<span class="l"></span>
+<span class="l">            <span class="kw">if</span> (path_is_ok) {</span>
+<span class="l">                <span class="kw">if</span> (<span class="fn">unlink</span>(log_path)) {</span>
+<span class="l">                    <span class="fn">PX4LOG_WARN</span>(<span class="st">&quot;MavlinkLogHandler::delete_all Error deleting %s&quot;</span>, log_path);</span>
+<span class="l">                }</span>
+<span class="l">            }</span>
+<span class="l">        }</span>
+<span class="l">    }</span>
+<span class="l"></span>
+<span class="l">    <span class="fn">closedir</span>(dp);</span>
+<span class="l">}</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/modules/mavlink/mavlink_log_handler.cpp:607" title="Open in editor at line 607">src/modules/mavlink/mavlink_log_handler.cpp:607-653</a></figcaption>
+</figure>
+<div class="callout warn">
+  <p><b>Existing TODO at line 631:</b> <code>//Recursive call. TODO: consider add protection</code> — the recursion has no depth bound and no symlink guard. Worth fixing, not just relocating, when factoring out.</p>
+  <p>Two more latent issues visible here: <code>log_path[128]</code> silently skips any entry whose path exceeds 128 bytes (<code>path_is_ok</code> false → no delete, no warning), and a <code>rmdir</code> is attempted even if the recursive pass failed to empty the directory.</p>
+</div>
+
+<h3 id="s2-5">2.5 Both methods are private</h3>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 81"><code><span class="l">    <span class="kw">void</span> <span class="fn">_log_message</span>(<span class="kw">const</span> <span class="ty">mavlink_message_t</span> *msg);</span>
+<span class="l">    <span class="kw">void</span> <span class="fn">_log_request_list</span>(<span class="kw">const</span> <span class="ty">mavlink_message_t</span> *msg);</span>
+<span class="l">    <span class="kw">void</span> <span class="fn">_log_request_data</span>(<span class="kw">const</span> <span class="ty">mavlink_message_t</span> *msg);</span>
+<span class="l">    <span class="kw">void</span> <span class="fn">_log_request_erase</span>(<span class="kw">const</span> <span class="ty">mavlink_message_t</span> *msg);</span>
+<span class="l">    <span class="kw">void</span> <span class="fn">_log_request_end</span>(<span class="kw">const</span> <span class="ty">mavlink_message_t</span> *msg);</span>
+<span class="l"></span>
+<span class="l">    <span class="kw">void</span> <span class="fn">_reset_list_helper</span>();</span>
+<span class="l">    <span class="kw">void</span> <span class="fn">_init_list_helper</span>();</span>
+<span class="l">    <span class="kw">bool</span> <span class="fn">_get_session_date</span>(<span class="kw">const</span> <span class="kw">char</span> *path, <span class="kw">const</span> <span class="kw">char</span> *dir, <span class="ty">time_t</span> &amp;date);</span>
+<span class="l">    <span class="kw">void</span> <span class="fn">_scan_logs</span>(<span class="ty">FILE</span> *f, <span class="kw">const</span> <span class="kw">char</span> *dir, <span class="ty">time_t</span> &amp;date);</span>
+<span class="l">    <span class="kw">bool</span> <span class="fn">_get_log_time_size</span>(<span class="kw">const</span> <span class="kw">char</span> *path, <span class="kw">const</span> <span class="kw">char</span> *file, <span class="ty">time_t</span> &amp;date, <span class="ty">uint32_t</span> &amp;size);</span>
+<span class="l">    <span class="kw">static</span> <span class="kw">void</span> <span class="fn">_delete_all</span>(<span class="kw">const</span> <span class="kw">char</span> *dir);</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/modules/mavlink/mavlink_log_handler.h:82" title="Open in editor at line 82">src/modules/mavlink/mavlink_log_handler.h:82-93</a></figcaption>
+</figure>
+<div class="callout">
+  <b>Conclusion:</b> the erase logic cannot be called from an external module without refactoring. <code>_delete_all</code> is a private <code>static</code> member declared in the MAVLink module's header (the enclosing <code>class MavlinkLogHandler</code> opens at line 52; <code>private:</code> at line 75). This is the motivation for a shared <code>log_utils</code> library.
+</div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section class="evidence" id="sec3">
+<h2 id="s3"><span class="num">3</span>What does <i>not</i> exist<span class="kind verified">verified</span><a class="anchor" href="#s3">#</a></h2>
+<div class="tablewrap">
+  <table>
+    <thead><tr><th>Item</th><th>Status</th><th>Evidence</th></tr></thead>
+    <tbody>
+    <tr>
+      <td><code>src/lib/log_utils/</code> shared library</td>
+      <td><span class="tag warn">absent</span></td>
+      <td>No such directory; not present in <code>src/lib/</code></td>
+    </tr>
+    <tr>
+      <td><code>logger clear</code> / <code>logger erase</code></td>
+      <td><span class="tag warn">absent</span></td>
+      <td>CLI handles only <code>on</code>/<code>off</code>/<code>trigger_watchdog</code> — see block below</td>
+    </tr>
+    <tr>
+      <td><code>log_erase</code> system command</td>
+      <td><span class="tag warn">absent</span></td>
+      <td>No entry under <code>src/systemcmds/</code></td>
+    </tr>
+    <tr>
+      <td>Any non-MAVLink <b>programmatic</b> erase path</td>
+      <td><span class="tag warn">absent</span></td>
+      <td>Only <code>MAVLINK_MSG_ID_LOG_ERASE</code> reaches <code>_delete_all()</code></td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 161"><code><span class="l">    <span class="kw">if</span> (!<span class="fn">strcmp</span>(argv[0], <span class="st">&quot;on&quot;</span>)) {</span>
+<span class="l">        <span class="fn">get_instance</span>()-&gt;<span class="fn">set_arm_override</span>(<span class="kw">true</span>);</span>
+<span class="l">        <span class="kw">return</span> 0;</span>
+<span class="l">    }</span>
+<span class="l"></span>
+<span class="l">    <span class="kw">if</span> (!<span class="fn">strcmp</span>(argv[0], <span class="st">&quot;off&quot;</span>)) {</span>
+<span class="l">        <span class="fn">get_instance</span>()-&gt;<span class="fn">set_arm_override</span>(<span class="kw">false</span>);</span>
+<span class="l">        <span class="kw">return</span> 0;</span>
+<span class="l">    }</span>
+<span class="l"></span>
+<span class="l">    <span class="kw">return</span> <span class="fn">print_usage</span>(<span class="st">&quot;unknown command&quot;</span>);</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/modules/logger/logger.cpp:162" title="Open in editor at line 162">src/modules/logger/logger.cpp:162-172</a></figcaption>
+</figure>
+<div class="callout">
+  <b>Scope of the last row:</b> there is no <i>module-level API</i> to erase logs. An operator with a console can of course <code>rm -r /fs/microsd/log</code> from NSH — that is a manual path, not something a module can call, and it carries the same "is the logger writing?" hazard discussed in <a href="#s5-3">§5.3</a>.
+</div>
+<div class="ref">Usage strings confirm the same command set: <code>start</code> at <code>logger.cpp:2621</code>, <code>on</code> at <code>:2633</code>, <code>off</code> at <code>:2634</code>. No erase/clear verb.</div>
+</section>
+
+<!-- ================= 4 ================= -->
+<section class="evidence" id="sec4">
+<h2 id="s4"><span class="num">4</span>Target board: Saluki-NXP93<span class="kind verified">verified</span><a class="anchor" href="#s4">#</a></h2>
+
+<h3 id="s4-1">4.1 Identity &amp; OS</h3>
+<div class="grid2">
+  <div class="panel compact">
+    <table class="kv">
+      <tr><td>SoC</td><td>NXP i.MX93 (Cortex-A55, AArch64)</td></tr>
+      <tr><td>OS</td><td><b>NuttX</b> (not Linux)</td></tr>
+      <tr><td>Board ID (fw)</td><td>1540</td></tr>
+      <tr><td>BOARD_TYPE</td><td>1530</td></tr>
+      <tr><td>Fork</td><td>tiiuae/px4-firmware</td></tr>
+      <tr><td>Shared board config</td><td><code>boards/ssrc/common/imx9_common/src/board_config.h</code></td></tr>
+    </table>
+  </div>
+  <div class="panel compact">
+    <div class="ref">
+      <code>"board_id": 1540</code> — <a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/boards/ssrc/saluki-nxp93/firmware.prototype">saluki-nxp93/firmware.prototype</a><br>
+      <code>#define BOARD_TYPE 1530</code> — <a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/boards/ssrc/saluki-nxp93/include/board_type.h:8">saluki-nxp93/include/board_type.h:8</a><br>
+      <code>#include &lt;nuttx/config.h&gt;</code> — <a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/boards/ssrc/saluki-nxp93/nuttx-config/include/board.h:28">nuttx-config/include/board.h:28</a><br>
+      <code>CONFIG_ARCH_BOARD_CUSTOM_DIR=...</code> — <a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/boards/ssrc/saluki-nxp93/nuttx-config/nsh/defconfig:19">nuttx-config/nsh/defconfig:19</a>
+    </div>
+  </div>
+</div>
+
+<h3 id="s4-2">4.2 GPIO API is available (imx9 micro_hal)</h3>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 78"><code><span class="l"><span class="pp">#define</span> <span class="fn">px4_arch_configgpio</span>(pinset)             <span class="fn">imx9_config_gpio</span>(pinset)</span>
+<span class="l"><span class="pp">#define</span> <span class="fn">px4_arch_unconfiggpio</span>(pinset)</span>
+<span class="l"><span class="pp">#define</span> <span class="fn">px4_arch_gpioread</span>(pinset)               <span class="fn">imx9_gpio_read</span>(pinset)</span>
+<span class="l"><span class="pp">#define</span> <span class="fn">px4_arch_gpiowrite</span>(pinset, value)       <span class="fn">imx9_gpio_write</span>(pinset, value)</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/platforms/nuttx/src/px4/nxp/imx9/include/px4_arch/micro_hal.h:79" title="Open in editor at line 79">platforms/nuttx/src/px4/nxp/imx9/include/px4_arch/micro_hal.h:79-82</a></figcaption>
+</figure>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 124"><code><span class="l">    <span class="kw">return</span> <span class="fn">imx9_gpioirq_enable</span>(pinset);</span>
+<span class="l">}</span>
+<span class="l"></span>
+<span class="l"><span class="pp">#define</span> <span class="fn">px4_arch_gpiosetevent</span>(pinset,r,f,e,fp,a)  <span class="fn">imx9_gpio_setevent</span>(pinset,r,f,e,fp,a)</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/platforms/nuttx/src/px4/nxp/imx9/include/px4_arch/micro_hal.h:125" title="Open in editor at line 125">platforms/nuttx/src/px4/nxp/imx9/include/px4_arch/micro_hal.h:125-128</a></figcaption>
+</figure>
+<div class="callout ok">
+  <b>Edge interrupts are supported:</b> <code>CONFIG_IMX9_GPIO_IRQ=y</code> at <code>nuttx-config/nsh/defconfig:122</code>. A polled work-queue item is still the simpler and recommended choice for a hold-to-trigger button; the IRQ path is available if you later want wake-from-idle behaviour.
+</div>
+
+<h3 id="s4-3">4.3 GPIO pin declaration pattern</h3>
+<p>The polled safety-button input — the exact declaration pattern to copy:</p>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 103"><code><span class="l"><span class="pp">#define</span> GPIO_BTN_SAFETY (GPIO_PORT4 | GPIO_PIN16 | GPIO_INPUT) <span class="cm">// GPS safety switch</span></span>
+<span class="l"><span class="pp">#define</span> GPIO_BTN_SAFETY_MUX <span class="fn">IOMUX_CFG</span>(IOMUXC_PAD_ENET2_TD3_GPIO4_IO16, IOMUXC_PAD_PD_ON | IOMUXC_PAD_HYS_ST_ON, 0)</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/boards/ssrc/common/imx9_common/src/board_config.h:104" title="Open in editor at line 104">boards/ssrc/common/imx9_common/src/board_config.h:104-105</a></figcaption>
+</figure>
+<p>Input pins guarded behind a module Kconfig symbol, which is the convention a new pin should follow:</p>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 166"><code><span class="l"><span class="cm">/* Redundancy armed WD pin */</span></span>
+<span class="l"></span>
+<span class="l"><span class="pp">#ifdef</span> CONFIG_MODULES_REDUNDANCY_DRV</span>
+<span class="l"><span class="pp">#define</span> GPIO_REDUNDANCY_SWITCH_STATE_MUX <span class="fn">IOMUX_CFG</span>(IOMUXC_PAD_ENET1_RX_CTL_GPIO4_IO08, IOMUXC_PAD_PU_ON | IOMUXC_PAD_HYS_ST_ON, 0) <span class="cm">/* GPIO4_08_SPI7_EXT1_DRDY1 (EXT SPI DRDY1) */</span></span>
+<span class="l"><span class="pp">#define</span> GPIO_REDUNDANCY_SWITCH_STATE (GPIO_PORT4 | GPIO_PIN8 | GPIO_INPUT)</span>
+<span class="l"></span>
+<span class="l"><span class="pp">#define</span> GPIO_REDUNDANCY_WD1_STATE_MUX <span class="fn">IOMUX_CFG</span>(IOMUXC_PAD_ENET1_RD3_GPIO4_IO13, IOMUXC_PAD_PU_ON | IOMUXC_PAD_HYS_ST_ON, 0) <span class="cm">/* GPIO4_13_SPI7_EXT1_DRDY2 (EXT SPI DRDY2) */</span></span>
+<span class="l"><span class="pp">#define</span> GPIO_REDUNDANCY_WD1_STATE (GPIO_PORT4 | GPIO_PIN13 | GPIO_INPUT)</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/boards/ssrc/common/imx9_common/src/board_config.h:167" title="Open in editor at line 167">boards/ssrc/common/imx9_common/src/board_config.h:167-174</a></figcaption>
+</figure>
+<p>And a board-level read helper already using the raw NuttX call:</p>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 319"><code><span class="l"><span class="pp">#ifdef</span> CONFIG_MODULES_REDUNDANCY_DRV</span>
+<span class="l"><span class="kw">inline</span> <span class="kw">static</span> <span class="kw">int</span> <span class="fn">board_ft_switch_monitor</span>(<span class="kw">void</span>)</span>
+<span class="l">{</span>
+<span class="l">    <span class="kw">return</span> <span class="fn">imx9_gpio_read</span>(GPIO_REDUNDANCY_SWITCH_STATE) ? 0x2 : 0x1;</span>
+<span class="l">}</span>
+<span class="l"><span class="pp">#endif</span></span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/boards/ssrc/common/imx9_common/src/board_config.h:320" title="Open in editor at line 320">boards/ssrc/common/imx9_common/src/board_config.h:320-325</a></figcaption>
+</figure>
+<div class="callout">
+  A new <code>GPIO_LOG_ERASE_TRIGGER</code> + <code>_MUX</code> pair would go in this <b>shared</b> file (<code>boards/ssrc/common/imx9_common/src/board_config.h</code>), guarded by <code>#ifdef CONFIG_MODULES_LOG_ERASE_TRIGGER</code> to match the <code>CONFIG_MODULES_REDUNDANCY_DRV</code> guard above.
+  <div class="ref" style="margin-top:6px">That guard is active on this board: <code>CONFIG_MODULES_REDUNDANCY=y</code> is set in <code>default.px4board:84</code>, and <code>MODULES_REDUNDANCY_DRV</code> is <code>default y</code> with <code>depends on MODULES_REDUNDANCY</code> (<code>src/modules/redundancy/Kconfig:14-17</code>).</div>
+</div>
+
+<h3 id="s4-4">4.4 The <code>safety_button</code> driver is a ready template</h3>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 36"><code><span class="l"><span class="pp">#ifndef</span> GPIO_BTN_SAFETY</span>
+<span class="l"><span class="pp">#error</span> <span class="st">&quot;board needs to define a safety button gpio pin to use this module&quot;</span></span>
+<span class="l"><span class="pp">#endif</span></span>
+<span class="l"></span>
+<span class="l"><span class="kw">using</span> <span class="kw">namespace</span> time_literals;</span>
+<span class="l"></span>
+<span class="l"><span class="kw">static</span> <span class="kw">constexpr</span> <span class="ty">uint8_t</span> CYCLE_COUNT{30}; <span class="cm">/* safety switch must be held for 1 second to activate */</span></span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/drivers/safety_button/SafetyButton.cpp:37" title="Open in editor at line 37">src/drivers/safety_button/SafetyButton.cpp:37-43</a></figcaption>
+</figure>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 64"><code><span class="l"><span class="kw">void</span></span>
+<span class="l"><span class="ty">SafetyButton</span>::<span class="fn">CheckSafetyRequest</span>(<span class="kw">bool</span> button_pressed)</span>
+<span class="l">{</span>
+<span class="l">    <span class="cm">/* Keep button pressed for one second to turn off safety */</span></span>
+<span class="l">    <span class="kw">if</span> (button_pressed) {</span>
+<span class="l"></span>
+<span class="l">        <span class="kw">if</span> (_button_counter &lt;= CYCLE_COUNT) {</span>
+<span class="l">            _button_counter++;</span>
+<span class="l">        }</span>
+<span class="l"></span>
+<span class="l">        <span class="kw">if</span> (_button_counter == CYCLE_COUNT) {</span>
+<span class="l">            _button_publisher.<span class="fn">safetyButtonTriggerEvent</span>();</span>
+<span class="l">        }</span>
+<span class="l"></span>
+<span class="l">    } <span class="kw">else</span> {</span>
+<span class="l">        _button_counter = 0;</span>
+<span class="l">    }</span>
+<span class="l">}</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/drivers/safety_button/SafetyButton.cpp:65" title="Open in editor at line 65">src/drivers/safety_button/SafetyButton.cpp:65-82</a></figcaption>
+</figure>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 149"><code><span class="l"><span class="ty">SafetyButton</span>::<span class="fn">Run</span>()</span>
+<span class="l">{</span>
+<span class="l">    <span class="kw">if</span> (<span class="fn">should_exit</span>()) {</span>
+<span class="l">        <span class="fn">exit_and_cleanup</span>();</span>
+<span class="l">        <span class="kw">return</span>;</span>
+<span class="l">    }</span>
+<span class="l"></span>
+<span class="l">    <span class="kw">const</span> <span class="kw">bool</span> button_pressed = <span class="fn">px4_arch_gpioread</span>(GPIO_BTN_SAFETY);</span>
+<span class="l"></span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/drivers/safety_button/SafetyButton.cpp:150" title="Open in editor at line 150">src/drivers/safety_button/SafetyButton.cpp:150-158</a></figcaption>
+</figure>
+<div class="callout ok">
+  This is exactly the debounce/hold-to-trigger idiom proposed for the log-erase trigger: a <code>ScheduledWorkItem</code>, poll <code>px4_arch_gpioread()</code>, count held cycles, fire once when the counter <i>equals</i> the threshold (so it latches until release), reset on release. <code>CYCLE_COUNT{30}</code> at the driver's schedule rate is the 1-second hold.
+</div>
+
+<h3 id="s4-5">4.5 Module enablement follows the fork convention</h3>
+<p>The board already enables several TII-specific modules, so adding one more is consistent:</p>
+<div class="tablewrap">
+  <table>
+    <thead><tr><th>Config</th><th>Line</th></tr></thead>
+    <tbody>
+      <tr><td><code>CONFIG_BOARD_CRYPTO=y</code></td><td>3</td></tr>
+      <tr><td><code>CONFIG_DRIVERS_SAFETY_BUTTON=y</code></td><td>46</td></tr>
+      <tr><td><code>CONFIG_MODULES_ASSEMBLY_AGENT=y</code></td><td>51</td></tr>
+      <tr><td><code>CONFIG_MODULES_ENROLL_AGENT=y</code></td><td>58</td></tr>
+      <tr><td><code>CONFIG_MODULES_LOGGER=y</code></td><td>71</td></tr>
+      <tr><td><code>CONFIG_MODULES_MOI_AGENT=y</code></td><td>80</td></tr>
+      <tr><td><code>CONFIG_MODULES_PX4_FW_UPDATE_CLIENT=y</code></td><td>82</td></tr>
+      <tr><td><code>CONFIG_MODULES_REDUNDANCY=y</code></td><td>84</td></tr>
+      <tr><td><code>CONFIG_MODULES_SECURE_UDP_PROXY=y</code></td><td>86</td></tr>
+    </tbody>
+  </table>
+</div>
+<div class="ref">
+  <a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/boards/ssrc/saluki-nxp93/default.px4board">boards/ssrc/saluki-nxp93/default.px4board</a>
+  — note <code>CONFIG_SYSTEMCMDS_GPIO</code> is <b>not</b> among them (see <a href="#s5-1">§5.1</a>).
+</div>
+</section>
+
+<!-- ================= 5 ================= -->
+<section class="evidence" id="sec5">
+<h2 id="s5"><span class="num">5</span>Caveats specific to this board<span class="kind verified">verified</span><a class="anchor" href="#s5">#</a></h2>
+
+<h3 id="s5-1">5.1 The <code>gpio</code> shell command is not usable on this board</h3>
+<p>The tool has two paths. The <code>#ifdef CONFIG_DEV_GPIO</code> at <code>gpio.cpp:88</code> guards only the <code>/dev/gpioN</code> character-device path; a second, arch-direct path needs no such config:</p>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 77"><code><span class="l">    <span class="kw">if</span> (argv[2][0] == <span class="st">&#x27;/&#x27;</span>) {</span>
+<span class="l">        <span class="kw">return</span> <span class="fn">handle_device_ports</span>(is_read, argc, argv);</span>
+<span class="l"></span>
+<span class="l">    } <span class="kw">else</span> {</span>
+<span class="l">        <span class="kw">return</span> <span class="fn">handle_board_ports</span>(is_read, argc, argv);</span>
+<span class="l">    }</span>
+<span class="l">}</span>
+<span class="l"></span>
+<span class="l"><span class="kw">int</span> <span class="fn">handle_device_ports</span>(<span class="kw">bool</span> is_read, <span class="kw">int</span> argc, <span class="kw">char</span> *argv[])</span>
+<span class="l">{</span>
+<span class="l"><span class="pp">#ifdef</span> CONFIG_DEV_GPIO</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/systemcmds/gpio/gpio.cpp:78" title="Open in editor at line 78">src/systemcmds/gpio/gpio.cpp:78-88</a></figcaption>
+</figure>
+<p>An <code>argv[2]</code> starting with <code>/</code> takes the device path (the <code>CONFIG_DEV_GPIO</code>-gated one); anything else goes to <code>handle_board_ports()</code>, which calls the arch API directly:</p>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 256"><code><span class="l">        <span class="fn">px4_arch_configgpio</span>(mask);</span>
+<span class="l">        <span class="kw">int</span> value = <span class="fn">px4_arch_gpioread</span>(mask);</span>
+<span class="l">        <span class="fn">printf</span>(<span class="st">&quot;%d OK\n&quot;</span>, value);</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/systemcmds/gpio/gpio.cpp:257" title="Open in editor at line 257">src/systemcmds/gpio/gpio.cpp:257-259</a></figcaption>
+</figure>
+<p>The reasons the command is unavailable or awkward on Saluki-NXP93, in order of severity:</p>
+<div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>Blocker</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><b>The command is not built.</b> <code>CONFIG_SYSTEMCMDS_GPIO</code> is <code>default n</code> and is not set in this board's <code>default.px4board</code>. No i.MX9 board in the tree enables it.</td>
+        <td><code>src/systemcmds/gpio/Kconfig:1-3</code>; absent from <code>boards/ssrc/saluki-nxp93/default.px4board</code></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><b>Every pin would be rejected even if built.</b> Board-port mode refuses any pin not found in <code>PX4_GPIO_INIT_LIST</code> unless <code>--force</code> is passed — and on this board that list is <b>empty</b>, so nothing can ever match.</td>
+        <td><code>gpio.cpp:218-239</code>; list and gate quoted below</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><b>Pin numbers are capped at 15.</b> The parser rejects pins above 15, while the i.MX9 pin field is 5 bits wide (0–31), so half of each port is unaddressable.</td>
+        <td><code>gpio.cpp:208</code>; <code>imx9_gpio.h:133</code></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<p>The board's initialization list is empty, so <code>matches_default_config</code> can never become true and the gate below rejects every pin without <code>--force</code>:</p>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 148"><code><span class="l"><span class="pp">#define</span> PX4_GPIO_INIT_LIST { \</span>
+<span class="l">    }</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/boards/ssrc/common/imx9_common/src/board_config.h:149" title="Open in editor at line 149">boards/ssrc/common/imx9_common/src/board_config.h:149-150</a></figcaption>
+</figure>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 217"><code><span class="l">    <span class="kw">bool</span> matches_default_config = <span class="kw">false</span>;</span>
+<span class="l"><span class="pp">#if</span> <span class="fn">defined</span>(PX4_GPIO_INIT_LIST)</span>
+<span class="l">    <span class="kw">const</span> <span class="ty">uint32_t</span> default_gpios[] = PX4_GPIO_INIT_LIST;</span>
+<span class="l"></span>
+<span class="l">    <span class="cm">// check that GPIO matches initialization list for port/pin and input/output</span></span>
+<span class="l">    <span class="kw">for</span> (<span class="ty">uint32_t</span> i = 0; i &lt; <span class="fn">arraySize</span>(default_gpios); i++) {</span>
+<span class="l">        <span class="kw">if</span> ((((default_gpios[i] &amp; GPIO_INPUT) == (mask &amp; GPIO_INPUT)) ||</span>
+<span class="l">             ((default_gpios[i] &amp; GPIO_OUTPUT) == (mask &amp; GPIO_OUTPUT)))</span>
+<span class="l">            &amp;&amp; ((default_gpios[i] &amp; GPIO_PORT_MASK) == (mask &amp; GPIO_PORT_MASK))</span>
+<span class="l">            &amp;&amp; ((default_gpios[i] &amp; GPIO_PIN_MASK) == (mask &amp; GPIO_PIN_MASK))</span>
+<span class="l">           ) {</span>
+<span class="l">            matches_default_config = <span class="kw">true</span>;</span>
+<span class="l">        }</span>
+<span class="l">    }</span>
+<span class="l"></span>
+<span class="l"><span class="pp">#endif</span> <span class="cm">// PX4_GPIO_INIT_LIST</span></span>
+<span class="l">    <span class="kw">bool</span> force_apply = <span class="fn">strcasecmp</span>(argv[argc - 1], <span class="st">&quot;--force&quot;</span>) == 0;</span>
+<span class="l"></span>
+<span class="l">    <span class="kw">if</span> (!matches_default_config &amp;&amp; !force_apply) {</span>
+<span class="l">        <span class="fn">usage</span>(<span class="st">&quot;does not match board initialization list, and --force not specified&quot;</span>);</span>
+<span class="l">        <span class="kw">return</span> -1;</span>
+<span class="l">    }</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/systemcmds/gpio/gpio.cpp:218" title="Open in editor at line 218">src/systemcmds/gpio/gpio.cpp:218-239</a></figcaption>
+</figure>
+<p>And the pin parser caps at 15, while the i.MX9 pin field is 5 bits wide:</p>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 204"><code><span class="l">    <span class="kw">char</span> *end;</span>
+<span class="l">    <span class="ty">int32_t</span> pin = <span class="fn">strtol</span>(argv[2] + 1, &amp;end, 10);</span>
+<span class="l"></span>
+<span class="l">    <span class="kw">if</span> (errno == 0 &amp;&amp; *end == <span class="st">&#x27;\0&#x27;</span> &amp;&amp; 0 &lt;= pin &amp;&amp; pin &lt;= 15) {</span>
+<span class="l">        mask |= (pin &lt;&lt; GPIO_PIN_SHIFT) &amp; GPIO_PIN_MASK;;</span>
+<span class="l"></span>
+<span class="l">    } <span class="kw">else</span> {</span>
+<span class="l">        <span class="fn">usage</span>(<span class="st">&quot;invalid pin&quot;</span>);</span>
+<span class="l">        <span class="kw">return</span> -1;</span>
+<span class="l">    }</span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/systemcmds/gpio/gpio.cpp:205" title="Open in editor at line 205">src/systemcmds/gpio/gpio.cpp:205-214</a></figcaption>
+</figure>
+<div class="callout warn">
+  <b>Implication:</b> you cannot test a candidate pin with <code>gpio read ...</code> on this board as it ships. The reliable bring-up route is in-code <code>px4_arch_configgpio()</code> + <code>px4_arch_gpioread()</code>, exactly as <code>safety_button</code> does it. If you do want the shell tool for bench work, the change is <code>CONFIG_SYSTEMCMDS_GPIO=y</code> plus <code>--force</code> on every invocation — <b>not</b> <code>CONFIG_DEV_GPIO</code>.
+</div>
+
+<h3 id="s5-2">5.2 Logs are encrypted on this board</h3>
+<div class="panel compact">
+  <div class="ref">
+    <code>CONFIG_BOARD_CRYPTO=y</code> — <a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/boards/ssrc/saluki-nxp93/default.px4board:3">saluki-nxp93/default.px4board:3</a><br>
+    <code>param set-default SDLOG_EXCH_KEY 2</code> / <code>SDLOG_KEY 3</code> — <a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/boards/ssrc/saluki-nxp93/init/rc.board_defaults:31">saluki-nxp93/init/rc.board_defaults:31-32</a>
+  </div>
+</div>
+<div class="callout info" style="border-left-color:var(--accent)">
+  <p><b>What this does and does not imply.</b> Encryption changes the <i>content</i> of log files and adds key-index parameters. It does not make logging continuous, and it has no bearing on whether a directory is safe to delete: <code>rc.board_defaults</code> sets only the two key indices and <b>does not override <code>SDLOG_MODE</code></b>, so the stock arm-gated logging behaviour applies.</p>
+  <p>The operational point that matters: erased logs on this board are unrecoverable by design, and any partially-written encrypted file removed mid-flight is simply gone. That argues for the interlock in <a href="#s5-3">§5.3</a> — which is needed regardless of encryption.</p>
+</div>
+
+<h3 id="s5-3">5.3 The logger interlock — a ready-made liveness signal</h3>
+<p>The hazard is not arming state — it is deleting files under an open writer. <code>logger on</code> starts logging regardless of arming, so "disarmed" alone is not a sufficient guard:</p>
+<div class="ref" style="margin:8px 0 14px">
+  <code>set_arm_override(true)</code> / <code>(false)</code> at <a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/modules/logger/logger.cpp:162">logger.cpp:162</a> and <a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/modules/logger/logger.cpp:167">:167</a> — shown in <a href="#s3">§3</a>.
+</div>
+<p><code>logger_status</code> is published at 1&nbsp;Hz <b>only while the writer is started</b>, which makes its freshness a direct proxy for "the logger is writing right now":</p>
+<figure class="codeblock">
+  <div class="scroll-x"><pre class="code" style="--start0: 1069"><code><span class="l"><span class="kw">void</span> <span class="ty">Logger</span>::<span class="fn">publish_logger_status</span>()</span>
+<span class="l">{</span>
+<span class="l">    <span class="kw">if</span> (<span class="fn">hrt_elapsed_time</span>(&amp;_logger_status_last) &gt;= 1_s) {</span>
+<span class="l">        <span class="kw">for</span> (<span class="kw">int</span> i = 0; i &lt; (<span class="kw">int</span>)<span class="ty">LogType</span>::Count; ++i) {</span>
+<span class="l"></span>
+<span class="l">            <span class="kw">const</span> <span class="ty">LogType</span> log_type = static_cast&lt;<span class="ty">LogType</span>&gt;(i);</span>
+<span class="l"></span>
+<span class="l">            <span class="kw">if</span> (_writer.<span class="fn">is_started</span>(log_type)) {</span>
+<span class="l"></span>
+<span class="l">                <span class="kw">const</span> <span class="ty">size_t</span> buffer_fill_count_file = _writer.<span class="fn">get_buffer_fill_count_file</span>(log_type);</span>
+<span class="l"></span></code></pre></div>
+  <figcaption><a class="src" href="vscode://file/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main/src/modules/logger/logger.cpp:1070" title="Open in editor at line 1070">src/modules/logger/logger.cpp:1070-1080</a></figcaption>
+</figure>
+<div class="callout ok">
+  <p><b>Recommended interlock</b> — no new plumbing required:</p>
+  <ul>
+    <li>Subscribe to <code>ORB_ID(logger_status)</code> (topic defined in <code>msg/LoggerStatus.msg</code>; published multi-instance, one per <code>LogType</code>).</li>
+    <li>Treat <i>any</i> instance updated within the last ~2.5&nbsp;s as <b>logger active</b> → refuse to erase. The 1&nbsp;Hz cadence at <code>logger.cpp:1072</code> makes a 2–3&nbsp;s staleness window safe against jitter without being sluggish.</li>
+    <li>Additionally require disarmed (<code>vehicle_status</code>) as a belt-and-braces condition, and require the GPIO hold to complete <i>after</i> both conditions are already true.</li>
+    <li>Optionally issue <code>logger off</code> semantics first if you want the trigger to work while logging — but the safer default is refuse-and-signal, not stop-and-delete.</li>
+  </ul>
+  <p class="ref" style="margin-bottom:0">Note <code>LoggerStatus.msg</code> has no <code>is_logging</code> field — liveness is carried by the publication itself, so check message freshness rather than a flag.</p>
+</div>
+</section>
+
+<!-- ================= 6 ================= -->
+<section class="proposal" id="sec6">
+<h2 id="s6"><span class="num">6</span>Recommended architecture<span class="kind design">proposed</span><a class="anchor" href="#s6">#</a></h2>
+<div class="banner">
+  <div><b>Nothing in this section exists in the tree.</b> Everything from here on is a design proposal. Identifiers such as <code>log_utils::erase_all_logs()</code> and <code>log_erase_trigger</code> are names being proposed, not code you can call today.</div>
+</div>
+
+<figure class="diagram">
+<svg viewBox="0 0 880 470" role="img" aria-labelledby="diagtitle diagdesc" xmlns="http://www.w3.org/2000/svg">
+  <title id="diagtitle">Proposed log erase trigger data flow</title>
+  <desc id="diagdesc">A free GPIO input is polled by a new log_erase_trigger work-queue module. Three guard conditions — disarmed from vehicle_status, logger_status stale, and a GPIO hold exceeding two to three seconds with latching — must all pass before the module calls a new shared library function log_utils::erase_all_logs(), which deletes the contents of the log directory on the microSD card. The existing MAVLink log handler is refactored to call the same library function so there is a single source of truth.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/>
+    </marker>
+    <marker id="arrowdash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/>
+    </marker>
+  </defs>
+  <style>
+    .nb { fill: var(--panel); stroke: var(--border-strong); stroke-width: 1.5; }
+    .nb.new { stroke: var(--proposal-rail); stroke-dasharray: 5 3; }
+    .nb.ext { fill: var(--panel2); }
+    .nt { fill: var(--text); font: 600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .ns { fill: var(--muted); font: 400 11.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+    .nn { fill: var(--proposal-rail); font: 600 9.5px -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: .07em; }
+    .ln { stroke: var(--muted); stroke-width: 1.6; fill: none; }
+    .ln.dash { stroke: var(--accent); stroke-dasharray: 5 4; }
+    .lt { fill: var(--muted); font: 400 11px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .gb { fill: none; stroke: var(--warn); stroke-width: 1.3; stroke-dasharray: 4 3; }
+    .gt { fill: var(--warn); font: 600 11px -apple-system, BlinkMacSystemFont, sans-serif; }
+  </style>
+
+  <!-- GPIO input -->
+  <rect class="nb" x="16" y="34" width="176" height="56" rx="8"/>
+  <text class="nt" x="104" y="58" text-anchor="middle">Free GPIO input</text>
+  <text class="ns" x="104" y="76" text-anchor="middle">GPIO_LOG_ERASE_TRIGGER</text>
+
+  <!-- trigger module -->
+  <rect class="nb new" x="256" y="20" width="230" height="84" rx="8"/>
+  <text class="nn" x="371" y="38" text-anchor="middle">NEW MODULE</text>
+  <text class="nt" x="371" y="58" text-anchor="middle">log_erase_trigger</text>
+  <text class="ns" x="371" y="76" text-anchor="middle">ScheduledWorkItem</text>
+  <text class="ns" x="371" y="92" text-anchor="middle">poll gpioread() @ 20–50 Hz</text>
+  <path class="ln" d="M 192 62 H 250" marker-end="url(#arrow)"/>
+
+  <!-- uORB inputs -->
+  <rect class="nb ext" x="596" y="16" width="268" height="44" rx="8"/>
+  <text class="nt" x="730" y="35" text-anchor="middle" style="font-size:12.5px">vehicle_status</text>
+  <text class="ns" x="730" y="51" text-anchor="middle">arming state</text>
+  <rect class="nb ext" x="596" y="70" width="268" height="44" rx="8"/>
+  <text class="nt" x="730" y="89" text-anchor="middle" style="font-size:12.5px">logger_status</text>
+  <text class="ns" x="730" y="105" text-anchor="middle">1 Hz only while writer started</text>
+  <path class="ln" d="M 590 38 H 492" marker-end="url(#arrow)"/>
+  <path class="ln" d="M 590 92 H 492" marker-end="url(#arrow)"/>
+  <text class="lt" x="541" y="130" text-anchor="middle">uORB</text>
+
+  <!-- guard box -->
+  <rect class="gb" x="196" y="146" width="470" height="96" rx="8"/>
+  <text class="gt" x="212" y="166">ALL THREE MUST HOLD</text>
+  <text class="ns" x="212" y="188" style="fill:var(--text)">1 · disarmed (vehicle_status)</text>
+  <text class="ns" x="212" y="206" style="fill:var(--text)">2 · logger_status stale &gt; 2.5 s  →  writer idle</text>
+  <text class="ns" x="212" y="224" style="fill:var(--text)">3 · GPIO held 2–3 s, fire once, latch until release</text>
+  <path class="ln" d="M 371 104 V 140" marker-end="url(#arrow)"/>
+
+  <!-- log_utils -->
+  <rect class="nb new" x="256" y="284" width="230" height="80" rx="8"/>
+  <text class="nn" x="371" y="302" text-anchor="middle">NEW SHARED LIB</text>
+  <text class="nt" x="371" y="322" text-anchor="middle">log_utils::erase_all_logs()</text>
+  <text class="ns" x="371" y="340" text-anchor="middle">src/lib/log_utils/</text>
+  <text class="ns" x="371" y="356" text-anchor="middle">depth-bounded recursive walk</text>
+  <path class="ln" d="M 371 242 V 278" marker-end="url(#arrow)"/>
+
+  <!-- mavlink handler -->
+  <rect class="nb ext" x="596" y="290" width="268" height="68" rx="8"/>
+  <text class="nt" x="730" y="312" text-anchor="middle" style="font-size:12.5px">MavlinkLogHandler</text>
+  <text class="ns" x="730" y="330" text-anchor="middle">_log_request_erase()</text>
+  <text class="ns" x="730" y="346" text-anchor="middle">refactor to call the lib</text>
+  <path class="ln dash" d="M 590 324 H 492" marker-end="url(#arrowdash)"/>
+  <text class="lt" x="541" y="378" text-anchor="middle" style="fill:var(--accent)">single source of truth</text>
+
+  <!-- filesystem -->
+  <rect class="nb" x="256" y="404" width="230" height="52" rx="8"/>
+  <text class="nt" x="371" y="426" text-anchor="middle" style="font-size:13px">/fs/microsd/log/*</text>
+  <text class="ns" x="371" y="443" text-anchor="middle">PX4_STORAGEDIR "/log"</text>
+  <path class="ln" d="M 371 364 V 398" marker-end="url(#arrow)"/>
+
+  <!-- left annotation -->
+  <text class="lt" x="104" y="196" text-anchor="middle">mirrors</text>
+  <text class="lt" x="104" y="212" text-anchor="middle">safety_button</text>
+  <text class="lt" x="104" y="228" text-anchor="middle">structure (§4.4)</text>
+</svg>
+<figcaption class="ref">Dashed purple outlines are new code. Solid grey boxes already exist. The dashed blue edge is the optional refactor that removes the duplicate walk.</figcaption>
+</figure>
+
+<h3 id="s6-1">6.1 Files to create</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Path</th><th>Purpose</th></tr></thead>
+  <tbody>
+  <tr><td><code>src/lib/log_utils/log_utils.h</code></td><td><code>namespace log_utils { int erase_all_logs(); }</code></td></tr>
+  <tr><td><code>src/lib/log_utils/log_utils.cpp</code></td><td>Recursive delete ported from <code>mavlink_log_handler.cpp:607-653</code>, with the depth bound the TODO at line 631 asks for, a symlink guard, and a larger or dynamically sized path buffer to fix the silent &gt;128-byte skip</td></tr>
+  <tr><td><code>src/lib/log_utils/CMakeLists.txt</code></td><td><code>px4_add_library(log_utils log_utils.cpp)</code></td></tr>
+  <tr><td><code>src/modules/log_erase_trigger/</code><br><code>{CMakeLists.txt, Kconfig, LogEraseTrigger.hpp, LogEraseTrigger.cpp}</code></td><td>Work-queue module mirroring <code>src/drivers/safety_button/</code>; subscribes <code>logger_status</code> + <code>vehicle_status</code>, polls the GPIO, calls the library</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="s6-2">6.2 Files to modify</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Path</th><th>Change</th></tr></thead>
+  <tbody>
+  <tr><td><code>boards/ssrc/common/imx9_common/src/board_config.h</code></td><td>Add <code>GPIO_LOG_ERASE_TRIGGER</code> + <code>_MUX</code> under <code>#ifdef CONFIG_MODULES_LOG_ERASE_TRIGGER</code>, following the pattern at lines 104-105 and 167-174</td></tr>
+  <tr><td><code>boards/ssrc/saluki-nxp93/default.px4board</code></td><td>Add <code>CONFIG_MODULES_LOG_ERASE_TRIGGER=y</code></td></tr>
+  <tr><td><code>boards/ssrc/saluki-nxp93/init/rc.board_extras</code></td><td><code>log_erase_trigger start</code></td></tr>
+  <tr><td><code>src/modules/mavlink/mavlink_log_handler.cpp</code> <i>(optional)</i></td><td>Replace <code>_delete_all(kLogRoot)</code> at line 271 with <code>log_utils::erase_all_logs()</code>; drop the now-duplicate <code>_delete_all</code> and its declaration at <code>mavlink_log_handler.h:93</code>. Keep lines 267-268 — see <a href="#s2-3">§2.3</a></td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<!-- ================= 7 ================= -->
+<section class="proposal" id="sec7">
+<h2 id="s7"><span class="num">7</span>Open decisions<span class="kind open">unresolved</span><a class="anchor" href="#s7">#</a></h2>
+<p class="ref">Ordered by what blocks progress.</p>
+<div class="tablewrap">
+  <table>
+    <thead><tr><th>Decision</th><th>State</th><th>What would resolve it</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Which physical GPIO pin.</b> Must be a genuinely free pad — not allocated to PWM, SPI, UART, CAN, the safety button, or the IO expander.</td>
+        <td><span class="tag danger">blocked</span></td>
+        <td>Board schematics / pad-allocation review. Cannot be settled from this source tree: <code>PX4_GPIO_INIT_LIST</code> is empty, so the tree carries no inventory of claimed pads to diff against.</td>
+      </tr>
+      <tr>
+        <td><b>Trigger polarity and hold time.</b> Active-high vs active-low; 2 s vs 3 s.</td>
+        <td><span class="tag warn">low confidence</span></td>
+        <td>Follows from the pin choice (internal pull availability) and from a hardware decision on button vs jumper. <code>safety_button</code> uses a 30-cycle counter at its schedule rate as precedent.</td>
+      </tr>
+      <tr>
+        <td><b>Whether to add a <code>log_erase</code> one-shot shell command</b> calling the same library function.</td>
+        <td><span class="tag info">optional</span></td>
+        <td>Product call, not a technical blocker. Cheap once the library exists, and it makes the erase path testable without the hardware trigger — recommended for bring-up.</td>
+      </tr>
+      <tr>
+        <td><b>Failure and confirmation signalling.</b> What the operator sees when the trigger fires, is refused by the interlock, or partially fails.</td>
+        <td><span class="tag warn">not yet specified</span></td>
+        <td>Options: <code>events</code>/<code>mavlink_log_info</code>, an LED pattern, or a tune via <code>tune_control</code>. Note the current walk swallows per-file failures as <code>PX4LOG_WARN</code> only.</td>
+      </tr>
+      <tr>
+        <td><b>Upstreaming split.</b></td>
+        <td><span class="tag ok">clear</span></td>
+        <td>The generic <code>log_utils</code> library and the module are upstream-safe; the board-specific GPIO definitions stay TII-scoped, since <code>board_config.h</code> carries a 2024 TII copyright.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</section>
+
+<div class="footer">
+  Analysis only — no firmware files were modified.<br>
+  Source tree <code>/home/juniorsundar/Documents/Projects/1_GITHUB/px4-firmware-wt/main</code> at commit <code>49f5c40f4c</code> (branch <code>main</code>, working tree dirty in unrelated files: <code>.gitignore</code>, <code>flake.nix</code>, <code>flake.lock</code>, <code>.envrc</code>).<br>
+  All code blocks generated verbatim from the cited files; all line references machine-derived. Reference links use the <code>vscode://file</code> scheme and will open in VS Code — adjust the scheme if you use a different editor.
+</div>
+
+</main>
+</div>
+
+<script>
+(function () {
+  // Theme toggle: explicit choice wins over the OS setting and persists.
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem("ler-theme"); } catch (e) {}
+  if (saved === "light" || saved === "dark") { root.setAttribute("data-theme", saved); }
+  document.getElementById("theme").addEventListener("click", function () {
+    var dark = getComputedStyle(root).getPropertyValue("--bg").trim().indexOf("#0f1115") === 0;
+    var next = dark ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("ler-theme", next); } catch (e) {}
+  });
+
+  // Build the table of contents from the headings actually present.
+  var toc = document.getElementById("toc");
+  var heads = document.querySelectorAll("main h2[id], main h3[id]");
+  heads.forEach(function (h) {
+    var li = document.createElement("li");
+    var a = document.createElement("a");
+    a.href = "#" + h.id;
+    // Build the label from the heading's own words: drop the "#" anchor and the
+    // verified/proposed chip, and keep the section number as a spaced prefix.
+    var clone = h.cloneNode(true);
+    Array.prototype.forEach.call(clone.querySelectorAll(".anchor, .kind"), function (n) {
+      n.parentNode.removeChild(n);
+    });
+    var num = clone.querySelector(".num");
+    var prefix = "";
+    if (num) { prefix = num.textContent.trim() + ". "; num.parentNode.removeChild(num); }
+    a.textContent = prefix + clone.textContent.trim();
+    if (h.tagName === "H3") { a.className = "sub"; }
+    li.appendChild(a);
+    toc.appendChild(li);
+  });
+
+  // Highlight the section currently in view.
+  var links = {};
+  toc.querySelectorAll("a").forEach(function (a) { links[a.getAttribute("href").slice(1)] = a; });
+  var seen = [];
+  var obs = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      var id = e.target.id;
+      if (e.isIntersecting) { if (seen.indexOf(id) < 0) { seen.push(id); } }
+      else { seen = seen.filter(function (s) { return s !== id; }); }
+    });
+    if (!seen.length) { return; }
+    var order = [].map.call(heads, function (h) { return h.id; });
+    seen.sort(function (a, b) { return order.indexOf(a) - order.indexOf(b); });
+    Object.keys(links).forEach(function (k) { links[k].classList.remove("active"); });
+    if (links[seen[0]]) {
+      links[seen[0]].classList.add("active");
+      links[seen[0]].scrollIntoView({ block: "nearest" });
+    }
+  }, { rootMargin: "0px 0px -75% 0px" });
+  heads.forEach(function (h) { obs.observe(h); });
+})();
+</script>
+</body>
+</html>
