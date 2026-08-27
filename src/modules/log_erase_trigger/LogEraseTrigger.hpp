@@ -18,61 +18,23 @@
 #pragma once
 
 #include <board_config.h>
+#include <drivers/drv_hrt.h>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
+#include <uORB/Subscription.hpp>
+#include <uORB/topics/actuator_armed.h>
+#include <uORB/topics/logger_status.h>
 
-/*****************************************************************************
- * TRIGGER PIN DEFINITION -- TELEM1 CTS
- *
- * Pad GPIO_IO16, used as GPIO2_16, reached externally on the TELEM1 connector.
- *
- *   SoC pad          GPIO_IO16               (i.MX93 GPIO2 bank, pin 16)
- *   FMU connector    J1 pin 24               (net UART7_CTS_TELEM1)
- *   base board       J13 pin 4 "TELEM1 CTS"  (BM06B-GHS-TBT, 6-pin JST GH)
- *                    J13: 1=VCC_5V, 2=TX, 3=RX, 4=CTS, 5=RTS, 6=GND
- *   conditioning     33R series + TPD4E6B06 TVS on the base board
- *
- * Chosen because it is an input by nature, is broken out on a standard GH
- * connector, and touches nothing safety critical -- unlike FMU_CAP1 (owned by
- * the redundancy armed watchdog, board_config.h:176) or the TELEM3 flow control
- * lines (which are the JTAG/SWD pads DAP_TCLK/DAP_TMS).
- *
- * Logic level is 3.3 V: this pad is in the same GPIO_IO group as LPUART4
- * TX/RX (GPIO_IO14/GPIO_IO15, board.h:73-74), which drive a telemetry radio
- * directly with no level shifter on the base board. Do NOT source the high
- * level from J13 pin 1 -- that is 5 V and would damage the pad.
- *
- * Ownership: this pad is LPUART4_CTS_B when TELEM1 output flow control is on.
- * NuttX muxes it at imx9_lowputc.c:208-210 under CONFIG_LPUART4_OFLOWCONTROL,
- * so that symbol is disabled in this board's defconfig and the #error below
- * keeps the two uses from silently fighting over the pad. TELEM1 keeps working;
- * it just stops honouring CTS from the radio, which is the usual PX4 setup.
- * CONFIG_LPUART4_IFLOWCONTROL is untouched -- that gates RTS (GPIO_IO17).
- *
- * TODO(move): move GPIO_LOG_ERASE_TRIGGER_MUX and GPIO_LOG_ERASE_TRIGGER into
+/*
+ * The trigger pin is defined by the board, not by this module:
  *   boards/ssrc/common/imx9_common/src/board_config.h
- * wrapped in  #ifdef CONFIG_MODULES_LOG_ERASE_TRIGGER  -- mirroring the
- * CONFIG_MODULES_REDUNDANCY_DRV block at board_config.h:169-180 -- and delete
- * them from here. They live in the module for now because board_config.h is
- * shared by every imx9 board and this is still a proof of concept.
- *
- * The pad macro and the pinset MUST agree:
- * IOMUXC_PAD_<pad>_GPIO<n>_IO<m> pairs with (GPIO_PORT<n> | GPIO_PIN<m>).
- * A mismatch reads a different pin and looks exactly like a wiring fault.
- *
- * Note: the pad mux is a separate step from the GPIO direction.
- * imx9_config_gpio() does not touch IOMUXC, so imx9_iomux_configure() must be
- * called too -- see init.c:226 for the safety button doing this.
- *****************************************************************************/
-#if defined(CONFIG_LPUART4_OFLOWCONTROL)
-#  error "log_erase_trigger uses GPIO_IO16, which TELEM1 (LPUART4) claims as CTS_B when CONFIG_LPUART4_OFLOWCONTROL is set. Disable that symbol or move the trigger to another pad."
+ * under #ifdef CONFIG_MODULES_LOG_ERASE_TRIGGER, which is also where the pad
+ * choice, its wiring down to the external connector, and the LPUART4 CTS
+ * ownership conflict are documented.
+ */
+#ifndef GPIO_LOG_ERASE_TRIGGER
+#  error "board needs to define a log erase trigger gpio pin to use this module"
 #endif
-
-#define GPIO_LOG_ERASE_TRIGGER_MUX \
-	IOMUX_CFG(IOMUXC_PAD_GPIO_IO16_GPIO2_IO16, IOMUXC_PAD_PD_ON | IOMUXC_PAD_HYS_ST_ON, 0)
-#define GPIO_LOG_ERASE_TRIGGER      (GPIO_PORT2 | GPIO_PIN16 | GPIO_INPUT)
-#define GPIO_LOG_ERASE_TRIGGER_NAME "TELEM1 CTS (GPIO_IO16 / GPIO2_16, J13 pin 4)"
-/*****************************************************************************/
 
 class LogEraseTrigger : public ModuleBase<LogEraseTrigger>, public px4::ScheduledWorkItem
 {
@@ -108,9 +70,78 @@ public:
 private:
 	void Run() override;
 
+	/**
+	 * Feed one raw sample into the debouncer.
+	 *
+	 * @param raw the level just read from the pin
+	 * @return true when the debounced level changed as a result
+	 */
+	bool UpdateDebouncedLevel(bool raw);
+
+	/**
+	 * Check the conditions that must hold before logs may be erased.
+	 *
+	 * @param reason set to a static string naming the blocking condition when
+	 *               this returns false; untouched otherwise
+	 * @return true when erasing is permitted
+	 */
+	bool GuardsPass(const char *&reason);
+
+	/** Erase the logs and report the outcome. */
+	void PerformErase();
+
 	static constexpr uint32_t kPollIntervalUs{20000}; ///< 20 ms == 50 Hz
 
-	bool _state_prev{false};   ///< pin level on the previous poll
-	bool _have_prev{false};    ///< false until the first sample, so the initial level is printed
-	uint32_t _edges{0};        ///< edges seen since start, for print_status()
+	/**
+	 * Consecutive agreeing samples before a level is believed. 3 samples at
+	 * 50 Hz is 60 ms, comfortably longer than the contact bounce seen when the
+	 * input is driven by a switch or a hand-held jumper.
+	 */
+	static constexpr uint8_t kDebounceSamples{3};
+
+	/**
+	 * Debounced-high samples required to fire: 150 at 50 Hz is 3 s. Long
+	 * enough that a glitch or a brief accidental contact cannot erase flight
+	 * logs, short enough to be practical to hold deliberately.
+	 */
+	static constexpr uint16_t kHoldSamples{150};
+
+	/**
+	 * How stale logger_status must be before the logger counts as idle.
+	 *
+	 * Logger::publish_logger_status() (src/modules/logger/logger.cpp:1070-1099)
+	 * publishes at 1 Hz and ONLY while _writer.is_started(), so the freshness
+	 * of that topic is a direct proxy for "the writer has files open". 2.5 s
+	 * tolerates scheduling jitter without being sluggish.
+	 */
+	static constexpr hrt_abstime kLoggerIdleTimeoutUs{2500000};
+
+	/** logger_status is published multi-instance, one per LogType (full, mission). */
+	static constexpr uint8_t kLoggerStatusInstances{2};
+
+	// --- debounce state ---
+	bool _raw_prev{false};       ///< previous raw sample, for the debouncer
+	uint8_t _stable_count{0};    ///< how many consecutive samples have agreed
+	bool _level{false};          ///< current debounced level
+	bool _have_level{false};     ///< false until the first level is accepted
+
+	// --- hold / latch state ---
+	uint16_t _hold_count{0};      ///< consecutive debounced-high polls with guards passing
+	bool _latched{false};         ///< fired already; wait for release before firing again
+	bool _refusal_reported{false}; ///< keeps a blocked guard from spamming the console
+
+	// --- interlock ---
+	uORB::Subscription _armed_sub{ORB_ID(actuator_armed)};
+	uORB::Subscription _logger_status_sub[kLoggerStatusInstances] {
+		{ORB_ID(logger_status), 0},
+		{ORB_ID(logger_status), 1},
+	};
+	hrt_abstime _logger_last_seen{0}; ///< last time any logger_status instance updated
+	bool _armed{false};               ///< latest arming state
+
+	// --- diagnostics, surfaced by print_status() ---
+	uint32_t _edges{0};                     ///< debounced edges seen since start
+	uint32_t _triggers{0};                  ///< times the hold completed and an erase ran
+	uint32_t _refusals{0};                  ///< times a hold was blocked by a guard
+	const char *_last_result{"none yet"};   ///< outcome of the most recent erase attempt
 };
