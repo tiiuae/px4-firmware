@@ -471,8 +471,8 @@ private: // class methods
 	static int8_t launchCallbackThread();
 
 private: // data members
-	static inline Manager *_Instance = nullptr;
-	inline static char _namespace_prefix[orb_maxpath] {};
+	static Manager *_Instance;
+	static char _namespace_prefix[orb_maxpath];
 
 #ifdef CONFIG_ORB_COMMUNICATOR
 	// the communicator channel instance.
