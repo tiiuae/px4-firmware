@@ -61,6 +61,9 @@
 pthread_mutex_t uORB::Manager::_communicator_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
+uORB::Manager *uORB::Manager::_Instance = nullptr;
+char uORB::Manager::_namespace_prefix[uORB::orb_maxpath] {};
+
 namespace
 {
 #ifndef CONFIG_BUILD_FLAT
