@@ -2017,7 +2017,7 @@ MavlinkReceiver::handle_message_tunnel(mavlink_message_t *msg)
 	mavlink_tunnel_t mavlink_tunnel;
 	mavlink_msg_tunnel_decode(msg, &mavlink_tunnel);
 
-	if (mavlink_tunnel.target_system != _mavlink->get_system_id()) {
+	if (mavlink_tunnel.target_system != _mavlink.get_system_id()) {
 		// Skip messages not targeted to this system
 		return;
 	}
