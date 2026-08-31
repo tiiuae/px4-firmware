@@ -90,7 +90,7 @@ static bool create_data_writer(uxrSession *session, uxrStreamId reliable_out_str
 					    "<topic>"
 					    "<kind>NO_KEY</kind>"
 					    "<name>%s</name>"
-					    "<dataType>px4_msgs::msg::dds_::%s_</dataType>"
+					    "<dataType>%s</dataType>"
 					    "</topic>"
 					    "<qos>"
 					    "<publishMode>"
@@ -101,7 +101,7 @@ static bool create_data_writer(uxrSession *session, uxrStreamId reliable_out_str
 					    "</data_writer>"
 					    "</dds>";
 
-	int ret = snprintf(datawriter_xml, 1024, datawriter_xml_format, topic_name, topic_name_simple);
+	int ret = snprintf(datawriter_xml, 1024, datawriter_xml_format, topic_name, type_name);
 
 	if (ret < 0) {
 		PX4_ERR("Can't create datawriter_xml string");
@@ -163,13 +163,13 @@ static bool create_data_reader(uxrSession *session, uxrStreamId reliable_out_str
 					    "<topic>"
 					    "<kind>NO_KEY</kind>"
 					    "<name>%s</name>"
-					    "<dataType>px4_msgs::msg::dds_::%s_</dataType>"
+					    "<dataType>%s</dataType>"
 					    "</topic>"
 					    "<historyMemoryPolicy>PREALLOCATED_WITH_REALLOC</historyMemoryPolicy>"
 					    "</data_reader>"
 					    "</dds>";
 
-	int ret = snprintf(datareader_xml, 1024, datareader_xml_format, topic_name, topic_name_simple);
+	int ret = snprintf(datareader_xml, 1024, datareader_xml_format, topic_name, type_name);
 
 	if (ret < 0) {
 		PX4_ERR("Can't create datareader_xml string");
