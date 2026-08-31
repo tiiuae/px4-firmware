@@ -74,7 +74,7 @@ parameters:
         1: Enabled
       default: 1
       reboot_required: true
-- group: UAVCAN
+- group: Simulator
   definitions:
     SIM_GZ_EN:
       description:
