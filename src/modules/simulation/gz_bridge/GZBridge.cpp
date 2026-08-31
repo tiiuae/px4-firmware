@@ -53,6 +53,13 @@ GZBridge::GZBridge(const std::string &world, const std::string &model_name, cons
 	_vehicle_type(vehicle_type)
 {
 	updateParams();
+
+	// For rover vehicle types, read the maximum ground speed so throttle setpoints
+	// (normalized [-1, 1]) can be scaled to a physically meaningful linear velocity
+	// when publishing cmd_vel to the simulator.
+	if (_vehicle_type.compare(0, 5, "rover") == 0) {
+		param_get(param_find("GND_SPEED_MAX"), &_rover_max_speed);
+	}
 }
 
 GZBridge::~GZBridge()
@@ -969,13 +976,17 @@ void GZBridge::updateCmdVel()
 		vehicle_thrust_setpoint_s vehicle_thrust_setpoint_msg;
 
 		if (_vehicle_thrust_setpoint_sub.copy(&vehicle_thrust_setpoint_msg)) {
-			_rover_throttle_control = vehicle_thrust_setpoint_msg.xyz[0];
+			// Scale normalized thrust setpoint by the rover's max speed to get a
+			// physical linear velocity for cmd_vel. On a physical rover this scale
+			// back is only applied in mission mode, but here we simplify by
+			// applying it in both manual and mission modes.
+			_rover_throttle_control = vehicle_thrust_setpoint_msg.xyz[0] * _rover_max_speed;
 			do_update = true;
 		}
 	}
 
 	if (do_update) {
-		auto throttle = 1.0f * _rover_throttle_control;
+		auto throttle = _rover_throttle_control;
 		auto steering = _rover_yaw_control;
 
 		// publish cmd_vel
