@@ -18,6 +18,7 @@ do
   [[ "${repo}" == *assembly_agent ]] || \
   [[ "${repo}" == *moi_agent ]] || \
   [[ "${repo}" == *secure_udp_proxy ]] || \
+  [[ "${repo}" == *libatt ]] || \
   [[ "${repo}" == src/modules/redundancy ]] || \
   [[ "${repo}" == *process ]] || \
   [[ "${repo}" == *nxp93-attestation ]] || \
