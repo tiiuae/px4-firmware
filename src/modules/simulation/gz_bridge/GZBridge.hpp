@@ -185,6 +185,7 @@ private:
 
 	float _rover_throttle_control{0.0f};
 	float _rover_yaw_control{0.0f};
+	float _rover_max_speed{0.0f};
 
 	bool _realtime_clock_set{false};
 	gz::transport::Node _node;
