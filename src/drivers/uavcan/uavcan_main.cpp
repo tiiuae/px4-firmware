@@ -506,6 +506,8 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 	fill_node_info();
 
 	int ret;
+	int32_t uavcan_enable = -1;
+	(void)param_get(param_find("UAVCAN_ENABLE"), &uavcan_enable);
 
 	// UAVCAN_PUB_ARM
 #if defined(CONFIG_UAVCAN_ARMING_CONTROLLER)
@@ -533,9 +535,6 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 
 	// Actuators
 #if defined(CONFIG_UAVCAN_OUTPUTS_CONTROLLER)
-	int32_t uavcan_enable = -1;
-	(void)param_get(param_find("UAVCAN_ENABLE"), &uavcan_enable);
-
 	if (uavcan_enable > 2) {
 
 		ret = _esc_controller.init();
@@ -633,8 +632,6 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 	_param_opcode_client.setCallback(ExecuteOpcodeCallback(this, &UavcanNode::cb_opcode));
 	_param_restartnode_client.setCallback(RestartNodeCallback(this, &UavcanNode::cb_restart));
 
-	int32_t uavcan_enable = 1;
-	(void)param_get(param_find("UAVCAN_ENABLE"), &uavcan_enable);
 	int32_t uavcan_dynamic_node_server_enable = 1;
 	(void)param_get(param_find("UAVCAN_DNS"), &uavcan_dynamic_node_server_enable);
 
