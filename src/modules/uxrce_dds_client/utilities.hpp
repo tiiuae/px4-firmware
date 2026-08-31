@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include <string.h>
+
 #include <uxr/client/client.h>
 #include <ucdr/microcdr.h>
 
@@ -41,6 +43,14 @@ static bool generate_topic_name(char *topic_name, const char *client_namespace, 
 	}
 
 	if (client_namespace != nullptr) {
+		// A custom client namespace replaces the default "fmu" one, so strip
+		// any leading "fmu/" from the topic to avoid a redundant path segment.
+		static constexpr const char kFmuPrefix[] = "fmu/";
+
+		if (strncmp(topic, kFmuPrefix, sizeof(kFmuPrefix) - 1) == 0) {
+			topic += sizeof(kFmuPrefix) - 1;
+		}
+
 		int ret = snprintf(topic_name, TOPIC_NAME_SIZE, "rt/%s/%s%s", client_namespace, topic, version);
 		return (ret > 0 && ret < TOPIC_NAME_SIZE);
 	}
