@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     # Read the private RSA key to decrypt the cahcha key
     with open(args.rsa_key, 'rb') as f:
-        r = RSA.importKey(f.read(), passphrase='')
+        r = RSA.importKey(f.read(), passphrase=None)
 
     if args.ulog_key == "":
         key_data_filename = args.ulog_file
