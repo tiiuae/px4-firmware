@@ -1,0 +1,8 @@
+menuconfig SYSTEMCMDS_ZTCS_ENROLL
+	bool "ztcs_enroll"
+	default n
+	depends on LIB_ZTCS_SECURE_LINK
+	---help---
+		Enrol this aircraft on the secure MAVLink link: read the link
+		public key out, and write the ground station key and the identity
+		payload back in. The ground end is ztcs-mavlink-provision.

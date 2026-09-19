@@ -15,8 +15,9 @@
 
 #include <px4_platform_common/crypto_backend.h>
 
-/* imx9_keystore: slots 1-14 are read-only, 15-46 are read/write, and the
- * logger already holds 1 and 2.
+/* imx9_keystore holds 50 slots. Read-only is a per-key flag rather than a
+ * range: a slot takes a write until something marks it so, and a key
+ * provisioned from a PC is marked on its next write. The logger holds 1 and 2.
  */
 #ifndef ZTCS_KEY_SLOT_STATION_PUBLIC
 #define ZTCS_KEY_SLOT_STATION_PUBLIC 3
@@ -137,6 +138,29 @@ bool secure_link_public_key(uint8_t out[NOISE_DHLEN])
 	return ok;
 }
 
+bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
+			const uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN])
+{
+	keystore_session_handle_t ks = keystore_open();
+	bool ok;
+
+	if (!keystore_session_handle_valid(ks)) {
+		PX4_ERR("cannot open the keystore");
+		return false;
+	}
+
+	ok = keystore_put_key(ks, ZTCS_KEY_SLOT_STATION_PUBLIC, station_public, NOISE_DHLEN)
+	     && keystore_put_key(ks, ZTCS_KEY_SLOT_IDENTITY, identity,
+				 NOISE_IDENTITY_PAYLOAD_LEN);
+	keystore_close(&ks);
+
+	if (!ok) {
+		PX4_ERR("could not write the keystore; a slot may be marked read only");
+	}
+
+	return ok;
+}
+
 #else /* PX4_CRYPTO */
 
 bool secure_link_ensure_keys(struct secure_link_keys *keys)
@@ -149,6 +173,15 @@ bool secure_link_ensure_keys(struct secure_link_keys *keys)
 bool secure_link_public_key(uint8_t out[NOISE_DHLEN])
 {
 	memset(out, 0, NOISE_DHLEN);
+	return false;
+}
+
+bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
+			const uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN])
+{
+	(void)station_public;
+	(void)identity;
+	PX4_ERR("no keystore on this board: enable the PX4 crypto backend");
 	return false;
 }
 

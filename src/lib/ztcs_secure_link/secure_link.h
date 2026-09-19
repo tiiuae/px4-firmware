@@ -100,6 +100,10 @@ bool secure_link_ensure_keys(struct secure_link_keys *keys);
 /* For enrolment to sign. The private half has no accessor. */
 bool secure_link_public_key(uint8_t out[NOISE_DHLEN]);
 
+/* Writes the two blobs enrolment produces. See ztcs-mavlink-provision. */
+bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
+                        const uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN]);
+
 static inline bool secure_link_is_up(const struct secure_link *sl)
 {
   return sl->state == SECURE_LINK_ESTABLISHED;
