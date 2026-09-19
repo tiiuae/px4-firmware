@@ -5,10 +5,17 @@
 /* Exactly NOISE_HASHLEN bytes, so h starts as the name itself with no hash. */
 static const char PROTOCOL[] = "Noise_IK_25519_ChaChaPoly_SHA256";
 
+/* The largest thing this protocol ever hashes is a sealed identity payload. */
+#define MIX_HASH_MAX (NOISE_IDENTITY_PAYLOAD_LEN + NOISE_TAGLEN)
+
 static void mix_hash(struct noise_symmetric *ss, const uint8_t *data,
                      size_t len) {
-  uint8_t buf[NOISE_HASHLEN + 512];
-  if (len > sizeof(buf) - NOISE_HASHLEN) {
+  uint8_t buf[NOISE_HASHLEN + MIX_HASH_MAX];
+  if (len > MIX_HASH_MAX) {
+    /* Skipping the update would leave a stale h and carry on. Poison it so
+     * the handshake cannot complete instead.
+     */
+    memset(ss->h, 0, NOISE_HASHLEN);
     return;
   }
   memcpy(buf, ss->h, NOISE_HASHLEN);
