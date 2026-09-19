@@ -3244,6 +3244,37 @@ MavlinkReceiver::run()
 					nread = recvfrom(_mavlink->get_socket_fd(), buf, sizeof(buf), 0, (struct sockaddr *)&srcaddr, &addrlen);
 				}
 
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+
+				if (nread > 0) {
+					/* Fail closed here too: unkeyed means the parser sees
+					 * nothing, rather than commands from anyone who can
+					 * reach the port.
+					 */
+					uint8_t plain[SECURE_LINK_MTU];
+					int plain_len = -1;
+
+					if (_mavlink->secure_link_ready()) {
+						_mavlink->lock_secure_link();
+						plain_len = secure_link_open(_mavlink->get_secure_link(), hrt_absolute_time(),
+									     buf, nread, plain, sizeof(plain));
+						_mavlink->unlock_secure_link();
+					}
+
+					/* 0 was a consumed handshake, negative was refused.
+					 * Neither is MAVLink.
+					 */
+					if (plain_len > 0) {
+						memcpy(buf, plain, plain_len);
+						nread = plain_len;
+
+					} else {
+						nread = 0;
+					}
+				}
+
+#endif // CONFIG_LIB_ZTCS_SECURE_LINK
+
 				struct sockaddr_in &srcaddr_last = _mavlink->get_client_source_address();
 
 				int localhost = (127 << 24) + 1;

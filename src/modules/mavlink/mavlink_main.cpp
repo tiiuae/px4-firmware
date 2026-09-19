@@ -784,11 +784,40 @@ void Mavlink::send_finish()
 
 		if (_src_addr_initialized) {
 # endif // CONFIG_NET
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+			{
+				/* Fail closed: unkeyed, or not yet through the handshake,
+				 * means nothing leaves. Dropping is right rather than
+				 * retrying, because MAVLink is a stream of state.
+				 */
+				uint8_t sealed[SECURE_LINK_MTU];
+				int sealed_len = -1;
+
+				if (_secure_link_ready) {
+					lock_secure_link();
+					sealed_len = secure_link_seal(&_secure_link, hrt_absolute_time(),
+								      _buf, _buf_fill, sealed, sizeof(sealed));
+					unlock_secure_link();
+				}
+
+				ret = sealed_len > 0
+				      ? sendto(_socket_fd, sealed, sealed_len, 0,
+					       (struct sockaddr *)&_src_addr, sizeof(_src_addr))
+				      : _buf_fill;
+			}
+#else
 			ret = sendto(_socket_fd, _buf, _buf_fill, 0, (struct sockaddr *)&_src_addr, sizeof(_src_addr));
+#endif
 # if defined(CONFIG_NET)
 		}
 
 # endif // CONFIG_NET
+
+		/* Broadcast is addressed to whoever is listening, so it has no
+		 * session to seal under and would put in the clear what the rest
+		 * of this protects.
+		 */
+#if !defined(CONFIG_LIB_ZTCS_SECURE_LINK)
 
 		if ((_mode != MAVLINK_MODE_ONBOARD) && broadcast_enabled() &&
 		    (!get_client_source_initialized() || !is_gcs_connected())) {
@@ -812,6 +841,8 @@ void Mavlink::send_finish()
 				}
 			}
 		}
+
+#endif // !CONFIG_LIB_ZTCS_SECURE_LINK
 	}
 
 #endif // MAVLINK_UDP
@@ -2195,6 +2226,35 @@ Mavlink::task_main(int argc, char *argv[])
 	pthread_mutex_init(&_message_buffer_mutex, nullptr);
 	pthread_mutex_init(&_send_mutex, nullptr);
 	pthread_mutex_init(&_radio_status_mutex, nullptr);
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+	pthread_mutex_init(&_secure_link_mutex, nullptr);
+
+	struct secure_link_keys keys {};
+
+	if (secure_link_ensure_keys(&keys)) {
+		secure_link_init(&_secure_link, &keys, hrt_absolute_time());
+		_secure_link_ready = true;
+		PX4_INFO("secure MAVLink link armed");
+
+	} else {
+		PX4_ERR("no link keys; UDP MAVLink stays closed");
+
+		/* The only way the public half leaves, printed when it is wanted. */
+		uint8_t pub[NOISE_DHLEN];
+
+		if (secure_link_public_key(pub)) {
+			char hex[NOISE_DHLEN * 2 + 1];
+
+			for (unsigned i = 0; i < NOISE_DHLEN; i++) {
+				snprintf(&hex[i * 2], 3, "%02x", pub[i]);
+			}
+
+			PX4_INFO("enrol this static key: %s", hex);
+		}
+	}
+
+	memset(&keys, 0, sizeof(keys));
+#endif
 
 	/* if we are passing on mavlink messages, we need to prepare a buffer for this instance */
 	if (get_forwarding_on()) {
@@ -2322,6 +2382,23 @@ Mavlink::task_main(int argc, char *argv[])
 		perf_begin(_loop_perf);
 
 		const hrt_abstime t = hrt_absolute_time();
+
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+
+		/* Retransmit and both rekey triggers come out of here. */
+		if (_secure_link_ready && get_protocol() == Protocol::UDP && _src_addr_initialized) {
+			uint8_t frame[SECURE_LINK_MTU];
+			lock_secure_link();
+			int frame_len = secure_link_poll(&_secure_link, t, frame, sizeof(frame));
+			unlock_secure_link();
+
+			if (frame_len > 0) {
+				sendto(_socket_fd, frame, frame_len, 0,
+				       (struct sockaddr *)&_src_addr, sizeof(_src_addr));
+			}
+		}
+
+#endif
 
 		update_rate_mult();
 

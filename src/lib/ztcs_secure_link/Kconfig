@@ -1,0 +1,13 @@
+menuconfig LIB_ZTCS_SECURE_LINK
+	bool "Secure MAVLink link (Noise IK)"
+	default n
+	---help---
+		Terminate Noise_IK_25519_ChaChaPoly_SHA256 against the ground
+		station, so MAVLink leaves the aircraft encrypted and
+		authenticated. The ground station end is ztcs-mavlink-gateway.
+
+		Needs the PX4 crypto backend for the keystore the keys come
+		from, and CONFIG_CRYPTO in the NuttX configuration for SHA-256,
+		HMAC, Poly1305 and X25519, and a seeded /dev/random for the
+		ephemeral keys. A session key drawn from an unseeded pool is
+		worthless whatever the protocol above it.

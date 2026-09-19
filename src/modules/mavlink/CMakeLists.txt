@@ -100,6 +100,10 @@ target_include_directories(mavlink_c
 		${MAVLINK_LIBRARY_DIR}/${MAVLINK_DIALECT_UAVIONIX}
 )
 
+if(CONFIG_LIB_ZTCS_SECURE_LINK)
+	set(ZTCS_SECURE_LINK_DEP ztcs_secure_link)
+endif()
+
 px4_add_module(
 	MODULE modules__mavlink
 	MAIN mavlink
@@ -143,6 +147,7 @@ px4_add_module(
 		tunes
 		variable_length_ringbuffer
 		version
+		${ZTCS_SECURE_LINK_DEP}
 	UNITY_BUILD
 	)
 
