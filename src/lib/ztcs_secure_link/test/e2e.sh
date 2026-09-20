@@ -47,14 +47,25 @@ cd "$ZTCS"
 cargo build -q -p ztcs-cli -p ztcs-mavlink-gateway
 CLI="$ZTCS/target/debug/ztcs"
 GW="$ZTCS/target/debug/ztcs-mavlink-gateway"
+PROV="$ZTCS/target/debug/ztcs-mavlink-provision"
 
 "$CLI" keygen --out-seed "$WORK/operator.seed" --out-pubkey "$WORK/operator.pub" >/dev/null 2>&1
 
-KEYS=$(cargo run -q -p ztcs-mavlink-gateway --example aircraft_keys)
-PEER=$(awk '/^peer_id/{print $2}' <<<"$KEYS")
-AIR_PRIV=$(awk '/^static_private/{print $2}' <<<"$KEYS")
-IDENTITY=$(awk '/^identity_payload/{print $2}' <<<"$KEYS")
 mkdir -p "$WORK/attest"
+
+# The station key has to exist before provisioning can pin its public half.
+STATION=$("$GW" --static-key "$WORK/station.key" --operator-key "$WORK/operator.pub" \
+  --attest-dir "$WORK/attest" --print-public-key 2>/dev/null)
+
+# Real enrolment over the aircraft's link key, so the credentials under test
+# are the ones provisioning would issue.
+KEYS=$(cargo run -q -p ztcs-mavlink-gateway --example aircraft_keys)
+AIR_PRIV=$(awk '/^static_private/{print $2}' <<<"$KEYS")
+ENROLL=$("$PROV" --link-public "$(awk '/^static_public/{print $2}' <<<"$KEYS")" \
+  --identity-key "$WORK/aircraft.id" --station-key "$WORK/station.key" \
+  --device-serial px4-e2e 2>/dev/null)
+PEER=$(awk '/^peer_id/{print $2}' <<<"$ENROLL")
+IDENTITY=$(awk '/^identity /{print $2}' <<<"$ENROLL")
 "$CLI" mint-attestation --seed "$WORK/operator.seed" --peer-id "$PEER" \
   --device-serial px4-e2e --protocol-family mavlink \
   --out "$WORK/attest/$PEER.attest" >/dev/null 2>&1
@@ -76,8 +87,6 @@ GCS_PID=$!
 await "$WORK/gcs.log" '^port [0-9]+'
 GCS_PORT=$(awk '/^port/{print $2}' "$WORK/gcs.log")
 
-STATION=$("$GW" --static-key "$WORK/station.key" --operator-key "$WORK/operator.pub" \
-  --attest-dir "$WORK/attest" --print-public-key 2>/dev/null)
 "$GW" --listen 127.0.0.1:0 --gcs "127.0.0.1:$GCS_PORT" \
   --static-key "$WORK/station.key" --operator-key "$WORK/operator.pub" \
   --idle-timeout-secs 60 \
