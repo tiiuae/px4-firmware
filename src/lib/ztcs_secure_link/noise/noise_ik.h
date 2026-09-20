@@ -24,7 +24,13 @@ extern "C" {
 
 #define NOISE_TRANSPORT_HDR_LEN 9
 #define NOISE_IDENTITY_PAYLOAD_LEN 97
+
+/* The version byte also carries the SEC1 parity of a P-256 key, which is why
+ * a 33-byte public key still fits a 97-byte payload.
+ */
 #define NOISE_PAYLOAD_VERSION 1
+#define NOISE_PAYLOAD_VERSION_P256_EVEN 2
+#define NOISE_PAYLOAD_VERSION_P256_ODD 3
 
 #define NOISE_MSG1_LEN (1 + 32 + (32 + NOISE_TAGLEN) + (NOISE_IDENTITY_PAYLOAD_LEN + NOISE_TAGLEN))
 #define NOISE_MSG2_LEN (1 + 32 + NOISE_TAGLEN)

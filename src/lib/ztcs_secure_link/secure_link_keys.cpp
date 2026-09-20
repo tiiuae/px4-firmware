@@ -7,6 +7,8 @@
  ****************************************************************************/
 
 #include "secure_link.h"
+#include "secure_link_identity.h"
+#include "secure_link_slots.h"
 
 #include <px4_platform_common/log.h>
 
@@ -15,19 +17,6 @@
 #if defined(PX4_CRYPTO)
 
 #include <px4_platform_common/crypto.h>
-
-#ifndef ZTCS_KEY_SLOT_STATION_PUBLIC
-#define ZTCS_KEY_SLOT_STATION_PUBLIC 3
-#endif
-#ifndef ZTCS_KEY_SLOT_LINK
-#define ZTCS_KEY_SLOT_LINK 15
-#endif
-#ifndef ZTCS_KEY_SLOT_IDENTITY
-#define ZTCS_KEY_SLOT_IDENTITY 17
-#endif
-#ifndef ZTCS_KEY_SLOT_OPERATOR_PUBLIC
-#define ZTCS_KEY_SLOT_OPERATOR_PUBLIC 4
-#endif
 
 static bool operator_pinned(PX4Crypto &crypto, uint8_t out[32])
 {
@@ -153,16 +142,11 @@ bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
 	return ok;
 }
 
-/* Ed25519 here is the RFC 8032 construction over SHA-512, which is what the
- * ground station verifies with.
- */
 bool secure_link_self_sign(uint8_t out[NOISE_IDENTITY_PAYLOAD_LEN])
 {
-	PX4Crypto crypto;
+	struct secure_link_identity id;
 	uint8_t link_public[NOISE_DHLEN];
 	uint8_t signed_input[sizeof(NOISE_STATIC_KEY_CONTEXT) - 1 + NOISE_DHLEN];
-	size_t len = 32;
-	bool ok = false;
 
 	memset(out, 0, NOISE_IDENTITY_PAYLOAD_LEN);
 
@@ -171,47 +155,23 @@ bool secure_link_self_sign(uint8_t out[NOISE_IDENTITY_PAYLOAD_LEN])
 		return false;
 	}
 
-	if (!crypto.open(CRYPTO_ED25519)) {
-		PX4_ERR("no crypto session");
+	if (!secure_link_identity_public(&id)) {
 		return false;
 	}
 
-	if (!crypto.get_public_key(ZTCS_KEY_SLOT_IDENTITY, out + 1, &len)) {
-		if (!crypto.generate_key(ZTCS_KEY_SLOT_IDENTITY, true)) {
-			PX4_ERR("could not establish an identity key");
-			goto out_close;
-		}
+	out[0] = id.version;
+	memcpy(out + 1, id.public_key, sizeof(id.public_key));
 
-		PX4_INFO("identity key generated");
-		len = 32;
-
-		if (!crypto.get_public_key(ZTCS_KEY_SLOT_IDENTITY, out + 1, &len)) {
-			goto out_close;
-		}
-	}
-
-	if (len != 32) {
-		PX4_ERR("identity key is %d bytes, want 32", (int)len);
-		goto out_close;
-	}
-
-	out[0] = NOISE_PAYLOAD_VERSION;
 	noise_static_key_signing_input(link_public, signed_input);
-	ok = crypto.sign(ZTCS_KEY_SLOT_IDENTITY, out + 1 + 32, signed_input,
-			 sizeof(signed_input));
 
-	if (!ok) {
+	if (!secure_link_identity_sign(signed_input, sizeof(signed_input),
+				       out + 1 + sizeof(id.public_key))) {
 		PX4_ERR("could not sign the link key");
-	}
-
-out_close:
-	crypto.close();
-
-	if (!ok) {
 		memset(out, 0, NOISE_IDENTITY_PAYLOAD_LEN);
+		return false;
 	}
 
-	return ok;
+	return true;
 }
 
 #else /* PX4_CRYPTO */

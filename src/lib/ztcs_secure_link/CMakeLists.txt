@@ -35,6 +35,7 @@
 px4_add_library(ztcs_secure_link
 	secure_link.c
 	secure_link_keys.cpp
+	identity_px4crypto.cpp
 	noise/backend_px4.cpp
 	noise/noise_ik.c
 	noise/chacha20_ietf.c
@@ -51,6 +52,11 @@ target_include_directories(ztcs_secure_link PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 if("${PX4_PLATFORM}" MATCHES "nuttx")
 	target_link_libraries(ztcs_secure_link PRIVATE nuttx_crypto)
 endif()
+
+# The identity key is the one that must be unreadable, and which curve that
+# forces depends on the part: identity_px4crypto.cpp signs Ed25519 in an
+# on-die enclave, and a board behind a secure element supplies a P-256
+# provider against secure_link_identity.h instead.
 
 # The private keys live in the keystore, which this address space cannot
 # read, so the static key is a slot index the kernel resolves.
