@@ -14,6 +14,7 @@
 #if defined(PX4_CRYPTO)
 
 #include <px4_platform_common/crypto_backend.h>
+#include <monocypher-ed25519.h>
 
 /* imx9_keystore holds 50 slots. Read-only is a per-key flag rather than a
  * range: a slot takes a write until something marks it so, and a key
@@ -27,6 +28,9 @@
 #endif
 #ifndef ZTCS_KEY_SLOT_IDENTITY
 #define ZTCS_KEY_SLOT_IDENTITY 16
+#endif
+#ifndef ZTCS_KEY_SLOT_IDENTITY_PRIVATE
+#define ZTCS_KEY_SLOT_IDENTITY_PRIVATE 17
 #endif
 
 /* A short read would leave the tail of the buffer as whatever was there. */
@@ -138,6 +142,67 @@ bool secure_link_public_key(uint8_t out[NOISE_DHLEN])
 	return ok;
 }
 
+/* Ed25519 here is the RFC 8032 construction over SHA-512, which is what the
+ * ground station verifies with. Monocypher's own crypto_eddsa_* uses BLAKE2b
+ * and would not check out there.
+ */
+bool secure_link_self_sign(uint8_t out[NOISE_IDENTITY_PAYLOAD_LEN])
+{
+	keystore_session_handle_t ks = keystore_open();
+	uint8_t seed[32];
+	uint8_t link_private[NOISE_DHLEN];
+	uint8_t link_public[NOISE_DHLEN];
+	uint8_t signed_input[sizeof(NOISE_STATIC_KEY_CONTEXT) - 1 + NOISE_DHLEN];
+	size_t signed_len;
+	bool ok = false;
+
+	if (!keystore_session_handle_valid(ks)) {
+		PX4_ERR("cannot open the keystore");
+		return false;
+	}
+
+	if (!read_slot(ks, ZTCS_KEY_SLOT_IDENTITY_PRIVATE, seed, sizeof(seed))) {
+		if (!draw_static_key(seed)
+		    || !keystore_put_key(ks, ZTCS_KEY_SLOT_IDENTITY_PRIVATE, seed,
+					 sizeof(seed))) {
+			PX4_ERR("could not establish an identity key");
+			goto out;
+		}
+
+		PX4_INFO("identity key generated");
+	}
+
+	if (!read_slot(ks, ZTCS_KEY_SLOT_STATIC_PRIVATE, link_private, NOISE_DHLEN)) {
+		PX4_ERR("no link key to sign");
+		goto out;
+	}
+
+	noise_dh_public(link_private, link_public);
+
+	out[0] = NOISE_PAYLOAD_VERSION;
+	crypto_ed25519_public_key(out + 1, seed);
+	signed_len = noise_static_key_signing_input(link_public, signed_input);
+	crypto_ed25519_sign(out + 1 + 32, seed, out + 1, signed_input, signed_len);
+
+	ok = keystore_put_key(ks, ZTCS_KEY_SLOT_IDENTITY, out,
+			      NOISE_IDENTITY_PAYLOAD_LEN);
+
+	if (!ok) {
+		PX4_ERR("could not store the identity payload");
+	}
+
+out:
+	keystore_close(&ks);
+	crypto_wipe(seed, sizeof(seed));
+	crypto_wipe(link_private, sizeof(link_private));
+
+	if (!ok) {
+		memset(out, 0, NOISE_IDENTITY_PAYLOAD_LEN);
+	}
+
+	return ok;
+}
+
 bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
 			const uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN])
 {
@@ -181,6 +246,13 @@ bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
 {
 	(void)station_public;
 	(void)identity;
+	PX4_ERR("no keystore on this board: enable the PX4 crypto backend");
+	return false;
+}
+
+bool secure_link_self_sign(uint8_t out[NOISE_IDENTITY_PAYLOAD_LEN])
+{
+	memset(out, 0, NOISE_IDENTITY_PAYLOAD_LEN);
 	PX4_ERR("no keystore on this board: enable the PX4 crypto backend");
 	return false;
 }

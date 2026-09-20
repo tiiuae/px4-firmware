@@ -52,7 +52,10 @@ if("${PX4_PLATFORM}" MATCHES "nuttx")
 endif()
 
 # secure_link_keys.cpp reaches the keystore through the board's crypto
-# backend, which carries its own definitions header.
+# backend, which carries its own definitions header, and signs with the
+# RFC 8032 Ed25519 that monocypher keeps in its optional set.
 if(PX4_CRYPTO)
-	target_link_libraries(ztcs_secure_link PRIVATE crypto_backend_interface)
+	target_link_libraries(ztcs_secure_link PRIVATE crypto_backend_interface monocypher)
+	target_include_directories(ztcs_secure_link
+		PRIVATE ${PX4_SOURCE_DIR}/src/lib/crypto/monocypher/src/optional)
 endif()

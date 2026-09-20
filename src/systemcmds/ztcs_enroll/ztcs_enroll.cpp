@@ -55,17 +55,19 @@ static void usage(void)
 ### Description
 Enrols this aircraft on the secure MAVLink link.
 
-Run `key` and give the value to `ztcs-mavlink-provision` on the ground, then
-paste back the `write` line it prints. The link private key is generated on
-first use and is never printed.
+Run `key` and `sign`, give both to `ztcs-mavlink-provision` on the ground,
+then paste back the `write` line it prints. Both private keys are generated
+on first use and neither is ever printed.
 
 ### Examples
 $ ztcs_enroll key
+$ ztcs_enroll sign
 $ ztcs_enroll write <station-public-hex> <identity-hex>
 )DESCR_STR");
 
 	PRINT_MODULE_USAGE_NAME_SIMPLE("ztcs_enroll", "command");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("key", "Print the link public key");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("sign", "Sign the link key and print the identity");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("write", "Write the station key and identity");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("status", "Report what the keystore holds");
 }
@@ -137,6 +139,18 @@ static int cmd_key(void)
 	return 0;
 }
 
+static int cmd_sign(void)
+{
+	uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN];
+
+	if (!secure_link_self_sign(identity)) {
+		return 1;
+	}
+
+	print_hex(identity, sizeof(identity));
+	return 0;
+}
+
 static int cmd_write(const char *station_hex, const char *identity_hex)
 {
 	uint8_t station[NOISE_DHLEN];
@@ -174,6 +188,10 @@ extern "C" __EXPORT int ztcs_enroll_main(int argc, char *argv[])
 {
 	if (argc >= 2 && strcmp(argv[1], "key") == 0) {
 		return cmd_key();
+	}
+
+	if (argc >= 2 && strcmp(argv[1], "sign") == 0) {
+		return cmd_sign();
 	}
 
 	if (argc == 4 && strcmp(argv[1], "write") == 0) {
