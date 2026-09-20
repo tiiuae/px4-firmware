@@ -58,7 +58,7 @@ bool PowerMonitorSelectorAuterion::init()
 		sens_en = 0;
 		param_set(param_find("SENS_EN_INA226"), &sens_en);
 		const char *stop_argv[] {"ina226", "stop", NULL};
-		exec_builtin("ina226", (char **)stop_argv, NULL, 0);
+		exec_builtin("ina226", (char **)stop_argv, NULL);
 	}
 
 	ScheduleNow();
@@ -104,7 +104,7 @@ void PowerMonitorSelectorAuterion::Run()
 				};
 
 				int status = PX4_ERROR;
-				int pid =  exec_builtin(_sensors[i].name, (char **)start_argv, NULL, 0);
+				int pid =  exec_builtin(_sensors[i].name, (char **)start_argv, NULL);
 
 				if (pid != -1) {
 					waitpid(pid, &status, WUNTRACED);
