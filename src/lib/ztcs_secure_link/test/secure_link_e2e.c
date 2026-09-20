@@ -71,7 +71,7 @@ int main(int argc, char **argv)
   int fd;
 
   if (argc < 7 || argc > 8
-      || unhex(argv[3], keys.static_private, NOISE_DHLEN)
+      || unhex(argv[3], keys.link.sk, NOISE_DHLEN)
       || unhex(argv[4], keys.station_public, NOISE_DHLEN)
       || unhex(argv[5], keys.identity, NOISE_IDENTITY_PAYLOAD_LEN))
     {

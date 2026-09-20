@@ -26,7 +26,7 @@ static struct secure_link_keys dummy_keys(void)
 {
   struct secure_link_keys k;
   memset(&k, 0, sizeof(k));
-  memset(k.static_private, 0x11, sizeof(k.static_private));
+  memset(k.link.sk, 0x11, sizeof(k.link.sk));
   memset(k.station_public, 0x22, sizeof(k.station_public));
   k.identity[0] = NOISE_PAYLOAD_VERSION;
   return k;
