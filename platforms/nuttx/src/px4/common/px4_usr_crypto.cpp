@@ -97,6 +97,24 @@ bool PX4Crypto::sign(uint8_t key_index,
 	return data.ret;
 }
 
+bool PX4Crypto::get_public_key(uint8_t key_index, uint8_t *pubkey, size_t *pubkey_size)
+{
+	cryptoiocgetpublickey_t data = {&_crypto_handle, key_index, pubkey, pubkey_size, false};
+	boardctl(CRYPTOIOCGETPUBLICKEY, reinterpret_cast<unsigned long>(&data));
+	return data.ret;
+}
+
+bool PX4Crypto::key_agreement(uint8_t key_index,
+			    const uint8_t *peer,
+			    size_t peer_size,
+			    uint8_t *secret,
+			    size_t *secret_size)
+{
+	cryptoiockeyagreement_t data = {&_crypto_handle, key_index, peer, peer_size, secret, secret_size, false};
+	boardctl(CRYPTOIOCKEYAGREEMENT, reinterpret_cast<unsigned long>(&data));
+	return data.ret;
+}
+
 bool PX4Crypto::encrypt_data(uint8_t key_index,
 			     const uint8_t *message,
 			     size_t message_size,

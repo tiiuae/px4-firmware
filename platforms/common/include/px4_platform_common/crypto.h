@@ -219,6 +219,18 @@ public:
 	 * returns true on success, false on failure
 	 */
 
+	/* Diffie-Hellman with a key held in the keystore. The private key is
+	 * never returned; only the shared secret is.
+	 */
+	/* Public half only; nothing returns a private key. */
+	bool get_public_key(uint8_t key_index, uint8_t *pubkey, size_t *pubkey_size);
+
+	bool key_agreement(uint8_t key_index,
+			  const uint8_t *peer,
+			  size_t peer_size,
+			  uint8_t *secret,
+			  size_t *secret_size);
+
 	bool encrypt_data(uint8_t key_index,
 			  const uint8_t *message,
 			  size_t message_size,

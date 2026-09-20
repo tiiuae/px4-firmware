@@ -252,6 +252,26 @@ bool crypto_signature_gen(crypto_session_handle_t handle,
 	return ret;
 }
 
+bool crypto_get_public_key(crypto_session_handle_t handle,
+			   uint8_t key_index,
+			   uint8_t *pubkey,
+			   size_t *pubkey_size)
+{
+	/* unimplemented */
+	return false;
+}
+
+bool crypto_key_agreement(crypto_session_handle_t handle,
+			 uint8_t key_index,
+			 const uint8_t *peer,
+			 size_t peer_size,
+			 uint8_t *secret,
+			 size_t *secret_size)
+{
+	/* unimplemented */
+	return false;
+}
+
 bool crypto_signature_check(crypto_session_handle_t handle,
 			    uint8_t key_index,
 			    const uint8_t *signature,

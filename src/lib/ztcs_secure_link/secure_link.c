@@ -30,7 +30,7 @@ static int start_handshake(struct secure_link *sl, uint64_t now_us,
       return NOISE_ERR_INPUT;
     }
 
-  rc = noise_initiator_start(&sl->ini, sl->keys.static_private,
+  rc = noise_initiator_start(&sl->ini, &sl->keys.link,
                              sl->keys.station_public, sl->keys.identity,
                              out, &n);
   if (rc != NOISE_OK)

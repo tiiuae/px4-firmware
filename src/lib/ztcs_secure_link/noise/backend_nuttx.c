@@ -40,6 +40,21 @@ int noise_dh(const uint8_t sk[NOISE_DHLEN], const uint8_t pk[NOISE_DHLEN],
   return curve25519(out, sk, pk);
 }
 
+#ifndef NOISE_STATIC_KEY_BY_INDEX
+int noise_dh_static(const struct noise_static_key *s,
+                    const uint8_t pk[NOISE_DHLEN],
+                    uint8_t out[NOISE_DHLEN]) {
+  return noise_dh(s->sk, pk, out);
+}
+
+int noise_static_public(const struct noise_static_key *s,
+                        uint8_t pk[NOISE_DHLEN]) {
+  noise_dh_public(s->sk, pk);
+  return 0;
+}
+
+#endif
+
 void noise_dh_public(const uint8_t sk[NOISE_DHLEN], uint8_t pk[NOISE_DHLEN]) {
   curve25519_generate_public(pk, sk);
 }

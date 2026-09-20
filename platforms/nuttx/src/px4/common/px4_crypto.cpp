@@ -133,6 +133,20 @@ bool PX4Crypto::signature_check(uint8_t key_index,
 	return crypto_signature_check(_crypto_handle, key_index, signature, message, message_size);
 }
 
+bool PX4Crypto::get_public_key(uint8_t key_index, uint8_t *pubkey, size_t *pubkey_size)
+{
+	return crypto_get_public_key(_crypto_handle, key_index, pubkey, pubkey_size);
+}
+
+bool PX4Crypto::key_agreement(uint8_t key_index,
+			    const uint8_t *peer,
+			    size_t peer_size,
+			    uint8_t *secret,
+			    size_t *secret_size)
+{
+	return crypto_key_agreement(_crypto_handle, key_index, peer, peer_size, secret, secret_size);
+}
+
 bool PX4Crypto::encrypt_data(uint8_t key_index,
 			     const uint8_t *message,
 			     size_t message_size,
@@ -271,6 +285,19 @@ int PX4Crypto::crypto_ioctl(unsigned int cmd, unsigned long arg)
 			cryptoiocsign_t *data = (cryptoiocsign_t *)arg;
 			data->ret = crypto_signature_gen(*(data->handle), data->key_index, data->signature, data->message,
 							 data->message_size);
+		}
+		break;
+
+	case CRYPTOIOCGETPUBLICKEY: {
+			cryptoiocgetpublickey_t *data = (cryptoiocgetpublickey_t *)arg;
+			data->ret = crypto_get_public_key(*(data->handle), data->key_index, data->pubkey, data->pubkey_size);
+		}
+		break;
+
+	case CRYPTOIOCKEYAGREEMENT: {
+			cryptoiockeyagreement_t *data = (cryptoiockeyagreement_t *)arg;
+			data->ret = crypto_key_agreement(*(data->handle), data->key_index, data->peer, data->peer_size,
+							data->secret, data->secret_size);
 		}
 		break;
 

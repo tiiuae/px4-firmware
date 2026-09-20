@@ -46,12 +46,11 @@ enum secure_link_state {
   SECURE_LINK_ESTABLISHED,
 };
 
-/* The identity payload is a signature over the static public key. The key
- * that makes it is generated here and never leaves, so nothing off the
- * aircraft can sign for it.
+/* Neither private key appears here. The link key is a handle the backend
+ * resolves, and the identity key only ever signs.
  */
 struct secure_link_keys {
-  uint8_t static_private[NOISE_DHLEN];
+  struct noise_static_key link;
   uint8_t station_public[NOISE_DHLEN];
   uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN];
 };
@@ -101,9 +100,17 @@ bool secure_link_ensure_keys(struct secure_link_keys *keys);
 /* For enrolment to sign. The private half has no accessor. */
 bool secure_link_public_key(uint8_t out[NOISE_DHLEN]);
 
-/* Writes the two blobs enrolment produces. See ztcs-mavlink-provision. */
+/* Pins the operator key. Refused once one is present: the aircraft must not
+ * be talked into trusting a second operator.
+ */
+bool secure_link_pin_operator(const uint8_t operator_public[32]);
+
+/* Stores the station key to pin. Once an operator key is pinned the write
+ * must carry that operator's signature over the station key, so a fielded
+ * aircraft cannot be pointed at another ground station.
+ */
 bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
-                        const uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN]);
+                        const uint8_t *signature);
 
 /* Signs this aircraft's link key with an identity key of its own, generating
  * one on first use, and stores the result. Hand the payload to enrolment.

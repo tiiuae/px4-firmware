@@ -46,6 +46,7 @@ typedef enum {
 	CRYPTO_ECDSA_P256 = 5,
 	CRYPTO_RSA_SIG = 6,    /* openssl dgst -sha256 -sign */
 	CRYPTO_ECDSA_P384 = 7,
+	CRYPTO_X25519 = 8,
 } px4_crypto_algorithm_t;
 
 /* Define the expected size of the signature for signing algorithms */

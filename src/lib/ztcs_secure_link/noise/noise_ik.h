@@ -14,6 +14,10 @@
 
 #include "noise_backend.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NOISE_TYPE_HANDSHAKE_INIT 1
 #define NOISE_TYPE_HANDSHAKE_RESP 2
 #define NOISE_TYPE_TRANSPORT 3
@@ -59,7 +63,7 @@ struct noise_initiator {
   struct noise_symmetric ss;
   uint8_t e_priv[NOISE_DHLEN];
   uint8_t e_pub[NOISE_DHLEN];
-  uint8_t s_priv[NOISE_DHLEN];
+  const struct noise_static_key *s;
   uint8_t s_pub[NOISE_DHLEN];
   int stage;
 };
@@ -74,7 +78,7 @@ size_t noise_static_key_signing_input(const uint8_t x25519_public[32],
  * signed. `out` must hold NOISE_MSG1_LEN.
  */
 int noise_initiator_start(struct noise_initiator *ini,
-                          const uint8_t s_priv[NOISE_DHLEN],
+                          const struct noise_static_key *s,
                           const uint8_t rs_pub[NOISE_DHLEN],
                           const uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN],
                           uint8_t *out, size_t *out_len);
@@ -93,5 +97,9 @@ int noise_session_open(struct noise_session *s, const uint8_t *frame,
                        size_t frame_len, uint8_t *out, size_t *out_len);
 
 void noise_session_wipe(struct noise_session *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

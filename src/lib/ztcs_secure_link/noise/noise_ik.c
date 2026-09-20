@@ -90,7 +90,7 @@ size_t noise_static_key_signing_input(const uint8_t x25519_public[32],
 }
 
 int noise_initiator_start(struct noise_initiator *ini,
-                          const uint8_t s_priv[NOISE_DHLEN],
+                          const struct noise_static_key *s,
                           const uint8_t rs_pub[NOISE_DHLEN],
                           const uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN],
                           uint8_t *out, size_t *out_len) {
@@ -100,8 +100,10 @@ int noise_initiator_start(struct noise_initiator *ini,
   memset(ini, 0, sizeof(*ini));
   symmetric_init(&ini->ss);
 
-  memcpy(ini->s_priv, s_priv, NOISE_DHLEN);
-  noise_dh_public(ini->s_priv, ini->s_pub);
+  ini->s = s;
+  if (noise_static_public(s, ini->s_pub) != 0) {
+    return NOISE_ERR_DH;
+  }
 
   /* Pre-message: the responder's static key is known, which is what IK is. */
   mix_hash(&ini->ss, rs_pub, NOISE_DHLEN);
@@ -126,7 +128,7 @@ int noise_initiator_start(struct noise_initiator *ini,
   encrypt_and_hash(&ini->ss, ini->s_pub, NOISE_DHLEN, p);
   p += NOISE_DHLEN + NOISE_TAGLEN;
 
-  if (noise_dh(ini->s_priv, rs_pub, dh) != 0) {
+  if (noise_dh_static(ini->s, rs_pub, dh) != 0) {
     return NOISE_ERR_DH;
   }
   mix_key(&ini->ss, dh, NOISE_DHLEN);
@@ -165,7 +167,7 @@ int noise_initiator_finish(struct noise_initiator *ini, const uint8_t *frame,
   }
   mix_key(&ini->ss, dh, NOISE_DHLEN);
 
-  if (noise_dh(ini->s_priv, re, dh) != 0) {
+  if (noise_dh_static(ini->s, re, dh) != 0) {
     return NOISE_ERR_DH;
   }
   mix_key(&ini->ss, dh, NOISE_DHLEN);

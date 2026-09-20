@@ -35,6 +35,7 @@
 px4_add_library(ztcs_secure_link
 	secure_link.c
 	secure_link_keys.cpp
+	noise/backend_px4.cpp
 	noise/noise_ik.c
 	noise/chacha20_ietf.c
 	noise/backend_nuttx.c
@@ -51,11 +52,9 @@ if("${PX4_PLATFORM}" MATCHES "nuttx")
 	target_link_libraries(ztcs_secure_link PRIVATE nuttx_crypto)
 endif()
 
-# secure_link_keys.cpp reaches the keystore through the board's crypto
-# backend, which carries its own definitions header, and signs with the
-# RFC 8032 Ed25519 that monocypher keeps in its optional set.
+# The private keys live in the keystore, which this address space cannot
+# read, so the static key is a slot index the kernel resolves.
 if(PX4_CRYPTO)
-	target_link_libraries(ztcs_secure_link PRIVATE crypto_backend_interface monocypher)
-	target_include_directories(ztcs_secure_link
-		PRIVATE ${PX4_SOURCE_DIR}/src/lib/crypto/monocypher/src/optional)
+	target_compile_definitions(ztcs_secure_link PUBLIC NOISE_STATIC_KEY_BY_INDEX)
+	target_link_libraries(ztcs_secure_link PRIVATE crypto_backend_interface)
 endif()
