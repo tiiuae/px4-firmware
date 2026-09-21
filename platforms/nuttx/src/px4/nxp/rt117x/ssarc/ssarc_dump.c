@@ -52,7 +52,7 @@
 
 #include <nuttx/crc32.h>
 
-#ifdef CONFIG_BOARD_CRASHDUMP
+#ifdef CONFIG_BOARD_CRASHDUMP_CUSTOM
 
 #include <systemlib/hardfault_log.h>
 #include "chip.h"
@@ -442,11 +442,7 @@ static int ssarc_dump_poll(struct file *filep, struct pollfd *fds,
 			   bool setup)
 {
 	if (setup) {
-		fds->revents |= (fds->events & (POLLIN | POLLOUT));
-
-		if (fds->revents != 0) {
-			nxsem_post(fds->sem);
-		}
+		poll_notify(&fds, 1, fds->events & (POLLIN | POLLOUT));
 	}
 
 	return OK;

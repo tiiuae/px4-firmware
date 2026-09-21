@@ -40,7 +40,7 @@
 
 #include <board_config.h>
 
-#ifdef CONFIG_BOARD_CRASHDUMP
+#ifdef CONFIG_BOARD_CRASHDUMP_CUSTOM
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -318,7 +318,7 @@ __EXPORT void board_crashdump(uintptr_t currentsp, FAR struct tcb_s *rtcb,
 	 * fault.
 	 */
 
-	pdump->info.current_regs = (uintptr_t) CURRENT_REGS;
+	pdump->info.current_regs = (uintptr_t) running_regs();
 
 	/* Save Context */
 
@@ -345,11 +345,11 @@ __EXPORT void board_crashdump(uintptr_t currentsp, FAR struct tcb_s *rtcb,
 	 * the users context
 	 */
 
-	if (CURRENT_REGS) {
+	if (running_regs()) {
 		pdump->info.stacks.interrupt.sp = currentsp;
 
 		pdump->info.flags |= (eRegsPresent | eUserStackPresent | eIntStackPresent);
-		memcpy(pdump->info.regs, (void *)CURRENT_REGS, sizeof(pdump->info.regs));
+		memcpy(pdump->info.regs, (void *)running_regs(), sizeof(pdump->info.regs));
 		pdump->info.stacks.user.sp = pdump->info.regs[REG_R13];
 
 	} else {
@@ -441,4 +441,4 @@ __EXPORT void board_crashdump(uintptr_t currentsp, FAR struct tcb_s *rtcb,
 	board_reset(CONFIG_BOARD_ASSERT_RESET_VALUE);
 }
 
-#endif /* CONFIG_BOARD_CRASHDUMP */
+#endif /* CONFIG_BOARD_CRASHDUMP_CUSTOM */
