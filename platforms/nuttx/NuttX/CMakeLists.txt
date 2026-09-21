@@ -34,6 +34,32 @@
 set(NUTTX_CONFIG_DIR ${PX4_BOARD_DIR}/nuttx-config)
 set(APPS_DIR ${NUTTX_SRC_DIR}/apps)
 
+include(ProcessorCount)
+ProcessorCount(NUTTX_MAKE_JOBS_DEFAULT)
+if(NUTTX_MAKE_JOBS_DEFAULT EQUAL 0)
+	set(NUTTX_MAKE_JOBS_DEFAULT 1)
+endif()
+
+set(NUTTX_MAKE_JOBS ${NUTTX_MAKE_JOBS_DEFAULT} CACHE STRING
+	"Number of parallel jobs used by nested NuttX make builds")
+
+set(nuttx_make_command
+	${CMAKE_COMMAND} -E env
+	--unset=MAKEFLAGS
+	--unset=MFLAGS
+	--unset=MAKELEVEL
+	make --jobs=${NUTTX_MAKE_JOBS}
+)
+
+# Ninja sees each NuttX library as a single build edge. Run one such edge at a
+# time while GNU Make parallelizes the sources within it, avoiding N x 16
+# compiler processes and inherited jobserver warnings.
+set(nuttx_make_job_pool)
+if(CMAKE_GENERATOR MATCHES "Ninja" AND NOT CMAKE_VERSION VERSION_LESS 3.15)
+	set_property(GLOBAL APPEND PROPERTY JOB_POOLS nuttx_make_pool=1)
+	set(nuttx_make_job_pool JOB_POOL nuttx_make_pool)
+endif()
+
 ###############################################################################
 # NuttX build
 ###############################################################################
@@ -163,12 +189,14 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/apps/libapps.a
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/px4.pdat ${APPS_DIR}/builtin/registry/px4.pdat
 	COMMAND ${CMAKE_COMMAND} -E touch_nocreate ${APPS_DIR}/builtin/registry/.updated
 	COMMAND ${CMAKE_COMMAND} -E touch_nocreate ${APPS_DIR}/builtin/builtin_list.c
-	COMMAND make --no-print-directory --silent TOPDIR="${NUTTX_DIR}" > ${CMAKE_CURRENT_BINARY_DIR}/nuttx_apps.log
+	COMMAND ${nuttx_make_command} --no-print-directory --silent
+		TOPDIR="${NUTTX_DIR}" > ${CMAKE_CURRENT_BINARY_DIR}/nuttx_apps.log
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${APPS_DIR}/libapps.a ${CMAKE_CURRENT_BINARY_DIR}/apps/libapps.a
 	DEPENDS ${nuttx_apps_files} nuttx_context ${NUTTX_DIR}/include/nuttx/config.h
 		${CMAKE_CURRENT_BINARY_DIR}/px4.bdat
 		${CMAKE_CURRENT_BINARY_DIR}/px4.pdat
 	WORKING_DIRECTORY ${APPS_DIR}
+	${nuttx_make_job_pool}
 	#USES_TERMINAL
 )
 add_custom_target(nuttx_apps_build DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/apps/libapps.a)
@@ -218,20 +246,26 @@ function(add_nuttx_dir nuttx_lib nuttx_lib_dir kernel extra target)
 		set(bindir_arg BINDIR=kbin)
 	endif()
 
-	# Both C++ passes produce libxx.a, so rebuild the archive from the selected objects.
+	# Both C++ passes produce libxx.a from the same object paths (libxx's Makefile has
+	# no BINDIR support), so start each pass from scratch to not reuse the other pass' objects.
 	set(archive_reset_command)
 	if(${nuttx_lib_dir} STREQUAL libs/libxx)
-		set(archive_reset_command COMMAND ${CMAKE_COMMAND} -E remove -f ${NUTTX_DIR}/${nuttx_lib_dir}/lib${nuttx_libname}.a)
+		set(archive_reset_command
+			COMMAND ${CMAKE_COMMAND} -E remove -f ${NUTTX_DIR}/${nuttx_lib_dir}/lib${nuttx_libname}.a
+			COMMAND find ${nuttx_lib_dir} -type f -name \*.o -delete)
 	endif()
 
 	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/nuttx/${nuttx_lib_dir}/lib${nuttx_lib}.a
 		${archive_reset_command}
-		COMMAND make -C ${nuttx_lib_dir} --no-print-directory --silent ${nuttx_lib_target} TOPDIR="${NUTTX_DIR}" KERNEL=${kernel} EXTRAFLAGS=${extra} ${bindir_arg}
+		COMMAND ${nuttx_make_command} -C ${nuttx_lib_dir}
+			--no-print-directory --silent ${nuttx_lib_target}
+			TOPDIR="${NUTTX_DIR}" KERNEL=${kernel} EXTRAFLAGS=${extra} ${bindir_arg}
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DIR}/${nuttx_lib_dir}/lib${nuttx_libname}.a ${CMAKE_CURRENT_BINARY_DIR}/nuttx/${nuttx_lib_dir}/lib${nuttx_lib}.a
 		DEPENDS
 			${nuttx_lib_files}
 			nuttx_context ${NUTTX_DIR}/include/nuttx/config.h
 		WORKING_DIRECTORY ${NUTTX_DIR}
+		${nuttx_make_job_pool}
 		#USES_TERMINAL
 	)
 	add_custom_target(nuttx_${nuttx_lib}_build DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/nuttx/${nuttx_lib_dir}/lib${nuttx_lib}.a)
