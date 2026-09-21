@@ -42,6 +42,14 @@ ifneq (, $(findstring CYGWIN, $(shell uname)))
 endif
 
 include $(TOPDIR)/.config
+
+# PX4 uses GNU-compatible compiler flags.  Export constant prefixes to avoid
+# running NuttX's compiler-prefix probes for every flag expansion.
+# Keep a trailing space after -isystem for directly concatenated paths.
+export DEFINE_PREFIX ?= -D
+export INCDIR_PREFIX ?= -I
+export INCSYSDIR_PREFIX ?= -isystem$(subst X,,X )
+
 include $(TOPDIR)/tools/Config.mk
 
 # Replace each space separated word in the string that contains "cygdrive"
