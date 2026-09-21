@@ -42,3 +42,11 @@
 #ifndef PX4_ARCH_DCACHE_ALIGNMENT
 #define PX4_ARCH_DCACHE_ALIGNMENT 1
 #endif
+
+/* The architecture specific micro_hal might have already defined the
+ * px4_gpio_pinset_t. If not, use the default uint32_t type
+ */
+#ifndef PX4_IMXRT_PINSET_T_DEFINED
+#include <stdint.h>
+typedef uint32_t px4_gpio_pinset_t;
+#endif
