@@ -431,7 +431,13 @@ PWMESC::updatePWMOutputs(int dev, uint16_t *outputs, unsigned num_outputs, int c
 
 	for (i = 0; i < num_outputs; i++) {
 		const uint16_t disarmed = _mixing_output.disarmedValue(ch_offset + i);
-		uint16_t pwm_val = stop_motors ? disarmed : outputs[i];
+
+		// Disarm values only for MOTORs when in prearmed but not armed state.
+		const OutputFunction function = _mixing_output.outputFunction(ch_offset + i);
+		const bool is_motor = ((int)function >= (int)OutputFunction::Motor1
+				       && (int)function <= (int)OutputFunction::MotorMax);
+
+		uint16_t pwm_val = (stop_motors && is_motor) ? disarmed : outputs[i];
 		pwm.channels[i].duty = ((((uint32_t)pwm_val) << 16) / (1000000 / pwm_frequency));
 		pwm.channels[i].channel = i + 1;
 	}
