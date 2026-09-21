@@ -111,6 +111,7 @@ FLAGS = -Wall \
 	-Werror \
 	-Wextra \
 	-Wlogical-op \
+	-Wno-builtin-declaration-mismatch \
 	-Wno-cpp \
 	-Wno-format-truncation \
 	-Wno-maybe-uninitialized \
