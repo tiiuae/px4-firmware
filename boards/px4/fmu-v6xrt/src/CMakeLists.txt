@@ -32,6 +32,13 @@
 ############################################################################
 if("${PX4_BOARD_LABEL}" STREQUAL  "bootloader")
 	add_compile_definitions(BOOTLOADER)
+
+	# px4_platform asks for this on every NuttX build, bootloader included.
+	add_library(board_bus_info
+		bootloader_bus_info.c
+	)
+	add_dependencies(board_bus_info nuttx_context)
+
 	add_library(drivers_board
 		bootloader_main.c
 		init.c
