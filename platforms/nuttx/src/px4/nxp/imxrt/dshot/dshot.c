@@ -79,8 +79,18 @@ static int flexio_irq_handler(int irq, void *context, void *arg)
 	return OK;
 }
 
-int up_dshot_init(uint32_t channel_mask, unsigned dshot_pwm_freq)
+int up_dshot_init(uint32_t channel_mask, unsigned dshot_pwm_freq, unsigned dshot_tlm_freq,
+		  bool enable_bidirectional_dshot)
 {
+	/* This FlexIO backend drives the line one way only. Saying so beats
+	 * arming and then never reporting an eRPM.
+	 */
+	if (enable_bidirectional_dshot) {
+		return -ENOTSUP;
+	}
+
+	UNUSED(dshot_tlm_freq);
+
 	uint32_t timer_compare = 0x2F00 | (((BOARD_FLEXIO_PREQ / (dshot_pwm_freq * 3) / 2) - 1) & 0xFF);
 
 
@@ -211,4 +221,53 @@ void dshot_motor_data_set(unsigned motor_number, uint16_t throttle, bool telemet
 int up_dshot_arm(bool armed)
 {
 	return io_timer_set_enable(armed, IOTimerChanMode_Dshot, IO_TIMER_ALL_MODES_CHANNELS);
+}
+
+/* Bidirectional DShot needs the line turned round and sampled, which this
+ * FlexIO backend does not do. Every query answers "nothing here" rather than
+ * a plausible zero.
+ */
+
+uint16_t up_bdshot_get_ready_mask(void)
+{
+	return 0;
+}
+
+int up_bdshot_num_errors(uint8_t channel)
+{
+	UNUSED(channel);
+	return -ENOTSUP;
+}
+
+int up_bdshot_get_erpm(uint8_t channel, int *erpm)
+{
+	UNUSED(channel);
+	UNUSED(erpm);
+	return -ENOTSUP;
+}
+
+int up_bdshot_get_extended_telemetry(uint8_t channel, int type, uint8_t *value)
+{
+	UNUSED(channel);
+	UNUSED(type);
+	UNUSED(value);
+	return -ENOTSUP;
+}
+
+int up_bdshot_channel_online(uint8_t channel)
+{
+	UNUSED(channel);
+	return -ENOTSUP;
+}
+
+int up_bdshot_fill_esc_status(struct esc_status_s *esc_status, const uint8_t *actuator_functions,
+			      const uint8_t *output_channel_map, uint8_t esc_count, int pole_count)
+{
+	UNUSED(esc_status);
+	UNUSED(actuator_functions);
+	UNUSED(output_channel_map);
+	UNUSED(esc_count);
+	UNUSED(pole_count);
+
+	return -ENOTSUP;
 }

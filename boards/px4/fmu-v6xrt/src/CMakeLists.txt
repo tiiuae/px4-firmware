@@ -59,16 +59,22 @@ else()
 	    )
 	endif()
 
+	# px4_platform links board_bus_info unconditionally, so every board that
+	# has buses has to offer it. Same split as the saluki boards.
+	add_library(board_bus_info
+		i2c.cpp
+		spi.cpp
+	)
+	add_dependencies(board_bus_info nuttx_context)
+
 	px4_add_library(drivers_board
 		autoleds.c
 		automount.c
 		#can.c
-		i2c.cpp
 		init.c
 		led.c
 		mtd.cpp
 		sdhc.c
-		spi.cpp
 		timer_config.cpp
 		usb.c
 		imxrt_flexspi_fram.c
@@ -83,6 +89,7 @@ else()
 			arch_board_hw_info
 			arch_board_romapi
 			arch_spi
+			board_bus_info
 			drivers__led # drv_led_start
 			nuttx_arch # sdio
 			nuttx_drivers # sdio
