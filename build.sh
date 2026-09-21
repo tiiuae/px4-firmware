@@ -89,10 +89,11 @@ case $target in
     cp ${script_dir}/build/px4_fmu-v5x_ssrc/px4_fmu-v5x_ssrc.px4 ${dest_dir}/px4_fmu-v5x_ssrc-${version}.px4
     ;;
   fmu-v6xrt)
+    # There is no ssrc label for this board; default is what exists.
     $build_cmd_fw px4_fmu-v6xrt_bootloader
-    $build_cmd_fw px4_fmu-v6xrt_ssrc
+    $build_cmd_fw px4_fmu-v6xrt_default
     cp ${script_dir}/build/px4_fmu-v6xrt_bootloader/px4_fmu-v6xrt_bootloader.elf ${dest_dir}/px4_fmu-v6xrt_bootloader-${version}.elf
-    cp ${script_dir}/build/px4_fmu-v6xrt_ssrc/px4_fmu-v6xrt_ssrc.px4 ${dest_dir}/px4_fmu-v6xrt_ssrc-${version}.px4
+    cp ${script_dir}/build/px4_fmu-v6xrt_default/px4_fmu-v6xrt_default.px4 ${dest_dir}/px4_fmu-v6xrt_default-${version}.px4
     ;;
   # on custom keys case we build _default target but SIGNING_ARGS env variable is set above in build_cmd_fw
   *_custom_keys)

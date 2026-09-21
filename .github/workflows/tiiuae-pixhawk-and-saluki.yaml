@@ -65,6 +65,7 @@ jobs:
           - saluki-nxp93_default
           - saluki-micro_default
           - saluki-ft_default
+          - fmu-v6xrt
         include:
           - product: saluki-v2_flat
             include_in_packaging: false
