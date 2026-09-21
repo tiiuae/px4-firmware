@@ -34,6 +34,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <px4_platform_common/micro_hal.h>
 #include <board_config.h>
 
 #if defined(CONFIG_SPI)
@@ -48,11 +49,11 @@
 #define PX4_SPI_DEV_ID(devid)     ((devid) & 0xffff)
 #define PX4_SPIDEVID_TYPE(devid) (((uint32_t)(devid) >> 16) & 0xffff)
 
-typedef uint32_t spi_drdy_gpio_t;
+typedef px4_gpio_pinset_t spi_drdy_gpio_t;
 
 #define SPI_BUS_MAX_DEVICES 6
 struct px4_spi_bus_device_t {
-	uint32_t cs_gpio; ///< chip-select GPIO (0 if this device is not used)
+	px4_gpio_pinset_t cs_gpio; ///< chip-select GPIO (0 if this device is not used)
 	spi_drdy_gpio_t drdy_gpio; ///< data ready GPIO (0 if not set)
 	uint32_t devid; ///< SPIDEV_ID(type,index). For PX4 devices on NuttX: index is the device type, and for external buses the CS index
 	uint16_t devtype_driver; ///< driver device type, e.g. DRV_IMU_DEVTYPE_ICM20689 (on NuttX: PX4_SPI_DEV_ID(devid) == devtype_driver)
@@ -64,7 +65,7 @@ struct px4_spi_bus_devices_t {
 
 struct px4_spi_bus_t {
 	px4_spi_bus_device_t devices[SPI_BUS_MAX_DEVICES];
-	uint32_t power_enable_gpio{0}; ///< GPIO (if non-zero) to control the power of the attached devices on this bus (0 means power is off)
+	px4_gpio_pinset_t power_enable_gpio{0}; ///< GPIO (if non-zero) to control the power of the attached devices on this bus (0 means power is off)
 	int8_t bus{-1}; ///< physical bus number (1, ...) (-1 means this is unused)
 	bool is_external; ///< static external configuration. Use px4_spi_bus_external() to check if a bus is really external
 	bool requires_locking; ///< whether the bus should be locked during transfers (true if NuttX drivers access the bus)
