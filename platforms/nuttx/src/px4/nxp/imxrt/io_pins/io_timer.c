@@ -276,18 +276,21 @@ int io_timer_validate_channel_index(unsigned channel)
 	return rv;
 }
 
-uint32_t io_timer_channel_get_gpio_output(unsigned channel)
+px4_gpio_pinset_t io_timer_channel_get_gpio_output(unsigned channel)
 {
 	if (io_timer_validate_channel_index(channel) != 0) {
 		return 0;
 	}
 
+#if defined(CONFIG_IMXRT_RGPIO)
+	return timer_io_channels[channel].gpio_portpin;
+#else
 	return timer_io_channels[channel].gpio_portpin | (GPIO_OUTPUT | GPIO_OUTPUT_ZERO | IOMUX_CMOS_OUTPUT | IOMUX_PULL_KEEP
 			| IOMUX_SLEW_FAST);
-	return 0;
+#endif
 }
 
-uint32_t io_timer_channel_get_as_pwm_input(unsigned channel)
+px4_gpio_pinset_t io_timer_channel_get_as_pwm_input(unsigned channel)
 {
 	if (io_timer_validate_channel_index(channel) != 0) {
 		return 0;
@@ -612,7 +615,7 @@ int io_timer_channel_init(unsigned channel, io_timer_channel_mode_t mode,
 		return -EINVAL;
 	}
 
-	uint32_t gpio = 0;
+	px4_gpio_pinset_t gpio = 0;
 
 	/* figure out the GPIO config first */
 
@@ -713,7 +716,7 @@ int io_timer_set_enable(bool state, io_timer_channel_mode_t mode, io_timer_chann
 			uint32_t sm_ens;
 			uint32_t base;
 			uint32_t io_index;
-			uint32_t gpios[MAX_TIMER_IO_CHANNELS];
+			px4_gpio_pinset_t gpios[MAX_TIMER_IO_CHANNELS];
 		} action_cache[MAX_IO_TIMERS];
 
 		unsigned int actions = 0;
