@@ -42,12 +42,15 @@
 #include <errno.h>
 #include <nuttx/board.h>
 #include <arm_internal.h>
+#if !defined(CONFIG_ARCH_FAMILY_IMXRT118x)
 #include <hardware/rt117x/imxrt117x_snvs.h>
+#endif
 
 
 #include <px4_arch/imxrt_flexspi_nor_flash.h>
 #include <px4_arch/imxrt_romapi.h>
 
+#if !defined(CONFIG_ARCH_FAMILY_IMXRT118x)
 #define BOOT_RTC_SIGNATURE                0xb007b007
 #define PX4_IMXRT_RTC_REBOOT_REG          3
 #define PX4_IMXRT_RTC_REBOOT_REG_ADDRESS  IMXRT_SNVS_LPGPR3
@@ -63,6 +66,19 @@ static int board_reset_enter_bootloader()
 	putreg32(regvalue, PX4_IMXRT_RTC_REBOOT_REG_ADDRESS);
 	return OK;
 }
+#else
+static int board_reset_enter_bootloader()
+{
+	/* On i.MX RT1180 the SNVS block is not directly memory-mapped (it is
+	 * owned by the EdgeLock Enclave), so there is no equivalent of the
+	 * SNVS_LPGPR reboot signature used on older imxrt chips to tell the
+	 * ROM bootloader to stay in bootloader mode across a reset. This is
+	 * not implemented yet, so REBOOT_TO_BOOTLOADER falls back to a plain
+	 * reset below.
+	 */
+	return OK;
+}
+#endif
 
 int board_reset(int status)
 {
