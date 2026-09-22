@@ -25,7 +25,9 @@
 #include <px4_arch/imxrt_flexspi_nor_flash.h>
 #include <px4_arch/imxrt_romapi.h>
 
+#if !defined(CONFIG_ARCH_FAMILY_IMXRT118x)
 #include <hardware/rt117x/imxrt117x_anadig.h>
+#endif
 
 /*******************************************************************************
  * Definitions
@@ -92,6 +94,8 @@ typedef struct {
 /*******************************************************************************
  * Variables
  ******************************************************************************/
+
+#if !defined(CONFIG_ARCH_FAMILY_IMXRT118x)
 
 static bootloader_api_entry_t *g_bootloaderTree = NULL;
 
@@ -269,3 +273,98 @@ status_t ROM_FLEXSPI_NorFlash_WaitBusy(uint32_t instance,
 {
 	return g_bootloaderTree->flexSpiNorDriver->wait_busy(instance, config, isParallelMode, address);
 }
+
+#else /* CONFIG_ARCH_FAMILY_IMXRT118x */
+
+/* i.MX RT1180 has a different boot ROM (with an EdgeLock Enclave in front
+ * of it) than the older imxrt chips this file was written for, so none of
+ * the hard-coded ROM bootloader tree addresses/ANADIG chip-ID checks above
+ * apply here. None of this has been ported/verified for RT1180 yet, so
+ * provide minimal stubs: ROM_API_Init()/ROM_RunBootloader() are enough for
+ * board_reset()'s REBOOT_TO_ISP path to link, and the FlexSPI NOR ROM
+ * driver calls (unused by this board) just report failure.
+ */
+
+void ROM_API_Init(void)
+{
+}
+
+void ROM_RunBootloader(void *arg)
+{
+}
+
+status_t ROM_FLEXSPI_NorFlash_GetConfig(uint32_t instance,
+					flexspi_nor_config_t *config,
+					serial_nor_config_option_t *option)
+{
+	return -1;
+}
+
+status_t ROM_FLEXSPI_NorFlash_Init(uint32_t instance, flexspi_nor_config_t *config)
+{
+	return -1;
+}
+
+status_t ROM_FLEXSPI_NorFlash_ProgramPage(uint32_t instance,
+		flexspi_nor_config_t *config,
+		uint32_t dst_addr,
+		const uint32_t *src)
+{
+	return -1;
+}
+
+status_t ROM_FLEXSPI_NorFlash_Read(uint32_t instance,
+				   flexspi_nor_config_t *config,
+				   uint32_t *dst,
+				   uint32_t start,
+				   uint32_t bytes)
+{
+	return -1;
+}
+
+status_t ROM_FLEXSPI_NorFlash_Erase(uint32_t instance, flexspi_nor_config_t *config, uint32_t start, uint32_t length)
+{
+	return -1;
+}
+
+status_t ROM_FLEXSPI_NorFlash_EraseSector(uint32_t instance, flexspi_nor_config_t *config, uint32_t start)
+{
+	return -1;
+}
+
+status_t ROM_FLEXSPI_NorFlash_EraseBlock(uint32_t instance, flexspi_nor_config_t *config, uint32_t start)
+{
+	return -1;
+}
+
+status_t ROM_FLEXSPI_NorFlash_EraseAll(uint32_t instance, flexspi_nor_config_t *config)
+{
+	return -1;
+}
+
+status_t ROM_FLEXSPI_NorFlash_CommandXfer(uint32_t instance, flexspi_xfer_t *xfer)
+{
+	return -1;
+}
+
+status_t ROM_FLEXSPI_NorFlash_UpdateLut(uint32_t instance,
+					uint32_t seqIndex,
+					const uint32_t *lutBase,
+					uint32_t numberOfSeq)
+{
+	return -1;
+}
+
+void ROM_FLEXSPI_NorFlash_ClearCache(uint32_t instance)
+{
+}
+
+status_t ROM_FLEXSPI_NorFlash_WaitBusy(uint32_t instance,
+				       flexspi_nor_config_t *config,
+				       bool isParallelMode,
+				       uint32_t address)
+{
+	return -1;
+}
+
+#endif /* CONFIG_ARCH_FAMILY_IMXRT118x */
