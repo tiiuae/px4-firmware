@@ -26,6 +26,7 @@ usage() {
   echo "     saluki-nxp93_default"
   echo "     saluki-micro_default"
   echo "     saluki-ft_default"
+  echo "     salukini_default"
   echo
   exit 1
 }
@@ -123,7 +124,7 @@ case $target in
     json_output+="\"px4_build_time\":\"${px4_build_time}\"}"
     ;;
   # handle all normal ssrc targets
-  saluki-*)
+  saluki*)
     build_target="ssrc_${target}"
     if [[ ${SIGNING_KEY} = "hsm" ]]; then
       $hsm_build_cmd_fw ${build_target}

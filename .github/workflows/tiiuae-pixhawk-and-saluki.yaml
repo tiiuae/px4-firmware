@@ -65,6 +65,7 @@ jobs:
           - saluki-nxp93_default
           - saluki-micro_default
           - saluki-ft_default
+          - salukini_default
         include:
           - product: saluki-v2_flat
             include_in_packaging: false
@@ -164,7 +165,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: bin
-          pattern: saluki-*
+          pattern: saluki*
           merge-multiple: true
       - name: Firmware flasher - Container metadata
         id: containermeta # referenced from later step
@@ -380,7 +381,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: ${{ env.BUILD_DIR }}
-          pattern: saluki-*
+          pattern: saluki*
           merge-multiple: true
       - name: Firmware flasher - Container metadata
         id: containermeta # referenced from later step
@@ -402,7 +403,7 @@ jobs:
         run: |
           set -eux
           echo "Building minimal OTA container"
-          PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-nxp93_default ssrc_saluki-micro_default"
+          PRODUCTS_TO_INCLUDE="ssrc_saluki-v3_default ssrc_saluki-nxp93_default ssrc_saluki-micro_default ssrc_salukini_default"
           REPACKAGE_DIR=$(mktemp -d)
           echo "REPACKAGE_DIR=${REPACKAGE_DIR}" >> "$GITHUB_ENV"
 
