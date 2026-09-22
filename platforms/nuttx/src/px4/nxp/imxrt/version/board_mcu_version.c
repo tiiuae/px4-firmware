@@ -43,12 +43,15 @@
 #ifdef CONFIG_ARCH_FAMILY_IMXRT117x
 #  include <hardware/rt117x/imxrt117x_ocotp.h>
 #  include <hardware/rt117x/imxrt117x_anadig.h>
+#elif defined(CONFIG_ARCH_FAMILY_IMXRT118x)
+#  include <hardware/imxrt_ocotp.h>
+#  include "imxrt118x_ele.h"
 #else
 #  include <chip.h>
 #  include <hardware/imxrt_usb_analog.h>
 #endif
 
-#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#if defined(CONFIG_ARCH_FAMILY_IMXRT117x)
 
 #define CHIP_TAG     "i.MX RT11?0 r??"
 #define CHIP_TAG_LEN sizeof(CHIP_TAG)-1
@@ -77,6 +80,41 @@ int board_mcu_version(char *rev, const char **revstr, const char **errata)
 	return 0;
 }
 
+#elif defined(CONFIG_ARCH_FAMILY_IMXRT118x)
+
+#define CHIP_TAG     "i.MX RT11?? r??"
+#define CHIP_TAG_LEN sizeof(CHIP_TAG)-1
+
+int board_mcu_version(char *rev, const char **revstr, const char **errata)
+{
+	static char chip[sizeof(CHIP_TAG)] = CHIP_TAG;
+	uint32_t chip_id = (getreg32(IMXRT_OCOTP_CHIP_ID) >> IMXRT_OCOTP_CHIP_ID_SHIFT)
+			   & IMXRT_OCOTP_CHIP_ID_MASK;
+
+	chip[CHIP_TAG_LEN - 6] = '0' + ((chip_id >> 12) & 0xf);
+	chip[CHIP_TAG_LEN - 5] = '0' + ((chip_id >> 8) & 0xf);
+
+#ifdef CONFIG_IMXRT_ELE
+	uint8_t revision;
+	int ret = imxrt118x_ele_get_soc_revision(&revision);
+
+	if (ret < 0) {
+		return ret;
+	}
+
+	chip[CHIP_TAG_LEN - 2] = 'A' + ((revision >> 4) - 0xa);
+	chip[CHIP_TAG_LEN - 1] = '0' + (revision & 0xf);
+#endif
+
+	*revstr = chip;
+	*rev = chip[CHIP_TAG_LEN - 2];
+
+	if (errata) {
+		*errata = NULL;
+	}
+
+	return 0;
+}
 
 #else
 
