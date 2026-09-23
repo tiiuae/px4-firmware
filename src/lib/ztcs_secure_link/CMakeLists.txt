@@ -49,8 +49,12 @@ px4_add_library(ztcs_secure_link
 # supplies its own backend against noise/noise_backend.h.
 target_include_directories(ztcs_secure_link PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+# The archive, not the nuttx_crypto target: in a kernel build that target
+# carries nuttx_kc behind it, and this library is linked into user binaries,
+# where the kernel libc pulls in the kernel heap and does not resolve. The
+# primitives themselves are ordinary computation and link either side.
 if("${PX4_PLATFORM}" MATCHES "nuttx")
-	target_link_libraries(ztcs_secure_link PRIVATE nuttx_crypto)
+	target_link_libraries(ztcs_secure_link PRIVATE $<TARGET_FILE:nuttx_crypto>)
 endif()
 
 # The identity key is the one that must be unreadable, and which curve that
