@@ -103,8 +103,13 @@ case $target in
 
     $build_cmd_fw ${build_target_env}
 
+    elf_target=${build_target_env}_kernel.elf
+    if [ ! -f ${script_dir}/build/${build_target_env}/${elf_target} ]; then
+      elf_target=${build_target_env}.elf
+    fi
+
     # tar elf files
-    files_to_tar="${build_target_env}_kernel.elf"
+    files_to_tar="${elf_target}"
     if [ -d ${script_dir}/build/${build_target_env}/bin_debug ]; then
       files_to_tar+=" bin_debug"
     fi
@@ -127,8 +132,7 @@ case $target in
     fi
 
     elf_target=${build_target}_kernel.elf
-    # in flat builds kernel.elf has a different name
-    if [[ ${build_target} == *flat ]]; then
+    if [ ! -f ${script_dir}/build/${build_target}/${elf_target} ]; then
       elf_target=${build_target}.elf
     fi
 
