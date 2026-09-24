@@ -1,0 +1,7 @@
+menuconfig LIB_ELE_CSR
+	bool "ele_csr"
+	default n
+	---help---
+		Build a PKCS#10 certificate request for the identity key held in
+		the EdgeLock Enclave, signed by it. The private half is never
+		read, because no command returns it.
