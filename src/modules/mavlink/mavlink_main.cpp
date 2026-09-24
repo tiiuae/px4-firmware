@@ -3107,6 +3107,18 @@ Mavlink::display_status()
 		printf("\tMulticast enabled: %s\n",
 		       multicast_enabled() ? "YES" : "NO");
 
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+		{
+			static const char *const state_name[] = {"down", "handshaking", "established"};
+			const unsigned st = (unsigned)_secure_link.state;
+			printf("\tsecure link: %s, %u handshakes, %u refused\n",
+			       !_secure_link_ready ? "unkeyed"
+			       : st < 3 ? state_name[st] : "unknown",
+			       (unsigned)_secure_link.handshakes,
+			       (unsigned)_secure_link.decrypt_fails);
+		}
+#endif
+
 		if (get_client_source_initialized()) {
 			printf("\tpartner IP: %s\n", inet_ntoa(get_client_source_address().sin_addr));
 		}
