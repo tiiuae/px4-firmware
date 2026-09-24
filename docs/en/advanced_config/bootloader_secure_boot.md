@@ -202,14 +202,23 @@ None of them is set up automatically: a board that stores its image on non-XIP m
 
 ### Enabling the Standalone TOC on a Board
 
-Steps 1–3 below are one-time setup for a given board.
-Once `src/toc.c` and `nuttx-config/scripts/toc.ld` exist and `CONFIG_BOARD_SECUREBOOT` is enabled, every subsequent build re-runs the build/sign/prepend pipeline below automatically (no separate command is needed):
+The standalone TOC changes some of the steps in [Enabling Secure Boot on a New Board](#enabling-secure-boot-on-a-new-board).
+The following steps are one-time setup for a given board, and the fmu-v6xrt files linked below can be copied as a starting point:
 
-1. Enable secure boot: `CONFIG_BOARD_SECUREBOOT=y`.
-2. Add [`boards/<vendor>/<board>/src/toc.c`](https://github.com/PX4/PX4-Autopilot/blob/main/boards/px4/fmu-v6xrt/src/toc.c) declaring the `image_toc_entry_t` table.
+1. Add a `secureboot.px4board` that sets `CONFIG_BOARD_SECUREBOOT=y` and the linker prefix, as for the embedded TOC.
+2. Add an app linker script that moves the flash `ORIGIN` past the TOC block (see [`boards/px4/fmu-v6xrt/nuttx-config/scripts/secureboot-script.ld`](https://github.com/PX4/PX4-Autopilot/blob/main/boards/px4/fmu-v6xrt/nuttx-config/scripts/secureboot-script.ld)).
+   Unlike the embedded TOC, it doesn't reserve a `_main_toc` slot in the app.
+3. Add [`boards/<vendor>/<board>/src/toc.c`](https://github.com/PX4/PX4-Autopilot/blob/main/boards/px4/fmu-v6xrt/src/toc.c) declaring the `image_toc_entry_t` table.
    The TOC entry and its signature entry set `TOC_FLAG2_RELATIVE_ADDRESSES` (see [Relevant TOC Flag](#relevant-toc-flag) above).
-3. Add [`boards/<vendor>/<board>/nuttx-config/scripts/toc.ld`](https://github.com/PX4/PX4-Autopilot/blob/main/boards/px4/fmu-v6xrt/nuttx-config/scripts/toc.ld) — a standalone linker script for the TOC block.
+   Don't add `toc.c` to `drivers_board` in the board's `src/CMakeLists.txt`: the build compiles it separately (see below).
+4. Add [`boards/<vendor>/<board>/nuttx-config/scripts/toc.ld`](https://github.com/PX4/PX4-Autopilot/blob/main/boards/px4/fmu-v6xrt/nuttx-config/scripts/toc.ld) — a standalone linker script for the TOC block.
    It should use the `_app_start` / `_app_end` symbols to size the payload; those symbols are computed from the unsigned app `.bin` that is pulled in via `.incbin` by [`platforms/nuttx/toc/fw_image.c`](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/nuttx/toc/fw_image.c).
+   The app address it uses (`_app_addr` on fmu-v6xrt) must match the flash `ORIGIN` in the app linker script.
+5. Define `BOOTLOADER_USE_SECURITY`, `BOOTLOADER_SIGNING_ALGORITHM` and `BOARD_IMAGE_TOC_OFFSET` in the board's `hw_config.h`, gated on `PX4_CRYPTO`.
+   Set `BOARD_IMAGE_TOC_OFFSET` to `0x0`, because `toc.ld` places the TOC at the start of the block.
+6. Add a `bootloader_secureboot.px4board`, as for the embedded TOC, and make sure the board's `src/CMakeLists.txt` builds the bootloader for any label that starts with `bootloader`.
+
+Once `src/toc.c` and `nuttx-config/scripts/toc.ld` exist and `CONFIG_BOARD_SECUREBOOT` is enabled, every subsequent build re-runs the build/sign/prepend pipeline below automatically (no separate command is needed).
 
 The build rules in [`platforms/nuttx/toc/CMakeLists.txt`](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/nuttx/toc/CMakeLists.txt) then automatically:
 
