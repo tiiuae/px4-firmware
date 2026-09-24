@@ -135,17 +135,22 @@ The fmu-v6x variant files are kept small and self-contained for exactly this rea
 
 ## Multi-Part Signed Images
 
-The layout shown above assumes the whole signed image is flashed to memory-mapped flash at `APP_LOAD_ADDRESS`, where the bootloader can hash it in place.
+<Badge type="tip" text="main (PX4 v2.0)" />
+
+The layout shown above assumes the whole signed image is flashed to memory-mapped (execute-in-place, or XIP) flash at `APP_LOAD_ADDRESS`, where the bootloader can hash it in place.
 
 That assumption doesn't hold for boards that host images on media such as an SD card or eMMC, because the data isn't stored as a contiguous block, and the CPU can't address it directly.
-Loading the whole (potentially large) image into RAM so that it can be authenticated is potentially problematic, and certainly inefficient.
+Loading the whole (potentially large) image into RAM just to authenticate it is inefficient, and may not be possible.
 
-To support these kinds of boards, PX4 can instead build a small, **separately signed** TOC block that is prepended to the signed app image on the media.
-The bootloader can then load this standalone TOC into a small RAM buffer and authenticate it before anything else is trusted, and without having to load the whole image.
+To support these kinds of boards, PX4 can instead build a small, separately signed TOC block that is prepended to the signed app image on the media.
+The bootloader can then authenticate this standalone TOC (which board startup code loads into a small RAM buffer) before anything else is trusted, and without having to load the whole image.
 Once verified, the TOC entries tell the bootloader exactly what the rest of the image contains and how each part should be located, loaded, and verified.
 In other words, this approach allows the image payload to be staged into memory and verified piece by piece, instead of all at once.
 
-### On-media layout
+PX4 includes an example for `px4_fmu-v6xrt`: `px4_fmu-v6xrt_bootloader_secureboot` (the secure bootloader) and `px4_fmu-v6xrt_secureboot` (firmware with a prepended, separately signed TOC).
+On this board the image stays in XIP flash, so it shows the build side and TOC layout without any board-specific loading code.
+
+### On-Media Layout
 
 ```txt
 +---------------------------+  media offset 0                ─┐
@@ -157,51 +162,78 @@ In other words, this approach allows the image payload to be staged into memory 
 +---------------------------+                                ─┘
 ```
 
-The standalone TOC is signed with the **same key** as the app (`CONFIG_BOARD_SECUREBOOT_KEY`, or the `BOARD_SECUREBOOT_KEY` env var).
+The standalone TOC is signed with the same key as the app (`CONFIG_BOARD_SECUREBOOT_KEY`, or the `BOARD_SECUREBOOT_KEY` environment variable).
 
-### Relevant TOC flag
+::: warning
+For a multi-part image, the upload-time signature check (`VERIFY_SIG`) verifies only the standalone TOC, not the app image.
+The app's own signature (BOOT/SIG1) is checked only when the bootloader tries to start it.
+An app image that fails its check is therefore reported as "Verifying image signature... passed" by the uploader, and the device then stays in the bootloader after reboot.
+:::
+
+### Relevant TOC Flag
 
 TOC entries normally describe their payload with an absolute address — the address the image was signed at.
 That doesn't work for the standalone TOC once it's loaded into a RAM buffer, because the buffer's location is chosen at runtime by the board's bootloader startup code, not fixed at build/sign time.
-[`src/include/image_toc.h`](https://github.com/PX4/PX4-Autopilot/blob/main/src/include/image_toc.h) adds a flag so an entry can describe its payload relative to that buffer instead of with an absolute address:
+[`src/include/image_toc.h`](https://github.com/PX4/PX4-Autopilot/blob/main/src/include/image_toc.h) defines a flag so that an entry can describe its payload relative to that buffer instead of with an absolute address:
 
 - `TOC_FLAG2_RELATIVE_ADDRESSES` — the entry's `start`/`end` are byte offsets from the base of the buffer the TOC was found in, not absolute addresses.
 
-Set this in your board's `toc.c` on any entry whose payload is staged into a RAM buffer rather than executed in place.
+Set this flag in your board's `toc.c` on the standalone TOC's own entry (entry 0, whose `start` must then be `0`) and on its signature entry.
+The bootloader only applies it to those two entries: the entries after them are always resolved as absolute addresses.
 
-### Bootloader integration
+Payloads that must be staged into RAM before use are marked with `TOC_FLAG1_COPY` and a `target` address instead.
+The bootloader copies each such payload from its `start` address to `target` (using `BL_TOC_ENTRY_COPY()`, below) and then verifies it there.
+
+### Bootloader Integration
 
 The flag above only helps if the bootloader also knows where that RAM buffer is and how to fill it.
-The common PX4 bootloader ([`platforms/nuttx/src/bootloader/common/bl.c`](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/nuttx/src/bootloader/common/bl.c)) exposes two integration points for board-specific startup code to provide that — neither is wired up automatically; a board using non-XIP media must call/override these itself:
+The common PX4 bootloader ([`platforms/nuttx/src/bootloader/common/bl.c`](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/nuttx/src/bootloader/common/bl.c)) provides the following integration points for board-specific code.
+None of them is set up automatically: a board that stores its image on non-XIP media must call, override, or define them itself.
 
-- `bl_set_toc_buffer(const void *buf, size_t len)` — tell the bootloader where board startup code staged the TOC block, before entering `bootloader()` / `jump_to_app()` (which then locate and verify it via `find_toc()`).
-- Boards where the TOC still sits at `APP_LOAD_ADDRESS` in XIP flash don't need to call this — that's the default `find_toc()` falls back to.
-- `BL_TOC_ENTRY_COPY(dst, src, len)` — macro used to copy a verified entry's payload to its target address.
-  Defaults to a plain `memcpy()` (evaluating to `0` on success), which is sufficient when the image is memory-mapped.
+- `bl_set_toc_buffer(const void *buf, size_t len)` — function that tells the bootloader where board startup code staged the TOC block, before entering `bootloader()` / `jump_to_app()` (which then locate and verify it via `find_toc()`).
+  Boards where the TOC sits at `APP_LOAD_ADDRESS` in XIP flash don't need to call this, since that is the default buffer the bootloader uses.
+- `BL_TOC_ENTRY_COPY(dst, src, len)` — macro used to copy the payload of each `TOC_FLAG1_COPY` entry to its `target` address, before that payload's signature is checked.
+  Defaults to a plain `memcpy()` (evaluating to `0` on success), which is sufficient when the image is in XIP flash.
   Override it in `hw_config.h` when `src` isn't a directly addressable memory location (e.g. a byte offset on SD card/eMMC), so the copy goes through the appropriate storage driver instead.
-  The macro must return non-zero on failure.
+  The macro should evaluate to non-zero on failure, but the bootloader currently ignores the result: a failed copy is only detected when a signature check over the copied bytes fails.
+- `BOOTLOADER_SKIP_VERIFY_SIG`: define in `hw_config.h` when the full image isn't in addressable memory after upload (for example, when it is written to an SD card in chunks).
+  The bootloader then replies OK to the uploader's `VERIFY_SIG` request without checking anything, so the uploader reports "passed" even though no check was done.
+  The image is still verified before it boots.
 
-### Enabling the standalone TOC on a board
+### Enabling the Standalone TOC on a Board
 
-Steps 1–3 below are one-time setup for a given board.
-Once `src/toc.c` and `nuttx-config/scripts/toc.ld` exist and `CONFIG_BOARD_SECUREBOOT` is enabled, every subsequent build re-runs the build/sign/prepend pipeline below automatically (no separate command is needed):
+The standalone TOC changes some of the steps in [Enabling Secure Boot on a New Board](#enabling-secure-boot-on-a-new-board).
+The following steps are one-time setup for a given board, and the fmu-v6xrt files linked below can be copied as a starting point:
 
-1. Enable secure boot: `CONFIG_BOARD_SECUREBOOT=y`.
-2. Add [`boards/<vendor>/<board>/src/toc.c`](https://github.com/PX4/PX4-Autopilot/blob/main/boards/px4/fmu-v6x/src/toc.c) declaring the `image_toc_entry_t` table. Entries whose payloads are staged into a RAM buffer should set `TOC_FLAG2_RELATIVE_ADDRESSES` (see [Relevant TOC flag](#relevant-toc-flag) above).
-3. Add `boards/<vendor>/<board>/nuttx-config/scripts/toc.ld` — a standalone linker script for the TOC block.
+1. Add a `secureboot.px4board` that sets `CONFIG_BOARD_SECUREBOOT=y` and the linker prefix, as for the embedded TOC.
+2. Add an app linker script that moves the flash `ORIGIN` past the TOC block (see [`boards/px4/fmu-v6xrt/nuttx-config/scripts/secureboot-script.ld`](https://github.com/PX4/PX4-Autopilot/blob/main/boards/px4/fmu-v6xrt/nuttx-config/scripts/secureboot-script.ld)).
+   Unlike the embedded TOC, it doesn't reserve a `_main_toc` slot in the app.
+3. Add [`boards/<vendor>/<board>/src/toc.c`](https://github.com/PX4/PX4-Autopilot/blob/main/boards/px4/fmu-v6xrt/src/toc.c) declaring the `image_toc_entry_t` table.
+   The TOC entry and its signature entry set `TOC_FLAG2_RELATIVE_ADDRESSES` (see [Relevant TOC Flag](#relevant-toc-flag) above).
+   Don't add `toc.c` to `drivers_board` in the board's `src/CMakeLists.txt`: the build compiles it separately (see below).
+4. Add [`boards/<vendor>/<board>/nuttx-config/scripts/toc.ld`](https://github.com/PX4/PX4-Autopilot/blob/main/boards/px4/fmu-v6xrt/nuttx-config/scripts/toc.ld) — a standalone linker script for the TOC block.
    It should use the `_app_start` / `_app_end` symbols to size the payload; those symbols are computed from the unsigned app `.bin` that is pulled in via `.incbin` by [`platforms/nuttx/toc/fw_image.c`](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/nuttx/toc/fw_image.c).
+   The app address it uses (`_app_addr` on fmu-v6xrt) must match the flash `ORIGIN` in the app linker script.
+5. Define `BOOTLOADER_USE_SECURITY`, `BOOTLOADER_SIGNING_ALGORITHM` and `BOARD_IMAGE_TOC_OFFSET` in the board's `hw_config.h`, gated on `PX4_CRYPTO`.
+   Set `BOARD_IMAGE_TOC_OFFSET` to `0x0`, because `toc.ld` places the TOC at the start of the block.
+6. Add a `bootloader_secureboot.px4board`, as for the embedded TOC, and make sure the board's `src/CMakeLists.txt` builds the bootloader for any label that starts with `bootloader`.
+
+Once `src/toc.c` and `nuttx-config/scripts/toc.ld` exist and `CONFIG_BOARD_SECUREBOOT` is enabled, every subsequent build re-runs the build/sign/prepend pipeline below automatically (no separate command is needed).
 
 The build rules in [`platforms/nuttx/toc/CMakeLists.txt`](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/nuttx/toc/CMakeLists.txt) then automatically:
 
 1. Compile `toc.c` into a standalone `board_toc` library (not linked into the app ELF).
 2. Link `toc.elf` against `toc.ld`, with the unsigned app `.bin` embedded via `.incbin` so `_app_start` / `_app_end` reflect the real payload size.
-3. `objcopy` `toc.elf` → `toc.bin`.
+3. Convert `toc.elf` to `toc.bin` with `objcopy`.
 4. Sign `toc.bin` with `Tools/secure_bootloader/sign_firmware.py` using the app-signing key.
 5. Prepend the signed `toc_signed.bin` to the signed app inside the `.px4` package.
 
-**If the board's app image lives on media the CPU can't address directly** (SD card, eMMC, external SPI flash, ...), the above is only the build side.
-The board's own bootloader startup code is still responsible for loading the signed TOC into a RAM buffer and calling `bl_set_toc_buffer()` to point at it, and for overriding `BL_TOC_ENTRY_COPY()` so payloads can be copied via the storage driver — see [Bootloader integration](#bootloader-integration) above.
+::: tip
+If the board's app image lives on media the CPU can't address directly (SD card, eMMC, external SPI flash, and so on), the steps above only cover the build side.
+The board's own bootloader startup code is still responsible for loading the signed TOC into a RAM buffer, calling `bl_set_toc_buffer()` to point at it, and overriding `BL_TOC_ENTRY_COPY()` so payloads are copied through the storage driver.
+See [Bootloader Integration](#bootloader-integration) above.
 Boards where the image stays in XIP flash need none of this.
+:::
 
 ## See Also
 

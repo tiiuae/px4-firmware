@@ -40,10 +40,12 @@ Please continue reading for [upgrade instructions](#upgrade-guide).
 ### Hardware Support
 
 - [DroneCAN ESCs](../dronecan/escs.md) no longer need to set `UAVCAN_PUB_ARM` as `ArmingStatus` is published automatically whenever `UAVCAN_ENABLE` is `3` (ESC output enabled). ([PX4-Autopilot#28364](https://github.com/PX4/PX4-Autopilot/pull/28364))
+- `px4_fmu-v6xrt` has new [secure boot](../advanced_config/bootloader_secure_boot.md#multi-part-signed-images) build targets: `px4_fmu-v6xrt_secureboot` and `px4_fmu-v6xrt_bootloader_secureboot`. ([PX4-Autopilot#28228](https://github.com/PX4/PX4-Autopilot/pull/28228))
 
 ### Common
 
-- TBD
+- [Secure boot](../advanced_config/bootloader_secure_boot.md#multi-part-signed-images) can now build a separately signed TOC that is prepended to the app image, and the bootloader provides hooks so that boards can verify and load images stored on media the CPU can't address directly, such as an SD card or eMMC.
+  Board-specific bootloader startup code is required for such media. ([PX4-Autopilot#28228](https://github.com/PX4/PX4-Autopilot/pull/28228))
 
 ### Control
 
@@ -63,7 +65,6 @@ Please continue reading for [upgrade instructions](#upgrade-guide).
 - Added `RTL_TYPE=6` for battery-aware home priority return ([PX4-Autopilot#26968](https://github.com/PX4/PX4-Autopilot/pull/26968)).
   Returns to home if the estimated flight time to home is within the remaining battery time; otherwise returns to the closest rally point.
   Falls back to the closest safe point (home or rally) if battery time remaining is unavailable.
-- [Secure boot](../advanced_config/bootloader_secure_boot.md#multi-part-signed-images) now supports applications that can boot securely from SD card or eMMC. ([PX4-Autopilot#28228](https://github.com/PX4/PX4-Autopilot/pull/28228))
 
 ### Estimation
 
