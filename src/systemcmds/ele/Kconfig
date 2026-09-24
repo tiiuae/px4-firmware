@@ -1,0 +1,8 @@
+menuconfig SYSTEMCMDS_ELE
+	bool "ele"
+	default n
+	depends on SSRC_CRYPTO_IMX9
+	---help---
+		Drive the identity key held inside the i.MX93 EdgeLock Enclave:
+		read its public half and ask it for a signature. The private half
+		never leaves the enclave.
