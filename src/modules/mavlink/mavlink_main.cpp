@@ -762,6 +762,25 @@ void Mavlink::send_start(int length)
 	}
 }
 
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+bool Mavlink::arm_secure_link(const hrt_abstime now)
+{
+	struct secure_link_keys keys {};
+	const bool ok = secure_link_ensure_keys(&keys);
+
+	if (ok) {
+		lock_secure_link();
+		secure_link_init(&_secure_link, &keys, now);
+		unlock_secure_link();
+		_secure_link_ready = true;
+		PX4_INFO("secure MAVLink link armed");
+	}
+
+	memset(&keys, 0, sizeof(keys));
+	return ok;
+}
+#endif
+
 void Mavlink::send_finish()
 {
 	if (_tx_buffer_low || (_buf_fill == 0)) {
@@ -800,10 +819,14 @@ void Mavlink::send_finish()
 					unlock_secure_link();
 				}
 
+				/* Reporting a dropped frame as sent puts the byte count
+				 * in tx instead of txerr, which reads as a healthy link
+				 * that is sending nothing.
+				 */
 				ret = sealed_len > 0
 				      ? sendto(_socket_fd, sealed, sealed_len, 0,
 					       (struct sockaddr *)&_src_addr, sizeof(_src_addr))
-				      : _buf_fill;
+				      : -1;
 			}
 #else
 			ret = sendto(_socket_fd, _buf, _buf_fill, 0, (struct sockaddr *)&_src_addr, sizeof(_src_addr));
@@ -2229,14 +2252,7 @@ Mavlink::task_main(int argc, char *argv[])
 #if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
 	pthread_mutex_init(&_secure_link_mutex, nullptr);
 
-	struct secure_link_keys keys {};
-
-	if (secure_link_ensure_keys(&keys)) {
-		secure_link_init(&_secure_link, &keys, hrt_absolute_time());
-		_secure_link_ready = true;
-		PX4_INFO("secure MAVLink link armed");
-
-	} else {
+	if (!arm_secure_link(hrt_absolute_time())) {
 		PX4_ERR("no link keys; UDP MAVLink stays closed");
 
 		/* The only way the public half leaves, printed when it is wanted. */
@@ -2253,7 +2269,6 @@ Mavlink::task_main(int argc, char *argv[])
 		}
 	}
 
-	memset(&keys, 0, sizeof(keys));
 #endif
 
 	/* if we are passing on mavlink messages, we need to prepare a buffer for this instance */
@@ -2373,6 +2388,44 @@ Mavlink::task_main(int argc, char *argv[])
 			mavlink_poll_error_counter++;
 		}
 
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+
+		/* Ahead of should_transmit(), because a handshake is what makes
+		 * transmitting possible rather than a consequence of it.
+		 */
+		if (get_protocol() == Protocol::UDP && _src_addr_initialized) {
+			const hrt_abstime now = hrt_absolute_time();
+
+			/* Enrolment happens while this is running, so the keys are
+			 * worth another look rather than only read once at startup.
+			 */
+			if (!_secure_link_ready && now > _secure_link_arm_us) {
+				_secure_link_arm_us = now + 5_s;
+				arm_secure_link(now);
+			}
+
+			if (_secure_link_ready) {
+				uint8_t frame[SECURE_LINK_MTU];
+				lock_secure_link();
+				int frame_len = secure_link_poll(&_secure_link, now, frame, sizeof(frame));
+				unlock_secure_link();
+
+				if (frame_len > 0) {
+					sendto(_socket_fd, frame, frame_len, 0,
+					       (struct sockaddr *)&_src_addr, sizeof(_src_addr));
+
+				} else if (frame_len < 0 && frame_len != _secure_link_last_err) {
+					/* Silence here means a link that can never connect and
+					 * never says why.
+					 */
+					_secure_link_last_err = frame_len;
+					PX4_ERR("secure link cannot start a handshake: %d", frame_len);
+				}
+			}
+		}
+
+#endif
+
 		if (!should_transmit()) {
 			check_requested_subscriptions();
 			continue;
@@ -2382,23 +2435,6 @@ Mavlink::task_main(int argc, char *argv[])
 		perf_begin(_loop_perf);
 
 		const hrt_abstime t = hrt_absolute_time();
-
-#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
-
-		/* Retransmit and both rekey triggers come out of here. */
-		if (_secure_link_ready && get_protocol() == Protocol::UDP && _src_addr_initialized) {
-			uint8_t frame[SECURE_LINK_MTU];
-			lock_secure_link();
-			int frame_len = secure_link_poll(&_secure_link, t, frame, sizeof(frame));
-			unlock_secure_link();
-
-			if (frame_len > 0) {
-				sendto(_socket_fd, frame, frame_len, 0,
-				       (struct sockaddr *)&_src_addr, sizeof(_src_addr));
-			}
-		}
-
-#endif
 
 		update_rate_mult();
 

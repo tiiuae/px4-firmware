@@ -652,10 +652,13 @@ private:
 #if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
 	struct secure_link	_secure_link {};
 	bool			_secure_link_ready{false};
+	hrt_abstime		_secure_link_arm_us{0};
+	int			_secure_link_last_err{0};
 	/* Sealing runs on the sender, opening on the receiver pthread. A torn
 	 * nonce increment repeats a nonce, which breaks ChaCha20-Poly1305.
 	 */
 	pthread_mutex_t		_secure_link_mutex {};
+	bool			arm_secure_link(const hrt_abstime now);
 public:
 	struct secure_link	*get_secure_link() { return &_secure_link; }
 	bool			secure_link_ready() const { return _secure_link_ready; }
