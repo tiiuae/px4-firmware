@@ -83,7 +83,9 @@ add_subdirectory(weather_vane EXCLUDE_FROM_ALL)
 add_subdirectory(wind_estimator EXCLUDE_FROM_ALL)
 add_subdirectory(world_magnetic_model EXCLUDE_FROM_ALL)
 add_subdirectory(ztcs_secure_link EXCLUDE_FROM_ALL)
-if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libatt/libatt/CMakeLists.txt")
+# The REE half of libatt is a TEE client: without libteec there is no prover to
+# talk to, and px4_add_library would link it into every binary anyway.
+if (CONFIG_LIBTEEC AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libatt/libatt/CMakeLists.txt")
         add_subdirectory(libatt EXCLUDE_FROM_ALL)
 endif()
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/secure_udp/CMakeLists.txt")
