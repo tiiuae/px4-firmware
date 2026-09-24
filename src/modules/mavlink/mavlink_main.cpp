@@ -763,6 +763,20 @@ void Mavlink::send_start(int length)
 }
 
 #if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+/* A refused datagram is either an attacker or a broken link, and the two look
+ * identical from silence.
+ */
+void Mavlink::note_secure_link_open(int rc)
+{
+	if (rc < 0 && rc != _secure_link_open_err) {
+		_secure_link_open_err = rc;
+		PX4_ERR("secure link refused a datagram: %d", rc);
+
+	} else if (rc > 0) {
+		_secure_link_open_err = 0;
+	}
+}
+
 bool Mavlink::arm_secure_link(const hrt_abstime now)
 {
 	struct secure_link_keys keys {};

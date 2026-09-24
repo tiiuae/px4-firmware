@@ -654,6 +654,7 @@ private:
 	bool			_secure_link_ready{false};
 	hrt_abstime		_secure_link_arm_us{0};
 	int			_secure_link_last_err{0};
+	int			_secure_link_open_err{0};
 	/* Sealing runs on the sender, opening on the receiver pthread. A torn
 	 * nonce increment repeats a nonce, which breaks ChaCha20-Poly1305.
 	 */
@@ -662,6 +663,7 @@ private:
 public:
 	struct secure_link	*get_secure_link() { return &_secure_link; }
 	bool			secure_link_ready() const { return _secure_link_ready; }
+	void			note_secure_link_open(int rc);
 	void			lock_secure_link() { pthread_mutex_lock(&_secure_link_mutex); }
 	void			unlock_secure_link() { pthread_mutex_unlock(&_secure_link_mutex); }
 private:

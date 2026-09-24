@@ -3261,6 +3261,8 @@ MavlinkReceiver::run()
 						_mavlink->unlock_secure_link();
 					}
 
+					_mavlink->note_secure_link_open(plain_len);
+
 					/* 0 was a consumed handshake, negative was refused.
 					 * Neither is MAVLink.
 					 */
@@ -3269,6 +3271,11 @@ MavlinkReceiver::run()
 						nread = plain_len;
 
 					} else {
+						/* The bytes arrived, whatever they turned out to be,
+						 * and a receive counter that says otherwise hides a
+						 * station that is answering.
+						 */
+						_mavlink->count_rxbytes(nread);
 						nread = 0;
 					}
 				}
