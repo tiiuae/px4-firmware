@@ -27,6 +27,7 @@
 
 /* Above MAX_KEYS, so it cannot collide with a NOR keystore slot. */
 #define ELE_IDENTITY_KEY_INDEX 0xe0
+#define ELE_AGREEMENT_KEY_INDEX 0xe2
 #define ELE_PUB_LEN            64
 #define ELE_SIG_LEN            64
 
@@ -42,6 +43,7 @@ static void usage()
 	PRINT_MODULE_USAGE_NAME("ele", "command");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("pubkey", "Print the public half, creating the key on first use");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("sign", "Sign a SHA-256 digest given as 64 hex characters");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("kex", "Key exchange probe: <peer public key, 128 hex> <case index>");
 }
 
 static void print_hex(const char *label, const uint8_t *buf, size_t len)
@@ -121,8 +123,60 @@ static int cmd_sign(const char *hex)
 	return 0;
 }
 
+/* Mirrors struct ele_kex_result in the crypto backend. */
+struct kex_result {
+	uint32_t generate_rsp;
+	uint32_t derive_id;
+	uint32_t kex_rsp;
+	uint32_t derived_key_id;
+	uint32_t out_sz;
+	uint8_t  derive_pub[64];
+	uint8_t  out[32];
+};
+
+static int cmd_kex(const char *hex, const char *case_arg)
+{
+	PX4Crypto crypto;
+	uint8_t peer[ELE_PUB_LEN] = {};
+	kex_result res = {};
+	size_t res_len = sizeof(res);
+
+	if (hex != nullptr && parse_hex(hex, peer, sizeof(peer)) < 0) {
+		printf("ele: a peer public key is 128 hex characters\n");
+		return 1;
+	}
+
+	/* The case index rides in on the first word of the result buffer. */
+	res.generate_rsp = case_arg != nullptr ? (uint32_t)strtoul(case_arg, nullptr, 10) : 0;
+
+	if (!crypto.open(CRYPTO_ECDSA_P256)) {
+		printf("ele: no P-256 crypto session\n");
+		return 1;
+	}
+
+	if (!crypto.key_agreement(ELE_AGREEMENT_KEY_INDEX, peer, sizeof(peer),
+				  (uint8_t *)&res, &res_len)) {
+		printf("ele: key exchange probe failed to run\n");
+		return 1;
+	}
+
+	printf("ele: generate 0x%08x id 0x%08x\n",
+	       (unsigned)res.generate_rsp, (unsigned)res.derive_id);
+	printf("ele: kex      0x%08x id 0x%08x out %u\n",
+	       (unsigned)res.kex_rsp, (unsigned)res.derived_key_id,
+	       (unsigned)res.out_sz);
+	print_hex("ele: derive-pub", res.derive_pub, sizeof(res.derive_pub));
+	print_hex("ele: out", res.out, sizeof(res.out));
+	return 0;
+}
+
 int ele_main(int argc, char *argv[])
 {
+	if (argc >= 2 && strcmp(argv[1], "kex") == 0) {
+		return cmd_kex(argc >= 3 ? argv[2] : nullptr,
+			       argc >= 4 ? argv[3] : nullptr);
+	}
+
 	if (argc >= 2 && strcmp(argv[1], "pubkey") == 0) {
 		return cmd_pubkey();
 	}
