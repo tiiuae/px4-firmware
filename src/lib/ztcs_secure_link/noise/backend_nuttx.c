@@ -162,6 +162,7 @@ int noise_aead_decrypt(const uint8_t key[NOISE_KEYLEN], uint64_t nonce,
   return 0;
 }
 
+#ifndef NOISE_RANDOM_EXTERNAL
 /* /dev/random, not /dev/urandom: on this platform the pool is seeded from the
  * enclave TRNG at boot and a caller that reads before that must block rather
  * than receive zeros.
@@ -176,6 +177,7 @@ int noise_random(uint8_t *out, size_t len) {
   close(fd);
   return (got == (ssize_t)len) ? 0 : -1;
 }
+#endif
 
 void noise_wipe(void *p, size_t len) {
   volatile uint8_t *v = p;
