@@ -37,7 +37,11 @@ void noise_hmac_sha256(const uint8_t *key, size_t key_len, const uint8_t *msg,
 
 int noise_dh(const uint8_t sk[NOISE_DHLEN], const uint8_t pk[NOISE_DHLEN],
              uint8_t out[NOISE_DHLEN]) {
-  return curve25519(out, sk, pk);
+  /* NuttX answers "the result is not the all-zero point", so passing it
+   * through reports every success as a failure, and every low-order peer key
+   * as a success.
+   */
+  return curve25519(out, sk, pk) != 0 ? 0 : -1;
 }
 
 #ifndef NOISE_STATIC_KEY_BY_INDEX

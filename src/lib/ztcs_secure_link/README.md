@@ -27,7 +27,7 @@ https://github.com/tiiuae/ZTCS and **is not edited here**. That repository is
 the source of truth, holds the wire contract in `docs/rfc-secure-mavlink.md`,
 and carries the Rust implementation the C is tested against.
 
-Copied from ZTCS commit `9699e4b`.
+Copied from ZTCS commit `2965cdf`.
 
 ## Testing
 
