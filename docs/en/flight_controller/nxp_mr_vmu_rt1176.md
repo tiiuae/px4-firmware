@@ -225,6 +225,8 @@ To [build PX4](../dev_setup/building_px4.md) for this target:
 make px4_fmu-v6xrt_default
 ```
 
+Secure-boot builds (`px4_fmu-v6xrt_secureboot` and `px4_fmu-v6xrt_bootloader_secureboot`) are covered in [Bootloader Secure Boot](../advanced_config/bootloader_secure_boot.md#multi-part-signed-images).
+
 ## Debug Port {#debug_port}
 
 The [PX4 System Console](../debug/system_console.md) and [SWD interface](../debug/swd_debug.md) run on the **FMU Debug** port.
