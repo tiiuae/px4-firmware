@@ -833,14 +833,19 @@ void Mavlink::send_finish()
 					unlock_secure_link();
 				}
 
-				/* Reporting a dropped frame as sent puts the byte count
-				 * in tx instead of txerr, which reads as a healthy link
-				 * that is sending nothing.
+				/* The caller compares ret against _buf_fill and throttles
+				 * the link on the difference, so a sealed frame reports
+				 * the payload it carried rather than its own length. A
+				 * frame dropped for want of a session reports nothing,
+				 * because throttling is then the right response.
 				 */
-				ret = sealed_len > 0
-				      ? sendto(_socket_fd, sealed, sealed_len, 0,
-					       (struct sockaddr *)&_src_addr, sizeof(_src_addr))
-				      : -1;
+				ret = -1;
+
+				if (sealed_len > 0
+				    && sendto(_socket_fd, sealed, sealed_len, 0,
+					      (struct sockaddr *)&_src_addr, sizeof(_src_addr)) == sealed_len) {
+					ret = (int)_buf_fill;
+				}
 			}
 #else
 			ret = sendto(_socket_fd, _buf, _buf_fill, 0, (struct sockaddr *)&_src_addr, sizeof(_src_addr));
