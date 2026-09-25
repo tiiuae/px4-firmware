@@ -40,13 +40,12 @@
 
 #include "chip.h"
 #include "imxrt_irq.h"
-#include "hardware/imxrt_gpio.h"
+#include "imxrt_gpio.h"
 
 typedef struct {
 	int low;
 	int hi;
 } lh_t;
-
 
 #if defined(CONFIG_ARCH_FAMILY_IMXRT106x)
 const lh_t port_to_irq[9] = {
@@ -76,6 +75,7 @@ const lh_t port_to_irq[13] = {
 };
 #endif
 
+#if !defined(CONFIG_ARCH_FAMILY_IMXRT118x)
 static int imxrt_pin_irq(gpio_pinset_t pinset)
 {
 	volatile int irq = -1;
@@ -91,6 +91,7 @@ static int imxrt_pin_irq(gpio_pinset_t pinset)
 
 	return irq;
 }
+#endif
 
 /****************************************************************************
  * Name: imxrt_pin_irqattach
@@ -112,6 +113,15 @@ static int imxrt_pin_irq(gpio_pinset_t pinset)
 
 static int imxrt_pin_irqattach(gpio_pinset_t pinset, xcpt_t func, void *arg)
 {
+#if defined(CONFIG_ARCH_FAMILY_IMXRT118x)
+	int ret = imxrt_gpioirq_attach(pinset, func, arg);
+
+	if (ret != OK) {
+		return ret;
+	}
+
+	return imxrt_gpioirq_enable(pinset);
+#else
 	int rv = -EINVAL;
 	int irq = imxrt_pin_irq(pinset);
 
@@ -122,6 +132,20 @@ static int imxrt_pin_irqattach(gpio_pinset_t pinset, xcpt_t func, void *arg)
 	}
 
 	return rv;
+#endif
+}
+
+static inline int imxrt_pin_irqdisable(gpio_pinset_t pinset)
+{
+#if defined(CONFIG_ARCH_FAMILY_IMXRT118x)
+	return imxrt_gpioirq_disable(pinset);
+#else
+	int irq = imxrt_pin_irq(pinset);
+
+	imxrt_gpioirq_disable(irq);
+	pinset &= ~GPIO_INTCFG_MASK;
+	return imxrt_config_gpio(pinset);
+#endif
 }
 
 /****************************************************************************
@@ -143,20 +167,20 @@ static int imxrt_pin_irqattach(gpio_pinset_t pinset, xcpt_t func, void *arg)
  *
  ****************************************************************************/
 #if defined(CONFIG_IMXRT_GPIO_IRQ)
-int imxrt_gpiosetevent(uint32_t pinset, bool risingedge, bool fallingedge,
+int imxrt_gpiosetevent(gpio_pinset_t pinset, bool risingedge, bool fallingedge,
 		       bool event, xcpt_t func, void *arg)
 {
 	int ret = -ENOSYS;
-	int irq = imxrt_pin_irq(pinset);
 
-	if (irq != -1) {
+#if !defined(CONFIG_ARCH_FAMILY_IMXRT118x)
+
+	if (imxrt_pin_irq(pinset) != -1)
+#endif
+	{
 		if (func == NULL) {
-			imxrt_gpioirq_disable(irq);
-			pinset &= ~GPIO_INTCFG_MASK;
-			ret = imxrt_config_gpio(pinset);
+			ret = imxrt_pin_irqdisable(pinset);
 
 		} else {
-
 			pinset &= ~GPIO_INTCFG_MASK;
 
 			if (risingedge & fallingedge) {

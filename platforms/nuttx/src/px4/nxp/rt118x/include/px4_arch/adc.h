@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2016 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2026 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,21 +32,14 @@
  ****************************************************************************/
 #pragma once
 
-/*
- * This file is a shim to bridge to the many SoC architecture supported by PX4
- */
+#include <board_config.h>
 
-// include arch-specific header
-#include <px4_arch/micro_hal.h>
-
-#ifndef PX4_ARCH_DCACHE_ALIGNMENT
-#define PX4_ARCH_DCACHE_ALIGNMENT 1
+#if !defined(HW_REV_VER_ADC_BASE)
+#  define HW_REV_VER_ADC_BASE IMXRT_ADC1_BASE
 #endif
 
-/* The architecture specific micro_hal might have already defined the
- * px4_gpio_pinset_t. If not, use the default uint32_t type
- */
-#ifndef PX4_IMXRT_PINSET_T_DEFINED
-#include <stdint.h>
-typedef uint32_t px4_gpio_pinset_t;
+#if !defined(SYSTEM_ADC_BASE)
+#  define SYSTEM_ADC_BASE IMXRT_ADC1_BASE
 #endif
+
+#include <px4_platform/adc.h>
