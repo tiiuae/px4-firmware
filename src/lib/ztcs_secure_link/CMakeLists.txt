@@ -68,3 +68,19 @@ if(PX4_CRYPTO)
 	target_compile_definitions(ztcs_secure_link PUBLIC NOISE_STATIC_KEY_BY_INDEX)
 	target_link_libraries(ztcs_secure_link PRIVATE crypto_backend_interface)
 endif()
+
+# The updater's transport is optional: it exists only where secure_udp does,
+# and a board without it still gets the link. Tested by path, not by target:
+# this directory is processed first.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../secure_udp/CMakeLists.txt")
+	px4_add_library(ztcs_link_udp ZtcsLinkUdp.cpp)
+	target_link_libraries(ztcs_link_udp PUBLIC ztcs_secure_link)
+	target_include_directories(ztcs_link_udp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../secure_udp)
+
+	# secure_link.h reaches the keystore through crypto.h, and that include
+	# path is private to the library above.
+	if(PX4_CRYPTO)
+		target_link_libraries(ztcs_link_udp PRIVATE crypto_backend_interface)
+	endif()
+	target_include_directories(ztcs_link_udp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
