@@ -163,3 +163,6 @@
 [submodule "src/modules/enroll_agent"]
 	path = src/modules/enroll_agent
 	url = git@github.com:tiiuae/px4_enroll_agent.git
+[submodule "boards/ssrc/saluki-pro"]
+	path = boards/ssrc/saluki-pro
+	url = git@github.com:tiiuae/px4-saluki-pro.git
