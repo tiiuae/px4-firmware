@@ -9,6 +9,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -17,12 +18,13 @@
 namespace ztcs
 {
 
-/* One sealed datagram, plus what the link puts in front of and behind it. */
 static constexpr size_t FRAME_MAX = 1500;
 
+static constexpr unsigned HANDSHAKE_POLL_MS = 250;
+
 ZtcsLinkUdp::ZtcsLinkUdp(struct secure_link *link, const char *remote, uint16_t local_port,
-			 uint16_t remote_port, unsigned timeout_ms)
-	: _link(link), _local_port(local_port), _timeout_ms(timeout_ms)
+			 uint16_t remote_port, unsigned timeout_s)
+	: _link(link), _local_port(local_port), _timeout_s(timeout_s)
 {
 	remote_port_ = remote_port;
 
@@ -38,7 +40,11 @@ ZtcsLinkUdp::~ZtcsLinkUdp()
 
 bool ZtcsLinkUdp::init()
 {
-	if (_link == nullptr) {
+	if (_link != nullptr) {
+		return true;
+	}
+
+	{
 		struct secure_link_keys keys;
 
 		if (!secure_link_ensure_keys(&keys)) {
@@ -60,6 +66,10 @@ bool ZtcsLinkUdp::init()
 
 bool ZtcsLinkUdp::open(uint16_t remote_port)
 {
+	if (!init()) {
+		return false;
+	}
+
 	if (remote_port != 0) {
 		remote_port_ = remote_port;
 	}
@@ -90,8 +100,41 @@ bool ZtcsLinkUdp::open(uint16_t remote_port)
 		return false;
 	}
 
-	set_socket_timeout(_timeout_ms);
-	return true;
+	set_socket_timeout(_timeout_s * 1000);
+
+	return establish();
+}
+
+/* Nothing calls init(), and the first send needs a session. */
+bool ZtcsLinkUdp::establish()
+{
+	if (_link == nullptr) {
+		return false;
+	}
+
+	const uint64_t deadline = hrt_absolute_time() + (uint64_t)_handshake_timeout_ms * 1000;
+
+	set_socket_timeout(HANDSHAKE_POLL_MS);
+
+	while (hrt_absolute_time() < deadline) {
+		if (_link->state == SECURE_LINK_ESTABLISHED) {
+			set_socket_timeout(_timeout_s * 1000);
+			return true;
+		}
+
+		pump();
+
+		ssize_t got = ::recvfrom(sockfd_, _frame, sizeof(_frame), 0, nullptr, nullptr);
+
+		if (got > 0) {
+			secure_link_open(_link, hrt_absolute_time(), _frame, got, _scratch,
+					 sizeof(_scratch));
+		}
+	}
+
+	set_socket_timeout(_timeout_s * 1000);
+	PX4_ERR("link did not come up in %ums", _handshake_timeout_ms);
+	return false;
 }
 
 void ZtcsLinkUdp::close()
@@ -104,33 +147,38 @@ void ZtcsLinkUdp::close()
 
 void ZtcsLinkUdp::pump()
 {
-	uint8_t frame[FRAME_MAX];
+	if (_link == nullptr) {
+		return;
+	}
+
 	const uint64_t now = hrt_absolute_time();
 
-	int len = secure_link_poll(_link, now, frame, sizeof(frame));
+	int len = secure_link_poll(_link, now, _frame, sizeof(_frame));
 
 	if (len > 0) {
-		sendto(sockfd_, frame, len, 0, (struct sockaddr *)&remote_addr_,
+		sendto(sockfd_, _frame, len, 0, (struct sockaddr *)&remote_addr_,
 		       sizeof(remote_addr_));
 	}
 }
 
 ssize_t ZtcsLinkUdp::send(const void *buf, size_t len, int flags)
 {
-	uint8_t frame[FRAME_MAX];
+	if (_link == nullptr) {
+		errno = ENOTCONN;
+		return -1;
+	}
 
 	pump();
 
 	int sealed = secure_link_seal(_link, hrt_absolute_time(),
-				      (const uint8_t *)buf, len, frame, sizeof(frame));
+				      (const uint8_t *)buf, len, _frame, sizeof(_frame));
 
-	/* No session yet is not an error the updater can retry its way out of. */
 	if (sealed < 0) {
 		errno = ENOTCONN;
 		return -1;
 	}
 
-	ssize_t sent = sendto(sockfd_, frame, sealed, flags,
+	ssize_t sent = sendto(sockfd_, _frame, sealed, flags,
 			      (struct sockaddr *)&remote_addr_, sizeof(remote_addr_));
 
 	return sent < 0 ? sent : (ssize_t)len;
@@ -139,28 +187,27 @@ ssize_t ZtcsLinkUdp::send(const void *buf, size_t len, int flags)
 ssize_t ZtcsLinkUdp::recvfrom(void *buf, size_t len, int flags, struct sockaddr *src_addr,
 			      socklen_t *addrlen)
 {
-	uint8_t frame[FRAME_MAX];
-
-	pump();
-
-	ssize_t got = ::recvfrom(sockfd_, frame, sizeof(frame), flags, src_addr, addrlen);
-
-	if (got <= 0) {
-		return got;
-	}
-
-	int plain = secure_link_open(_link, hrt_absolute_time(), frame, got,
-				     (uint8_t *)buf, len);
-
-	/* Zero means the datagram was the link's own and is not the caller's to
-	 * see; a handshake in flight must not look like a short read.
-	 */
-	if (plain <= 0) {
-		errno = EAGAIN;
+	if (_link == nullptr) {
+		errno = ENOTCONN;
 		return -1;
 	}
 
-	return plain;
+	for (;;) {
+		pump();
+
+		ssize_t got = ::recvfrom(sockfd_, _frame, sizeof(_frame), flags, src_addr, addrlen);
+
+		if (got <= 0) {
+			return got;
+		}
+
+		int plain = secure_link_open(_link, hrt_absolute_time(), _frame, got,
+					     (uint8_t *)buf, len);
+
+		if (plain > 0) {
+			return plain;
+		}
+	}
 }
 
 ssize_t ZtcsLinkUdp::recv(void *buf, size_t len, int flags)
@@ -180,6 +227,11 @@ void ZtcsLinkUdp::invalidate_key_for(CryptoOp op)
 
 void ZtcsLinkUdp::print_stats() const
 {
+	if (_link == nullptr) {
+		PX4_INFO("ztcs link: not open");
+		return;
+	}
+
 	PX4_INFO("ztcs link: %s, %" PRIu32 " handshakes, %" PRIu32 " rejected",
 		 _link->state == SECURE_LINK_ESTABLISHED ? "established" : "handshaking",
 		 _link->handshakes, _link->decrypt_fails);
