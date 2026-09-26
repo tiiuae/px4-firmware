@@ -21,7 +21,7 @@
 [submodule "platforms/nuttx/NuttX/nuttx"]
 	path = platforms/nuttx/NuttX/nuttx
 	url = https://github.com/tiiuae/nuttx.git
-	branch = master
+	branch = skunkworks
 [submodule "platforms/nuttx/NuttX/apps"]
 	path = platforms/nuttx/NuttX/apps
 	url = https://github.com/tiiuae/nuttx-apps.git
@@ -97,9 +97,11 @@
 [submodule "boards/ssrc/saluki-nxp93"]
 	path = boards/ssrc/saluki-nxp93
 	url = ../saluki-nxp93.git
+	branch = skunkworks
 [submodule "boards/ssrc/common"]
 	path = boards/ssrc/common
 	url = git@github.com:tiiuae/px4_boards_ssrc.git
+	branch = skunkworks
 [submodule "src/drivers/pfsoc_keystore"]
 	path = src/drivers/pfsoc_keystore
 	url = ../pfsoc_keystore.git
@@ -121,6 +123,7 @@
 [submodule "src/modules/px4_fw_update_client"]
 	path = src/modules/px4_fw_update_client
 	url = git@github.com:tiiuae/px4-fw-update-client.git
+	branch = skunkworks
 [submodule "src/lib/secure_udp"]
 	path = src/lib/secure_udp
 	url = git@github.com:tiiuae/px4-lib-secure-udp.git
@@ -139,12 +142,14 @@
 [submodule "src/drivers/ssrc_crypto"]
 	path = src/drivers/ssrc_crypto
 	url = git@github.com:tiiuae/pfsoc_crypto.git
+	branch = skunkworks
 [submodule "platforms/nuttx/NuttX/extern/apps/nxp93-attestation"]
 	path = platforms/nuttx/NuttX/extern/apps/nxp93-attestation
 	url = git@github.com:tiiuae/nxp93-attestation.git
 [submodule "src/modules/moi_agent"]
 	path = src/modules/moi_agent
 	url = git@github.com:tiiuae/px4_moi_agent.git
+	branch = skunkworks
 [submodule "src/modules/redundancy"]
 	path = src/modules/redundancy
 	url = git@github.com:tiiuae/px4_redundancy.git
