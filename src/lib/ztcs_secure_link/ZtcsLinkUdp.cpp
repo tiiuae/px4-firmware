@@ -103,7 +103,7 @@ bool ZtcsLinkUdp::open(uint16_t remote_port)
 		return false;
 	}
 
-	set_socket_timeout(_timeout_s * 1000);
+	set_timeout_ms(_timeout_s * 1000);
 
 	return establish();
 }
@@ -117,11 +117,11 @@ bool ZtcsLinkUdp::establish()
 
 	const uint64_t deadline = hrt_absolute_time() + (uint64_t)_handshake_timeout_ms * 1000;
 
-	set_socket_timeout(HANDSHAKE_POLL_MS);
+	set_timeout_ms(HANDSHAKE_POLL_MS);
 
 	while (hrt_absolute_time() < deadline) {
 		if (_link->state == SECURE_LINK_ESTABLISHED) {
-			set_socket_timeout(_timeout_s * 1000);
+			set_timeout_ms(_timeout_s * 1000);
 			return true;
 		}
 
@@ -135,9 +135,16 @@ bool ZtcsLinkUdp::establish()
 		}
 	}
 
-	set_socket_timeout(_timeout_s * 1000);
+	set_timeout_ms(_timeout_s * 1000);
 	PX4_ERR("link did not come up in %ums", _handshake_timeout_ms);
 	return false;
+}
+
+/* The base takes whole seconds; the handshake polls in fractions of one. */
+void ZtcsLinkUdp::set_timeout_ms(unsigned ms)
+{
+	struct timeval tv {(time_t)(ms / 1000), (suseconds_t)((ms % 1000) * 1000)};
+	setsockopt(sockfd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 }
 
 void ZtcsLinkUdp::close()

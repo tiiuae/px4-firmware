@@ -6,10 +6,10 @@
 #include <cstddef>
 enum CryptoOp { Encrypt = 1, Decrypt = 2 };
 namespace secure_udp {
-inline bool set_socket_timeout_option(int fd, unsigned ms)
+inline bool set_socket_timeout_option(int fd, unsigned timeout_s)
 {
-	struct timeval tv { (time_t)(ms / 1000), (suseconds_t)((ms % 1000) * 1000) };
-	return setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == 0;
+	struct timeval tv { (time_t)timeout_s, 0 };
+	return timeout_s > 0 && setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == 0;
 }
 class Udp {
 public:
@@ -25,7 +25,7 @@ public:
 	virtual void print_stats() const = 0;
 	virtual size_t overhead_size() const = 0;
 	virtual const char *get_remote_address() const = 0;
-	bool set_socket_timeout(unsigned ms) { return sockfd_ > 0 ? set_socket_timeout_option(sockfd_, ms) : false; }
+	bool set_socket_timeout(unsigned timeout_s) { return sockfd_ > 0 ? set_socket_timeout_option(sockfd_, timeout_s) : false; }
 protected:
 	uint16_t remote_port_{0};
 	int sockfd_{-1};

@@ -38,6 +38,7 @@ public:
 private:
 	void pump();
 	bool establish();
+	void set_timeout_ms(unsigned ms);
 
 	/* Off the stack: the updater's task has 16k. */
 	uint8_t _frame[1500];
