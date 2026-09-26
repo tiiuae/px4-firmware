@@ -31,11 +31,12 @@ cd px4-firmware
 ./build.sh out saluki-nxp93_default
 ```
 
-| Output in `out/`                                      | Use                    |
-| ----------------------------------------------------- | ---------------------- |
-| `ssrc_saluki-nxp93_default-<version>.px4`             | `fmu flash`, `fmu ota` |
-| `ssrc_saluki-nxp93_default-<version>.map`             | symbols                |
-| `ssrc_saluki-nxp93_default_app_elfs-<version>.tar.gz` | ELFs for debugging     |
+| Output in `out/`                                      | Use                                          |
+| ----------------------------------------------------- | -------------------------------------------- |
+| `ssrc_saluki-nxp93_default-<version>.px4`             | `fmu flash`, `fmu ota`                       |
+| `ssrc_saluki-nxp93_default-<version>.map`             | symbols                                      |
+| `ssrc_saluki-nxp93_default-<version>.json`            | build metadata: file name, board, build time |
+| `ssrc_saluki-nxp93_default_app_elfs-<version>.tar.gz` | ELFs for debugging                           |
 
 `build.sh` builds the `tii_px4_build` container and runs
 `packaging/build_px4fw.sh` in it, which sets the signing variables and removes
