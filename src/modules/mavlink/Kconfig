@@ -24,3 +24,11 @@ menuconfig USER_MAVLINK
 	depends on BOARD_PROTECTED && MODULES_MAVLINK
 	---help---
 		Put mavlink in userspace memory
+
+menuconfig MAVLINK_SHELL_REQUIRES_SECURE_LINK
+	bool "MAVLink shell only over an established secure link"
+	default n
+	depends on MODULES_MAVLINK && LIB_ZTCS_SECURE_LINK
+	---help---
+		A shell is root. Refuse SERIAL_CONTROL on any instance whose peer
+		has not authenticated, which includes USB.

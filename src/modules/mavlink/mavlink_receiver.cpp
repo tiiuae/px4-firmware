@@ -1858,6 +1858,14 @@ MavlinkReceiver::handle_message_serial_control(mavlink_message_t *msg)
 		return;
 	}
 
+#if defined(CONFIG_MAVLINK_SHELL_REQUIRES_SECURE_LINK)
+
+	if (!_mavlink->secure_link_up()) {
+		return;
+	}
+
+#endif
+
 	MavlinkShell *shell = _mavlink->get_shell();
 
 	if (shell) {

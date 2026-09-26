@@ -322,6 +322,8 @@ void CdcAcmAutostart::state_connecting()
 		return;
 	}
 
+#if defined(CONFIG_DRIVERS_CDCACM_AUTOSTART_NSH)
+
 	// Parse for carriage returns indicating someone is trying to use the nsh.
 	if (scan_buffer_for_carriage_returns()) {
 		if (start_nsh()) {
@@ -335,6 +337,8 @@ void CdcAcmAutostart::state_connecting()
 
 		return;
 	}
+
+#endif
 
 #if defined(CONFIG_SERIAL_PASSTHRU_UBLOX)
 

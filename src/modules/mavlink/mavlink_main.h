@@ -666,6 +666,13 @@ public:
 	void			note_secure_link_open(int rc);
 	void			lock_secure_link() { pthread_mutex_lock(&_secure_link_mutex); }
 	void			unlock_secure_link() { pthread_mutex_unlock(&_secure_link_mutex); }
+	bool			secure_link_up()
+	{
+		lock_secure_link();
+		const bool up = _secure_link_ready && secure_link_is_up(&_secure_link);
+		unlock_secure_link();
+		return up;
+	}
 private:
 #endif
 	Protocol		_protocol{Protocol::SERIAL};
