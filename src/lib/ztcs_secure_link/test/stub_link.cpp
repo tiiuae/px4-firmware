@@ -12,12 +12,20 @@ int secure_link_init(struct secure_link *sl, const struct secure_link_keys *, ui
 	return 0;
 }
 
-/* A handshake datagram is due while the link is coming up, and nothing once
- * it is, which is what the real one does.
+/* Set by the test to model a session that went quiet past its silence limit. */
+bool stub_silent = false;
+
+/* A handshake datagram is due while the link is coming up, and once it is only
+ * after silence, which is what the real one does.
  */
 int secure_link_poll(struct secure_link *sl, uint64_t, uint8_t *out, size_t cap)
 {
 	sl->polls++;
+	if (sl->state == SECURE_LINK_ESTABLISHED && stub_silent) {
+		stub_silent = false;
+		sl->state = SECURE_LINK_HANDSHAKING;
+		sl->rounds_to_establish = 2;
+	}
 	if (sl->state == SECURE_LINK_ESTABLISHED || cap < 4) { return 0; }
 	std::memcpy(out, "HS\x00\x01", 4);
 	return 4;

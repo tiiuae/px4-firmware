@@ -150,7 +150,7 @@ void ZtcsLinkUdp::close()
 
 void ZtcsLinkUdp::pump()
 {
-	if (_link == nullptr || _link->state == SECURE_LINK_ESTABLISHED) {
+	if (_link == nullptr) {
 		return;
 	}
 
@@ -171,6 +171,7 @@ ssize_t ZtcsLinkUdp::send(const void *buf, size_t len, int flags)
 		return -1;
 	}
 
+	/* The station drops an idle session, so a send after silence starts a new one. */
 	pump();
 
 	int sealed = secure_link_seal(_link, hrt_absolute_time(),
@@ -209,8 +210,6 @@ ssize_t ZtcsLinkUdp::recvfrom(void *buf, size_t len, int flags, struct sockaddr 
 	const uint64_t deadline = hrt_absolute_time() + (uint64_t)_timeout_s * 1000000;
 
 	while (hrt_absolute_time() < deadline) {
-		pump();
-
 		ssize_t got = ::recvfrom(sockfd_, _frame, sizeof(_frame), flags, src_addr, addrlen);
 
 		if (got <= 0) {

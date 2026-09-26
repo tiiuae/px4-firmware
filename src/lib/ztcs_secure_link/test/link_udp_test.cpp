@@ -40,6 +40,7 @@ static void peer(uint16_t port, bool answer)
 }
 
 extern bool stub_drop_session;
+extern bool stub_silent;
 
 static int failures = 0;
 
@@ -239,6 +240,24 @@ int main()
 
 		printf("     datagrams sent by recv while established: %d\n", peer_rx.load());
 		check(peer_rx == 0, "an established link sends nothing on recv");
+
+		u.close();
+		stop_peer = true; t.join();
+	}
+
+	/* 10. The station drops an idle session, so a send after silence rekeys. */
+	{
+		stop_peer = false; peer_rx = 0;
+		std::thread t(peer, 19100, true);
+		std::this_thread::sleep_for(milliseconds(50));
+
+		ztcs::ZtcsLinkUdp u(nullptr, "127.0.0.1", 0, 19100, 2);
+		check(u.open(), "link up before the silence");
+
+		peer_rx = 0;
+		stub_silent = true;
+		ssize_t sent = u.send("FW_UPDATE_REQ", 13, 0);
+		check(sent == 13 && peer_rx >= 2, "a send after silence rekeys before the payload");
 
 		u.close();
 		stop_peer = true; t.join();
