@@ -1,48 +1,51 @@
 # ztcs_secure_link
 
-Aircraft end of the secure MAVLink link. Terminates
-`Noise_IK_25519_ChaChaPoly_SHA256` against the ground station, so MAVLink
-leaves the aircraft encrypted and authenticated.
+The aircraft end of the secure link: `Noise_IK_25519_ChaChaPoly_SHA256` over UDP
+to the ZTCS gateway. The payload is opaque, so MAVLink and the OTA client ride
+the same link. Wire contract and threat model:
+[RFC, secure MAVLink](https://github.com/tiiuae/ZTCS/blob/main/docs/rfc-secure-mavlink.md).
+Built as part of the image: [build](../../../README.md#build).
 
-MAVLink is never parsed here. It is an opaque payload, so the same transport
-carries anything else the link needs to move.
+| Path                                             | What                                                                        |
+| ------------------------------------------------ | --------------------------------------------------------------------------- |
+| `secure_link.[ch]`                               | session state machine: handshake retransmit, rekey, replay, silence         |
+| `noise/`                                         | Noise IK core, vendored, not edited here                                    |
+| `ZtcsLinkUdp.[ch]pp`                             | `secure_udp::Udp` over the link, for request and response users (OTA, TFTP) |
+| `secure_link_keys.cpp`, `identity_px4crypto.cpp` | keys from keystore slots, identity from the enclave                         |
+| `test/`                                          | host tests and an end-to-end run against the real gateway                   |
 
-## What is in here
+`secure_link.c` is sans-io: no socket, no timer. The caller passes the clock
+and sends what it is handed, which is what lets a host test drive it.
 
-| Path               | What it is                                                  |
-| ------------------ | ----------------------------------------------------------- |
-| `secure_link.[ch]` | the session state machine: handshake retransmit, rekey       |
-| `noise/`           | the Noise IK core, vendored (see below)                      |
-| `test/`            | host driver and an end-to-end script                         |
+## The vendored core
 
-Sans-io, like the ground-station side: this owns no socket and no timer. The
-caller passes the clock in and sends the datagrams handed back. That is what
-makes the state machine testable on a host, where a flight controller's
-timing cannot be reproduced.
+`noise/` is a copy of `crates/ztcs-noise-udp/c` in
+[ZTCS](https://github.com/tiiuae/ZTCS/tree/main/crates/ztcs-noise-udp/c),
+file for file identical to `e26966a`, plus `backend_px4.cpp` of its own. Change
+it there, then copy.
 
-## The vendored Noise core
+## Rules for `ZtcsLinkUdp`
 
-`noise/` is copied from `crates/ztcs-noise-udp/c` in
-https://github.com/tiiuae/ZTCS and **is not edited here**. That repository is
-the source of truth, holds the wire contract in `docs/rfc-secure-mavlink.md`,
-and carries the Rust implementation the C is tested against.
+| Rule                                                            | What breaks without it                                                                                |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| only `send` drives the state machine                            | `recv` re-driving handshakes churns sessions                                                          |
+| a send after silence starts a new session                       | the station releases an idle session after 60 s and a client polling once a minute never speaks again |
+| `secure_link_open` checks room for the plaintext, not the frame | a reply within 25 bytes of the caller buffer is dropped, counted nowhere                              |
+| socket timeouts go through `set_timeout_ms`                     | the base `Udp::set_socket_timeout` takes seconds                                                      |
 
-Copied from ZTCS commit `3ac235f`.
+## Test
 
-## Testing
-
-`test/e2e.sh` mints an operator key, an aircraft key set and a real
-`.attest`, starts the ground station, and drives this library's state machine
-against it over a real socket. It exercises `secure_link.c` itself rather than
-a reimplementation, so what ships is what was tested.
-
+```sh
+./test/run.sh                          # transport, against a stub link
+ZTCS_DIR=~/Code/ztcs ./test/e2e.sh     # state machine against the real gateway
 ```
-ZTCS_DIR=~/Code/ztcs ./test/e2e.sh
-```
 
-## Before this is worth anything
+`e2e.sh` mints an operator key, an aircraft key set and a real `.attest`, then
+drives `secure_link.c` itself against the gateway over a socket.
 
-The ephemeral key comes from `/dev/random`. On a board where the entropy pool
-is never seeded, every session key is predictable and the protocol above it
-does not matter. Confirm two boots produce different session keys before
-trusting this.
+## Do not
+
+| Do not                                   | Because                                                                                        |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| edit `noise/` here                       | ZTCS holds the Rust side the C is tested against                                               |
+| trust it on a board without real entropy | the ephemeral key comes from `/dev/random`; an unseeded pool makes every session key guessable |

@@ -1,138 +1,83 @@
-# PX4 Drone Autopilot
+# px4-firmware, `skunkworks`
 
-[![Releases](https://img.shields.io/github/release/PX4/PX4-Autopilot.svg)](https://github.com/PX4/PX4-Autopilot/releases) [![DOI](https://zenodo.org/badge/22634/PX4/PX4-Autopilot.svg)](https://zenodo.org/badge/latestdoi/22634/PX4/PX4-Autopilot)
+TII's PX4 for the Saluki flight controllers. `skunkworks` is the shared line
+for the secure link, secure OTA and trial-boot work: every submodule this
+branch moves is pinned at its own `skunkworks`, and `.gitmodules` tracks it.
 
-[![Nuttx Targets](https://github.com/PX4/PX4-Autopilot/workflows/Nuttx%20Targets/badge.svg)](https://github.com/PX4/PX4-Autopilot/actions?query=workflow%3A%22Nuttx+Targets%22?branch=master) [![SITL Tests](https://github.com/PX4/PX4-Autopilot/workflows/SITL%20Tests/badge.svg?branch=master)](https://github.com/PX4/PX4-Autopilot/actions?query=workflow%3A%22SITL+Tests%22)
+PX4 itself: <https://docs.px4.io>, <https://github.com/PX4/PX4-Autopilot>.
+Design and proof: [RFC, secure MAVLink](https://github.com/tiiuae/ZTCS/blob/main/docs/rfc-secure-mavlink.md).
 
-[![Discord Shield](https://discordapp.com/api/guilds/1022170275984457759/widget.png?style=shield)](https://discord.gg/dronecode)
+## What is where
 
-This repository holds the [PX4](http://px4.io) flight control solution for drones, with the main applications located in the [src/modules](https://github.com/PX4/PX4-Autopilot/tree/main/src/modules) directory. It also contains the PX4 Drone Middleware Platform, which provides drivers and middleware to run drones.
+| Path                               | Repository                                                                             | Carries                                |
+| ---------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------- |
+| `boards/ssrc/saluki-nxp93`         | [saluki-nxp93](https://github.com/tiiuae/saluki-nxp93/tree/skunkworks)                 | board config, NuttX config, rc scripts |
+| `boards/ssrc/common`               | [px4_boards_ssrc](https://github.com/tiiuae/px4_boards_ssrc/tree/skunkworks)           | board code shared by the SSRC boards   |
+| `platforms/nuttx/NuttX/nuttx`      | [nuttx](https://github.com/tiiuae/nuttx/tree/skunkworks)                               | NuttX with the i.MX93 enclave drivers  |
+| `src/drivers/ssrc_crypto`          | [pfsoc_crypto](https://github.com/tiiuae/pfsoc_crypto/tree/skunkworks)                 | keystore-backed crypto                 |
+| `src/modules/moi_agent`            | [px4_moi_agent](https://github.com/tiiuae/px4_moi_agent/tree/skunkworks)               | signed mode of operation               |
+| `src/modules/px4_fw_update_client` | [px4-fw-update-client](https://github.com/tiiuae/px4-fw-update-client/tree/skunkworks) | OTA client                             |
+| `src/lib/ztcs_secure_link`         | this repository, [README](src/lib/ztcs_secure_link/README.md)                          | the aircraft end of the secure link    |
 
-PX4 is highly portable, OS-independent and supports Linux, NuttX and MacOS out of the box.
+On the ground: [px4-update-server](https://github.com/tiiuae/px4-update-server/tree/skunkworks),
+[ZTCS](https://github.com/tiiuae/ZTCS) for the gateway,
+[fmu-tools](https://github.com/tiiuae/fmu-tools) to flash, provision and update.
 
-* Official Website: http://px4.io (License: BSD 3-clause, [LICENSE](https://github.com/PX4/PX4-Autopilot/blob/main/LICENSE))
-* [Supported airframes](https://docs.px4.io/main/en/airframes/airframe_reference.html) ([portfolio](https://px4.io/ecosystem/commercial-systems/)):
-  * [Multicopters](https://docs.px4.io/main/en/frames_multicopter/)
-  * [Fixed wing](https://docs.px4.io/main/en/frames_plane/)
-  * [VTOL](https://docs.px4.io/main/en/frames_vtol/)
-  * [Autogyro](https://docs.px4.io/main/en/frames_autogyro/)
-  * [Rover](https://docs.px4.io/main/en/frames_rover/)
-  * many more experimental types (Blimps, Boats, Submarines, High altitude balloons, etc)
-* Releases: [Downloads](https://github.com/PX4/PX4-Autopilot/releases)
+## Build
 
+```sh
+git clone -b skunkworks --recurse-submodules https://github.com/tiiuae/px4-firmware.git
+cd px4-firmware
+./build.sh out saluki-nxp93_default
+```
 
-## Building a PX4 based drone, rover, boat or robot
+| Output in `out/`                                      | Use                    |
+| ----------------------------------------------------- | ---------------------- |
+| `ssrc_saluki-nxp93_default-<version>.px4`             | `fmu flash`, `fmu ota` |
+| `ssrc_saluki-nxp93_default-<version>.map`             | symbols                |
+| `ssrc_saluki-nxp93_default_app_elfs-<version>.tar.gz` | ELFs for debugging     |
 
-The [PX4 User Guide](https://docs.px4.io/main/en/) explains how to assemble [supported vehicles](https://docs.px4.io/main/en/airframes/airframe_reference.html) and fly drones with PX4.
-See the [forum and chat](https://docs.px4.io/main/en/#getting-help) if you need help!
+`build.sh` builds the `tii_px4_build` container and runs
+`packaging/build_px4fw.sh` in it, which sets the signing variables and removes
+the previous build of the target. `./build.sh` with no arguments lists the
+targets: `saluki-{v1,v2,v3,pi,nxp93,micro,ft}_default`, their `_flat`, `_amp`
+and `_custom_keys` variants, `fmu-v6xrt`, `pixhawk`.
 
+Signing keys come from `SIGNING_ARGS`; unset, the test keys in
+`Tools/saluki-sec-scripts/test_keys/` are used. `SIGNING_KEY=hsm` signs through
+PKCS#11 instead.
 
-## Changing code and contributing
+## Do not
 
-This [Developer Guide](https://docs.px4.io/main/en/development/development.html) is for software developers who want to modify the flight stack and middleware (e.g. to add new flight modes), hardware integrators who want to support new flight controller boards and peripherals, and anyone who wants to get PX4 working on a new (unsupported) airframe/vehicle.
+| Do not                                                           | Because                                                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| run `make` on the host, or `docker run` without `build_px4fw.sh` | without `SIGNING_TOOL` at configure time the image has no table of contents: it flashes and never boots |
+| trust an incremental build after the module set or env changed   | the cached configure keeps the old signing path                                                         |
+| build an image for OTA from a dirty tree                         | the version gets `-dirty`, which the update server cannot parse and `fmu ota` refuses                   |
+| serve `_signed.bin` for OTA                                      | it has no table of contents, so the trial boot fails. `fmu ota` stages the right bytes from the `.px4`  |
+| `git commit -a` here                                             | it sweeps every moved submodule pointer into the commit                                                 |
+| point a submodule at a commit not on its `skunkworks`            | the pin stops being reproducible from the shared line                                                   |
+| force-push `skunkworks`, here or in a submodule                  | it is shared                                                                                            |
 
-Developers should read the [Guide for Contributions](https://docs.px4.io/main/en/contribute/).
-See the [forum and chat](https://docs.px4.io/main/en/#getting-help) if you need help!
+## When the build fails
 
+| Symptom                                                     | Cause, fix                                                                                                  |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `exec /ros_entrypoint.sh: resource temporarily unavailable` | `RLIMIT_NPROC` is per uid across the host. `build.sh` raises it; a hand-rolled `docker run` does not        |
+| `The dependency target "rust_bindings" does not exist`      | `src/lib/rust_px4_nuttx` is not checked out: `git submodule update --init --recursive`                      |
+| `olddefconfig` cannot find a `Kconfig`                      | a host build left absolute paths in `apps/*/Kconfig`: `git clean -xfd` in the `apps` and `nuttx` submodules |
 
-### Weekly Dev Call
+## Change a submodule
 
-The PX4 Dev Team syncs up on a [weekly dev call](https://docs.px4.io/main/en/contribute/).
+1. Commit in the submodule on its `skunkworks` and push.
+2. Here: `git add <path>`, commit, push `skunkworks`.
 
-> **Note** The dev call is open to all interested developers (not just the core dev team). This is a great opportunity to meet the team and contribute to the ongoing development of the platform. It includes a QA session for newcomers. All regular calls are listed in the [Dronecode calendar](https://www.dronecode.org/calendar/).
+`git submodule update --remote <path>` pulls a submodule's `skunkworks` head.
 
+## Then
 
-## Maintenance Team
-
-Note: This is the source of truth for the active maintainers of PX4 ecosystem.
-
-| Sector | Maintainer |
-|---|---|
-| Founder | [Lorenz Meier](https://github.com/LorenzMeier) |
-| Architecture | [Daniel Agar](https://github.com/dagar) / [Beat Küng](https://github.com/bkueng)|
-| State Estimation | [Mathieu Bresciani](https://github.com/bresch) / [Paul Riseborough](https://github.com/priseborough) |
-| OS/NuttX | [David Sidrane](https://github.com/davids5) |
-| Drivers | [Daniel Agar](https://github.com/dagar) |
-| Simulation | [Jaeyoung Lim](https://github.com/Jaeyoung-Lim) |
-| ROS2 | [Beniamino Pozzan](https://github.com/beniaminopozzan) |
-| Community QnA Call | [Ramon Roche](https://github.com/mrpollo) |
-| [Documentation](https://docs.px4.io/main/en/) | [Hamish Willee](https://github.com/hamishwillee) |
-
-| Vehicle Type | Maintainer |
-|---|---|
-| Multirotor | [Matthias Grob](https://github.com/MaEtUgR) |
-| Fixed Wing | [Thomas Stastny](https://github.com/tstastny) |
-| Hybrid VTOL | [Silvan Fuhrer](https://github.com/sfuhrer) |
-| Boat | x |
-| Rover | x |
-
-See also [maintainers list](https://px4.io/community/maintainers/) (px4.io) and the [contributors list](https://github.com/PX4/PX4-Autopilot/graphs/contributors) (Github). However it may be not up to date.
-
-## Supported Hardware
-
-Pixhawk standard boards and proprietary boards are shown below (discontinued boards aren't listed).
-
-For the most up to date information, please visit [PX4 user Guide > Autopilot Hardware](https://docs.px4.io/main/en/flight_controller/).
-
-### Pixhawk Standard Boards
-
-These boards fully comply with Pixhawk Standard, and are maintained by the PX4-Autopilot maintainers and Dronecode team
-
-* FMUv6X and FMUv6C
-  * [CUAV Pixahwk V6X (FMUv6X)](https://docs.px4.io/main/en/flight_controller/cuav_pixhawk_v6x.html)
-  * [Holybro Pixhawk 6X (FMUv6X)](https://docs.px4.io/main/en/flight_controller/pixhawk6x.html)
-  * [Holybro Pixhawk 6C (FMUv6C)](https://docs.px4.io/main/en/flight_controller/pixhawk6c.html)
-  * [Holybro Pix32 v6 (FMUv6C)](https://docs.px4.io/main/en/flight_controller/holybro_pix32_v6.html)
-* FMUv5 and FMUv5X (STM32F7, 2019/20)
-  * [Pixhawk 4 (FMUv5)](https://docs.px4.io/main/en/flight_controller/pixhawk4.html)
-  * [Pixhawk 4 mini (FMUv5)](https://docs.px4.io/main/en/flight_controller/pixhawk4_mini.html)
-  * [CUAV V5+ (FMUv5)](https://docs.px4.io/main/en/flight_controller/cuav_v5_plus.html)
-  * [CUAV V5 nano (FMUv5)](https://docs.px4.io/main/en/flight_controller/cuav_v5_nano.html)
-  * [Auterion Skynode (FMUv5X)](https://docs.auterion.com/avionics/skynode)
-* FMUv4 (STM32F4, 2015)
-  * [Pixracer](https://docs.px4.io/main/en/flight_controller/pixracer.html)
-  * [Pixhawk 3 Pro](https://docs.px4.io/main/en/flight_controller/pixhawk3_pro.html)
-* FMUv3 (STM32F4, 2014)
-  * [Pixhawk 2](https://docs.px4.io/main/en/flight_controller/pixhawk-2.html)
-  * [Pixhawk Mini](https://docs.px4.io/main/en/flight_controller/pixhawk_mini.html)
-  * [CUAV Pixhack v3](https://docs.px4.io/main/en/flight_controller/pixhack_v3.html)
-* FMUv2 (STM32F4, 2013)
-  * [Pixhawk](https://docs.px4.io/main/en/flight_controller/pixhawk.html)
-
-### Manufacturer supported
-
-These boards are maintained to be compatible with PX4-Autopilot by the Manufacturers.
-
-* [ARK Electronics ARKV6X](https://docs.px4.io/main/en/flight_controller/arkv6x.html)
-* [CubePilot Cube Orange+](https://docs.px4.io/main/en/flight_controller/cubepilot_cube_orangeplus.html)
-* [CubePilot Cube Orange](https://docs.px4.io/main/en/flight_controller/cubepilot_cube_orange.html)
-* [CubePilot Cube Yellow](https://docs.px4.io/main/en/flight_controller/cubepilot_cube_yellow.html)
-* [Holybro Durandal](https://docs.px4.io/main/en/flight_controller/durandal.html)
-* [Airmind MindPX V2.8](http://www.mindpx.net/assets/accessories/UserGuide_MindPX.pdf)
-* [Airmind MindRacer V1.2](http://mindpx.net/assets/accessories/mindracer_user_guide_v1.2.pdf)
-* [Holybro Kakute F7](https://docs.px4.io/main/en/flight_controller/kakutef7.html)
-
-### Community supported
-
-These boards don't fully comply industry standards, and thus is solely maintained by the PX4 public community members.
-
-### Experimental
-
-These boards are nor maintained by PX4 team nor Manufacturer, and is not guaranteed to be compatible with up to date PX4 releases.
-
-* [Raspberry PI with Navio 2](https://docs.px4.io/main/en/flight_controller/raspberry_pi_navio2.html)
-* [Bitcraze Crazyflie 2.0](https://docs.px4.io/main/en/complete_vehicles/crazyflie2.html)
-
-## Project Roadmap
-
-**Note: Outdated**
-
-A high level project roadmap is available [here](https://github.com/orgs/PX4/projects/25).
-
-## Project Governance
-
-The PX4 Autopilot project including all of its trademarks is hosted under [Dronecode](https://www.dronecode.org/), part of the Linux Foundation.
-
-<a href="https://www.dronecode.org/" style="padding:20px" ><img src="https://mavlink.io/assets/site/logo_dronecode.png" alt="Dronecode Logo" width="110px"/></a>
-<a href="https://www.linuxfoundation.org/projects" style="padding:20px;"><img src="https://mavlink.io/assets/site/logo_linux_foundation.png" alt="Linux Foundation Logo" width="80px" /></a>
-<div style="padding:10px">&nbsp;</div>
+| Step                               | Where                                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------------------ |
+| flash, provision                   | [fmu-tools](https://github.com/tiiuae/fmu-tools)                                           |
+| enrol, secure MAVLink, mode change | [ZTCS bench demo](https://github.com/tiiuae/ZTCS/tree/main/docs/demos/secure-mavlink)      |
+| update over the link               | [ZTCS `ota.md`](https://github.com/tiiuae/ZTCS/blob/main/docs/demos/secure-mavlink/ota.md) |
