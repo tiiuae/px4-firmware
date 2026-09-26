@@ -42,7 +42,8 @@ cd px4-firmware
 `packaging/build_px4fw.sh` in it, which signs boards that have a table of
 contents, removes the previous build of the target, and clears what an earlier
 configure left inside NuttX. `./build.sh` with no arguments lists the
-targets: `saluki-{v1,v2,v3,pi,nxp93,micro,ft}_default`, their `_flat`, `_amp`
+targets: `saluki-{v1,v2,v3,pi,nxp93,micro,ft}_default`, `saluki-nxp93_release`,
+their `_flat`, `_amp`
 and `_custom_keys` variants, `fmu-v6xrt`, `pixhawk`.
 
 Signing keys come from `SIGNING_ARGS`; unset, the test keys in
