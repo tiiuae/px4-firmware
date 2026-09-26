@@ -35,13 +35,19 @@ else
                    fi
                fi
             fi
-        else
+        elif [ -f "boards/${arg%%_*}/${NAME}/src/toc.c" ]; then
             export SIGNING_TOOL=Tools/cryptotools.py
             unset SIGNING_ARGS
+        else
+            # Setting SIGNING_TOOL makes CMake build a table of contents from the board's toc.c.
+            unset SIGNING_TOOL SIGNING_ARGS
         fi
 
-        # Remove old build output
+        # Remove old build output, and what a configure leaves inside NuttX,
+        # which a board of another chip family would otherwise build against
         rm -Rf build/${arg}
+        git -C platforms/nuttx/NuttX/nuttx clean -Xfdq
+        git -C platforms/nuttx/NuttX/apps clean -Xfdq
         # Build
         make -j$((`nproc`+1)) ${arg} || exit 1
 
