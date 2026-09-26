@@ -444,7 +444,7 @@ static int write_registers(uint32_t regs[], char *buffer, int max, int fd)
 		return -EIO;
 	}
 
-#ifdef CONFIG_ARMV7M_USEBASEPRI
+#ifdef REG_BASEPRI
 	n = snprintf(buffer, max, " xpsr:0x%08" PRIx32 " basepri:0x%08" PRIx32 " control:0x%08" PRIx32 "\n",
 		     regs[REG_XPSR],  regs[REG_BASEPRI],
 		     getcontrol());

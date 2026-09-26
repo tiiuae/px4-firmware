@@ -53,7 +53,7 @@
 
 #include <nuttx/crc32.h>
 
-#ifdef CONFIG_BOARD_CRASHDUMP
+#ifdef CONFIG_BOARD_CRASHDUMP_CUSTOM
 
 #include <systemlib/hardfault_log.h>
 #include "chip.h"
