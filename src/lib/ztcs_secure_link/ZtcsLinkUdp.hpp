@@ -43,6 +43,9 @@ private:
 	uint8_t _frame[1500];
 	uint8_t _scratch[1500];
 
+	uint32_t _rx{0};
+	uint32_t _tx{0};
+
 	struct secure_link *_link;
 	char _remote[INET_ADDRSTRLEN] {};
 	uint16_t _local_port;

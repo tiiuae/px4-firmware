@@ -1,6 +1,9 @@
 #include "secure_link.h"
 #include <cstring>
 
+/* Set by the test to model a station that let the session go. */
+bool stub_drop_session = false;
+
 int secure_link_init(struct secure_link *sl, const struct secure_link_keys *, uint64_t)
 {
 	std::memset(sl, 0, sizeof(*sl));
@@ -24,6 +27,11 @@ int secure_link_seal(struct secure_link *sl, uint64_t, const uint8_t *pt, size_t
 		     uint8_t *out, size_t cap)
 {
 	sl->seals++;
+	if (stub_drop_session) {
+		stub_drop_session = false;
+		sl->state = SECURE_LINK_HANDSHAKING;
+		sl->rounds_to_establish = 2;
+	}
 	if (sl->state != SECURE_LINK_ESTABLISHED) { return -1; }
 	if (cap < pt_len + 4) { return -1; }
 	std::memcpy(out, "PT", 2);

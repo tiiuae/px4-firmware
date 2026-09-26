@@ -188,7 +188,8 @@ int secure_link_open(struct secure_link *sl, uint64_t now_us,
             return NOISE_ERR_STATE;
           }
 
-        if (cap < len)
+        if (len < NOISE_TRANSPORT_HDR_LEN + NOISE_TAGLEN
+            || cap < len - NOISE_TRANSPORT_HDR_LEN - NOISE_TAGLEN)
           {
             return NOISE_ERR_INPUT;
           }

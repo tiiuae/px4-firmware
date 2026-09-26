@@ -39,6 +39,8 @@ static void peer(uint16_t port, bool answer)
 	close(fd);
 }
 
+extern bool stub_drop_session;
+
 static int failures = 0;
 
 static void check(bool ok, const char *what)
@@ -144,6 +146,102 @@ int main()
 		check(u.recv(buf, sizeof(buf), 0) < 0, "recv before open fails rather than crashing");
 		u.print_stats();
 		check(true, "print_stats before open does not crash");
+	}
+
+	/* 6. Reopening must not collide with the socket just closed. */
+	{
+		stop_peer = false; peer_rx = 0;
+		std::thread t(peer, 19060, true);
+		std::this_thread::sleep_for(milliseconds(50));
+
+		bool first = false, second = false;
+		{
+			ztcs::ZtcsLinkUdp u(nullptr, "127.0.0.1", 0, 19060, 5);
+			first = u.open();
+			u.close();
+		}
+		{
+			ztcs::ZtcsLinkUdp u(nullptr, "127.0.0.1", 0, 19060, 5);
+			second = u.open();
+			u.close();
+		}
+		check(first && second, "a second open does not fail on a bound address");
+		stop_peer = true; t.join();
+	}
+
+	/* 7. A station that speaks when idle must not hold recv open forever. */
+	{
+		stop_peer = false; peer_rx = 0;
+		std::thread t(peer, 19070, true);
+		std::this_thread::sleep_for(milliseconds(50));
+
+		ztcs::ZtcsLinkUdp u(nullptr, "127.0.0.1", 0, 19070, 2);
+		check(u.open(), "link up for the keepalive case");
+
+		/* The peer echoes, so every poll comes back as a protocol frame
+		 * and nothing is ever payload.
+		 */
+		std::thread chatter([&] {
+			int fd = socket(AF_INET, SOCK_DGRAM, 0);
+			sockaddr_in a{}; a.sin_family = AF_INET; a.sin_port = htons(19071);
+			a.sin_addr.s_addr = inet_addr("127.0.0.1");
+			for (int i = 0; i < 40 && !stop_peer; i++) {
+				sendto(fd, "HS\x00\x01", 4, 0, (sockaddr *)&a, sizeof(a));
+				std::this_thread::sleep_for(milliseconds(200));
+			}
+			close(fd);
+		});
+
+		char buf[64];
+		auto t0 = steady_clock::now();
+		ssize_t got = u.recv(buf, sizeof(buf), 0);
+		auto ms = duration_cast<milliseconds>(steady_clock::now() - t0).count();
+
+		check(got < 0, "recv gives up rather than waiting on chatter");
+		check(ms < 8000, "recv respects its own deadline");
+		printf("     recv returned after %ldms\n", ms);
+
+		stop_peer = true;
+		chatter.join();
+		u.close();
+		t.join();
+	}
+
+	/* 8. A station that drops the session must not end the conversation. */
+	{
+		stop_peer = false; peer_rx = 0;
+		std::thread t(peer, 19080, true);
+		std::this_thread::sleep_for(milliseconds(50));
+
+		ztcs::ZtcsLinkUdp u(nullptr, "127.0.0.1", 0, 19080, 5);
+		check(u.open(), "link up before the session is dropped");
+
+		stub_drop_session = true;
+		ssize_t sent = u.send("FW_UPDATE_REQ", 13, 0);
+		check(sent == 13, "send rebuilds a session the station let go");
+
+		u.close();
+		stop_peer = true; t.join();
+	}
+
+	/* 9. Once there is a session, nothing may re-drive the handshake. */
+	{
+		stop_peer = false; peer_rx = 0;
+		std::thread t(peer, 19090, true);
+		std::this_thread::sleep_for(milliseconds(50));
+
+		ztcs::ZtcsLinkUdp u(nullptr, "127.0.0.1", 0, 19090, 2);
+		check(u.open(), "link up before the quiet check");
+
+		peer_rx = 0;
+		char buf[64];
+		(void)u.recv(buf, sizeof(buf), 0);
+
+		printf("     datagrams sent by recv while established: %d\n", peer_rx.load());
+		check(peer_rx == 0, "an established link sends nothing on recv");
+
+		u.close();
+		stop_peer = true; t.join();
 	}
 
 	printf("\n%s\n", failures ? "FAILURES" : "all ok");

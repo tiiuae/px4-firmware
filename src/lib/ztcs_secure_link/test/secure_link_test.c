@@ -174,6 +174,28 @@ static void test_a_replay_is_not_a_decrypt_failure(void)
         "replays rekeyed the session");
 }
 
+static void test_a_frame_opens_into_a_buffer_the_size_of_its_plaintext(void)
+{
+  struct secure_link sl;
+  struct noise_session peer;
+  uint8_t msg[600];
+  uint8_t frame[NOISE_TRANSPORT_HDR_LEN + sizeof(msg) + NOISE_TAGLEN];
+  uint8_t out[sizeof(msg)];
+  uint64_t t = 1000000;
+  size_t n = 0;
+
+  fake_session(&sl, &peer, t);
+  memset(msg, 0x42, sizeof(msg));
+
+  CHECK(noise_session_seal(&peer, msg, sizeof(msg), frame, &n) == NOISE_OK,
+        "peer could not seal");
+  CHECK(secure_link_open(&sl, t, frame, n, out, sizeof(out)) == (int)sizeof(msg),
+        "a full-size reply was rejected");
+  CHECK(memcmp(out, msg, sizeof(msg)) == 0, "plaintext mismatch");
+  CHECK(secure_link_open(&sl, t, frame, n, out, sizeof(out) - 1) < 0,
+        "an undersized buffer was accepted");
+}
+
 static void test_counter_exhaustion_ends_the_session(void)
 {
   struct secure_link sl;
@@ -209,6 +231,7 @@ int main(void)
   test_silence_triggers_a_rekey();
   test_decrypt_failures_trigger_a_rekey();
   test_a_replay_is_not_a_decrypt_failure();
+  test_a_frame_opens_into_a_buffer_the_size_of_its_plaintext();
   test_counter_exhaustion_ends_the_session();
   test_nothing_is_sealed_before_a_session();
 

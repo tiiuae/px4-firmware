@@ -85,6 +85,9 @@ bool ZtcsLinkUdp::open(uint16_t remote_port)
 	addr_.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr_.sin_port = htons(_local_port);
 
+	int reuse = 1;
+	setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+
 	if (bind(sockfd_, (struct sockaddr *)&addr_, sizeof(addr_)) < 0) {
 		PX4_ERR("bind %u: %d", _local_port, errno);
 		close();
@@ -147,7 +150,7 @@ void ZtcsLinkUdp::close()
 
 void ZtcsLinkUdp::pump()
 {
-	if (_link == nullptr) {
+	if (_link == nullptr || _link->state == SECURE_LINK_ESTABLISHED) {
 		return;
 	}
 
@@ -173,6 +176,12 @@ ssize_t ZtcsLinkUdp::send(const void *buf, size_t len, int flags)
 	int sealed = secure_link_seal(_link, hrt_absolute_time(),
 				      (const uint8_t *)buf, len, _frame, sizeof(_frame));
 
+	/* The caller never reopens, so a dropped session is rebuilt here or never. */
+	if (sealed < 0 && establish()) {
+		sealed = secure_link_seal(_link, hrt_absolute_time(),
+					  (const uint8_t *)buf, len, _frame, sizeof(_frame));
+	}
+
 	if (sealed < 0) {
 		errno = ENOTCONN;
 		return -1;
@@ -180,6 +189,10 @@ ssize_t ZtcsLinkUdp::send(const void *buf, size_t len, int flags)
 
 	ssize_t sent = sendto(sockfd_, _frame, sealed, flags,
 			      (struct sockaddr *)&remote_addr_, sizeof(remote_addr_));
+
+	if (sent > 0) {
+		_tx++;
+	}
 
 	return sent < 0 ? sent : (ssize_t)len;
 }
@@ -192,14 +205,20 @@ ssize_t ZtcsLinkUdp::recvfrom(void *buf, size_t len, int flags, struct sockaddr 
 		return -1;
 	}
 
-	for (;;) {
+	/* Station keepalives would reset a per datagram timeout forever. */
+	const uint64_t deadline = hrt_absolute_time() + (uint64_t)_timeout_s * 1000000;
+
+	while (hrt_absolute_time() < deadline) {
 		pump();
 
 		ssize_t got = ::recvfrom(sockfd_, _frame, sizeof(_frame), flags, src_addr, addrlen);
 
 		if (got <= 0) {
+			print_stats();
 			return got;
 		}
+
+		_rx++;
 
 		int plain = secure_link_open(_link, hrt_absolute_time(), _frame, got,
 					     (uint8_t *)buf, len);
@@ -208,6 +227,10 @@ ssize_t ZtcsLinkUdp::recvfrom(void *buf, size_t len, int flags, struct sockaddr 
 			return plain;
 		}
 	}
+
+	print_stats();
+	errno = EAGAIN;
+	return -1;
 }
 
 ssize_t ZtcsLinkUdp::recv(void *buf, size_t len, int flags)
@@ -232,9 +255,11 @@ void ZtcsLinkUdp::print_stats() const
 		return;
 	}
 
-	PX4_INFO("ztcs link: %s, %" PRIu32 " handshakes, %" PRIu32 " rejected",
+	PX4_INFO("ztcs link: %s, %" PRIu32 " hs, %" PRIu32 " rejected, tx %" PRIu32
+		 ", rx %" PRIu32 ", peer %s:%u",
 		 _link->state == SECURE_LINK_ESTABLISHED ? "established" : "handshaking",
-		 _link->handshakes, _link->decrypt_fails);
+		 _link->handshakes, _link->decrypt_fails, _tx, _rx, _remote,
+		 (unsigned)remote_port_);
 }
 
 size_t ZtcsLinkUdp::overhead_size() const
