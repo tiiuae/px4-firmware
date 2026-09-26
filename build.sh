@@ -60,14 +60,18 @@ dest_dir=$(realpath $1)
 iname_env=tii_px4_build
 hsm_iname_env=tii_px4_build_hsm
 
+# RLIMIT_NPROC is per uid across the whole host, so a busy desktop exhausts it
+# and the entrypoint dies with "resource temporarily unavailable".
+docker_run="docker run --rm --ulimit nproc=65535:65535"
+
 mkdir -p ${dest_dir}
 pushd ${script_dir}
 
 build_env="docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --pull -f ./packaging/Dockerfile.build_env -t ${iname_env} ."
-build_cmd_fw="docker run --rm -e SIGNING_KEY=${SIGNING_KEY} -e SIGNING_ARGS=${SIGNING_ARGS} -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
+build_cmd_fw="${docker_run} -e SIGNING_KEY=${SIGNING_KEY} -e SIGNING_ARGS=${SIGNING_ARGS} -v ${script_dir}:/px4-firmware/sources ${iname_env} ./packaging/build_px4fw.sh"
 build_cmd_px4fwupdater="${script_dir}/packaging/build_px4fwupdater.sh -v ${version} -i ${dest_dir}"
 hsm_build_env="docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --pull -f ./packaging/Dockerfile.build_env_hsm -t ${hsm_iname_env} ."
-hsm_build_cmd_fw="docker run --rm -e SIGNING_KEY=${SIGNING_KEY} -e PKCS11_MODULE_PATH=${PKCS11_MODULE_PATH} -e SIGNING_ARGS=${SIGNING_ARGS} -v ${HSM_TOKENDIR}:/softhsm/tokens -v ${script_dir}:/px4-firmware/sources ${hsm_iname_env} ./packaging/build_px4fw.sh"
+hsm_build_cmd_fw="${docker_run} -e SIGNING_KEY=${SIGNING_KEY} -e PKCS11_MODULE_PATH=${PKCS11_MODULE_PATH} -e SIGNING_ARGS=${SIGNING_ARGS} -v ${HSM_TOKENDIR}:/softhsm/tokens -v ${script_dir}:/px4-firmware/sources ${hsm_iname_env} ./packaging/build_px4fw.sh"
 
 # Generate build_env
 if [[ "$SIGNING_KEY" == "hsm" ]]; then
