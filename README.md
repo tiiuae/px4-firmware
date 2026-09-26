@@ -9,15 +9,15 @@ Design and proof: [RFC, secure MAVLink](https://github.com/tiiuae/ZTCS/blob/main
 
 ## What is where
 
-| Path                               | Repository                                                                             | Carries                                |
-| ---------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------- |
-| `boards/ssrc/saluki-nxp93`         | [saluki-nxp93](https://github.com/tiiuae/saluki-nxp93/tree/skunkworks)                 | board config, NuttX config, rc scripts |
-| `boards/ssrc/common`               | [px4_boards_ssrc](https://github.com/tiiuae/px4_boards_ssrc/tree/skunkworks)           | board code shared by the SSRC boards   |
-| `platforms/nuttx/NuttX/nuttx`      | [nuttx](https://github.com/tiiuae/nuttx/tree/skunkworks)                               | NuttX with the i.MX93 enclave drivers  |
-| `src/drivers/ssrc_crypto`          | [pfsoc_crypto](https://github.com/tiiuae/pfsoc_crypto/tree/skunkworks)                 | keystore-backed crypto                 |
-| `src/modules/moi_agent`            | [px4_moi_agent](https://github.com/tiiuae/px4_moi_agent/tree/skunkworks)               | signed mode of operation               |
-| `src/modules/px4_fw_update_client` | [px4-fw-update-client](https://github.com/tiiuae/px4-fw-update-client/tree/skunkworks) | OTA client                             |
-| `src/lib/ztcs_secure_link`         | this repository, [README](src/lib/ztcs_secure_link/README.md)                          | the aircraft end of the secure link    |
+| Path                               | Repository                                                                             | Carries                                               |
+| ---------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `boards/ssrc/saluki-nxp93`         | [saluki-nxp93](https://github.com/tiiuae/saluki-nxp93/tree/skunkworks)                 | board config, NuttX config, rc scripts                |
+| `boards/ssrc/common`               | [px4_boards_ssrc](https://github.com/tiiuae/px4_boards_ssrc/tree/skunkworks)           | board code shared by the SSRC boards                  |
+| `platforms/nuttx/NuttX/nuttx`      | [nuttx](https://github.com/tiiuae/nuttx/tree/skunkworks)                               | NuttX with the i.MX93 enclave and RT1176 CAAM drivers |
+| `src/drivers/ssrc_crypto`          | [pfsoc_crypto](https://github.com/tiiuae/pfsoc_crypto/tree/skunkworks)                 | keystore-backed crypto                                |
+| `src/modules/moi_agent`            | [px4_moi_agent](https://github.com/tiiuae/px4_moi_agent/tree/skunkworks)               | signed mode of operation                              |
+| `src/modules/px4_fw_update_client` | [px4-fw-update-client](https://github.com/tiiuae/px4-fw-update-client/tree/skunkworks) | OTA client                                            |
+| `src/lib/ztcs_secure_link`         | this repository, [README](src/lib/ztcs_secure_link/README.md)                          | the aircraft end of the secure link                   |
 
 On the ground: [px4-update-server](https://github.com/tiiuae/px4-update-server/tree/skunkworks),
 [ZTCS](https://github.com/tiiuae/ZTCS) for the gateway,
@@ -39,8 +39,9 @@ cd px4-firmware
 | `ssrc_saluki-nxp93_default_app_elfs-<version>.tar.gz` | ELFs for debugging                           |
 
 `build.sh` builds the `tii_px4_build` container and runs
-`packaging/build_px4fw.sh` in it, which sets the signing variables and removes
-the previous build of the target. `./build.sh` with no arguments lists the
+`packaging/build_px4fw.sh` in it, which signs boards that have a table of
+contents, removes the previous build of the target, and clears what an earlier
+configure left inside NuttX. `./build.sh` with no arguments lists the
 targets: `saluki-{v1,v2,v3,pi,nxp93,micro,ft}_default`, their `_flat`, `_amp`
 and `_custom_keys` variants, `fmu-v6xrt`, `pixhawk`.
 
@@ -62,11 +63,11 @@ PKCS#11 instead.
 
 ## When the build fails
 
-| Symptom                                                     | Cause, fix                                                                                                  |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `exec /ros_entrypoint.sh: resource temporarily unavailable` | `RLIMIT_NPROC` is per uid across the host. `build.sh` raises it; a hand-rolled `docker run` does not        |
-| `The dependency target "rust_bindings" does not exist`      | `src/lib/rust_px4_nuttx` is not checked out: `git submodule update --init --recursive`                      |
-| `olddefconfig` cannot find a `Kconfig`                      | a host build left absolute paths in `apps/*/Kconfig`: `git clean -xfd` in the `apps` and `nuttx` submodules |
+| Symptom                                                                                | Cause, fix                                                                                                                 |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `exec /ros_entrypoint.sh: resource temporarily unavailable`                            | `RLIMIT_NPROC` is per uid across the host. `build.sh` raises it; a hand-rolled `docker run` does not                       |
+| `The dependency target "rust_bindings" does not exist`                                 | `src/lib/rust_px4_nuttx` is not checked out: `git submodule update --init --recursive`                                     |
+| `fmu-v6xrt` leaves `boards/px4/fmu-v6xrt/extras/px4_fmu-v6xrt_bootloader.bin` modified | the bootloader build rewrites it, as upstream PX4 does. Commit it only when the bootloader changed, else `git checkout` it |
 
 ## Change a submodule
 
