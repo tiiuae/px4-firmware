@@ -12,7 +12,7 @@ menuconfig USER_CDCACM_AUTOSTART
 	---help---
 		Put CDC ACM monitor in userspace memory
 
-menuconfig DRIVERS_CDCACM_AUTOSTART_NSH
+menuconfig CDCACM_AUTOSTART_NSH
 	bool "Start nsh on USB when a terminal is detected"
 	default y
 	depends on DRIVERS_CDCACM_AUTOSTART
