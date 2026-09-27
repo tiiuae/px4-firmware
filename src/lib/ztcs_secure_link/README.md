@@ -17,6 +17,19 @@ Built as part of the image: [build](../../../README.md#build).
 `secure_link.c` is sans-io: no socket, no timer. The caller passes the clock
 and sends what it is handed, which is what lets a host test drive it.
 
+## Keys
+
+| Key                      | Where                                | Used                      |
+| ------------------------ | ------------------------------------ | ------------------------- |
+| link, X25519             | keystore slot 15, the kernel does DH | every handshake           |
+| identity, i.MX9          | P-256 in the ELE, never exported     | signs the link key, once  |
+| identity, elsewhere      | Ed25519, keystore slot 17            | signs the link key, once  |
+| signed identity (public) | `/fs/certs/ztcs-identity`            | read by every link at arm |
+
+`ztcs_enroll sign` signs the link key and stores the payload with the link key
+it covers; afterwards it prints the stored one. A link arms only when the file
+matches the current link and identity keys, and never signs.
+
 ## The vendored core
 
 `noise/` is a copy of `crates/ztcs-noise-udp/c` in
@@ -45,7 +58,8 @@ drives `secure_link.c` itself against the gateway over a socket.
 
 ## Do not
 
-| Do not                                   | Because                                                                                        |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| edit `noise/` here                       | ZTCS holds the Rust side the C is tested against                                               |
-| trust it on a board without real entropy | the ephemeral key comes from `/dev/random`; an unseeded pool makes every session key guessable |
+| Do not                                   | Because                                                                                                                   |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| edit `noise/` here                       | ZTCS holds the Rust side the C is tested against                                                                          |
+| sign the identity at boot                | the i.MX93 ELE aborts, and resets the part, on repeated signatures: [ZTCS#133](https://github.com/tiiuae/ZTCS/issues/133) |
+| trust it on a board without real entropy | the ephemeral key comes from `/dev/random`; an unseeded pool makes every session key guessable                            |
