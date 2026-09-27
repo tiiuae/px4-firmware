@@ -50,17 +50,24 @@ Signing keys come from `SIGNING_ARGS`; unset, the test keys in
 `Tools/saluki-sec-scripts/test_keys/` are used. `SIGNING_KEY=hsm` signs through
 PKCS#11 instead.
 
+`saluki-nxp93` ships an AHAB container instead (`CONFIG_BOARD_AHAB_IMAGE`):
+[`Tools/ahab_container.py`](Tools/ahab_container.py) wraps the application and
+NXP CST signs it under the SRK in `AHAB_KEYS`, the board's test keys when
+unset. It needs the `saluki_bootloader_v2` `skunkworks` bootloader, whose ELE
+authenticates it; an older bootloader wants a TOC and will not boot it.
+
 ## Do not
 
-| Do not                                                           | Because                                                                                                 |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| run `make` on the host, or `docker run` without `build_px4fw.sh` | without `SIGNING_TOOL` at configure time the image has no table of contents: it flashes and never boots |
-| trust an incremental build after the module set or env changed   | the cached configure keeps the old signing path                                                         |
-| build an image for OTA from a dirty tree                         | the version gets `-dirty`, which the update server cannot parse and `fmu ota` refuses                   |
-| serve `_signed.bin` for OTA                                      | it has no table of contents, so the trial boot fails. `fmu ota` stages the right bytes from the `.px4`  |
-| `git commit -a` here                                             | it sweeps every moved submodule pointer into the commit                                                 |
-| point a submodule at a commit not on its `skunkworks`            | the pin stops being reproducible from the shared line                                                   |
-| force-push `skunkworks`, here or in a submodule                  | it is shared                                                                                            |
+| Do not                                                           | Because                                                                                                           |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| run `make` on the host, or `docker run` without `build_px4fw.sh` | without `SIGNING_TOOL` at configure time a TOC board's image has no table of contents: it flashes and never boots |
+| flash a TOC image with the AHAB bootloader, or the reverse       | each bootloader boots one format; the board stays in its bootloader                                               |
+| trust an incremental build after the module set or env changed   | the cached configure keeps the old signing path                                                                   |
+| build an image for OTA from a dirty tree                         | the version gets `-dirty`, which the update server cannot parse and `fmu ota` refuses                             |
+| serve `_signed.bin` for OTA                                      | it has no table of contents, so the trial boot fails. `fmu ota` stages the right bytes from the `.px4`            |
+| `git commit -a` here                                             | it sweeps every moved submodule pointer into the commit                                                           |
+| point a submodule at a commit not on its `skunkworks`            | the pin stops being reproducible from the shared line                                                             |
+| force-push `skunkworks`, here or in a submodule                  | it is shared                                                                                                      |
 
 ## When the build fails
 
