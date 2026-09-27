@@ -183,7 +183,24 @@ file(RELATIVE_PATH PX4_BINARY_DIR_REL ${CMAKE_CURRENT_BINARY_DIR} ${PX4_BINARY_D
 # because even relative linker script paths are different for linux, mac and windows
 CYGPATH(NUTTX_CONFIG_DIR NUTTX_CONFIG_DIR_CYG)
 
-if((DEFINED ENV{SIGNING_TOOL}) AND (NOT "${PX4_BOARD_LABEL}" STREQUAL "bootloader") AND (NOT NUTTX_DIR MATCHES "external"))
+if(CONFIG_BOARD_AHAB_IMAGE AND (NOT "${PX4_BOARD_LABEL}" STREQUAL "bootloader"))
+	set(PX4_BINARY_OUTPUT ${PX4_BINARY_DIR}/${PX4_CONFIG}_unsigned.bin)
+
+	set(AHAB_KEYS $ENV{AHAB_KEYS})
+	if(NOT AHAB_KEYS)
+		set(AHAB_KEYS ${PX4_SOURCE_DIR}/Tools/saluki-sec-scripts/test_keys/${PX4_BOARD_MODEL})
+	endif()
+
+	add_custom_command(OUTPUT ${PX4_BINARY_DIR_REL}/${PX4_CONFIG}.bin
+		COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/ahab_container.py
+			--load ${CONFIG_BOARD_AHAB_LOAD_ADDR}
+			--keys ${AHAB_KEYS}
+			--cst ${PX4_SOURCE_DIR}/Tools/saluki-sec-scripts/cst
+			${PX4_BINARY_OUTPUT} ${PX4_BINARY_DIR}/${PX4_CONFIG}.bin
+		DEPENDS ${PX4_BINARY_OUTPUT} ${PX4_SOURCE_DIR}/Tools/ahab_container.py
+		WORKING_DIRECTORY ${PX4_SOURCE_DIR}
+	)
+elseif((DEFINED ENV{SIGNING_TOOL}) AND (NOT "${PX4_BOARD_LABEL}" STREQUAL "bootloader") AND (NOT NUTTX_DIR MATCHES "external"))
 	set(PX4_BINARY_OUTPUT ${PX4_BINARY_DIR}/${PX4_CONFIG}_unsigned.bin)
 
 	add_subdirectory(toc)

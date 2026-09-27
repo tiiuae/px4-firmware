@@ -135,6 +135,18 @@ config BOARD_CRYPTO
     help
         Enable PX4 Crypto Support. Select the implementation under drivers
 
+config BOARD_AHAB_IMAGE
+    bool "AHAB application container"
+    help
+        Emit the application as an AHAB container signed with NXP CST, for a
+        bootloader that has the i.MX9 ELE authenticate it, in place of a TOC.
+        The key set is AHAB_KEYS, or the board's test keys.
+
+config BOARD_AHAB_LOAD_ADDR
+    hex "AHAB load and entry address"
+    depends on BOARD_AHAB_IMAGE
+    default 0x80200000
+
 config BOARD_PROTECTED
     bool "Memory protection"
     help
