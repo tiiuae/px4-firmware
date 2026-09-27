@@ -204,23 +204,15 @@ jobs:
           echo "fetch bootloader files"
           if [[ -n "${saluki_v2_bootloader_container}" ]]; then
             px4-firmware/Tools/fetch-ssbl-files.sh ${saluki_v2_bootloader_container} saluki-v2 ${{ env.BOOTLOADER_DIR }}/saluki-v2
-            # fetch custom signer bootloader
-            px4-firmware/Tools/fetch-ssbl-files.sh ${saluki_v2_bootloader_container} saluki-v2_custom ${{ env.BOOTLOADER_DIR }}/saluki-v2_custom
           fi
           if [[ -n "${saluki_v3_bootloader_container}" ]]; then
             px4-firmware/Tools/fetch-ssbl-files.sh ${saluki_v3_bootloader_container} saluki-v3 ${{ env.BOOTLOADER_DIR }}/saluki-v3
-            # fetch custom signer bootloader
-            px4-firmware/Tools/fetch-ssbl-files.sh ${saluki_v3_bootloader_container} saluki-v3_custom ${{ env.BOOTLOADER_DIR }}/saluki-v3_custom
           fi
           if [[ -n "${saluki_pi_bootloader_container}" ]]; then
             px4-firmware/Tools/fetch-ssbl-files.sh ${saluki_pi_bootloader_container} saluki-pi ${{ env.BOOTLOADER_DIR }}/saluki-pi
-            # fetch custom signer bootloader
-            px4-firmware/Tools/fetch-ssbl-files.sh ${saluki_pi_bootloader_container} saluki-pi_custom ${{ env.BOOTLOADER_DIR }}/saluki-pi_custom
           fi
           if [[ -n "${saluki_fmu2_bootloader_container}" ]]; then
             px4-firmware/Tools/fetch-ssbl-files.sh ${saluki_fmu2_bootloader_container} saluki-fmu2 ${{ env.BOOTLOADER_DIR }}/saluki-fmu2
-            # fetch custom signer bootloader
-            px4-firmware/Tools/fetch-ssbl-files.sh ${saluki_fmu2_bootloader_container} saluki-fmu2_custom ${{ env.BOOTLOADER_DIR }}/saluki-fmu2_custom
           fi
 
           # combine fpga+BL json files to one file

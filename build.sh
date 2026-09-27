@@ -13,15 +13,12 @@ usage() {
   echo "     saluki-v2_default"
   echo "     saluki-v2_amp"
   echo "     saluki-v2_flat"
-  echo "     saluki-v2_custom_keys"
   echo "     saluki-pi_default"
   echo "     saluki-pi_amp"
   echo "     saluki-pi_flat"
-  echo "     saluki-pi_custom_keys"
   echo "     saluki-v3_default"
   echo "     saluki-v3_amp"
   echo "     saluki-v3_flat"
-  echo "     saluki-v3_custom_keys"
   echo "     saluki-nxp93_flat"
   echo "     saluki-nxp93_default"
   echo "     saluki-micro_default"
@@ -98,34 +95,6 @@ case $target in
     $build_cmd_fw px4_fmu-v6xrt_default
     cp ${script_dir}/build/px4_fmu-v6xrt_bootloader/px4_fmu-v6xrt_bootloader.elf ${dest_dir}/px4_fmu-v6xrt_bootloader-${version}.elf
     cp ${script_dir}/build/px4_fmu-v6xrt_default/px4_fmu-v6xrt_default.px4 ${dest_dir}/px4_fmu-v6xrt_default-${version}.px4
-    ;;
-  # on custom keys case we build _default target but SIGNING_ARGS env variable is set above in build_cmd_fw
-  *_custom_keys)
-    #set build target to match the output name of the targe
-    build_target="ssrc_${target}"
-    # as the targets has to be built with default names, we need to have separate env target name for build scripts
-    build_target_env=$(echo ${build_target}|sed 's/custom_keys/default/g')
-
-    $build_cmd_fw ${build_target_env}
-
-    elf_target=${build_target_env}_kernel.elf
-    if [ ! -f ${script_dir}/build/${build_target_env}/${elf_target} ]; then
-      elf_target=${build_target_env}.elf
-    fi
-
-    # tar elf files
-    files_to_tar="${elf_target}"
-    if [ -d ${script_dir}/build/${build_target_env}/bin_debug ]; then
-      files_to_tar+=" bin_debug"
-    fi
-    tar czf ${dest_dir}/${build_target}_app_elfs-${version}.tar.gz -C ${script_dir}/build/${build_target_env} ${files_to_tar}
-
-    # copy px4 and map files
-    cp ${script_dir}/build/${build_target_env}/${build_target_env}.px4 ${dest_dir}/${build_target}-${version}.px4
-    cp ${script_dir}/build/${build_target_env}/${build_target_env}.map ${dest_dir}/${build_target}-${version}.map
-    json_output+="\"filename\":\"${build_target}-${version}.px4\","
-    px4_build_time=$(grep PX4_BUILD_TIME ${script_dir}/build/${build_target_env}/src/lib/version/build_git_version.h|awk '{print $3}')
-    json_output+="\"px4_build_time\":\"${px4_build_time}\"}"
     ;;
   # handle all normal ssrc targets
   saluki-*)

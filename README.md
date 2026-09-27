@@ -43,8 +43,8 @@ cd px4-firmware
 contents, removes the previous build of the target, and clears what an earlier
 configure left inside NuttX. `./build.sh` with no arguments lists the
 targets: `saluki-{v1,v2,v3,pi,nxp93,micro,ft}_default`, `saluki-nxp93_release`,
-their `_flat`, `_amp`
-and `_custom_keys` variants, `fmu-v6xrt`, `pixhawk`.
+their `_flat` and `_amp`
+variants, `fmu-v6xrt`, `pixhawk`.
 
 Signing keys come from `SIGNING_ARGS`; unset, the test keys in
 `Tools/saluki-sec-scripts/test_keys/` are used. `SIGNING_KEY=hsm` signs through
@@ -53,7 +53,8 @@ PKCS#11 instead.
 `saluki-nxp93` ships an AHAB container instead (`CONFIG_BOARD_AHAB_IMAGE`):
 [`Tools/ahab_container.py`](Tools/ahab_container.py) wraps the application and
 NXP CST signs it under the SRK in `AHAB_KEYS`, the board's test keys when
-unset. It needs the `saluki_bootloader_v2` `skunkworks` bootloader, whose ELE
+unset. With `SIGNING_KEY=hsm`, `AHAB_PKCS11=SALUKI_AHAB,<pin>` signs through the
+token instead; the private key never leaves it. It needs the `saluki_bootloader_v2` `skunkworks` bootloader, whose ELE
 authenticates it; an older bootloader wants a TOC and will not boot it.
 
 ## Do not
