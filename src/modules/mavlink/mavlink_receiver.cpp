@@ -1838,6 +1838,27 @@ MavlinkReceiver::handle_message_battery_status(mavlink_message_t *msg)
 	_battery_pub.publish(battery_status);
 }
 
+#if defined(CONFIG_MAVLINK_SERIAL_FLASH_ONLY)
+bool
+MavlinkReceiver::serial_message_allowed(const mavlink_message_t &msg) const
+{
+	// The port cdcacm_autostart starts MAVLink on.
+	static constexpr char usb_device[] = "/dev/ttyACM0";
+
+	if (msg.msgid == MAVLINK_MSG_ID_HEARTBEAT) {
+		return true;
+	}
+
+	if (msg.msgid != MAVLINK_MSG_ID_COMMAND_LONG || strcmp(_mavlink->_device_name, usb_device) != 0) {
+		return false;
+	}
+
+	mavlink_command_long_t cmd;
+	mavlink_msg_command_long_decode(&msg, &cmd);
+	return cmd.command == MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN && static_cast<int>(roundf(cmd.param1)) == 3;
+}
+#endif
+
 void
 MavlinkReceiver::handle_message_serial_control(mavlink_message_t *msg)
 {
@@ -3321,6 +3342,14 @@ MavlinkReceiver::run()
 				/* if read failed, this loop won't execute */
 				for (ssize_t i = 0; i < nread; i++) {
 					if (mavlink_parse_char(_mavlink->get_channel(), buf[i], &msg, &_status)) {
+
+#if defined(CONFIG_MAVLINK_SERIAL_FLASH_ONLY)
+
+						if (_mavlink->get_protocol() == Protocol::SERIAL && !serial_message_allowed(msg)) {
+							continue;
+						}
+
+#endif
 
 						/* check if we received version 2 and request a switch. */
 						if (!(_mavlink->get_status()->flags & MAVLINK_STATUS_FLAG_IN_MAVLINK1)) {

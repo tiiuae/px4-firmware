@@ -32,3 +32,12 @@ menuconfig MAVLINK_SHELL_REQUIRES_SECURE_LINK
 	---help---
 		A shell is root. Refuse SERIAL_CONTROL on any instance whose peer
 		has not authenticated, which includes USB.
+
+menuconfig MAVLINK_SERIAL_FLASH_ONLY
+	bool "MAVLink over serial takes only what flashing needs"
+	default n
+	depends on MODULES_MAVLINK
+	---help---
+		A cable or a radio authenticates nobody. Over serial, accept only
+		heartbeats and, on USB, the reboot to the bootloader that flashing
+		sends; command the aircraft over the secure link.

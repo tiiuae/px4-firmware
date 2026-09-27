@@ -196,6 +196,9 @@ private:
 	void handle_message_rc_channels(mavlink_message_t *msg);
 	void handle_message_rc_channels_override(mavlink_message_t *msg);
 	void handle_message_serial_control(mavlink_message_t *msg);
+#if defined(CONFIG_MAVLINK_SERIAL_FLASH_ONLY)
+	bool serial_message_allowed(const mavlink_message_t &msg) const;
+#endif
 	void handle_message_set_attitude_target(mavlink_message_t *msg);
 	void handle_message_set_mode(mavlink_message_t *msg);
 	void handle_message_set_position_target_global_int(mavlink_message_t *msg);
