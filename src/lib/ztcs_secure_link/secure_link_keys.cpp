@@ -12,11 +12,69 @@
 
 #include <px4_platform_common/log.h>
 
+#include <fcntl.h>
 #include <string.h>
+#include <unistd.h>
 
 #if defined(PX4_CRYPTO)
 
 #include <px4_platform_common/crypto.h>
+
+/* The signed identity payload is public and fixed once the link key is: it
+ * is signed at enrolment and read back, so the identity key signs once per
+ * device, never at boot.
+ */
+static const char identity_path[] = ZTCS_IDENTITY_PAYLOAD_PATH;
+
+struct stored_identity {
+	uint8_t link_public[NOISE_DHLEN];
+	uint8_t payload[NOISE_IDENTITY_PAYLOAD_LEN];
+};
+
+/* True only if the file is for this link key and this identity key. */
+static bool load_identity(uint8_t out[NOISE_IDENTITY_PAYLOAD_LEN])
+{
+	struct stored_identity st;
+	struct secure_link_identity id;
+	uint8_t link_public[NOISE_DHLEN];
+	int fd = open(identity_path, O_RDONLY);
+
+	if (fd < 0) {
+		return false;
+	}
+
+	bool ok = read(fd, &st, sizeof(st)) == (ssize_t)sizeof(st);
+	close(fd);
+
+	ok = ok && secure_link_public_key(link_public)
+	     && memcmp(st.link_public, link_public, NOISE_DHLEN) == 0
+	     && secure_link_identity_public(&id)
+	     && st.payload[0] == id.version
+	     && memcmp(st.payload + 1, id.public_key, sizeof(id.public_key)) == 0;
+
+	if (ok) {
+		memcpy(out, st.payload, NOISE_IDENTITY_PAYLOAD_LEN);
+	}
+
+	return ok;
+}
+
+static bool store_identity(const uint8_t link_public[NOISE_DHLEN],
+			   const uint8_t payload[NOISE_IDENTITY_PAYLOAD_LEN])
+{
+	struct stored_identity st;
+	int fd = open(identity_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+	if (fd < 0) {
+		return false;
+	}
+
+	memcpy(st.link_public, link_public, NOISE_DHLEN);
+	memcpy(st.payload, payload, NOISE_IDENTITY_PAYLOAD_LEN);
+	bool ok = write(fd, &st, sizeof(st)) == (ssize_t)sizeof(st) && fsync(fd) == 0;
+	close(fd);
+	return ok;
+}
 
 static bool operator_pinned(PX4Crypto &crypto, uint8_t out[32])
 {
@@ -60,7 +118,8 @@ bool secure_link_ensure_keys(struct secure_link_keys *keys)
 
 	crypto.close();
 
-	if (!secure_link_self_sign(keys->identity)) {
+	if (!load_identity(keys->identity)) {
+		PX4_WARN("no signed identity for this link key: run ztcs_enroll sign");
 		memset(keys, 0, sizeof(*keys));
 		return false;
 	}
@@ -148,6 +207,10 @@ bool secure_link_self_sign(uint8_t out[NOISE_IDENTITY_PAYLOAD_LEN])
 	uint8_t link_public[NOISE_DHLEN];
 	uint8_t signed_input[sizeof(NOISE_STATIC_KEY_CONTEXT) - 1 + NOISE_DHLEN];
 
+	if (load_identity(out)) {
+		return true;
+	}
+
 	memset(out, 0, NOISE_IDENTITY_PAYLOAD_LEN);
 
 	if (!secure_link_public_key(link_public)) {
@@ -167,6 +230,12 @@ bool secure_link_self_sign(uint8_t out[NOISE_IDENTITY_PAYLOAD_LEN])
 	if (!secure_link_identity_sign(signed_input, sizeof(signed_input),
 				       out + 1 + sizeof(id.public_key))) {
 		PX4_ERR("could not sign the link key");
+		memset(out, 0, NOISE_IDENTITY_PAYLOAD_LEN);
+		return false;
+	}
+
+	if (!store_identity(link_public, out)) {
+		PX4_ERR("could not store the signed identity");
 		memset(out, 0, NOISE_IDENTITY_PAYLOAD_LEN);
 		return false;
 	}

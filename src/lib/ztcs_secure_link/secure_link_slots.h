@@ -17,3 +17,8 @@
 #ifndef ZTCS_KEY_SLOT_IDENTITY
 #define ZTCS_KEY_SLOT_IDENTITY 17
 #endif
+
+/* The signed identity payload, public, kept beside the enclave's store. */
+#ifndef ZTCS_IDENTITY_PAYLOAD_PATH
+#define ZTCS_IDENTITY_PAYLOAD_PATH "/fs/certs/ztcs-identity"
+#endif

@@ -2,11 +2,10 @@
  * The identity key: the thing that says which aircraft this is.
  *
  * It signs the link key and never anything else, and it is the one key that
- * must be unreadable, so the curve follows the part rather than our taste.
- * A SoC with an enclave holds Ed25519; a SoC that needs an external secure
- * element holds ECDSA P-256, because no shipping element firmware exposes
- * Curve25519. The ground station derives a libp2p PeerId from either, so
- * enrolment and attestation do not know which this is.
+ * must be unreadable, so the curve follows the part: P-256 where an enclave
+ * or secure element holds it, Ed25519 in the keystore elsewhere. The ground
+ * station derives a libp2p PeerId from either, so enrolment and attestation
+ * do not know which this is.
  ****************************************************************************/
 
 #pragma once

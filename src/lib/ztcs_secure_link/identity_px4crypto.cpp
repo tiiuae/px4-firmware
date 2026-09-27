@@ -1,9 +1,8 @@
 /****************************************************************************
- * Identity key in the PX4 keystore: Ed25519, for a part whose enclave holds
- * the private half where this address space cannot read it.
- *
- * The i.MX93 ELE is the case this was written for. A part without one uses
- * the secure element backend instead.
+ * Identity key through the PX4 crypto backend. On an i.MX9 it is the P-256
+ * key the EdgeLock Enclave generated and never exports, so no identity bytes
+ * are ever unwrapped from the keystore. Elsewhere it is Ed25519 in a keystore
+ * slot, which only the kernel reads.
  ****************************************************************************/
 
 #include "secure_link_identity.h"
@@ -16,6 +15,64 @@
 #if defined(PX4_CRYPTO) && !defined(ZTCS_IDENTITY_SE05X)
 
 #include <px4_platform_common/crypto.h>
+
+#if defined(CONFIG_ARCH_CHIP_IMX9)
+
+/* The enclave key, asked to hash the message itself. */
+#define ELE_IDENTITY_MSG_INDEX 0xe1
+
+bool secure_link_identity_public(struct secure_link_identity *id)
+{
+	PX4Crypto crypto;
+	uint8_t xy[64];
+	size_t len = sizeof(xy);
+	bool ok = false;
+
+	memset(id, 0, sizeof(*id));
+
+	if (!crypto.open(CRYPTO_ECDSA_P256)) {
+		PX4_ERR("no crypto session");
+		return false;
+	}
+
+	/* The enclave generates the key on first ask. */
+	if (crypto.get_public_key(ELE_IDENTITY_MSG_INDEX, xy, &len) && len == sizeof(xy)) {
+		id->version = (xy[63] & 1) ? NOISE_PAYLOAD_VERSION_P256_ODD : NOISE_PAYLOAD_VERSION_P256_EVEN;
+		memcpy(id->public_key, xy, sizeof(id->public_key));
+		ok = true;
+
+	} else {
+		PX4_ERR("no identity key in the enclave");
+	}
+
+	crypto.close();
+	return ok;
+}
+
+bool secure_link_identity_sign(const uint8_t *msg, size_t msg_len,
+			       uint8_t sig[64])
+{
+	PX4Crypto crypto;
+
+	memset(sig, 0, 64);
+
+	if (!crypto.open(CRYPTO_ECDSA_P256)) {
+		PX4_ERR("no crypto session");
+		return false;
+	}
+
+	bool ok = crypto.sign(ELE_IDENTITY_MSG_INDEX, sig, msg, msg_len);
+	crypto.close();
+
+	if (!ok) {
+		PX4_ERR("could not sign with the identity key");
+		memset(sig, 0, 64);
+	}
+
+	return ok;
+}
+
+#else
 
 bool secure_link_identity_public(struct secure_link_identity *id)
 {
@@ -87,5 +144,7 @@ bool secure_link_identity_sign(const uint8_t *msg, size_t msg_len,
 
 	return ok;
 }
+
+#endif /* CONFIG_ARCH_CHIP_IMX9 */
 
 #endif /* PX4_CRYPTO && !ZTCS_IDENTITY_SE05X */

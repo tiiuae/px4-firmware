@@ -113,7 +113,8 @@ bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
                         const uint8_t *signature);
 
 /* Signs this aircraft's link key with an identity key of its own, generating
- * one on first use, and stores the result. Hand the payload to enrolment.
+ * one on first use, and stores the result; afterwards returns the stored one.
+ * Hand the payload to enrolment.
  */
 bool secure_link_self_sign(uint8_t out[NOISE_IDENTITY_PAYLOAD_LEN]);
 
