@@ -48,7 +48,7 @@ variants, `fmu-v6xrt`, `pixhawk`.
 
 Signing keys come from `SIGNING_ARGS`; unset, the test keys in
 `Tools/saluki-sec-scripts/test_keys/` are used. `SIGNING_KEY=hsm` signs through
-PKCS#11 instead.
+PKCS#11 instead, the PIN from `USR_PIN`, never an argument.
 
 `saluki-nxp93` ships an AHAB container instead (`CONFIG_BOARD_AHAB_IMAGE`):
 [`Tools/ahab_container.py`](Tools/ahab_container.py) wraps the application and
