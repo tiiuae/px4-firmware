@@ -54,7 +54,8 @@ PKCS#11 instead.
 [`Tools/ahab_container.py`](Tools/ahab_container.py) wraps the application and
 NXP CST signs it under the SRK in `AHAB_KEYS`, the board's test keys when
 unset. With `SIGNING_KEY=hsm`, `AHAB_PKCS11=SALUKI_AHAB,<pin>` signs through the
-token instead; the private key never leaves it. It needs the `saluki_bootloader_v2` `skunkworks` bootloader, whose ELE
+token instead; the private key never leaves it. `AHAB_UNSIGNED=1` builds the
+container unsigned, for `fmu sign` to sign wherever the token is. It needs the `saluki_bootloader_v2` `skunkworks` bootloader, whose ELE
 authenticates it; an older bootloader wants a TOC and will not boot it.
 
 ## Do not

@@ -196,12 +196,18 @@ if(CONFIG_BOARD_AHAB_IMAGE AND (NOT "${PX4_BOARD_LABEL}" STREQUAL "bootloader"))
 		set(AHAB_KEYS ${PX4_SOURCE_DIR}/Tools/saluki-sec-scripts/test_keys/${PX4_BOARD_MODEL})
 	endif()
 
+	# AHAB_UNSIGNED leaves signing to `fmu sign`, wherever the token is.
+	if("$ENV{AHAB_UNSIGNED}")
+		set(AHAB_SIGN --unsigned)
+	endif()
+
 	add_custom_command(OUTPUT ${PX4_BINARY_DIR_REL}/${PX4_CONFIG}.bin
 		COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/ahab_container.py
 			--load ${CONFIG_BOARD_AHAB_LOAD_ADDR}
 			--keys ${AHAB_KEYS}
 			--cst ${PX4_SOURCE_DIR}/Tools/saluki-sec-scripts/cst
 			"--pkcs11=${AHAB_PKCS11}"
+			${AHAB_SIGN}
 			${PX4_BINARY_OUTPUT} ${PX4_BINARY_DIR}/${PX4_CONFIG}.bin
 		DEPENDS ${PX4_BINARY_OUTPUT} ${PX4_SOURCE_DIR}/Tools/ahab_container.py
 		WORKING_DIRECTORY ${PX4_SOURCE_DIR}
