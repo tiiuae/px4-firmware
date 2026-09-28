@@ -164,6 +164,10 @@ Mavlink::~Mavlink()
 		mavlink_module_instances[_instance_id] = nullptr;
 	}
 
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+	secure_link_close(&_secure_link);
+#endif
+
 	// if this instance was responsible for checking events then select a new mavlink instance
 	if (check_events()) {
 		check_events_disable();

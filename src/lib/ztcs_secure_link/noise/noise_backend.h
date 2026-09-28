@@ -47,6 +47,34 @@ int noise_dh_static(const struct noise_static_key *s,
 int noise_static_public(const struct noise_static_key *s,
                         uint8_t pk[NOISE_DHLEN]);
 
+/* The transport keys, by the same rule: a backend may keep them where this
+ * code cannot read them and answer by index. Index 0 holds nothing.
+ */
+
+#ifdef NOISE_SESSION_KEY_BY_INDEX
+struct noise_session_key {
+  uint8_t index;
+  void *backend;
+};
+#else
+struct noise_session_key {
+  uint8_t k[NOISE_KEYLEN];
+};
+#endif
+
+/* Copies `key` in; the caller wipes its own. */
+int noise_session_key_set(struct noise_session_key *k,
+                          const uint8_t key[NOISE_KEYLEN]);
+
+void noise_session_key_clear(struct noise_session_key *k);
+
+/* The transport AEAD: RFC 8439, no associated data. */
+int noise_session_encrypt(const struct noise_session_key *k, uint64_t nonce,
+                          const uint8_t *pt, size_t pt_len, uint8_t *out);
+
+int noise_session_decrypt(const struct noise_session_key *k, uint64_t nonce,
+                          const uint8_t *ct, size_t ct_len, uint8_t *out);
+
 /* X25519. Returns 0 on success, non-zero if the result is the all-zero point. */
 int noise_dh(const uint8_t sk[NOISE_DHLEN], const uint8_t pk[NOISE_DHLEN],
              uint8_t out[NOISE_DHLEN]);

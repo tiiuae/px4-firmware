@@ -146,6 +146,8 @@ int noise_initiator_finish(struct noise_initiator *ini, const uint8_t *frame,
                            size_t frame_len, struct noise_session *out) {
   uint8_t dh[NOISE_DHLEN];
   uint8_t re[NOISE_DHLEN];
+  uint8_t send[NOISE_KEYLEN];
+  uint8_t recv[NOISE_KEYLEN];
   uint8_t empty[1];
   int rc;
 
@@ -177,12 +179,25 @@ int noise_initiator_finish(struct noise_initiator *ini, const uint8_t *frame,
     return rc;
   }
 
-  memset(out, 0, sizeof(*out));
-  hkdf2(ini->ss.ck, NULL, 0, out->send_key, out->recv_key);
+  hkdf2(ini->ss.ck, NULL, 0, send, recv);
 
+  memset(out, 0, sizeof(*out));
+  rc = noise_session_key_set(&out->send, send);
+  if (rc == 0) {
+    rc = noise_session_key_set(&out->recv, recv);
+  }
+  if (rc != 0) {
+    noise_session_wipe(out);
+  }
+
+  noise_wipe(send, sizeof(send));
+  noise_wipe(recv, sizeof(recv));
   noise_wipe(dh, sizeof(dh));
   noise_wipe(&ini->ss, sizeof(ini->ss));
   noise_wipe(ini->e_priv, sizeof(ini->e_priv));
+  if (rc != 0) {
+    return NOISE_ERR_BACKEND;
+  }
   ini->stage = 2;
   return NOISE_OK;
 }
@@ -208,8 +223,10 @@ int noise_session_seal(struct noise_session *s, const uint8_t *pt, size_t pt_len
   }
   out[0] = NOISE_TYPE_TRANSPORT;
   put_be64(out + 1, s->tx);
-  noise_aead_encrypt(s->send_key, s->tx, NULL, 0, pt, pt_len,
-                     out + NOISE_TRANSPORT_HDR_LEN);
+  if (noise_session_encrypt(&s->send, s->tx, pt, pt_len,
+                            out + NOISE_TRANSPORT_HDR_LEN) != 0) {
+    return NOISE_ERR_BACKEND;
+  }
   s->tx++;
   *out_len = NOISE_TRANSPORT_HDR_LEN + pt_len + NOISE_TAGLEN;
   return NOISE_OK;
@@ -264,8 +281,8 @@ int noise_session_open(struct noise_session *s, const uint8_t *frame,
   counter = get_be64(frame + 1);
   ct_len = frame_len - NOISE_TRANSPORT_HDR_LEN;
 
-  if (noise_aead_decrypt(s->recv_key, counter, NULL, 0,
-                         frame + NOISE_TRANSPORT_HDR_LEN, ct_len, out) != 0) {
+  if (noise_session_decrypt(&s->recv, counter, frame + NOISE_TRANSPORT_HDR_LEN,
+                            ct_len, out) != 0) {
     return NOISE_ERR_DECRYPT;
   }
   rc = replay_accept(s, counter);
@@ -276,4 +293,31 @@ int noise_session_open(struct noise_session *s, const uint8_t *frame,
   return NOISE_OK;
 }
 
-void noise_session_wipe(struct noise_session *s) { noise_wipe(s, sizeof(*s)); }
+void noise_session_wipe(struct noise_session *s) {
+  noise_session_key_clear(&s->send);
+  noise_session_key_clear(&s->recv);
+  noise_wipe(s, sizeof(*s));
+}
+
+#ifndef NOISE_SESSION_KEY_BY_INDEX
+int noise_session_key_set(struct noise_session_key *k,
+                          const uint8_t key[NOISE_KEYLEN]) {
+  memcpy(k->k, key, NOISE_KEYLEN);
+  return 0;
+}
+
+void noise_session_key_clear(struct noise_session_key *k) {
+  noise_wipe(k->k, sizeof(k->k));
+}
+
+int noise_session_encrypt(const struct noise_session_key *k, uint64_t nonce,
+                          const uint8_t *pt, size_t pt_len, uint8_t *out) {
+  noise_aead_encrypt(k->k, nonce, NULL, 0, pt, pt_len, out);
+  return 0;
+}
+
+int noise_session_decrypt(const struct noise_session_key *k, uint64_t nonce,
+                          const uint8_t *ct, size_t ct_len, uint8_t *out) {
+  return noise_aead_decrypt(k->k, nonce, NULL, 0, ct, ct_len, out);
+}
+#endif

@@ -62,10 +62,11 @@ endif()
 # behind a secure element supplies its own provider against
 # secure_link_identity.h.
 
-# The private keys live in the keystore, which this address space cannot
-# read, so the static key is a slot index the kernel resolves.
+# The private keys live in the keystore and the transport keys in the kernel's
+# key cache, neither readable from this address space, so both are slot
+# indices the kernel resolves.
 if(PX4_CRYPTO)
-	target_compile_definitions(ztcs_secure_link PUBLIC NOISE_STATIC_KEY_BY_INDEX)
+	target_compile_definitions(ztcs_secure_link PUBLIC NOISE_STATIC_KEY_BY_INDEX NOISE_SESSION_KEY_BY_INDEX)
 	target_link_libraries(ztcs_secure_link PRIVATE crypto_backend_interface)
 endif()
 

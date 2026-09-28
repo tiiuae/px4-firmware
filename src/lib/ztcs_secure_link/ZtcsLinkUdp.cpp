@@ -36,6 +36,10 @@ ZtcsLinkUdp::ZtcsLinkUdp(struct secure_link *link, const char *remote, uint16_t 
 ZtcsLinkUdp::~ZtcsLinkUdp()
 {
 	close();
+
+	if (_owns_link) {
+		secure_link_close(&_own);
+	}
 }
 
 bool ZtcsLinkUdp::init()

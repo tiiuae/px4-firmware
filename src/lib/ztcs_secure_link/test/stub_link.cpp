@@ -69,4 +69,6 @@ int secure_link_open(struct secure_link *sl, uint64_t, const uint8_t *frame, siz
 	return -1;
 }
 
+void secure_link_close(struct secure_link *) {}
+
 bool secure_link_ensure_keys(struct secure_link_keys *) { return true; }

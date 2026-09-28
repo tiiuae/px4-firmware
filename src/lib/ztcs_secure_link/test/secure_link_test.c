@@ -39,18 +39,31 @@ static void fake_session(struct secure_link *sl, struct noise_session *peer,
                          uint64_t now_us)
 {
   struct secure_link_keys k = dummy_keys();
+  uint8_t a[NOISE_KEYLEN];
+  uint8_t b[NOISE_KEYLEN];
 
   secure_link_init(sl, &k, now_us);
   memset(&sl->session, 0, sizeof(sl->session));
   memset(peer, 0, sizeof(*peer));
 
-  memset(sl->session.send_key, 0xa5, NOISE_KEYLEN);
-  memset(sl->session.recv_key, 0x5a, NOISE_KEYLEN);
-  memcpy(peer->recv_key, sl->session.send_key, NOISE_KEYLEN);
-  memcpy(peer->send_key, sl->session.recv_key, NOISE_KEYLEN);
+  memset(a, 0xa5, sizeof(a));
+  memset(b, 0x5a, sizeof(b));
+  noise_session_key_set(&sl->session.send, a);
+  noise_session_key_set(&sl->session.recv, b);
+  noise_session_key_set(&peer->recv, a);
+  noise_session_key_set(&peer->send, b);
 
   sl->state = SECURE_LINK_ESTABLISHED;
   sl->last_open_us = now_us;
+}
+
+/* A backend that holds keys by index has few slots; a leak shows as the next
+ * test failing to key.
+ */
+static void end_session(struct secure_link *sl, struct noise_session *peer)
+{
+  secure_link_close(sl);
+  noise_session_wipe(peer);
 }
 
 static void test_backoff_widens_and_settles(void)
@@ -119,6 +132,8 @@ static void test_silence_triggers_a_rekey(void)
   CHECK(secure_link_poll(&sl, t + SECURE_LINK_SILENCE_US + 1, out, sizeof(out)) > 0,
         "silence did not produce a handshake");
   CHECK(sl.state == SECURE_LINK_HANDSHAKING, "silence did not rekey");
+
+  end_session(&sl, &peer);
 }
 
 static void test_decrypt_failures_trigger_a_rekey(void)
@@ -144,6 +159,8 @@ static void test_decrypt_failures_trigger_a_rekey(void)
   secure_link_open(&sl, t, frame, sizeof(frame), out, sizeof(out));
   CHECK(sl.state == SECURE_LINK_HANDSHAKING,
         "the threshold did not rekey");
+
+  end_session(&sl, &peer);
 }
 
 static void test_a_replay_is_not_a_decrypt_failure(void)
@@ -172,6 +189,8 @@ static void test_a_replay_is_not_a_decrypt_failure(void)
 
   CHECK(sl.state == SECURE_LINK_ESTABLISHED,
         "replays rekeyed the session");
+
+  end_session(&sl, &peer);
 }
 
 static void test_a_frame_opens_into_a_buffer_the_size_of_its_plaintext(void)
@@ -194,6 +213,8 @@ static void test_a_frame_opens_into_a_buffer_the_size_of_its_plaintext(void)
   CHECK(memcmp(out, msg, sizeof(msg)) == 0, "plaintext mismatch");
   CHECK(secure_link_open(&sl, t, frame, n, out, sizeof(out) - 1) < 0,
         "an undersized buffer was accepted");
+
+  end_session(&sl, &peer);
 }
 
 static void test_counter_exhaustion_ends_the_session(void)
@@ -210,6 +231,8 @@ static void test_counter_exhaustion_ends_the_session(void)
         == NOISE_ERR_EXHAUSTED, "exhaustion was not reported");
   CHECK(sl.state == SECURE_LINK_HANDSHAKING,
         "exhaustion did not end the session");
+
+  end_session(&sl, &peer);
 }
 
 static void test_nothing_is_sealed_before_a_session(void)

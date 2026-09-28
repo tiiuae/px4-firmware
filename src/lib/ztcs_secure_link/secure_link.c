@@ -219,3 +219,10 @@ int secure_link_open(struct secure_link *sl, uint64_t now_us,
         return NOISE_ERR_INPUT;
     }
 }
+
+void secure_link_close(struct secure_link *sl)
+{
+  noise_session_wipe(&sl->session);
+  noise_wipe(&sl->ini, sizeof(sl->ini));
+  sl->state = SECURE_LINK_DOWN;
+}

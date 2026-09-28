@@ -22,5 +22,6 @@ int secure_link_init(struct secure_link *sl, const struct secure_link_keys *k, u
 int secure_link_poll(struct secure_link *sl, uint64_t now, uint8_t *out, size_t cap);
 int secure_link_seal(struct secure_link *sl, uint64_t now, const uint8_t *pt, size_t pt_len, uint8_t *out, size_t cap);
 int secure_link_open(struct secure_link *sl, uint64_t now, const uint8_t *frame, size_t len, uint8_t *out, size_t cap);
+void secure_link_close(struct secure_link *sl);
 bool secure_link_ensure_keys(struct secure_link_keys *keys);
 }

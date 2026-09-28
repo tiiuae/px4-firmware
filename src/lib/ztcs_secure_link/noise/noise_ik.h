@@ -46,6 +46,7 @@ enum noise_result {
   NOISE_ERR_RANDOM = -5,
   NOISE_ERR_REPLAY = -6,
   NOISE_ERR_EXHAUSTED = -7,
+  NOISE_ERR_BACKEND = -8,
 };
 
 struct noise_symmetric {
@@ -57,8 +58,8 @@ struct noise_symmetric {
 };
 
 struct noise_session {
-  uint8_t send_key[NOISE_KEYLEN];
-  uint8_t recv_key[NOISE_KEYLEN];
+  struct noise_session_key send;
+  struct noise_session_key recv;
   uint64_t tx;
   uint64_t rx_highest;
   uint64_t rx_bitmap;
@@ -89,6 +90,7 @@ int noise_initiator_start(struct noise_initiator *ini,
                           const uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN],
                           uint8_t *out, size_t *out_len);
 
+/* `out` must hold no keys: a fresh session, or one already wiped. */
 int noise_initiator_finish(struct noise_initiator *ini, const uint8_t *frame,
                            size_t frame_len, struct noise_session *out);
 

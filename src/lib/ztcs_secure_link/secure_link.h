@@ -92,6 +92,9 @@ int secure_link_open(struct secure_link *sl, uint64_t now_us,
                      const uint8_t *frame, size_t len,
                      uint8_t *out, size_t cap);
 
+/* Releases the session keys. Before the link's memory goes away. */
+void secure_link_close(struct secure_link *sl);
+
 /* Generates the static private key on first boot if absent. False also
  * means "has a key, not enrolled yet", which is a normal first boot.
  */
