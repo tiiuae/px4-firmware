@@ -55,6 +55,8 @@ static void fake_session(struct secure_link *sl, struct noise_session *peer,
 
   sl->state = SECURE_LINK_ESTABLISHED;
   sl->last_open_us = now_us;
+  sl->established_us = now_us;
+  sl->next_rekey_us = now_us + SECURE_LINK_REKEY_US;
 }
 
 /* A backend that holds keys by index has few slots; a leak shows as the next
@@ -235,6 +237,49 @@ static void test_counter_exhaustion_ends_the_session(void)
   end_session(&sl, &peer);
 }
 
+static void test_a_rekey_runs_while_the_session_carries_on(void)
+{
+  struct secure_link sl;
+  struct noise_session peer;
+  uint8_t out[SECURE_LINK_MTU];
+  uint64_t t = 1000000;
+  uint64_t due = t + SECURE_LINK_REKEY_US;
+
+  fake_session(&sl, &peer, t);
+  sl.last_open_us = due - 1;
+
+  CHECK(secure_link_poll(&sl, due - 1, out, sizeof(out)) == 0,
+        "rekeyed early");
+
+  CHECK(secure_link_poll(&sl, due, out, sizeof(out)) == NOISE_MSG1_LEN,
+        "no rekey handshake at the interval");
+  CHECK(sl.state == SECURE_LINK_ESTABLISHED, "the rekey took the link down");
+  CHECK(secure_link_seal(&sl, due, (const uint8_t *)"x", 1, out, sizeof(out)) > 0,
+        "nothing sealed under the old session during the rekey");
+  CHECK(secure_link_poll(&sl, due + 1, out, sizeof(out)) == 0,
+        "the rekey handshake was resent at once");
+  end_session(&sl, &peer);
+}
+
+static void test_a_session_never_renewed_ends_at_its_max_age(void)
+{
+  struct secure_link sl;
+  struct noise_session peer;
+  uint8_t out[SECURE_LINK_MTU];
+  uint64_t t = 1000000;
+  uint64_t old = t + SECURE_LINK_MAX_AGE_US;
+
+  fake_session(&sl, &peer, t);
+  sl.last_open_us = old;
+
+  CHECK(secure_link_poll(&sl, old, out, sizeof(out)) == NOISE_MSG1_LEN,
+        "no fresh handshake at the max age");
+  CHECK(sl.state == SECURE_LINK_HANDSHAKING, "an unrenewed session outlived its max age");
+  CHECK(secure_link_seal(&sl, old, (const uint8_t *)"x", 1, out, sizeof(out)) < 0,
+        "sealed under a session past its max age");
+  end_session(&sl, &peer);
+}
+
 static void test_nothing_is_sealed_before_a_session(void)
 {
   struct secure_link sl;
@@ -256,6 +301,8 @@ int main(void)
   test_a_replay_is_not_a_decrypt_failure();
   test_a_frame_opens_into_a_buffer_the_size_of_its_plaintext();
   test_counter_exhaustion_ends_the_session();
+  test_a_rekey_runs_while_the_session_carries_on();
+  test_a_session_never_renewed_ends_at_its_max_age();
   test_nothing_is_sealed_before_a_session();
 
   printf(failures ? "%d failure(s)\n" : "all state machine tests passed\n",

@@ -36,6 +36,12 @@ extern "C" {
 #ifndef SECURE_LINK_SILENCE_US
 #define SECURE_LINK_SILENCE_US     10000000ULL   /* nothing opened in 10 s */
 #endif
+#ifndef SECURE_LINK_REKEY_US
+#define SECURE_LINK_REKEY_US      600000000ULL
+#endif
+#ifndef SECURE_LINK_MAX_AGE_US
+#define SECURE_LINK_MAX_AGE_US   1200000000ULL
+#endif
 #ifndef SECURE_LINK_DECRYPT_FAILS
 #define SECURE_LINK_DECRYPT_FAILS        16      /* peer restarted, likely */
 #endif
@@ -60,7 +66,12 @@ struct secure_link {
   struct secure_link_keys keys;
   struct noise_initiator ini;
   struct noise_session session;
+  struct noise_session previous;
+  bool has_previous;
+  bool rekeying;
 
+  uint64_t established_us;
+  uint64_t next_rekey_us;
   uint64_t next_retry_us;
   uint64_t retry_interval_us;
   uint64_t last_open_us;   /* last frame that passed the AEAD */

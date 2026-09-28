@@ -46,6 +46,37 @@ static int start_handshake(struct secure_link *sl, uint64_t now_us,
   return (int)n;
 }
 
+static void end_session(struct secure_link *sl)
+{
+  noise_session_wipe(&sl->session);
+  noise_session_wipe(&sl->previous);
+  sl->has_previous = false;
+  sl->rekeying = false;
+}
+
+static int send_rekey(struct secure_link *sl, uint8_t *out, size_t cap)
+{
+  size_t n = 0;
+  int rc;
+
+  if (cap < NOISE_MSG1_LEN)
+    {
+      return NOISE_ERR_INPUT;
+    }
+
+  rc = noise_initiator_start(&sl->ini, &sl->keys.link,
+                             sl->keys.station_public, sl->keys.identity,
+                             out, &n);
+  if (rc != NOISE_OK)
+    {
+      return rc;
+    }
+
+  sl->rekeying = true;
+  sl->handshakes++;
+  return (int)n;
+}
+
 /* A fresh sequence starts at the bottom; a retransmit does not. */
 static void reset_backoff(struct secure_link *sl)
 {
@@ -93,14 +124,25 @@ int secure_link_poll(struct secure_link *sl, uint64_t now_us,
   if (sl->state == SECURE_LINK_ESTABLISHED)
     {
       /* Link gone, or peer stopped answering. Either way, drop it. */
-      if (now_us - sl->last_open_us < SECURE_LINK_SILENCE_US)
+      if (now_us - sl->last_open_us >= SECURE_LINK_SILENCE_US
+          || now_us - sl->established_us >= SECURE_LINK_MAX_AGE_US)
+        {
+          end_session(sl);
+          reset_backoff(sl);
+          return start_handshake(sl, now_us, out, cap);
+        }
+
+      if (now_us < sl->next_rekey_us)
         {
           return 0;
         }
 
-      noise_session_wipe(&sl->session);
-      reset_backoff(sl);
-      return start_handshake(sl, now_us, out, cap);
+      {
+        int n = send_rekey(sl, out, cap);
+        sl->next_rekey_us = now_us + sl->retry_interval_us;
+        bump_backoff(sl);
+        return n;
+      }
     }
 
   if (now_us < sl->next_retry_us)
@@ -141,7 +183,7 @@ int secure_link_seal(struct secure_link *sl, uint64_t now_us,
   if (rc == NOISE_ERR_EXHAUSTED)
     {
       /* The nonce must never wrap. poll() opens the next session. */
-      noise_session_wipe(&sl->session);
+      end_session(sl);
       sl->state = SECURE_LINK_HANDSHAKING;
       reset_backoff(sl);
       sl->next_retry_us = 0;
@@ -166,21 +208,40 @@ int secure_link_open(struct secure_link *sl, uint64_t now_us,
   switch (frame[0])
     {
       case NOISE_TYPE_HANDSHAKE_RESP:
-        if (sl->state != SECURE_LINK_HANDSHAKING)
-          {
-            return NOISE_ERR_STATE;
-          }
+        {
+          struct noise_session next;
 
-        rc = noise_initiator_finish(&sl->ini, frame, len, &sl->session);
-        if (rc != NOISE_OK)
-          {
-            return rc;
-          }
+          if (sl->state != SECURE_LINK_HANDSHAKING && !sl->rekeying)
+            {
+              return NOISE_ERR_STATE;
+            }
 
-        sl->state = SECURE_LINK_ESTABLISHED;
-        sl->decrypt_fails = 0;
-        sl->last_open_us = now_us;
-        return 0;
+          memset(&next, 0, sizeof(next));
+          rc = noise_initiator_finish(&sl->ini, frame, len, &next);
+          if (rc != NOISE_OK)
+            {
+              return rc;
+            }
+
+          noise_session_wipe(&sl->previous);
+          sl->has_previous = sl->state == SECURE_LINK_ESTABLISHED;
+          if (sl->has_previous)
+            {
+              sl->previous = sl->session;
+            }
+
+          sl->session = next;
+          noise_wipe(&next, sizeof(next));
+          sl->state = SECURE_LINK_ESTABLISHED;
+          sl->rekeying = false;
+          sl->decrypt_fails = 0;
+          sl->last_open_us = now_us;
+          sl->established_us = now_us;
+          sl->next_rekey_us = now_us + SECURE_LINK_REKEY_US
+                              + jitter_us(SECURE_LINK_REKEY_US);
+          reset_backoff(sl);
+          return 0;
+        }
 
       case NOISE_TYPE_TRANSPORT:
         if (sl->state != SECURE_LINK_ESTABLISHED)
@@ -195,13 +256,23 @@ int secure_link_open(struct secure_link *sl, uint64_t now_us,
           }
 
         rc = noise_session_open(&sl->session, frame, len, out, &n);
+        if (rc == NOISE_OK && sl->has_previous)
+          {
+            noise_session_wipe(&sl->previous);
+            sl->has_previous = false;
+          }
+        else if (rc == NOISE_ERR_DECRYPT && sl->has_previous)
+          {
+            rc = noise_session_open(&sl->previous, frame, len, out, &n);
+          }
+
         if (rc != NOISE_OK)
           {
             /* A replay is a radio event, not evidence of a rekey. */
             if (rc != NOISE_ERR_REPLAY
                 && ++sl->decrypt_fails >= SECURE_LINK_DECRYPT_FAILS)
               {
-                noise_session_wipe(&sl->session);
+                end_session(sl);
                 sl->state = SECURE_LINK_HANDSHAKING;
                 reset_backoff(sl);
                 sl->next_retry_us = 0;
@@ -222,7 +293,7 @@ int secure_link_open(struct secure_link *sl, uint64_t now_us,
 
 void secure_link_close(struct secure_link *sl)
 {
-  noise_session_wipe(&sl->session);
+  end_session(sl);
   noise_wipe(&sl->ini, sizeof(sl->ini));
   sl->state = SECURE_LINK_DOWN;
 }
