@@ -56,7 +56,7 @@ static void usage(void)
 Enrols this aircraft on the secure MAVLink link.
 
 Run `key` and `sign`, give both to `ztcs-mavlink-provision` on the ground,
-then paste back the `write` line it prints. Both private keys are generated
+then paste back the `operator` and `write` lines it prints, in that order. Both private keys are generated
 on first use and neither is ever printed.
 
 Once an operator key is pinned, storing a station key needs that operator's

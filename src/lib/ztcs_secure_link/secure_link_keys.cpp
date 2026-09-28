@@ -147,8 +147,13 @@ bool secure_link_pin_operator(const uint8_t operator_public[32])
 
 	if (operator_pinned(crypto, existing)) {
 		crypto.close();
-		PX4_ERR("an operator key is already pinned");
-		return false;
+		const bool same = memcmp(existing, operator_public, sizeof(existing)) == 0;
+
+		if (!same) {
+			PX4_ERR("another operator key is already pinned");
+		}
+
+		return same;
 	}
 
 	bool ok = crypto.set_key(0, nullptr, operator_public, 32,

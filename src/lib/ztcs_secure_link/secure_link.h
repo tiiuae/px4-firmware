@@ -103,8 +103,8 @@ bool secure_link_ensure_keys(struct secure_link_keys *keys);
 /* For enrolment to sign. The private half has no accessor. */
 bool secure_link_public_key(uint8_t out[NOISE_DHLEN]);
 
-/* Pins the operator key. Refused once one is present: the aircraft must not
- * be talked into trusting a second operator.
+/* Pins the operator key. Pinning the same key again is a no-op; any other is
+ * refused: the aircraft must not be talked into trusting a second operator.
  */
 bool secure_link_pin_operator(const uint8_t operator_public[32]);
 
