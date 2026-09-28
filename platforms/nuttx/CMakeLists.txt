@@ -186,18 +186,13 @@ CYGPATH(NUTTX_CONFIG_DIR NUTTX_CONFIG_DIR_CYG)
 if(CONFIG_BOARD_AHAB_IMAGE AND (NOT "${PX4_BOARD_LABEL}" STREQUAL "bootloader"))
 	set(PX4_BINARY_OUTPUT ${PX4_BINARY_DIR}/${PX4_CONFIG}_unsigned.bin)
 
-	# An HSM build signs with the SRK in the token AHAB_PKCS11 names (TOKEN,PIN);
-	# its public SRK table sits with the hsm key set.
 	set(AHAB_KEYS $ENV{AHAB_KEYS})
-	set(AHAB_PKCS11 $ENV{AHAB_PKCS11})
-	if(NOT AHAB_KEYS AND AHAB_PKCS11)
-		set(AHAB_KEYS ${PX4_SOURCE_DIR}/Tools/saluki-sec-scripts/hsm/${PX4_BOARD_MODEL})
-	elseif(NOT AHAB_KEYS)
+	if(NOT AHAB_KEYS)
 		set(AHAB_KEYS ${PX4_SOURCE_DIR}/Tools/saluki-sec-scripts/test_keys/${PX4_BOARD_MODEL})
 	endif()
 
-	# AHAB_UNSIGNED leaves signing to `fmu sign`, wherever the token is.
-	if("$ENV{AHAB_UNSIGNED}")
+	# A token signs with `fmu sign`, wherever the token is, never in the build.
+	if("$ENV{AHAB_UNSIGNED}" OR "$ENV{SIGNING_KEY}" STREQUAL "hsm")
 		set(AHAB_SIGN --unsigned)
 	endif()
 
@@ -206,7 +201,6 @@ if(CONFIG_BOARD_AHAB_IMAGE AND (NOT "${PX4_BOARD_LABEL}" STREQUAL "bootloader"))
 			--load ${CONFIG_BOARD_AHAB_LOAD_ADDR}
 			--keys ${AHAB_KEYS}
 			--cst ${PX4_SOURCE_DIR}/Tools/saluki-sec-scripts/cst
-			"--pkcs11=${AHAB_PKCS11}"
 			${AHAB_SIGN}
 			${PX4_BINARY_OUTPUT} ${PX4_BINARY_DIR}/${PX4_CONFIG}.bin
 		DEPENDS ${PX4_BINARY_OUTPUT} ${PX4_SOURCE_DIR}/Tools/ahab_container.py

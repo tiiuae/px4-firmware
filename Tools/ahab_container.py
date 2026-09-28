@@ -39,16 +39,9 @@ def container(app: bytes, load: int, fuse_version: int) -> bytes:
     return (hdr + img + sig).ljust(IMAGE_OFFSET, b"\0") + padded
 
 
-def sign(path: str, keys: str, cst: str, pkcs11: str = "") -> None:
+def sign(path: str, keys: str, cst: str) -> None:
     crts = os.path.join(keys, "bootloader", "crts")
     source = f"{crts}/SRK1_sha384_secp384r1_v3_usr_crt.pem"
-    backend = []
-    if pkcs11:
-        # The key never leaves the token; CST signs through the pkcs11 engine.
-        token, pin = pkcs11.split(",", 1)
-        source = (f"pkcs11:token={token};object=./SRK1_sha384_secp384r1_v3_usr;"
-                  f"type=cert;pin-value={pin}")
-        backend = ["-b", "pkcs11"]
     csf = f"""[Header]
 Target = AHAB
 Version = 1.0
@@ -69,7 +62,7 @@ Offsets = 0x0 {SIG_BLOCK_OFFSET:#x}
 
     try:
         # CST finds each private key beside its certificate, from the keys dir.
-        r = subprocess.run([cst, *backend, "-i", f.name, "-o", path], cwd=keys,
+        r = subprocess.run([cst, "-i", f.name, "-o", path], cwd=keys,
                            capture_output=True, text=True)
         if r.returncode != 0:
             sys.exit(f"cst failed:\n{r.stdout}{r.stderr}")
@@ -85,8 +78,6 @@ def main() -> int:
     p.add_argument("--keys", required=True,
                    help="key set directory holding bootloader/crts and keys")
     p.add_argument("--cst", required=True, help="NXP CST binary")
-    p.add_argument("--pkcs11", default="",
-                   help="TOKEN,PIN: sign with the SRK in this PKCS#11 token")
     p.add_argument("--unsigned", action="store_true",
                    help="write the container without signing it")
     p.add_argument("app")
@@ -101,7 +92,7 @@ def main() -> int:
 
     if not a.unsigned:
         sign(os.path.abspath(a.out), os.path.abspath(a.keys),
-             os.path.abspath(a.cst), a.pkcs11)
+             os.path.abspath(a.cst))
 
     return 0
 

@@ -52,11 +52,13 @@ PKCS#11 instead.
 
 `saluki-nxp93` ships an AHAB container instead (`CONFIG_BOARD_AHAB_IMAGE`):
 [`Tools/ahab_container.py`](Tools/ahab_container.py) wraps the application and
-NXP CST signs it under the SRK in `AHAB_KEYS`, the board's test keys when
-unset. With `SIGNING_KEY=hsm`, `AHAB_PKCS11=SALUKI_AHAB,<pin>` signs through the
-token instead; the private key never leaves it. `AHAB_UNSIGNED=1` builds the
-container unsigned, for `fmu sign` to sign wherever the token is. It needs the `saluki_bootloader_v2` `skunkworks` bootloader, whose ELE
-authenticates it; an older bootloader wants a TOC and will not boot it.
+NXP CST signs it under the SRK in `AHAB_KEYS`, the board's test keys when unset.
+A token never signs inside the build: `SIGNING_KEY=hsm` or `AHAB_UNSIGNED=1`
+builds the container unsigned, and
+[`fmu sign`](https://github.com/tiiuae/fmu-tools/blob/main/docs/saluki-nxp93.md#who-signs-what)
+signs it wherever the token is. It needs the `saluki_bootloader_v2` `skunkworks`
+bootloader, whose ELE authenticates it; an older bootloader wants a TOC and will
+not boot it.
 
 ## Do not
 
