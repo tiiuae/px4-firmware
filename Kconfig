@@ -147,6 +147,12 @@ config BOARD_AHAB_LOAD_ADDR
     depends on BOARD_AHAB_IMAGE
     default 0x80200000
 
+config BOARD_AHAB_FUSE_VERSION
+    int "AHAB fuse version"
+    depends on BOARD_AHAB_IMAGE
+    range 0 127
+    default 0
+
 config BOARD_PROTECTED
     bool "Memory protection"
     help

@@ -199,6 +199,7 @@ if(CONFIG_BOARD_AHAB_IMAGE AND (NOT "${PX4_BOARD_LABEL}" STREQUAL "bootloader"))
 	add_custom_command(OUTPUT ${PX4_BINARY_DIR_REL}/${PX4_CONFIG}.bin
 		COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/ahab_container.py
 			--load ${CONFIG_BOARD_AHAB_LOAD_ADDR}
+			--fuse-version ${CONFIG_BOARD_AHAB_FUSE_VERSION}
 			--keys ${AHAB_KEYS}
 			--cst ${PX4_SOURCE_DIR}/Tools/saluki-sec-scripts/cst
 			${AHAB_SIGN}

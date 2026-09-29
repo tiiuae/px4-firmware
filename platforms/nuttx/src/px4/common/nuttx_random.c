@@ -31,13 +31,34 @@
  *
  ****************************************************************************/
 
+#include <errno.h>
+#include <string.h>
+#include <sys/random.h>
 #include <nuttx/random.h>
 
 size_t px4_get_secure_random(uint8_t *out,
 			     size_t outlen)
 {
-#if defined(CONFIG_CRYPTO_RANDOM_POOL)
-	/* TODO: can getrandom fail?? */
+#if defined(CONFIG_DEV_RANDOM)
+	size_t got = 0;
+
+	while (got < outlen) {
+		ssize_t n = getrandom(out + got, outlen - got, GRND_RANDOM);
+
+		if (n < 0 && errno == EINTR) {
+			continue;
+		}
+
+		if (n <= 0) {
+			memset(out, 0, outlen);
+			return 0;
+		}
+
+		got += (size_t)n;
+	}
+
+	return outlen;
+#elif defined(CONFIG_CRYPTO_RANDOM_POOL)
 	arc4random_buf(out, outlen);
 	return outlen;
 #else
