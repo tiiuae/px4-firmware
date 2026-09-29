@@ -799,6 +799,18 @@ bool Mavlink::arm_secure_link(const hrt_abstime now)
 }
 #endif
 
+#if defined(CONFIG_MAVLINK_SERIAL_FLASH_ONLY)
+static bool is_heartbeat(const uint8_t *frame, size_t len)
+{
+	if (len > 5 && frame[0] == MAVLINK_STX_MAVLINK1) {
+		return frame[5] == MAVLINK_MSG_ID_HEARTBEAT;
+	}
+
+	return len > 9 && frame[0] == MAVLINK_STX
+	       && (frame[7] | frame[8] << 8 | frame[9] << 16) == MAVLINK_MSG_ID_HEARTBEAT;
+}
+#endif
+
 void Mavlink::send_finish()
 {
 	if (_tx_buffer_low || (_buf_fill == 0)) {
@@ -810,7 +822,11 @@ void Mavlink::send_finish()
 
 	// send message to UART
 	if (get_protocol() == Protocol::SERIAL) {
+#if defined(CONFIG_MAVLINK_SERIAL_FLASH_ONLY)
+		ret = is_heartbeat(_buf, _buf_fill) ? ::write(_uart_fd, _buf, _buf_fill) : (int)_buf_fill;
+#else
 		ret = ::write(_uart_fd, _buf, _buf_fill);
+#endif
 	}
 
 #if defined(MAVLINK_UDP)

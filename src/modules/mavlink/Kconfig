@@ -40,4 +40,5 @@ menuconfig MAVLINK_SERIAL_FLASH_ONLY
 	---help---
 		A cable or a radio authenticates nobody. Over serial, accept only
 		heartbeats and, on USB, the reboot to the bootloader that flashing
-		sends; command the aircraft over the secure link.
+		sends, and send only heartbeats; command and watch the aircraft over
+		the secure link.
