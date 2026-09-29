@@ -4,6 +4,11 @@ menuconfig MODULES_UXRCE_DDS_CLIENT
 	---help---
 		Enable support for the UXRCE-DDS Client
 
+menuconfig UXRCE_DDS_CLIENT_PLAIN_UDP
+	bool "uxrce_dds_client plain UDP transport"
+	default y
+	depends on MODULES_UXRCE_DDS_CLIENT
+
 menuconfig USER_UXRCE_DDS_CLIENT
 	bool "uxrce_dds_client running as userspace module"
 	default y

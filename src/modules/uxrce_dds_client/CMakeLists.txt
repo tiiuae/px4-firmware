@@ -80,7 +80,8 @@ else()
 			-DUCLIENT_PROFILE_UDP:BOOL=ON
 			-DUCLIENT_PROFILE_SERIAL:BOOL=ON
 			-DUCLIENT_PROFILE_DISCOVERY:BOOL=OFF
-			-DUCLIENT_PROFILE_CUSTOM_TRANSPORT:BOOL=OFF
+			-DUCLIENT_PROFILE_CUSTOM_TRANSPORT:BOOL=ON
+			-DUCLIENT_CUSTOM_TRANSPORT_MTU:STRING=487
 			-DUCLIENT_PROFILE_MULTITHREAD:BOOL=OFF
 			-DUCLIENT_PROFILE_SHARED_MEMORY:BOOL=OFF
 			-DUCLIENT_PLATFORM_POSIX:BOOL=ON
@@ -134,6 +135,11 @@ else()
 	)
 	add_custom_target(topic_bridge_files DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/dds_topics.h)
 
+	set(uxrce_dds_link)
+	if(CONFIG_LIB_ZTCS_SECURE_LINK)
+		set(uxrce_dds_link ztcs_link_udp)
+	endif()
+
 	px4_add_module(
 		MODULE modules__uxrce_dds_client
 		MAIN uxrce_dds_client
@@ -159,6 +165,7 @@ else()
 			timesync
 			topic_bridge_files
 			uorb_ucdr_headers
+			${uxrce_dds_link}
 		MODULE_CONFIG
 			module.yaml
 		)

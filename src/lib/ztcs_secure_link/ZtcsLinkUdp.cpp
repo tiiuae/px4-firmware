@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -52,7 +53,6 @@ bool ZtcsLinkUdp::init()
 		struct secure_link_keys keys;
 
 		if (!secure_link_ensure_keys(&keys)) {
-			PX4_ERR("not enrolled, so there is no link to carry an update");
 			return false;
 		}
 
@@ -241,6 +241,40 @@ ssize_t ZtcsLinkUdp::recvfrom(void *buf, size_t len, int flags, struct sockaddr 
 	print_stats();
 	errno = EAGAIN;
 	return -1;
+}
+
+ssize_t ZtcsLinkUdp::recv_within(void *buf, size_t len, unsigned timeout_ms)
+{
+	if (_link == nullptr) {
+		errno = ENOTCONN;
+		return -1;
+	}
+
+	const uint64_t deadline = hrt_absolute_time() + (uint64_t)timeout_ms * 1000;
+
+	for (;;) {
+		const uint64_t now = hrt_absolute_time();
+		struct pollfd pfd {sockfd_, POLLIN, 0};
+		int ready = ::poll(&pfd, 1, now < deadline ? (int)((deadline - now + 999) / 1000) : 0);
+
+		if (ready <= 0) {
+			return ready;
+		}
+
+		ssize_t got = ::recvfrom(sockfd_, _frame, sizeof(_frame), MSG_DONTWAIT, nullptr, nullptr);
+
+		if (got <= 0) {
+			return got;
+		}
+
+		_rx++;
+
+		int plain = secure_link_open(_link, hrt_absolute_time(), _frame, got, (uint8_t *)buf, len);
+
+		if (plain > 0) {
+			return plain;
+		}
+	}
 }
 
 ssize_t ZtcsLinkUdp::recv(void *buf, size_t len, int flags)

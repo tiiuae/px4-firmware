@@ -263,6 +263,33 @@ int main()
 		stop_peer = true; t.join();
 	}
 
+	{
+		stop_peer = false; peer_rx = 0;
+		std::thread t(peer, 19110, true);
+		std::this_thread::sleep_for(milliseconds(50));
+
+		ztcs::ZtcsLinkUdp u(nullptr, "127.0.0.1", 0, 19110, 1);
+		check(u.open(), "link up for recv_within");
+
+		char back[64] = {};
+		auto t0 = steady_clock::now();
+		ssize_t got = u.recv_within(back, sizeof(back), 0);
+		auto ms = duration_cast<milliseconds>(steady_clock::now() - t0).count();
+		check(got == 0 && ms < 50, "recv_within 0 returns at once when nothing waits");
+
+		t0 = steady_clock::now();
+		got = u.recv_within(back, sizeof(back), 100);
+		ms = duration_cast<milliseconds>(steady_clock::now() - t0).count();
+		check(got == 0 && ms >= 90 && ms < 1000, "recv_within keeps a millisecond deadline");
+
+		u.send("DDS", 3, 0);
+		got = u.recv_within(back, sizeof(back), 500);
+		check(got == 3 && memcmp(back, "DDS", 3) == 0, "recv_within returns the payload");
+
+		u.close();
+		stop_peer = true; t.join();
+	}
+
 	printf("\n%s\n", failures ? "FAILURES" : "all ok");
 	return failures ? 1 : 0;
 }

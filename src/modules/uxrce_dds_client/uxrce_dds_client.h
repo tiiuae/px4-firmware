@@ -47,7 +47,17 @@
 #include <lib/perf/perf_counter.h>
 
 #if defined(CONFIG_NET) || defined(__PX4_POSIX)
-# define UXRCE_DDS_CLIENT_UDP 1
+# if defined(CONFIG_UXRCE_DDS_CLIENT_PLAIN_UDP)
+#  define UXRCE_DDS_CLIENT_UDP 1
+# endif
+# if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+#  define UXRCE_DDS_CLIENT_LINK 1
+#  include <ZtcsLinkUdp.hpp>
+# endif
+#endif
+
+#if defined(UXRCE_DDS_CLIENT_UDP) || defined(UXRCE_DDS_CLIENT_LINK)
+# define UXRCE_DDS_CLIENT_NET 1
 #endif
 
 #include "srv_base.h"
@@ -59,7 +69,8 @@ class UxrceddsClient : public ModuleBase<UxrceddsClient>, public ModuleParams
 public:
 	enum class Transport {
 		Serial,
-		Udp
+		Udp,
+		Link
 	};
 
 	UxrceddsClient(Transport transport, const char *device, int baudrate, const char *host, const char *recv_port,
@@ -150,12 +161,20 @@ private:
 	// max agent ip characters (15+'\0')
 	static const uint8_t AGENT_IP_MAX_LENGTH = 16;
 
-#if defined(UXRCE_DDS_CLIENT_UDP)
+#if defined(UXRCE_DDS_CLIENT_NET)
 	char _send_port[PORT_MAX_LENGTH] {};
 	char _recv_port[PORT_MAX_LENGTH] {};
 	char _agent_ip[AGENT_IP_MAX_LENGTH] {};
+#endif // UXRCE_DDS_CLIENT_NET
+
+#if defined(UXRCE_DDS_CLIENT_UDP)
 	uxrUDPTransport *_transport_udp{nullptr};
 #endif // UXRCE_DDS_CLIENT_UDP
+
+#if defined(UXRCE_DDS_CLIENT_LINK)
+	uxrCustomTransport *_transport_link{nullptr};
+	ztcs::ZtcsLinkUdp *_link{nullptr};
+#endif // UXRCE_DDS_CLIENT_LINK
 
 	SendTopicsSubs *_subs{nullptr};
 	RcvTopicsPubs *_pubs{nullptr};

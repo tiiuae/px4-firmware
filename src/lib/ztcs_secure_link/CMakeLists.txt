@@ -75,7 +75,7 @@ endif()
 # this directory is processed first.
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../secure_udp/CMakeLists.txt")
 	px4_add_library(ztcs_link_udp ZtcsLinkUdp.cpp)
-	target_link_libraries(ztcs_link_udp PUBLIC ztcs_secure_link)
+	target_link_libraries(ztcs_link_udp PUBLIC ztcs_secure_link secure_udp)
 	target_include_directories(ztcs_link_udp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../secure_udp)
 
 	# secure_link.h reaches the keystore through crypto.h, and that include

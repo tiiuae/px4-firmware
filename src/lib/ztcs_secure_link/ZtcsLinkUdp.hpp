@@ -27,6 +27,7 @@ public:
 	ssize_t recv(void *buf, size_t len, int flags) override;
 	ssize_t recvfrom(void *buf, size_t len, int flags, struct sockaddr *src_addr,
 			 socklen_t *addrlen) override;
+	ssize_t recv_within(void *buf, size_t len, unsigned timeout_ms);
 
 	void set_new_key_request(const char *prefix = nullptr) override;
 	void invalidate_key_for(CryptoOp op) override;

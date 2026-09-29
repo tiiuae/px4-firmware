@@ -83,6 +83,38 @@ static void on_time_no_sync(uxrSession *session, int64_t current_time, int64_t r
 	session->time_offset = 0;
 }
 
+#if defined(UXRCE_DDS_CLIENT_LINK)
+static ztcs::ZtcsLinkUdp *link_of(uxrCustomTransport *transport)
+{
+	return static_cast<ztcs::ZtcsLinkUdp *>(transport->args);
+}
+
+static bool link_open(uxrCustomTransport *transport)
+{
+	return link_of(transport)->open();
+}
+
+static bool link_close(uxrCustomTransport *transport)
+{
+	link_of(transport)->close();
+	return true;
+}
+
+static size_t link_write(uxrCustomTransport *transport, const uint8_t *buf, size_t len, uint8_t *error)
+{
+	ssize_t sent = link_of(transport)->send(buf, len, 0);
+	*error = sent < 0;
+	return sent < 0 ? 0 : (size_t)sent;
+}
+
+static size_t link_read(uxrCustomTransport *transport, uint8_t *buf, size_t len, int timeout_ms, uint8_t *error)
+{
+	ssize_t got = link_of(transport)->recv_within(buf, len, timeout_ms > 0 ? (unsigned)timeout_ms : 0);
+	*error = got < 0;
+	return got < 0 ? 0 : (size_t)got;
+}
+#endif // UXRCE_DDS_CLIENT_LINK
+
 static void on_request(uxrSession *session, uxrObjectId object_id, uint16_t request_id, SampleIdentity *sample_id,
 		       ucdrBuffer *ub, uint16_t length, void *args)
 {
@@ -109,7 +141,7 @@ UxrceddsClient::UxrceddsClient(Transport transport, const char *device, int baud
 		strncpy(_device, device, sizeof(_device) - 1);
 	}
 
-#if defined(UXRCE_DDS_CLIENT_UDP)
+#if defined(UXRCE_DDS_CLIENT_NET)
 
 	if (agent_ip) {
 		strncpy(_agent_ip, agent_ip, sizeof(_agent_ip) - 1);
@@ -126,7 +158,7 @@ UxrceddsClient::UxrceddsClient(Transport transport, const char *device, int baud
 		_recv_port[sizeof(_recv_port) - 1] = 0;
 	}
 
-#endif // UXRCE_DDS_CLIENT_UDP
+#endif // UXRCE_DDS_CLIENT_NET
 }
 
 bool UxrceddsClient::init()
@@ -189,15 +221,37 @@ bool UxrceddsClient::init()
 
 #endif // UXRCE_DDS_CLIENT_UDP
 
+#if defined(UXRCE_DDS_CLIENT_LINK)
+
+	if (_transport == Transport::Link) {
+		_link = new ztcs::ZtcsLinkUdp(nullptr, _agent_ip, (uint16_t)atoi(_recv_port), (uint16_t)atoi(_send_port), 1);
+		_transport_link = new uxrCustomTransport();
+
+		if (_link && _transport_link) {
+			uxr_set_custom_transport_callbacks(_transport_link, false, link_open, link_close, link_write, link_read);
+
+			if (uxr_init_custom_transport(_transport_link, _link)) {
+				PX4_INFO("init secure link agent IP:%s, port:%s", _agent_ip, _send_port);
+				_comm = &_transport_link->comm;
+				return true;
+			}
+		}
+
+		PX4_ERR("init secure link agent IP:%s, port:%s failed", _agent_ip, _send_port);
+		delete _transport_link;
+		_transport_link = nullptr;
+		delete _link;
+		_link = nullptr;
+	}
+
+#endif // UXRCE_DDS_CLIENT_LINK
+
 	return false;
 }
 
 void UxrceddsClient::deinit()
 {
-	if (_fd >= 0) {
-		close(_fd);
-		_fd = -1;
-	}
+	_fd = -1;
 
 	if (_transport_serial) {
 		uxr_close_serial_transport(_transport_serial);
@@ -215,6 +269,18 @@ void UxrceddsClient::deinit()
 
 #endif // UXRCE_DDS_CLIENT_UDP
 
+#if defined(UXRCE_DDS_CLIENT_LINK)
+
+	if (_transport_link) {
+		uxr_close_custom_transport(_transport_link);
+		delete _transport_link;
+		_transport_link = nullptr;
+		delete _link;
+		_link = nullptr;
+	}
+
+#endif // UXRCE_DDS_CLIENT_LINK
+
 	_comm = nullptr;
 }
 
@@ -225,22 +291,10 @@ UxrceddsClient::~UxrceddsClient()
 
 	delete_repliers();
 
-	if (_transport_serial) {
-		uxr_close_serial_transport(_transport_serial);
-		delete _transport_serial;
-	}
+	deinit();
 
 	perf_free(_loop_perf);
 	perf_free(_loop_interval_perf);
-
-#if defined(UXRCE_DDS_CLIENT_UDP)
-
-	if (_transport_udp) {
-		uxr_close_udp_transport(_transport_udp);
-		delete _transport_udp;
-	}
-
-#endif // UXRCE_DDS_CLIENT_UDP
 }
 
 static void fillMessageFormatResponse(const message_format_request_s &message_format_request,
@@ -545,7 +599,7 @@ void UxrceddsClient::run()
 
 			int bytes_available = 0;
 
-			if (ioctl(_fd, FIONREAD, (unsigned long)&bytes_available) == OK) {
+			if (_fd >= 0 && ioctl(_fd, FIONREAD, (unsigned long)&bytes_available) == OK) {
 				if (bytes_available > 10) {
 					orb_poll_timeout_ms = 0;
 				}
@@ -893,6 +947,17 @@ int UxrceddsClient::print_status()
 
 #endif
 
+#if defined(UXRCE_DDS_CLIENT_LINK)
+
+	if (_link != nullptr) {
+		PX4_INFO("Using transport:     secure link");
+		PX4_INFO("Agent IP:            %s", _agent_ip);
+		PX4_INFO("Agent port:          %s", _send_port);
+		_link->print_stats();
+	}
+
+#endif
+
 	if (_transport_serial != nullptr) {
 		PX4_INFO("Using transport:     serial");
 	}
@@ -921,7 +986,9 @@ UxrceddsClient *UxrceddsClient::instantiate(int argc, char *argv[])
 	char send_port[PORT_MAX_LENGTH] = {'8', '8', '8', '8'};
 	char agent_ip[AGENT_IP_MAX_LENGTH] = {0};
 
-#if defined(UXRCE_DDS_CLIENT_UDP)
+#if defined(UXRCE_DDS_CLIENT_LINK)
+	Transport transport = Transport::Link;
+#elif defined(UXRCE_DDS_CLIENT_UDP)
 	Transport transport = Transport::Udp;
 #else
 	Transport transport = Transport::Serial;
@@ -937,8 +1004,16 @@ UxrceddsClient *UxrceddsClient::instantiate(int argc, char *argv[])
 			if (!strcmp(myoptarg, "serial")) {
 				transport = Transport::Serial;
 
+#if defined(UXRCE_DDS_CLIENT_UDP)
+
 			} else if (!strcmp(myoptarg, "udp")) {
 				transport = Transport::Udp;
+#endif
+#if defined(UXRCE_DDS_CLIENT_LINK)
+
+			} else if (!strcmp(myoptarg, "link")) {
+				transport = Transport::Link;
+#endif
 
 			} else {
 				PX4_ERR("unknown transport: %s", myoptarg);
@@ -959,7 +1034,7 @@ UxrceddsClient *UxrceddsClient::instantiate(int argc, char *argv[])
 
 			break;
 
-#if defined(UXRCE_DDS_CLIENT_UDP)
+#if defined(UXRCE_DDS_CLIENT_NET)
 
 		case 'h':
 			snprintf(agent_ip, AGENT_IP_MAX_LENGTH, "%s", myoptarg);
@@ -972,7 +1047,7 @@ UxrceddsClient *UxrceddsClient::instantiate(int argc, char *argv[])
 		case 'r':
 			snprintf(recv_port, PORT_MAX_LENGTH, "%s", myoptarg);
 			break;
-#endif // UXRCE_DDS_CLIENT_UDP
+#endif // UXRCE_DDS_CLIENT_NET
 
 		case 'n':
 			client_namespace = myoptarg;
@@ -989,7 +1064,7 @@ UxrceddsClient *UxrceddsClient::instantiate(int argc, char *argv[])
 		}
 	}
 
-#if defined(UXRCE_DDS_CLIENT_UDP)
+#if defined(UXRCE_DDS_CLIENT_NET)
 
 	if (send_port[0] == '\0') {
 		// no port specified, use UXRCE_DDS_PRT
@@ -1014,7 +1089,7 @@ UxrceddsClient *UxrceddsClient::instantiate(int argc, char *argv[])
 			 static_cast<uint8_t>(ip_i & 0xff));
 	}
 
-#endif // UXRCE_DDS_CLIENT_UDP
+#endif // UXRCE_DDS_CLIENT_NET
 
 	if (error_flag) {
 		return nullptr;
@@ -1039,16 +1114,17 @@ int UxrceddsClient::print_usage(const char *reason)
 	PRINT_MODULE_DESCRIPTION(
 		R"DESCR_STR(
 ### Description
-UXRCE-DDS Client used to communicate uORB topics with an Agent over serial or UDP.
+UXRCE-DDS Client used to communicate uORB topics with an Agent over serial, UDP, or the secure link.
 
 ### Examples
 $ uxrce_dds_client start -t serial -d /dev/ttyS3 -b 921600
 $ uxrce_dds_client start -t udp -h 127.0.0.1 -p 15555
+$ uxrce_dds_client start -t link -h 192.168.202.254 -p 10020
 )DESCR_STR");
 
 	PRINT_MODULE_USAGE_NAME("uxrce_dds_client", "system");
 	PRINT_MODULE_USAGE_COMMAND("start");
-	PRINT_MODULE_USAGE_PARAM_STRING('t', "udp", "serial|udp", "Transport protocol", true);
+	PRINT_MODULE_USAGE_PARAM_STRING('t', "udp", "serial|udp|link", "Transport protocol", true);
 	PRINT_MODULE_USAGE_PARAM_STRING('d', nullptr, "<file:dev>", "serial device", true);
 	PRINT_MODULE_USAGE_PARAM_INT('b', 0, 0, 3000000, "Baudrate (can also be p:<param_name>)", true);
 	PRINT_MODULE_USAGE_PARAM_STRING('h', nullptr, "<IP>", "Agent IP. If not provided, defaults to UXRCE_DDS_AG_IP", true);
