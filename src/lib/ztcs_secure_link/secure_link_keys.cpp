@@ -16,6 +16,23 @@
 #include <string.h>
 #include <unistd.h>
 
+static const char *reported;
+
+static bool not_ready(struct secure_link_keys *keys, const char *reason, bool fault = false)
+{
+	if (reason != reported && fault) {
+		PX4_ERR("%s", reason);
+
+	} else if (reason != reported) {
+		PX4_WARN("%s", reason);
+	}
+
+	reported = reason;
+
+	memset(keys, 0, sizeof(*keys));
+	return false;
+}
+
 #if defined(PX4_CRYPTO)
 
 #include <px4_platform_common/crypto.h>
@@ -92,15 +109,13 @@ bool secure_link_ensure_keys(struct secure_link_keys *keys)
 	keys->link.index = ZTCS_KEY_SLOT_LINK;
 
 	if (!crypto.open(CRYPTO_X25519)) {
-		PX4_ERR("no crypto session");
-		return false;
+		return not_ready(keys, "no crypto session", true);
 	}
 
 	if (!crypto.get_public_key(ZTCS_KEY_SLOT_LINK, probe, &len)) {
 		if (!crypto.generate_key(ZTCS_KEY_SLOT_LINK, true)) {
-			PX4_ERR("could not establish a link key");
 			crypto.close();
-			return false;
+			return not_ready(keys, "could not establish a link key", true);
 		}
 
 		PX4_INFO("link key generated");
@@ -110,20 +125,17 @@ bool secure_link_ensure_keys(struct secure_link_keys *keys)
 
 	if (!crypto.get_public_key(ZTCS_KEY_SLOT_STATION_PUBLIC, keys->station_public, &len)
 	    || len != NOISE_DHLEN) {
-		PX4_WARN("not enrolled yet: no station key");
 		crypto.close();
-		memset(keys, 0, sizeof(*keys));
-		return false;
+		return not_ready(keys, "not enrolled yet: no station key");
 	}
 
 	crypto.close();
 
 	if (!load_identity(keys->identity)) {
-		PX4_WARN("no signed identity for this link key: run ztcs_enroll sign");
-		memset(keys, 0, sizeof(*keys));
-		return false;
+		return not_ready(keys, "no signed identity for this link key: run ztcs_enroll sign");
 	}
 
+	reported = nullptr;
 	return true;
 }
 
@@ -252,9 +264,7 @@ bool secure_link_self_sign(uint8_t out[NOISE_IDENTITY_PAYLOAD_LEN])
 
 bool secure_link_ensure_keys(struct secure_link_keys *keys)
 {
-	memset(keys, 0, sizeof(*keys));
-	PX4_ERR("no keystore on this board: enable the PX4 crypto backend");
-	return false;
+	return not_ready(keys, "no keystore on this board: enable the PX4 crypto backend", true);
 }
 
 bool secure_link_public_key(uint8_t out[NOISE_DHLEN])
