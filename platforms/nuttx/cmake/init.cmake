@@ -59,11 +59,8 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${NUTTX_DEFCONFIG
 set(NUTTX_DEFCONFIG_FRAGMENT ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/${PX4_BOARD_LABEL}.fragment)
 if(EXISTS ${NUTTX_DEFCONFIG_FRAGMENT})
 	set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${NUTTX_DEFCONFIG_FRAGMENT})
-	file(READ ${NUTTX_DEFCONFIG} NUTTX_DEFCONFIG_BASE)
-	file(READ ${NUTTX_DEFCONFIG_FRAGMENT} NUTTX_DEFCONFIG_OVERRIDES)
-	file(WRITE ${PX4_BINARY_DIR}/nuttx_defconfig.new "${NUTTX_DEFCONFIG_BASE}${NUTTX_DEFCONFIG_OVERRIDES}")
-	execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PX4_BINARY_DIR}/nuttx_defconfig.new ${PX4_BINARY_DIR}/nuttx_defconfig)
-	set(NUTTX_DEFCONFIG ${PX4_BINARY_DIR}/nuttx_defconfig CACHE FILEPATH "path to defconfig" FORCE)
+else()
+	unset(NUTTX_DEFCONFIG_FRAGMENT)
 endif()
 
 set(NUTTX_SRC_DIR  ${PX4_SOURCE_DIR}/platforms/nuttx/NuttX)
@@ -84,7 +81,13 @@ file(CREATE_LINK ${NUTTX_SRC_DIR}/extern/apps ${NUTTX_APPS_DIR}/external SYMBOLI
 # make olddefconfig (inflate defconfig to full .config)
 execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${NUTTX_CONFIG_DIR}/src) # needed for NuttX build
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_SRC_DIR}/Make.defs.in ${NUTTX_DIR}/Make.defs) # Create a temporary Toplevel Make.defs for the oldconfig step
-execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DEFCONFIG} ${NUTTX_DIR}/.config)
+if(NUTTX_DEFCONFIG_FRAGMENT)
+	file(READ ${NUTTX_DEFCONFIG} NUTTX_DEFCONFIG_BASE)
+	file(READ ${NUTTX_DEFCONFIG_FRAGMENT} NUTTX_DEFCONFIG_OVERRIDES)
+	file(WRITE ${NUTTX_DIR}/.config "${NUTTX_DEFCONFIG_BASE}${NUTTX_DEFCONFIG_OVERRIDES}")
+else()
+	execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DEFCONFIG} ${NUTTX_DIR}/.config)
+endif()
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DEFCONFIG} ${NUTTX_DIR}/defconfig)
 
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${NUTTX_DIR}/defconfig)

@@ -42,6 +42,11 @@ configure_file(${PX4_SOURCE_DIR}/platforms/nuttx/NuttX/Make.defs.in ${CMAKE_CURR
 
 set(EXTRA_NUTTX_CONFIG_FILE ${CMAKE_CURRENT_BINARY_DIR}/extra_config_options)
 file(WRITE ${EXTRA_NUTTX_CONFIG_FILE} "")
+
+if(NUTTX_DEFCONFIG_FRAGMENT)
+	file(READ ${NUTTX_DEFCONFIG_FRAGMENT} NUTTX_DEFCONFIG_OVERRIDES)
+	file(APPEND ${EXTRA_NUTTX_CONFIG_FILE} "${NUTTX_DEFCONFIG_OVERRIDES}")
+endif()
 if(DEFINED ENV{PX4_EXTRA_NUTTX_CONFIG})
 	message(STATUS "Adding extra nuttx config: $ENV{PX4_EXTRA_NUTTX_CONFIG}")
 	# Allow to specify extra options via 'export PX4_EXTRA_NUTTX_CONFIG="CONFIG_xy=y;CONFIG_z=y"'
