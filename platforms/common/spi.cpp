@@ -41,6 +41,10 @@
 #define GPIO_PIN_MASK 0
 #endif
 
+#ifndef PX4_SPI_CS_PIN
+#define PX4_SPI_CS_PIN(cs_gpio) ((cs_gpio) & GPIO_PIN_MASK)
+#endif
+
 #if BOARD_NUM_SPI_CFG_HW_VERSIONS > 1
 void px4_set_spi_buses_from_hw_version()
 {
@@ -149,7 +153,7 @@ bool SPIBusIterator::next()
 						for (int i = _bus_device_index + 1; i < SPI_BUS_MAX_DEVICES; ++i) {
 							if (PX4_SPI_DEVICE_ID == PX4_SPIDEVID_TYPE(bus_data.devices[i].devid) &&
 							    _devid_driver_index == bus_data.devices[i].devtype_driver &&
-							    (_chipselect < 0 || _chipselect == (int16_t)(bus_data.devices[i].cs_gpio & GPIO_PIN_MASK))) {
+							    (_chipselect < 0 || _chipselect == (int16_t)PX4_SPI_CS_PIN(bus_data.devices[i].cs_gpio))) {
 								_bus_device_index = i;
 								return true;
 							}
