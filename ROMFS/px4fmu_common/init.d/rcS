@@ -100,17 +100,12 @@ then
 		fi
 	fi
 
-	if [ $SDCARD_AVAILABLE = yes ]
+	set RC_HARDFAULT ${R}etc/init.d/rc.hardfault
+	if [ $SDCARD_AVAILABLE = yes -a -f ${RC_HARDFAULT} ]
 	then
-		if hardfault_log check
-		then
-			set STARTUP_TUNE 2 # tune 2 = ERROR_TUNE
-			if hardfault_log commit
-			then
-				hardfault_log reset
-			fi
-		fi
+		. ${RC_HARDFAULT}
 	fi
+	unset RC_HARDFAULT
 
 	# Check for an update of the ext_autostart folder, and replace the old one with it
 	if [ -e /fs/microsd/ext_autostart_new ]

@@ -1,0 +1,10 @@
+#!/bin/sh
+
+if hardfault_log check
+then
+	set STARTUP_TUNE 2 # tune 2 = ERROR_TUNE
+	if hardfault_log commit
+	then
+		hardfault_log reset
+	fi
+fi

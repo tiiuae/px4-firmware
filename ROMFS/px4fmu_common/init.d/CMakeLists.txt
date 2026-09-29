@@ -108,6 +108,12 @@ if(CONFIG_MODULES_LOGGER)
 	)
 endif()
 
+if(CONFIG_SYSTEMCMDS_HARDFAULT_LOG)
+	px4_add_romfs_files(
+		rc.hardfault
+	)
+endif()
+
 if(CONFIG_MODULES_TEMPERATURE_COMPENSATION)
 	px4_add_romfs_files(
 		rc.thermal_cal
