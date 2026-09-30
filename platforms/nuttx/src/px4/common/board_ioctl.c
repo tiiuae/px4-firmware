@@ -43,6 +43,9 @@
 #include "board_config.h"
 
 #include <libgen.h>
+#include <string.h>
+
+#include <nuttx/kmalloc.h>
 
 #include <NuttX/kernel_builtin/kernel_builtin_proto.h>
 
@@ -142,45 +145,96 @@ static int launch_kernel_builtin(int argc, char **argv)
  *
  ************************************************************************************/
 
+#define LAUNCH_ARGS_MAX 32
+#define LAUNCH_ARG_LEN  256
+
+static int launch_user_builtin(unsigned long arg)
+{
+	platformioclaunch_t data;
+	char *argv[LAUNCH_ARGS_MAX + 1];
+	int ret = -EFAULT;
+	int i = 0;
+
+	if (!px4_user_ok((const void *)arg, sizeof(data))) {
+		return -EFAULT;
+	}
+
+	memcpy(&data, (const void *)arg, sizeof(data));
+
+	if (data.argc < 1 || data.argc > LAUNCH_ARGS_MAX || data.argv == NULL
+	    || !px4_user_ok(data.argv, data.argc * sizeof(*data.argv))) {
+		return -EINVAL;
+	}
+
+	for (i = 0; i < data.argc; i++) {
+		const char *src = data.argv[i];
+		size_t len;
+
+		if (src == NULL || !px4_user_ok(src, 1)) {
+			goto out;
+		}
+
+		len = strnlen(src, LAUNCH_ARG_LEN);
+		argv[i] = kmm_malloc(len + 1);
+
+		if (argv[i] == NULL) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		memcpy(argv[i], src, len);
+		argv[i][len] = '\0';
+	}
+
+	argv[i] = NULL;
+	((platformioclaunch_t *)arg)->ret = launch_kernel_builtin(data.argc, argv);
+	ret = OK;
+
+out:
+
+	while (i-- > 0) {
+		kmm_free(argv[i]);
+	}
+
+	return ret;
+}
+
 static int platform_ioctl(unsigned int cmd, unsigned long arg)
 {
-	int ret = OK;
-
 	if (arg == 0) {
 		return -EINVAL;
 	}
 
 	switch (cmd) {
-	case PLATFORMIOCLAUNCH: {
-			platformioclaunch_t *data = (platformioclaunch_t *)arg;
-			data->ret = launch_kernel_builtin(data->argc, data->argv);
-		}
-		break;
+	case PLATFORMIOCLAUNCH:
+		return launch_user_builtin(arg);
 
-	case PLATFORMIOCVBUSSTATE: {
-			platformiocvbusstate_t *data = (platformiocvbusstate_t *)arg;
-			data->ret = boardctrl_read_VBUS_state();
+	case PLATFORMIOCVBUSSTATE:
+		if (!px4_user_ok((const void *)arg, sizeof(platformiocvbusstate_t))) {
+			return -EFAULT;
 		}
-		break;
 
-	case PLATFORMIOCINDICATELOCKOUT: {
-			platformioclockoutstate_t *data = (platformioclockoutstate_t *)arg;
-			boardctrl_indicate_external_lockout_state(data->enabled);
-		}
-		break;
+		((platformiocvbusstate_t *)arg)->ret = boardctrl_read_VBUS_state();
+		return OK;
 
-	case PLATFORMIOCGETLOCKOUT: {
-			platformioclockoutstate_t *data = (platformioclockoutstate_t *)arg;
-			data->enabled = boardctrl_get_external_lockout_state();
+	case PLATFORMIOCINDICATELOCKOUT:
+	case PLATFORMIOCGETLOCKOUT:
+		if (!px4_user_ok((const void *)arg, sizeof(platformioclockoutstate_t))) {
+			return -EFAULT;
 		}
-		break;
+
+		if (cmd == PLATFORMIOCINDICATELOCKOUT) {
+			boardctrl_indicate_external_lockout_state(((platformioclockoutstate_t *)arg)->enabled);
+
+		} else {
+			((platformioclockoutstate_t *)arg)->enabled = boardctrl_get_external_lockout_state();
+		}
+
+		return OK;
 
 	default:
-		ret = -ENOTTY;
-		break;
+		return -ENOTTY;
 	}
-
-	return ret;
 }
 
 /************************************************************************************
