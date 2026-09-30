@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <nuttx/fs/ioctl.h>
+#include <nuttx/mmcsd.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/spawn.h>
 #include <nuttx/timers/pwm.h>
@@ -21,6 +22,8 @@
 #include <sys/boardctl.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
+#include <sys/socket.h>
+#include <net/if.h>
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -48,6 +51,7 @@ private:
 	bool test_bounds_refused();
 	bool test_erase_bounded();
 	bool test_spawn_race();
+	bool test_nested_ioctls_refused();
 };
 
 static const struct {
@@ -427,6 +431,46 @@ bool IsolationTest::test_spawn_race()
 	return true;
 }
 
+bool IsolationTest::test_nested_ioctls_refused()
+{
+	struct ifreq reqs[4];
+	struct ifconf ifc {sizeof(reqs), {(char *)session_keys}};
+	const int sock = socket(AF_INET, SOCK_DGRAM, 0);
+	ut_assert("socket", sock >= 0);
+
+	errno = 0;
+	const int ifconf = ioctl(sock, SIOCGIFCONF, (unsigned long)&ifc);
+	const int ifconf_err = errno;
+	ifc = {sizeof(reqs), {(char *)reqs}};
+	const int ifconf_own = ioctl(sock, SIOCGIFCONF, (unsigned long)&ifc);
+	close(sock);
+
+	uint8_t cid[512];
+	mmc_ioc_cmd cmd {};
+	cmd.opcode = 2;
+	cmd.data_ptr = session_keys;
+	const int fd = open("/dev/mmcsd0", O_RDONLY);
+	ut_assert("open /dev/mmcsd0", fd >= 0);
+
+	errno = 0;
+	const int mmc = ioctl(fd, MMC_IOC_CMD, (unsigned long)&cmd);
+	const int mmc_err = errno;
+	cmd.data_ptr = (uintptr_t)cid;
+	errno = 0;
+	const int mmc_own = ioctl(fd, MMC_IOC_CMD, (unsigned long)&cmd);
+	const int mmc_own_err = errno;
+	close(fd);
+
+	PX4_INFO("SIOCGIFCONF into session keys: %d errno %d, into its own buffer: %d, %u bytes",
+		 ifconf, ifconf_err, ifconf_own, (unsigned)ifc.ifc_len);
+	PX4_INFO("MMC_IOC_CMD into session keys: %d errno %d, into its own buffer: %d errno %d", mmc, mmc_err, mmc_own,
+		 mmc_own_err);
+	ut_assert("a nested pointer reached kernel memory", ifconf < 0 && ifconf_err == EFAULT && mmc < 0
+		  && mmc_err == EFAULT);
+	ut_assert("a legitimate nested pointer was refused", ifconf_own == 0 && (mmc_own == 0 || mmc_own_err != EFAULT));
+	return true;
+}
+
 bool IsolationTest::run_tests()
 {
 	ut_run_test(test_loads_fault);
@@ -442,6 +486,7 @@ bool IsolationTest::run_tests()
 	ut_run_test(test_capabilities_enforced);
 	ut_run_test(test_erase_bounded);
 	ut_run_test(test_spawn_race);
+	ut_run_test(test_nested_ioctls_refused);
 	ut_run_test(test_bounds_refused);
 
 	return (_tests_failed == 0);
