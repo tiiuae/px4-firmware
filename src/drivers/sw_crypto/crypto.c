@@ -181,13 +181,13 @@ crypto_session_handle_t crypto_open(px4_crypto_algorithm_t algorithm)
 	case CRYPTO_XCHACHA20: {
 			chacha20_context_t *context = XMALLOC(sizeof(chacha20_context_t));
 
-			if (!context) {
+			if (!context || px4_get_secure_random(context->nonce, sizeof(context->nonce)) != sizeof(context->nonce)) {
+				XFREE(context);
 				ret.handle = 0;
 				crypto_open_count--;
 
 			} else {
 				ret.context = context;
-				px4_get_secure_random(context->nonce, sizeof(context->nonce));
 				context->ctr = 0;
 			}
 		}
@@ -533,12 +533,13 @@ bool crypto_generate_key(crypto_session_handle_t handle, uint8_t idx, bool persi
 			key_cache[idx].key = SECMEM_ALLOC(32);
 		}
 
-		if (key_cache[idx].key) {
+		if (key_cache[idx].key && px4_get_secure_random(key_cache[idx].key, 32) == 32) {
 			key_cache[idx].key_size = 32;
-			px4_get_secure_random(key_cache[idx].key, 32);
 			ret = true;
 
 		} else {
+			SECMEM_FREE(key_cache[idx].key);
+			key_cache[idx].key = NULL;
 			key_cache[idx].key_size = 0;
 		}
 
@@ -711,12 +712,10 @@ bool crypto_renew_nonce(crypto_session_handle_t handle, const uint8_t *nonce, si
 				ret = true;
 
 			} else {
-				px4_get_secure_random(context->nonce, sizeof(context->nonce));
-				ret = true;
+				ret = px4_get_secure_random(context->nonce, sizeof(context->nonce)) == sizeof(context->nonce);
 			}
 
 			context->ctr = 0;
-			ret = true;
 		}
 		break;
 
