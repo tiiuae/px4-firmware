@@ -33,6 +33,7 @@
 
 #pragma once
 
+#include <errno.h>
 #include <px4_platform_common/atomic.h>
 #include <px4_platform_common/mmap.h>
 #include <px4_platform_common/sem.h>
@@ -622,11 +623,12 @@ private: //class methods
 		int8_t reserve();
 		void free(int8_t i);
 
-		void take(int8_t i) { do {} while (_global_sem[i].take() != 0); }
-		int take_interruptible(int8_t i) { return _global_sem[i].take(); }
-		int take_timedwait(int8_t i, struct timespec *abstime) { return _global_sem[i].take_timedwait(abstime); }
-		void release(int8_t i) {_global_sem[i].release(); }
-		int value(int8_t i) { return _global_sem[i].value(); }
+		void take(int8_t i) { if (valid(i)) { do {} while (_global_sem[i].take() != 0); } }
+		int take_interruptible(int8_t i) { return valid(i) ? _global_sem[i].take() : -EINVAL; }
+		int take_timedwait(int8_t i, struct timespec *abstime) { return valid(i) ? _global_sem[i].take_timedwait(abstime) : -EINVAL; }
+		void release(int8_t i) { if (valid(i)) { _global_sem[i].release(); } }
+		int value(int8_t i) { return valid(i) ? _global_sem[i].value() : 0; }
+		static bool valid(int8_t i) { return i >= 0 && i < NUM_GLOBAL_SEMS; }
 
 		class GlobalLock
 		{

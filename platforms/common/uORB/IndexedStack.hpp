@@ -25,7 +25,16 @@ public:
 	H pop_free() { return _stack.pop_free(); }
 	bool rm(H handle) { return _stack.rm(handle); }
 	H head() {return _stack._head;}
-	H next(H handle) {return peek(handle)->next;}
+	H next(H handle)
+	{
+		H n = peek(handle)->next;
+
+		if (S > 0 && ++_steps >= S) {
+			_stack.clear_handle(n);
+		}
+
+		return n;
+	}
 	bool empty() {return !handle_valid(head());}
 	T *peek(H handle) { return handle_valid(handle) ? _stack.peek(handle) : nullptr; }
 	bool handle_valid(H handle) {return _stack.handle_valid(handle); }
@@ -33,6 +42,7 @@ public:
 private:
 
 	class IndexedStack<T, H, S> &_stack;
+	int _steps{0};
 };
 
 
@@ -77,7 +87,7 @@ private:
 			r  = p;
 
 		} else {
-			while (handle_valid((r = peek(p)->next))) {
+			for (int n = 1; (S == 0 || n < S) && handle_valid((r = peek(p)->next)); n++) {
 				if (r == handle) {
 					T *prev = peek(p);
 					T *item = peek(r);
@@ -132,7 +142,7 @@ private:
 
 	T *peek(int8_t handle) { return &_item[handle]; }
 	T *peek(void *handle) { return static_cast<T *>(handle); }
-	static bool handle_valid(int8_t handle) { return handle >= 0; }
+	static bool handle_valid(int8_t handle) { return handle >= 0 && handle < S; }
 	static bool handle_valid(void *handle) { return handle != nullptr; }
 	static void clear_handle(int8_t &x) { x = -1; };
 	static void clear_handle(void *&x) { x = nullptr; };
