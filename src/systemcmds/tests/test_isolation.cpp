@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/boardctl.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -29,6 +30,8 @@ private:
 	bool test_crypto_refused();
 	bool test_hrt_refused();
 	bool test_spawn_refused();
+	bool test_environ_refused();
+	bool test_anonymous_map();
 };
 
 static const struct {
@@ -169,6 +172,51 @@ bool IsolationTest::test_spawn_refused()
 	return true;
 }
 
+bool IsolationTest::test_environ_refused()
+{
+	char **saved = get_environ_ptr();
+	char *forged[] {(char *)session_keys, nullptr};
+	char *const argv[] {(char *)"tests", nullptr};
+	pid_t pid;
+
+	ut_compare("setenv", setenv("ISOLATION", "1", 1), 0);
+	ut_assert("getenv", getenv("ISOLATION") != nullptr && strcmp(getenv("ISOLATION"), "1") == 0);
+
+	set_environ_ptr(forged);
+	const int ret = posix_spawn(&pid, "/bin/tests", nullptr, nullptr, argv, nullptr);
+	set_environ_ptr(saved);
+
+	if (ret == 0) {
+		waitpid(pid, nullptr, 0);
+	}
+
+	PX4_INFO("spawn inheriting session keys as environment: %d", ret);
+	ut_assert("a kernel string was copied into a new environment", ret == EFAULT);
+	ut_compare("unsetenv", unsetenv("ISOLATION"), 0);
+	ut_assert("environment intact", getenv("ISOLATION") == nullptr);
+	return true;
+}
+
+bool IsolationTest::test_anonymous_map()
+{
+	const size_t size = 3 * 4096;
+	uint8_t *map = (uint8_t *)mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	ut_assert("anonymous map", map != MAP_FAILED);
+
+	bool zero = true;
+
+	for (size_t i = 0; i < size; i++) {
+		zero = zero && map[i] == 0;
+	}
+
+	PX4_INFO("anonymous map at %p, zeroed: %d", map, zero);
+	ut_assert("anonymous pages are zeroed", zero);
+	ut_assert("anonymous pages are user memory", (uintptr_t)map >= 0xC0000000);
+	memset(map, 0xa5, size);
+	ut_compare("munmap", munmap(map, size), 0);
+	return true;
+}
+
 bool IsolationTest::run_tests()
 {
 	ut_run_test(test_loads_fault);
@@ -178,6 +226,8 @@ bool IsolationTest::run_tests()
 	ut_run_test(test_crypto_refused);
 	ut_run_test(test_hrt_refused);
 	ut_run_test(test_spawn_refused);
+	ut_run_test(test_environ_refused);
+	ut_run_test(test_anonymous_map);
 
 	return (_tests_failed == 0);
 }
