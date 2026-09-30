@@ -114,4 +114,6 @@ px4_add_module(
 		version
 	)
 
-add_subdirectory(hrt_test)
+if(CONFIG_BUILD_FLAT OR NOT ${PX4_PLATFORM} STREQUAL "nuttx")
+	add_subdirectory(hrt_test)
+endif()
