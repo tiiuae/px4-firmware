@@ -302,6 +302,7 @@ if (CONFIG_BUILD_KERNEL)
 	foreach(module ${module_libraries})
 		get_target_property(MAIN ${module} MAIN)
 		get_target_property(NO_DAEMON ${module} NO_DAEMON)
+		get_target_property(CAPABILITIES ${module} CAPABILITIES)
 
 		# Don't handle modules that don't have a main (entry) function
 		if (NOT MAIN)
@@ -321,6 +322,15 @@ if (CONFIG_BUILD_KERNEL)
 		if (NO_DAEMON)
 			target_compile_options(${BIN} PRIVATE -DNO_DAEMON)
 		endif()
+
+		set(PX4_CAPS 0)
+
+		if (CAPABILITIES)
+			list(TRANSFORM CAPABILITIES PREPEND PR_CAP_)
+			string(JOIN "|" PX4_CAPS ${CAPABILITIES})
+		endif()
+
+		target_compile_options(${BIN} PRIVATE "-DPX4_CAPS=${PX4_CAPS}")
 
 		if (CONFIG_BINFMT_ELF_RELOCATABLE)
 			set(RELOCATABLE -Wl,-r)
