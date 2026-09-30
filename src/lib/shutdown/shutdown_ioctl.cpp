@@ -45,49 +45,69 @@
 
 static int shutdown_ioctl(unsigned int cmd, unsigned long arg)
 {
-	int ret = OK;
-
 	switch (cmd) {
 	case SHUTDOWNIOCREGISTER: {
-			shutdowniocregister_t *data = (shutdowniocregister_t *)arg;
-			data->ret = px4_register_shutdown_hook();
+			px4_user_arg<shutdowniocregister_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			((shutdowniocregister_t *)arg)->ret = px4_register_shutdown_hook();
+			return OK;
 		}
-		break;
 
 	case SHUTDOWNIOCUNREGISTER: {
-			shutdowniocunregister_t *data = (shutdowniocunregister_t *)arg;
-			data->ret = px4_unregister_shutdown_hook(data->handle);
+			px4_user_arg<shutdowniocunregister_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			((shutdowniocunregister_t *)arg)->ret = px4_unregister_shutdown_hook(d->handle);
+			return OK;
 		}
-		break;
 
 	case SHUTDOWNIOCREBOOT: {
+			px4_user_arg<shutdowniocreboot_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
 #if defined(CONFIG_BOARDCTL_RESET)
-			shutdowniocreboot_t *data = (shutdowniocreboot_t *)arg;
-			data->ret = px4_reboot_request(data->request, data->delay_us);
+			((shutdowniocreboot_t *)arg)->ret = px4_reboot_request(d->request, d->delay_us);
 #endif
+			return OK;
 		}
-		break;
 
 	case SHUTDOWNIOCSHUTDOWN: {
+			px4_user_arg<shutdowniocshutdown_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
 #if defined(BOARD_HAS_POWER_CONTROL) || defined(__PX4_POSIX)
-			shutdowniocshutdown_t *data = (shutdowniocshutdown_t *)arg;
-			data->ret = px4_shutdown_request(data->delay_us);
+			((shutdowniocshutdown_t *)arg)->ret = px4_shutdown_request(d->delay_us);
 #endif
+			return OK;
 		}
-		break;
 
 	case SHUTDOWNIOCSETFORCE: {
-			shutdowniocsetforce_t *data = (shutdowniocsetforce_t *)arg;
-			data->ret = shutdown_set_force_flag(data->force);
+			px4_user_arg<shutdowniocsetforce_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			((shutdowniocsetforce_t *)arg)->ret = shutdown_set_force_flag(d->force);
+			return OK;
 		}
-		break;
 
 	default:
-		ret = -ENOTTY;
-		break;
+		return -ENOTTY;
 	}
-
-	return ret;
 }
 
 void shutdown_ioctl_init(void)
