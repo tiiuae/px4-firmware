@@ -62,12 +62,13 @@ STATION=$("$GW" --static-key "$WORK/station.key" --operator-key "$WORK/operator.
 KEYS=$(cargo run -q -p ztcs-mavlink-gateway --example aircraft_keys)
 AIR_PRIV=$(awk '/^static_private/{print $2}' <<<"$KEYS")
 ENROLL=$("$PROV" --link-public "$(awk '/^static_public/{print $2}' <<<"$KEYS")" \
+  --mavlink-sysid 1 \
   --identity-key "$WORK/aircraft.id" --station-key "$WORK/station.key" \
   --device-serial px4-e2e 2>/dev/null)
 PEER=$(awk '/^peer_id/{print $2}' <<<"$ENROLL")
 IDENTITY=$(awk '/^identity /{print $2}' <<<"$ENROLL")
 "$CLI" mint-attestation --seed "$WORK/operator.seed" --peer-id "$PEER" \
-  --device-serial px4-e2e --protocol-family mavlink \
+  --device-serial px4-e2e --protocol-family mavlink --mavlink-sysid 1 \
   --out "$WORK/attest/$PEER.attest" >/dev/null 2>&1
 
 python3 - > "$WORK/gcs.log" 2>&1 <<'PY' &
@@ -80,7 +81,7 @@ for i in (1, 2):
     data, addr = s.recvfrom(2048)
     # The source port is this aircraft's bridge. It must not move across a
     # rekey, or the GCS sees a second vehicle.
-    print("uplink", data.decode(), "from", addr[1], flush=True)
+    print("uplink", data[6:-2].decode(), "from", addr[1], flush=True)
     s.sendto(b"COMMAND_ACK", addr)
 PY
 GCS_PID=$!

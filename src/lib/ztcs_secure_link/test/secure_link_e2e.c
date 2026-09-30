@@ -121,9 +121,12 @@ int main(int argc, char **argv)
       if (secure_link_is_up(&sl) && !sent && t >= quiet_until)
         {
           char payload[64];
+          uint8_t mav[6 + sizeof(payload) + 2] = {0xfe, 0, 0, 1, 1, 0};
           snprintf(payload, sizeof(payload), "%s-%d", argv[6], round + 1);
-          n = secure_link_seal(&sl, t, (const uint8_t *)payload,
-                               strlen(payload), buf, sizeof(buf));
+          mav[1] = (uint8_t)strlen(payload);
+          memcpy(mav + 6, payload, mav[1]);
+          n = secure_link_seal(&sl, t, mav, 6u + mav[1] + 2u,
+                               buf, sizeof(buf));
           if (n > 0)
             {
               send(fd, buf, (size_t)n, 0);
