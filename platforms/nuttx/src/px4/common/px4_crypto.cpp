@@ -38,6 +38,10 @@
 #include <px4_platform_common/defines.h>
 #include <px4_platform/board_ctrl.h>
 
+#include <signal.h>
+#include <string.h>
+#include <unistd.h>
+
 extern "C" {
 #include <nuttx/random.h>
 }
@@ -218,114 +222,281 @@ size_t PX4Crypto::get_min_blocksize(uint8_t key_idx)
 }
 
 #if !defined(CONFIG_BUILD_FLAT)
-int PX4Crypto::crypto_ioctl(unsigned int cmd, unsigned long arg)
+static constexpr int CRYPTO_SESSIONS = 32;
+static constexpr size_t CRYPTO_SIGNATURE_MAX = 512;
+
+static struct {
+	crypto_session_handle_t handle;
+	pid_t owner;
+} g_sessions[CRYPTO_SESSIONS];
+
+static px4_sem_t g_sessions_lock = SEM_INITIALIZER(1);
+
+static bool size_in(size_t *size, const size_t *user)
 {
-	int ret = PX4_OK;
+	if (user == nullptr || !px4_user_ok(user, sizeof(*user))) {
+		return false;
+	}
+
+	*size = *user;
+	return true;
+}
+
+static crypto_session_handle_t *session(const crypto_session_handle_t *user)
+{
+	crypto_session_handle_t handle;
+
+	if (user == nullptr || !px4_user_ok(user, sizeof(handle))) {
+		return nullptr;
+	}
+
+	memcpy(&handle, user, sizeof(handle));
+	const int i = handle.handle - 1;
+
+	if (i < 0 || i >= CRYPTO_SESSIONS || g_sessions[i].owner != getpid()
+	    || !crypto_session_handle_valid(g_sessions[i].handle)) {
+		return nullptr;
+	}
+
+	return &g_sessions[i].handle;
+}
+
+static int session_open(px4_crypto_algorithm_t algorithm)
+{
+	for (int i = 0; i < CRYPTO_SESSIONS; i++) {
+		if (crypto_session_handle_valid(g_sessions[i].handle) && kill(g_sessions[i].owner, 0) < 0) {
+			crypto_close(&g_sessions[i].handle);
+		}
+
+		if (!crypto_session_handle_valid(g_sessions[i].handle)) {
+			g_sessions[i].handle = crypto_open(algorithm);
+			g_sessions[i].owner = getpid();
+			return crypto_session_handle_valid(g_sessions[i].handle) ? i : -1;
+		}
+	}
+
+	return -1;
+}
+
+static int crypto_ioctl_locked(unsigned int cmd, unsigned long arg)
+{
+	crypto_session_handle_t *s = nullptr;
+	size_t n = 0;
+	size_t m = 0;
 
 	switch (cmd) {
 	case CRYPTOIOCOPEN: {
-			cryptoiocopen_t *data = (cryptoiocopen_t *)arg;
-			*(data->handle) = crypto_open(data->algorithm);
-		}
-		break;
+			px4_user_arg<cryptoiocopen_t> d;
 
-	case CRYPTOIOCCLOSE: {
-			crypto_close((crypto_session_handle_t *)arg);
+			if (!d.in(arg) || d->handle == nullptr || !px4_user_ok(d->handle, sizeof(*d->handle))) {
+				return -EFAULT;
+			}
+
+			crypto_session_handle_t user{};
+			const int i = session_open(d->algorithm);
+
+			if (i >= 0) {
+				user = g_sessions[i].handle;
+				user.handle = i + 1;
+				user.context = nullptr;
+			}
+
+			memcpy(d->handle, &user, sizeof(user));
+			return PX4_OK;
 		}
-		break;
+
+	case CRYPTOIOCCLOSE:
+		if ((s = session((const crypto_session_handle_t *)arg)) == nullptr) {
+			return -EFAULT;
+		}
+
+		crypto_close(s);
+		((crypto_session_handle_t *)arg)->handle = 0;
+		return PX4_OK;
 
 	case CRYPTOIOCENCRYPT: {
-			cryptoiocencrypt_t *data = (cryptoiocencrypt_t *)arg;
-			data->ret = crypto_encrypt_data(*(data->handle), data->key_index, data->message, data->message_size, data->cipher,
-							data->cipher_size, data->mac, data->mac_size);
+			px4_user_arg<cryptoiocencrypt_t> d;
+
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr || !size_in(&n, d->cipher_size)
+			    || (d->mac_size != nullptr && !size_in(&m, d->mac_size)) || !px4_user_ok(d->message, d->message_size)
+			    || !px4_user_ok(d->cipher, n) || !px4_user_ok(d->mac, m)) {
+				return -EFAULT;
+			}
+
+			const bool ret = crypto_encrypt_data(*s, d->key_index, d->message, d->message_size, d->cipher, &n, d->mac,
+							     d->mac_size != nullptr ? &m : nullptr);
+			*d->cipher_size = n;
+
+			if (d->mac_size != nullptr) {
+				*d->mac_size = m;
+			}
+
+			((cryptoiocencrypt_t *)arg)->ret = ret;
+			return PX4_OK;
 		}
-		break;
 
 	case CRYPTOIOCGENKEY: {
-			cryptoiocgenkey_t *data = (cryptoiocgenkey_t *)arg;
-			data->ret = crypto_generate_key(*(data->handle), data->idx, data->persistent);
-		}
-		break;
+			px4_user_arg<cryptoiocgenkey_t> d;
 
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr) {
+				return -EFAULT;
+			}
+
+			((cryptoiocgenkey_t *)arg)->ret = crypto_generate_key(*s, d->idx, d->persistent);
+			return PX4_OK;
+		}
 
 	case CRYPTOIOCGENKEYPAIR: {
-			cryptoiocgenkeypair_t *data = (cryptoiocgenkeypair_t *)arg;
-			data->ret = crypto_generate_keypair(*(data->handle), data->key_size, data->key_idx, data->persistent);
+			px4_user_arg<cryptoiocgenkeypair_t> d;
+
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr) {
+				return -EFAULT;
+			}
+
+			((cryptoiocgenkeypair_t *)arg)->ret = crypto_generate_keypair(*s, d->key_size, d->key_idx, d->persistent);
+			return PX4_OK;
 		}
-		break;
 
 	case CRYPTOIOCRENEWNONCE: {
-			cryptoiocrenewnonce_t *data = (cryptoiocrenewnonce_t *)arg;
-			data->ret = crypto_renew_nonce(*(data->handle), data->nonce, data->nonce_size);
+			px4_user_arg<cryptoiocrenewnonce_t> d;
+
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr || !px4_user_ok(d->nonce, d->nonce_size)) {
+				return -EFAULT;
+			}
+
+			((cryptoiocrenewnonce_t *)arg)->ret = crypto_renew_nonce(*s, d->nonce, d->nonce_size);
+			return PX4_OK;
 		}
-		break;
 
 	case CRYPTOIOCGETNONCE: {
-			cryptoiocgetnonce_t *data = (cryptoiocgetnonce_t *)arg;
-			data->ret = crypto_get_nonce(*(data->handle), data->nonce, data->nonce_len);
+			px4_user_arg<cryptoiocgetnonce_t> d;
 
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr || !size_in(&n, d->nonce_len)
+			    || !px4_user_ok(d->nonce, n)) {
+				return -EFAULT;
+			}
+
+			const bool ret = crypto_get_nonce(*s, d->nonce, &n);
+			*d->nonce_len = n;
+			((cryptoiocgetnonce_t *)arg)->ret = ret;
+			return PX4_OK;
 		}
-		break;
 
 	case CRYPTOIOCSETKEY: {
-			cryptoiocsetkey_t *data = (cryptoiocsetkey_t *)arg;
-			data->ret = crypto_set_key(*(data->handle), data->authentication_key_idx, data->signature, data->key,
-						   data->key_len, data->key_idx);
+			px4_user_arg<cryptoiocsetkey_t> d;
+
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr || !px4_user_ok(d->signature, CRYPTO_SIGNATURE_MAX)
+			    || !px4_user_ok(d->key, d->key_len)) {
+				return -EFAULT;
+			}
+
+			((cryptoiocsetkey_t *)arg)->ret = crypto_set_key(*s, d->authentication_key_idx, d->signature, d->key, d->key_len,
+							  d->key_idx);
+			return PX4_OK;
 		}
-		break;
 
 	case CRYPTOIOCGETKEY: {
-			cryptoiocgetkey_t *data = (cryptoiocgetkey_t *)arg;
-			data->ret = crypto_get_encrypted_key(*(data->handle), data->key_idx, data->key, data->max_len,
-							     data->encryption_key_idx);
+			px4_user_arg<cryptoiocgetkey_t> d;
+
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr || !size_in(&n, d->max_len)
+			    || !px4_user_ok(d->key, n)) {
+				return -EFAULT;
+			}
+
+			const bool ret = crypto_get_encrypted_key(*s, d->key_idx, d->key, &n, d->encryption_key_idx);
+			*d->max_len = n;
+			((cryptoiocgetkey_t *)arg)->ret = ret;
+			return PX4_OK;
 		}
-		break;
 
 	case CRYPTOIOCSIGN: {
-			cryptoiocsign_t *data = (cryptoiocsign_t *)arg;
-			data->ret = crypto_signature_gen(*(data->handle), data->key_index, data->signature, data->message,
-							 data->message_size);
+			px4_user_arg<cryptoiocsign_t> d;
+
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr || !px4_user_ok(d->signature, CRYPTO_SIGNATURE_MAX)
+			    || !px4_user_ok(d->message, d->message_size)) {
+				return -EFAULT;
+			}
+
+			((cryptoiocsign_t *)arg)->ret = crypto_signature_gen(*s, d->key_index, d->signature, d->message, d->message_size);
+			return PX4_OK;
 		}
-		break;
 
 	case CRYPTOIOCGETPUBLICKEY: {
-			cryptoiocgetpublickey_t *data = (cryptoiocgetpublickey_t *)arg;
-			data->ret = crypto_get_public_key(*(data->handle), data->key_index, data->pubkey, data->pubkey_size);
+			px4_user_arg<cryptoiocgetpublickey_t> d;
+
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr || !size_in(&n, d->pubkey_size)
+			    || !px4_user_ok(d->pubkey, n)) {
+				return -EFAULT;
+			}
+
+			const bool ret = crypto_get_public_key(*s, d->key_index, d->pubkey, &n);
+			*d->pubkey_size = n;
+			((cryptoiocgetpublickey_t *)arg)->ret = ret;
+			return PX4_OK;
 		}
-		break;
 
 	case CRYPTOIOCKEYAGREEMENT: {
-			cryptoiockeyagreement_t *data = (cryptoiockeyagreement_t *)arg;
-			data->ret = crypto_key_agreement(*(data->handle), data->key_index, data->peer, data->peer_size,
-							data->secret, data->secret_size);
+			px4_user_arg<cryptoiockeyagreement_t> d;
+
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr || !px4_user_ok(d->peer, d->peer_size)
+			    || !size_in(&n, d->secret_size) || !px4_user_ok(d->secret, n)) {
+				return -EFAULT;
+			}
+
+			const bool ret = crypto_key_agreement(*s, d->key_index, d->peer, d->peer_size, d->secret, &n);
+			*d->secret_size = n;
+			((cryptoiockeyagreement_t *)arg)->ret = ret;
+			return PX4_OK;
 		}
-		break;
 
 	case CRYPTOIOCSIGNATURECHECK: {
-			cryptoiocsignaturecheck_t *data = (cryptoiocsignaturecheck_t *)arg;
-			data->ret = crypto_signature_check(*(data->handle), data->key_index, data->signature, data->message,
-							   data->message_size);
+			px4_user_arg<cryptoiocsignaturecheck_t> d;
+
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr || !px4_user_ok(d->signature, CRYPTO_SIGNATURE_MAX)
+			    || !px4_user_ok(d->message, d->message_size)) {
+				return -EFAULT;
+			}
+
+			((cryptoiocsignaturecheck_t *)arg)->ret = crypto_signature_check(*s, d->key_index, d->signature, d->message,
+					d->message_size);
+			return PX4_OK;
 		}
-		break;
 
 	case CRYPTOIOCGETBLOCKSZ: {
-			cryptoiocgetblocksz_t *data = (cryptoiocgetblocksz_t *)arg;
-			data->ret = crypto_get_min_blocksize(*(data->handle), data->key_idx);
+			px4_user_arg<cryptoiocgetblocksz_t> d;
+
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr) {
+				return -EFAULT;
+			}
+
+			((cryptoiocgetblocksz_t *)arg)->ret = crypto_get_min_blocksize(*s, d->key_idx);
+			return PX4_OK;
 		}
-		break;
 
 	case CRYPTOIOCDECRYPTDATA: {
-			cryptoiocdecryptdata_t *data = (cryptoiocdecryptdata_t *)arg;
-			data->ret = crypto_decrypt_data(*(data->handle), data->key_index, data->cipher, data->cipher_size,
-							data->mac, data->mac_size, data->message, data->message_size);
+			px4_user_arg<cryptoiocdecryptdata_t> d;
+
+			if (!d.in(arg) || (s = session(d->handle)) == nullptr || !px4_user_ok(d->cipher, d->cipher_size)
+			    || !px4_user_ok(d->mac, d->mac_size) || !size_in(&n, d->message_size) || !px4_user_ok(d->message, n)) {
+				return -EFAULT;
+			}
+
+			const bool ret = crypto_decrypt_data(*s, d->key_index, d->cipher, d->cipher_size, d->mac, d->mac_size, d->message, &n);
+			*d->message_size = n;
+			((cryptoiocdecryptdata_t *)arg)->ret = ret;
+			return PX4_OK;
 		}
-		break;
 
 	default:
-		ret = PX4_ERROR;
-		break;
+		return PX4_ERROR;
 	}
+}
 
+int PX4Crypto::crypto_ioctl(unsigned int cmd, unsigned long arg)
+{
+	px4_sem_wait(&g_sessions_lock);
+	const int ret = crypto_ioctl_locked(cmd, arg);
+	px4_sem_post(&g_sessions_lock);
 	return ret;
 }
 #endif // !defined(CONFIG_BUILD_FLAT)

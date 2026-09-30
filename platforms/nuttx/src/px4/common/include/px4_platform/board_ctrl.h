@@ -37,6 +37,52 @@
 #include <px4_platform_common/defines.h>
 
 #include <stdbool.h>
+#include <stddef.h>
+
+#ifdef CONFIG_BUILD_KERNEL
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include <nuttx/addrenv.h>
+#ifdef __cplusplus
+}
+#endif
+#endif
+
+static inline bool px4_user_ok(const void *ptr, size_t len)
+{
+#ifdef CONFIG_BUILD_KERNEL
+	return ptr == NULL || uaccess_ok(ptr, len);
+#else
+	(void)ptr;
+	(void)len;
+	return true;
+#endif
+}
+
+#ifdef __cplusplus
+#include <string.h>
+
+template<typename T>
+class px4_user_arg
+{
+public:
+	bool in(unsigned long arg)
+	{
+		if (arg == 0 || !px4_user_ok((const void *)arg, sizeof(T))) {
+			return false;
+		}
+
+		memcpy(_raw, (const void *)arg, sizeof(T));
+		return true;
+	}
+
+	const T *operator->() const { return reinterpret_cast<const T *>(_raw); }
+
+private:
+	alignas(T) unsigned char _raw[sizeof(T)];
+};
+#endif
 
 /* Encode the px4 boardctl ioctls in the following way:
  * the highest 4-bits identifies the boardctl's used by this if
