@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <nuttx/fs/ioctl.h>
 #include <sys/boardctl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -32,6 +33,7 @@ private:
 	bool test_spawn_refused();
 	bool test_environ_refused();
 	bool test_anonymous_map();
+	bool test_kernel_pointer_ioctls_refused();
 };
 
 static const struct {
@@ -217,6 +219,26 @@ bool IsolationTest::test_anonymous_map()
 	return true;
 }
 
+bool IsolationTest::test_kernel_pointer_ioctls_refused()
+{
+	const int fd = open("/dev/ram0", O_RDONLY);
+	ut_assert("open /dev/ram0", fd >= 0);
+
+	void *ptr = nullptr;
+	errno = 0;
+	const int xip = ioctl(fd, BIOC_XIPBASE, (unsigned long)&ptr);
+	const int xip_err = errno;
+	errno = 0;
+	const int priv = ioctl(fd, DIOC_GETPRIV, (unsigned long)&ptr);
+	const int priv_err = errno;
+	close(fd);
+
+	PX4_INFO("BIOC_XIPBASE: %d errno %d, DIOC_GETPRIV: %d errno %d, pointer %p", xip, xip_err, priv, priv_err, ptr);
+	ut_assert("a kernel pointer was handed out", xip < 0 && xip_err == EPERM && priv < 0 && priv_err == EPERM
+		  && ptr == nullptr);
+	return true;
+}
+
 bool IsolationTest::run_tests()
 {
 	ut_run_test(test_loads_fault);
@@ -228,6 +250,7 @@ bool IsolationTest::run_tests()
 	ut_run_test(test_spawn_refused);
 	ut_run_test(test_environ_refused);
 	ut_run_test(test_anonymous_map);
+	ut_run_test(test_kernel_pointer_ioctls_refused);
 
 	return (_tests_failed == 0);
 }
