@@ -80,6 +80,12 @@ if(${PX4_PLATFORM} STREQUAL "nuttx")
 		)
 endif()
 
+if(CONFIG_SSRC_CRYPTO_IMX9)
+	list(APPEND srcs
+		test_session_slots.cpp
+		)
+endif()
+
 px4_add_module(
 	MODULE systemcmds__tests
 	MAIN tests

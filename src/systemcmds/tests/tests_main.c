@@ -77,6 +77,9 @@ const struct {
 	{"uart_console",	test_uart_console,	OPT_NOJIGTEST | OPT_NOALLTEST},
 	{"crypto",		test_crypto,		0},
 #endif /* __PX4_NUTTX */
+#ifdef CONFIG_SSRC_CRYPTO_IMX9
+	{"session_slots",	test_session_slots,	OPT_NOJIGTEST | OPT_NOALLTEST},
+#endif
 
 	{"atomic_bitset",	test_atomic_bitset,	0},
 	{"bezier",		test_bezierQuad,	0},
