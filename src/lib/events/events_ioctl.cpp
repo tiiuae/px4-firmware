@@ -45,21 +45,22 @@
 
 static int events_ioctl(unsigned int cmd, unsigned long arg)
 {
-	int ret = OK;
-
 	switch (cmd) {
 	case EVENTSIOCSEND: {
-			eventiocsend_t *data = (eventiocsend_t *)arg;
-			events::send(data->event);
+			px4_user_arg<eventiocsend_t> d;
+
+			if (!d.in(arg) || !px4_user_ok(&d->event, sizeof(d->event))) {
+				return -EFAULT;
+			}
+
+			events::EventType event = d->event;
+			events::send(event);
+			return OK;
 		}
-		break;
 
 	default:
-		ret = -ENOTTY;
-		break;
+		return -ENOTTY;
 	}
-
-	return ret;
 }
 
 void events_ioctl_init(void)
