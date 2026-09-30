@@ -11,10 +11,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <nuttx/fs/ioctl.h>
+#include <nuttx/mtd/mtd.h>
+#include <nuttx/timers/pwm.h>
+#include <arch/syscall.h>
 #include <px4_platform/board_ctrl.h>
 #include <sys/boardctl.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
+#include <sys/syscall.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/uio.h>
@@ -38,6 +42,8 @@ private:
 	bool test_anonymous_map();
 	bool test_kernel_pointer_ioctls_refused();
 	bool test_capabilities_enforced();
+	bool test_bounds_refused();
+	bool test_erase_bounded();
 };
 
 static const struct {
@@ -276,6 +282,69 @@ bool IsolationTest::test_capabilities_enforced()
 	return true;
 }
 
+static int pwm_probe(const char *dev)
+{
+	pwm_info_s info {};
+	info.frequency = 50;
+
+	for (auto &channel : info.channels) {
+		channel.channel = -1;
+	}
+
+	info.channels[0].channel = -2;
+	info.channels[0].duty = 0x8000;
+
+	const int fd = open(dev, O_RDONLY);
+
+	if (fd < 0) {
+		return -1;
+	}
+
+	int ret = ioctl(fd, PWMIOC_SETCHARACTERISTICS, (unsigned long)&info);
+
+	if (ret == 0) {
+		ret = ioctl(fd, PWMIOC_START, 0);
+	}
+
+	const int err = ret < 0 ? errno : 0;
+	ioctl(fd, PWMIOC_STOP, 0);
+	close(fd);
+	return err;
+}
+
+bool IsolationTest::test_bounds_refused()
+{
+	const int nr = probe("syscall", 0);
+	const int pages = probe("pgalloc", 0x100000000);
+	const int flexio = pwm_probe("/dev/pwm1");
+	const int tpm = pwm_probe("/dev/pwm_buzz");
+
+	PX4_INFO("syscall one past the table: %s", nr == 0 ? "ENOSYS" : "DISPATCHED");
+	PX4_INFO("pgalloc above user space: %s", pages == 0 ? "refused" : "MAPPED");
+	PX4_INFO("PWM channel -2: FlexIO errno %d, TPM errno %d", flexio, tpm);
+	ut_assert("a bound let a caller through", nr == 0 && pages == 0 && flexio == EINVAL && tpm == EINVAL);
+	return true;
+}
+
+bool IsolationTest::test_erase_bounded()
+{
+	mtd_geometry_s geo {};
+	const int fd = open("/dev/mtd_px4_1", O_RDWR);
+	ut_assert("open /dev/mtd_px4_1", fd >= 0);
+	ut_compare("geometry", ioctl(fd, MTDIOC_GEOMETRY, (unsigned long)&geo), 0);
+
+	mtd_erase_s erase {geo.neraseblocks, 1};
+	errno = 0;
+	const int ret = ioctl(fd, MTDIOC_ERASESECTORS, (unsigned long)&erase);
+	const int err = errno;
+	close(fd);
+
+	PX4_INFO("erase block %u of a %u-block partition: %d, errno %d", (unsigned)erase.startblock,
+		 (unsigned)geo.neraseblocks, ret, err);
+	ut_assert("an erase left its partition", ret < 0 && err == ENXIO);
+	return true;
+}
+
 bool IsolationTest::run_tests()
 {
 	ut_run_test(test_loads_fault);
@@ -289,6 +358,8 @@ bool IsolationTest::run_tests()
 	ut_run_test(test_anonymous_map);
 	ut_run_test(test_kernel_pointer_ioctls_refused);
 	ut_run_test(test_capabilities_enforced);
+	ut_run_test(test_erase_bounded);
+	ut_run_test(test_bounds_refused);
 
 	return (_tests_failed == 0);
 }
@@ -302,6 +373,12 @@ extern "C" int test_isolation(int argc, char *argv[])
 
 		if (!strcmp(argv[1], "caps")) {
 			return capability_probe();
+
+		} else if (!strcmp(argv[1], "syscall")) {
+			return (long)sys_call0(SYS_maxsyscall) != -ENOSYS;
+
+		} else if (!strcmp(argv[1], "pgalloc")) {
+			return sys_call2(SYS_pgalloc, addr, 1) != 0;
 
 		} else if (!strcmp(argv[1], "load")) {
 			(void) * (volatile uint32_t *)addr;
