@@ -11,7 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <nuttx/fs/ioctl.h>
+#include <px4_platform/board_ctrl.h>
 #include <sys/boardctl.h>
+#include <sys/mount.h>
+#include <sys/prctl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/uio.h>
@@ -34,6 +37,7 @@ private:
 	bool test_environ_refused();
 	bool test_anonymous_map();
 	bool test_kernel_pointer_ioctls_refused();
+	bool test_capabilities_enforced();
 };
 
 static const struct {
@@ -239,6 +243,39 @@ bool IsolationTest::test_kernel_pointer_ioctls_refused()
 	return true;
 }
 
+static int capability_probe()
+{
+	char *const argv[] {(char *)"ver", nullptr};
+	platformioclaunch_t launch {1, (char **)argv, 0};
+	pid_t pid;
+	int got = 0;
+
+	prctl(PR_CAPS_DROP, PR_CAP_ALL);
+
+	const int fd = open("/dev/mtd_certs", O_RDONLY);
+	got |= (fd >= 0 || errno != EPERM) << 0;
+
+	if (fd >= 0) {
+		close(fd);
+	}
+
+	got |= (posix_spawn(&pid, "/bin/tests", nullptr, nullptr, argv, nullptr) != EPERM) << 1;
+	got |= (boardctl(PLATFORMIOCLAUNCH, (uintptr_t)&launch) == 0 || errno != EPERM) << 2;
+	got |= (mount(nullptr, "/tmp/caps", "tmpfs", 0, nullptr) == 0 || errno != EPERM) << 3;
+	got |= (prctl(PR_CAPS_GET) != 0) << 4;
+	return got;
+}
+
+bool IsolationTest::test_capabilities_enforced()
+{
+	ut_compare("tests holds every capability", prctl(PR_CAPS_GET), PR_CAP_ALL);
+
+	const int got = probe("caps", 0);
+	PX4_INFO("without capabilities: raw open, spawn, launch, mount, caps left: 0x%x through", got);
+	ut_compare("a process without capabilities got through", got, 0);
+	return true;
+}
+
 bool IsolationTest::run_tests()
 {
 	ut_run_test(test_loads_fault);
@@ -251,6 +288,7 @@ bool IsolationTest::run_tests()
 	ut_run_test(test_environ_refused);
 	ut_run_test(test_anonymous_map);
 	ut_run_test(test_kernel_pointer_ioctls_refused);
+	ut_run_test(test_capabilities_enforced);
 
 	return (_tests_failed == 0);
 }
@@ -262,7 +300,10 @@ extern "C" int test_isolation(int argc, char *argv[])
 		struct iovec iov {(void *)addr, 32};
 		int fds[2];
 
-		if (!strcmp(argv[1], "load")) {
+		if (!strcmp(argv[1], "caps")) {
+			return capability_probe();
+
+		} else if (!strcmp(argv[1], "load")) {
 			(void) * (volatile uint32_t *)addr;
 
 		} else if (pipe(fds) == 0) {
