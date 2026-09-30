@@ -40,13 +40,7 @@
 #include <stddef.h>
 
 #ifdef CONFIG_BUILD_KERNEL
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include <nuttx/addrenv.h>
-#ifdef __cplusplus
-}
-#endif
 #endif
 
 static inline bool px4_user_ok(const void *ptr, size_t len)
@@ -77,8 +71,8 @@ public:
 		return true;
 	}
 
-	const T &operator*() const { return *reinterpret_cast<const T *>(_raw); }
-	const T *operator->() const { return reinterpret_cast<const T *>(_raw); }
+	const T &operator*() const { return *operator->(); }
+	const T *operator->() const { return static_cast<const T *>(static_cast<const void *>(_raw)); }
 
 private:
 	alignas(T) unsigned char _raw[sizeof(T)];
