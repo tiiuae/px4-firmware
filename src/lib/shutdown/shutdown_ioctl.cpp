@@ -41,6 +41,8 @@
 
 #include <errno.h>
 
+#include <nuttx/sched.h>
+
 #include "shutdown_ioctl.h"
 
 static int shutdown_ioctl(unsigned int cmd, unsigned long arg)
@@ -75,6 +77,10 @@ static int shutdown_ioctl(unsigned int cmd, unsigned long arg)
 				return -EFAULT;
 			}
 
+			if (!nxsched_capable(PR_CAP_ADMIN)) {
+				return -EPERM;
+			}
+
 #if defined(CONFIG_BOARDCTL_RESET)
 			((shutdowniocreboot_t *)arg)->ret = px4_reboot_request(d->request, d->delay_us);
 #endif
@@ -86,6 +92,10 @@ static int shutdown_ioctl(unsigned int cmd, unsigned long arg)
 
 			if (!d.in(arg)) {
 				return -EFAULT;
+			}
+
+			if (!nxsched_capable(PR_CAP_ADMIN)) {
+				return -EPERM;
 			}
 
 #if defined(BOARD_HAS_POWER_CONTROL) || defined(__PX4_POSIX)

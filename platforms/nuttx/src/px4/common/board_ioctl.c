@@ -46,6 +46,7 @@
 #include <string.h>
 
 #include <nuttx/kmalloc.h>
+#include <nuttx/sched.h>
 
 #include <NuttX/kernel_builtin/kernel_builtin_proto.h>
 
@@ -207,6 +208,10 @@ static int platform_ioctl(unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case PLATFORMIOCLAUNCH:
+		if (!nxsched_capable(PR_CAP_ADMIN)) {
+			return -EPERM;
+		}
+
 		return launch_user_builtin(arg);
 
 	case PLATFORMIOCVBUSSTATE:
