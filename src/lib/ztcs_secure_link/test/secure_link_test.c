@@ -7,10 +7,24 @@
 #include "../secure_link.h"
 
 #include <assert.h>
+#include <sodium.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
 static int failures;
+static bool random_fails;
+
+int noise_random(uint8_t *out, size_t len)
+{
+  if (random_fails)
+    {
+      return -1;
+    }
+
+  randombytes_buf(out, len);
+  return 0;
+}
 
 #define CHECK(cond, ...)                                                   \
   do {                                                                     \
@@ -293,6 +307,56 @@ static void test_nothing_is_sealed_before_a_session(void)
   CHECK(!secure_link_is_up(&sl), "reported up while handshaking");
 }
 
+static void test_no_entropy_after_silence_seals_nothing(void)
+{
+  struct secure_link sl;
+  struct noise_session peer;
+  uint8_t out[SECURE_LINK_MTU];
+  uint64_t now = 1000000 + SECURE_LINK_SILENCE_US + 1;
+
+  fake_session(&sl, &peer, 1000000);
+  random_fails = true;
+
+  CHECK(secure_link_poll(&sl, now, out, sizeof(out)) == NOISE_ERR_RANDOM,
+        "a handshake left without entropy");
+  CHECK(!secure_link_is_up(&sl), "up on a wiped session");
+  CHECK(secure_link_seal(&sl, now, (const uint8_t *)"x", 1, out, sizeof(out)) < 0,
+        "sealed under a wiped session");
+
+  random_fails = false;
+  end_session(&sl, &peer);
+}
+
+static void test_no_entropy_retries_on_the_backoff(void)
+{
+  struct secure_link sl;
+  struct secure_link_keys k = dummy_keys();
+  uint8_t out[SECURE_LINK_MTU];
+  uint64_t now = 1000000;
+  int attempts = 0;
+  int n = 0;
+
+  secure_link_init(&sl, &k, now);
+  random_fails = true;
+
+  for (; now < 21000000; now += 5000)
+    {
+      attempts += secure_link_poll(&sl, now, out, sizeof(out)) == NOISE_ERR_RANDOM;
+    }
+
+  CHECK(attempts >= 5 && attempts <= 9, "expected a handful of attempts, got %d", attempts);
+
+  random_fails = false;
+
+  for (; now < 81000000 && n <= 0; now += 5000)
+    {
+      n = secure_link_poll(&sl, now, out, sizeof(out));
+    }
+
+  CHECK(n == NOISE_MSG1_LEN, "no handshake once entropy returned");
+  secure_link_close(&sl);
+}
+
 int main(void)
 {
   test_backoff_widens_and_settles();
@@ -304,6 +368,8 @@ int main(void)
   test_a_rekey_runs_while_the_session_carries_on();
   test_a_session_never_renewed_ends_at_its_max_age();
   test_nothing_is_sealed_before_a_session();
+  test_no_entropy_after_silence_seals_nothing();
+  test_no_entropy_retries_on_the_backoff();
 
   printf(failures ? "%d failure(s)\n" : "all state machine tests passed\n",
          failures);

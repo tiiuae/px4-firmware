@@ -25,6 +25,11 @@ static int start_handshake(struct secure_link *sl, uint64_t now_us,
   size_t n = 0;
   int rc;
 
+  sl->state = SECURE_LINK_HANDSHAKING;
+  sl->decrypt_fails = 0;
+  sl->next_retry_us = now_us + sl->retry_interval_us
+                      + jitter_us(sl->retry_interval_us);
+
   if (cap < NOISE_MSG1_LEN)
     {
       return NOISE_ERR_INPUT;
@@ -38,10 +43,6 @@ static int start_handshake(struct secure_link *sl, uint64_t now_us,
       return rc;
     }
 
-  sl->state = SECURE_LINK_HANDSHAKING;
-  sl->decrypt_fails = 0;
-  sl->next_retry_us = now_us + sl->retry_interval_us
-                      + jitter_us(sl->retry_interval_us);
   sl->handshakes++;
   return (int)n;
 }

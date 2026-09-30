@@ -49,7 +49,7 @@ it there, then copy.
 ## Test
 
 ```sh
-./test/run.sh                          # transport, against a stub link
+ZTCS_DIR=~/Code/ztcs ./test/run.sh     # state machine, and transport against a stub link
 ZTCS_DIR=~/Code/ztcs ./test/e2e.sh     # state machine against the real gateway
 ```
 

@@ -4,12 +4,23 @@
 set -euo pipefail
 
 here=$(dirname "$(realpath "$0")")
+ztcs=${ZTCS_DIR:-$HOME/Code/ztcs}
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
+
+[ -d "$ztcs" ] || { echo "set ZTCS_DIR to a ZTCS checkout" >&2; exit 1; }
+
+gcc -O2 -Wall -Wextra -std=gnu99 -I "$here/.." \
+    -o "$out/secure_link_test" \
+    "$here/secure_link_test.c" "$here/../secure_link.c" \
+    "$here/../noise/noise_ik.c" "$here/../noise/chacha20_ietf.c" \
+    "$ztcs/crates/ztcs-noise-udp/c/backend_sodium.c" \
+    -lsodium
 
 g++ -std=c++17 -Wall -Wextra -I "$here/fake" -I "$here/.." \
     -o "$out/link_udp_test" \
     "$here/link_udp_test.cpp" "$here/stub_link.cpp" "$here/../ZtcsLinkUdp.cpp" \
     -lpthread
 
+"$out/secure_link_test"
 "$out/link_udp_test"
