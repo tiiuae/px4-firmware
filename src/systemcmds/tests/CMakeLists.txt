@@ -101,6 +101,7 @@ px4_add_module(
 	MODULE systemcmds__tests
 	MAIN tests
 	STACK_MAIN 10000
+	NO_DAEMON
 	COMPILE_FLAGS
 		-Wno-double-promotion
 		-Wno-float-equal
