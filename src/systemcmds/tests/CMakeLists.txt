@@ -100,6 +100,7 @@ endif()
 px4_add_module(
 	MODULE systemcmds__tests
 	MAIN tests
+	CAPABILITIES RAWIO SPAWN ADMIN
 	STACK_MAIN 10000
 	NO_DAEMON
 	COMPILE_FLAGS

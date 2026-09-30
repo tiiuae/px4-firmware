@@ -34,6 +34,7 @@
 px4_add_module(
 	MODULE systemcmds__launch_kmod
 	MAIN launch_kmod
+	CAPABILITIES RAWIO ADMIN
 	COMPILE_FLAGS
 	NO_DAEMON
 	SRCS

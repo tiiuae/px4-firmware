@@ -41,6 +41,7 @@ add_subdirectory(MulticopterThrowLaunch)
 px4_add_module(
 	MODULE modules__commander
 	MAIN commander
+	CAPABILITIES RAWIO ADMIN
 	COMPILE_FLAGS
 	SRCS
 		accelerometer_calibration.cpp

@@ -104,9 +104,16 @@ if(CONFIG_LIB_ZTCS_SECURE_LINK)
 	set(ZTCS_SECURE_LINK_DEP ztcs_secure_link)
 endif()
 
+if(CONFIG_MAVLINK_SHELL_REQUIRES_SECURE_LINK)
+	set(SHELL_CAPABILITIES SPAWN ADMIN)
+else()
+	set(SHELL_CAPABILITIES RAWIO SPAWN ADMIN)
+endif()
+
 px4_add_module(
 	MODULE modules__mavlink
 	MAIN mavlink
+	CAPABILITIES ${SHELL_CAPABILITIES}
 	COMPILE_FLAGS
 		-Wno-enum-compare # ROTATION <-> MAV_SENSOR_ROTATION
 		#-DDEBUG_BUILD
@@ -154,6 +161,7 @@ px4_add_module(
 px4_add_module(
 	MODULE modules__mavlink_shell
 	MAIN mavlink_shell
+	CAPABILITIES RAWIO SPAWN ADMIN
 	STACK_MAIN 3072
 	NO_DAEMON
 	SRCS

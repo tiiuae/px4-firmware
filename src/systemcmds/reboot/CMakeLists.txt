@@ -33,6 +33,7 @@
 px4_add_module(
 	MODULE systemcmds__reboot
 	MAIN reboot
+	CAPABILITIES ADMIN
 	COMPILE_FLAGS
 	SRCS
 		reboot.cpp

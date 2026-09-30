@@ -30,9 +30,16 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
+if(CONFIG_MAVLINK_SHELL_REQUIRES_SECURE_LINK)
+	set(SHELL_CAPABILITIES SPAWN ADMIN)
+else()
+	set(SHELL_CAPABILITIES RAWIO SPAWN ADMIN)
+endif()
+
 px4_add_module(
 	MODULE drivers__cdcacm_autostart
 	MAIN cdcacm_autostart
+	CAPABILITIES ${SHELL_CAPABILITIES}
 	COMPILE_FLAGS
 		# -DDEBUG_BUILD
 	SRCS
