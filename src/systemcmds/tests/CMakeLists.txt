@@ -74,10 +74,15 @@ endif()
 if(${PX4_PLATFORM} STREQUAL "nuttx")
 	list(APPEND srcs
 		test_mount.cpp
-		test_time.c
 		test_uart_break.c
 		test_crypto.cpp
 		)
+
+	if(CONFIG_BUILD_FLAT)
+		list(APPEND srcs
+			test_time.c
+			)
+	endif()
 endif()
 
 if(CONFIG_SSRC_CRYPTO_IMX9)

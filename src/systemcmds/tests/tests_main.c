@@ -71,7 +71,9 @@ const struct {
 	{"file",		test_file,		OPT_NOJIGTEST | OPT_NOALLTEST},
 	{"led",			test_led,		0},
 	{"mount",		test_mount,		OPT_NOJIGTEST | OPT_NOALLTEST},
+#ifdef CONFIG_BUILD_FLAT
 	{"time",		test_time,		OPT_NOJIGTEST},
+#endif
 	{"uart_baudchange",	test_uart_baudchange,	OPT_NOJIGTEST},
 	{"uart_break",		test_uart_break,	OPT_NOJIGTEST | OPT_NOALLTEST},
 	{"uart_console",	test_uart_console,	OPT_NOJIGTEST | OPT_NOALLTEST},
