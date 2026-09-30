@@ -5,6 +5,8 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
+#include <sched.h>
 #include <signal.h>
 #include <spawn.h>
 #include <stdio.h>
@@ -12,6 +14,7 @@
 #include <string.h>
 #include <nuttx/fs/ioctl.h>
 #include <nuttx/mtd/mtd.h>
+#include <nuttx/spawn.h>
 #include <nuttx/timers/pwm.h>
 #include <arch/syscall.h>
 #include <px4_platform/board_ctrl.h>
@@ -44,6 +47,7 @@ private:
 	bool test_capabilities_enforced();
 	bool test_bounds_refused();
 	bool test_erase_bounded();
+	bool test_spawn_race();
 };
 
 static const struct {
@@ -345,6 +349,82 @@ bool IsolationTest::test_erase_bounded()
 	return true;
 }
 
+static volatile bool racing;
+static volatile unsigned long flips;
+static char race_arg[4096];
+static volatile char *race_path;
+
+static void *race_flip(void *)
+{
+	volatile char *arg = race_arg;
+
+	while (racing) {
+		arg[1] = '\0';
+		race_path[1] = '\0';
+		arg[1] = 'A';
+		race_path[1] = 'A';
+		flips++;
+	}
+
+	return nullptr;
+}
+
+bool IsolationTest::test_spawn_race()
+{
+	char *const argv[] {(char *)"nsh", race_arg, nullptr};
+	posix_spawn_file_actions_t actions;
+	pthread_t flipper;
+	int spawned = 0;
+
+	pthread_attr_t attr;
+	sched_param param {sched_get_priority_max(SCHED_FIFO)};
+	cpu_set_t cpu;
+	int enoent = 0;
+
+	memset(race_arg, 'A', sizeof(race_arg) - 1);
+	posix_spawn_file_actions_init(&actions);
+	posix_spawn_file_actions_addopen(&actions, 1, race_arg, O_RDONLY, 0);
+	race_path = ((spawn_open_file_action_s *)actions)->path;
+	racing = true;
+
+	CPU_ZERO(&cpu);
+	CPU_SET(0, &cpu);
+	sched_setaffinity(0, sizeof(cpu), &cpu);
+	CPU_ZERO(&cpu);
+	CPU_SET(1, &cpu);
+	pthread_attr_init(&attr);
+	pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+	pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
+	pthread_attr_setschedparam(&attr, &param);
+	pthread_attr_setaffinity_np(&attr, sizeof(cpu), &cpu);
+	const int created = pthread_create(&flipper, &attr, race_flip, nullptr);
+	pthread_attr_destroy(&attr);
+	ut_compare("flipper started", created, 0);
+
+	for (int i = 0; i < 2000; i++) {
+		pid_t pid;
+		const int ret = posix_spawn(&pid, "/bin/nsh", &actions, nullptr, argv, nullptr);
+
+		if (ret == 0) {
+			waitpid(pid, nullptr, 0);
+			spawned++;
+
+		} else {
+			enoent += ret == ENOENT || ret == ENAMETOOLONG;
+		}
+	}
+
+	racing = false;
+	pthread_join(flipper, nullptr);
+	posix_spawn_file_actions_destroy(&actions);
+
+	PX4_INFO("2000 spawns racing %lu flips of argv and file action lengths: kernel intact, %d reached the file action, %d started",
+		 flips, enoent, spawned);
+	ut_assert("the lengths never changed", flips > 0);
+	ut_compare("a spawn opened a path that does not exist", spawned, 0);
+	return true;
+}
+
 bool IsolationTest::run_tests()
 {
 	ut_run_test(test_loads_fault);
@@ -359,6 +439,7 @@ bool IsolationTest::run_tests()
 	ut_run_test(test_kernel_pointer_ioctls_refused);
 	ut_run_test(test_capabilities_enforced);
 	ut_run_test(test_erase_bounded);
+	ut_run_test(test_spawn_race);
 	ut_run_test(test_bounds_refused);
 
 	return (_tests_failed == 0);
