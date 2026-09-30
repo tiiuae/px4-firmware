@@ -174,6 +174,7 @@ private:
 #if defined(UXRCE_DDS_CLIENT_LINK)
 	uxrCustomTransport *_transport_link{nullptr};
 	ztcs::ZtcsLinkUdp *_link{nullptr};
+	bool _link_failed{false};
 #endif // UXRCE_DDS_CLIENT_LINK
 
 	SendTopicsSubs *_subs{nullptr};

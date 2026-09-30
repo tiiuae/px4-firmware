@@ -233,11 +233,16 @@ bool UxrceddsClient::init()
 			if (uxr_init_custom_transport(_transport_link, _link)) {
 				PX4_INFO("init secure link agent IP:%s, port:%s", _agent_ip, _send_port);
 				_comm = &_transport_link->comm;
+				_link_failed = false;
 				return true;
 			}
 		}
 
-		PX4_ERR("init secure link agent IP:%s, port:%s failed", _agent_ip, _send_port);
+		if (!_link_failed) {
+			PX4_ERR("init secure link agent IP:%s, port:%s failed", _agent_ip, _send_port);
+			_link_failed = true;
+		}
+
 		delete _transport_link;
 		_transport_link = nullptr;
 		delete _link;
