@@ -29,6 +29,7 @@
 #include <sys/mman.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 class IsolationTest : public UnitTest
@@ -277,6 +278,20 @@ static int capability_probe()
 	got |= (boardctl(PLATFORMIOCLAUNCH, (uintptr_t)&launch) == 0 || errno != EPERM) << 2;
 	got |= (mount(nullptr, "/tmp/caps", "tmpfs", 0, nullptr) == 0 || errno != EPERM) << 3;
 	got |= (prctl(PR_CAPS_GET) != 0) << 4;
+
+	const pid_t parent = getppid();
+	sched_param param {};
+	sigevent event {};
+	timer_t timer;
+	event.sigev_notify = SIGEV_SIGNAL | SIGEV_THREAD_ID;
+	event.sigev_signo = SIGUSR2;
+	event.sigev_notify_thread_id = parent;
+
+	got |= (kill(parent, SIGUSR2) == 0 || errno != EPERM) << 5;
+	got |= (kill(parent, 0) != 0) << 6;
+	got |= (sched_getparam(parent, &param) != 0 || sched_setparam(parent, &param) == 0 || errno != EPERM) << 7;
+	got |= (timer_create(CLOCK_MONOTONIC, &event, &timer) == 0 || errno != EINVAL) << 8;
+	got |= (sched_getparam(0, &param) != 0 || sched_setparam(getpid(), &param) != 0) << 9;
 	return got;
 }
 
@@ -284,8 +299,10 @@ bool IsolationTest::test_capabilities_enforced()
 {
 	ut_compare("tests holds every capability", prctl(PR_CAPS_GET), PR_CAP_ALL);
 
+	signal(SIGUSR2, SIG_IGN);
 	const int got = probe("caps", 0);
-	PX4_INFO("without capabilities: raw open, spawn, launch, mount, caps left: 0x%x through", got);
+	signal(SIGUSR2, SIG_DFL);
+	PX4_INFO("without capabilities, got through: 0x%x", got);
 	ut_compare("a process without capabilities got through", got, 0);
 	return true;
 }
