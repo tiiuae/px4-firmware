@@ -79,6 +79,7 @@ extern int test_versioning(int argc, char *argv[]);
 extern int test_cli(int argc, char *argv[]);
 extern int test_crypto(int argc, char *argv[]);
 extern int test_session_slots(int argc, char *argv[]);
+extern int test_isolation(int argc, char *argv[]);
 
 __END_DECLS
 

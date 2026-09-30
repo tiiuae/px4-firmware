@@ -89,6 +89,12 @@ if(CONFIG_SSRC_CRYPTO_IMX9)
 	list(APPEND srcs
 		test_session_slots.cpp
 		)
+
+	if(CONFIG_BUILD_KERNEL)
+		list(APPEND srcs
+			test_isolation.cpp
+			)
+	endif()
 endif()
 
 px4_add_module(
