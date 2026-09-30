@@ -17,26 +17,24 @@ public:
 private:
 	bool test_loads_fault();
 	bool test_syscalls_refuse();
+};
 
-	struct Target {
-		const char *name;
-		uintptr_t addr;
-		bool memory;
-	};
-
-	static constexpr Target _targets[] {
-		{"kernel", CONFIG_RAM_START, true},
-		{"page pool", CONFIG_ARCH_PGPOOL_PBASE, true},
-		{"session keys", 0x20499000, true},
-		{"ELE mailbox", 0x47520000, false},
-	};
+static const struct {
+	const char *name;
+	uintptr_t addr;
+	bool memory;
+} targets[] {
+	{"kernel", CONFIG_RAM_START, true},
+	{"page pool", CONFIG_ARCH_PGPOOL_PBASE, true},
+	{"session keys", 0x20499000, true},
+	{"ELE mailbox", 0x47520000, false},
 };
 
 bool IsolationTest::test_loads_fault()
 {
 	int reached = 0;
 
-	for (const Target &t : _targets) {
+	for (const auto &t : targets) {
 		char addr[19];
 		char *const argv[] {(char *)"tests", (char *)"isolation", addr, nullptr};
 		pid_t pid;
@@ -66,7 +64,7 @@ bool IsolationTest::test_syscalls_refuse()
 
 	ut_compare("pipe", pipe(fds), 0);
 
-	for (const Target &t : _targets) {
+	for (const auto &t : targets) {
 		if (!t.memory) {
 			continue;
 		}
