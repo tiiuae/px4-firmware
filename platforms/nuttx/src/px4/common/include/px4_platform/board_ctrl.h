@@ -77,6 +77,7 @@ public:
 		return true;
 	}
 
+	const T &operator*() const { return *reinterpret_cast<const T *>(_raw); }
 	const T *operator->() const { return reinterpret_cast<const T *>(_raw); }
 
 private:

@@ -44,156 +44,244 @@
 #include "param.h"
 #include "parameters_ioctl.h"
 #include <px4_platform_common/defines.h>
+#include <px4_platform/board_ctrl.h>
+
+static constexpr int PARAM_GROUP_MAX = 256;
+
+static int param_reset_group(const paramiocresetgroup_t &data)
+{
+	if (data.type != PARAM_RESET_EXCLUDES && data.type != PARAM_RESET_SPECIFIC) {
+		param_reset_all();
+		return OK;
+	}
+
+	const int n = data.num_in_group;
+
+	if (n < 0 || n > PARAM_GROUP_MAX || !px4_user_ok(data.group, n * sizeof(*data.group))) {
+		return -EFAULT;
+	}
+
+	const char **group = new const char *[n > 0 ? n : 1];
+
+	if (group == nullptr) {
+		return -ENOMEM;
+	}
+
+	for (int i = 0; i < n; i++) {
+		group[i] = data.group[i];
+
+		if (group[i] == nullptr || !px4_user_ok(group[i], 1)) {
+			delete[] group;
+			return -EFAULT;
+		}
+	}
+
+	if (data.type == PARAM_RESET_EXCLUDES) {
+		param_reset_excludes(group, n);
+
+	} else {
+		param_reset_specific(group, n);
+	}
+
+	delete[] group;
+	return OK;
+}
 
 int	param_ioctl(unsigned int cmd, unsigned long arg)
 {
-	int ret = OK;
-
 	switch (cmd) {
-	case PARAMIOCNOTIFY: {
-			param_notify_changes();
-		}
-		break;
+	case PARAMIOCNOTIFY:
+		param_notify_changes();
+		return OK;
 
 	case PARAMIOCFIND: {
-			paramiocfind_t *data = (paramiocfind_t *)arg;
+			px4_user_arg<paramiocfind_t> d;
 
-			if (data->notification) {
-				data->ret = param_find(data->name);
-
-			} else {
-				data->ret = param_find_no_notification(data->name);
+			if (!d.in(arg) || d->name == nullptr || !px4_user_ok(d->name, 1)) {
+				return -EFAULT;
 			}
+
+			((paramiocfind_t *)arg)->ret = d->notification ? param_find(d->name) : param_find_no_notification(d->name);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCCOUNTUSED: {
-			paramioccountused_t *data = (paramioccountused_t *)arg;
-			data->ret = param_count_used();
+			px4_user_arg<paramioccountused_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			((paramioccountused_t *)arg)->ret = param_count_used();
+			return OK;
 		}
-		break;
 
 	case PARAMIOCFORUSEDINDEX: {
-			paramiocforusedindex_t *data = (paramiocforusedindex_t *)arg;
-			data->ret =  param_for_used_index(data->index);
+			px4_user_arg<paramiocforusedindex_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			((paramiocforusedindex_t *)arg)->ret = param_for_used_index(d->index);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCGETUSEDINDEX: {
-			paramiocgetusedindex_t *data = (paramiocgetusedindex_t *)arg;
-			data->ret = param_get_used_index(data->param);
+			px4_user_arg<paramiocgetusedindex_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			((paramiocgetusedindex_t *)arg)->ret = param_get_used_index(d->param);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCUNSAVED: {
-			paramiocunsaved_t *data = (paramiocunsaved_t *)arg;
-			data->ret = param_value_unsaved(data->param);
+			px4_user_arg<paramiocunsaved_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			((paramiocunsaved_t *)arg)->ret = param_value_unsaved(d->param);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCGET: {
-			paramiocget_t *data = (paramiocget_t *)arg;
+			px4_user_arg<paramiocget_t> d;
 
-			if (data->deflt) {
-				data->ret = param_get_default_value(data->param, data->val);
-
-			} else {
-				data->ret = param_get(data->param, data->val);
+			if (!d.in(arg) || !px4_user_ok(d->val, sizeof(int32_t))) {
+				return -EFAULT;
 			}
+
+			((paramiocget_t *)arg)->ret = d->deflt ? param_get_default_value(d->param, d->val) : param_get(d->param, d->val);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCAUTOSAVE: {
-			paramiocautosave_t *data = (paramiocautosave_t *)arg;
-			param_control_autosave(data->enable);
+			px4_user_arg<paramiocautosave_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			param_control_autosave(d->enable);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCSET: {
-			paramiocset_t *data = (paramiocset_t *)arg;
+			px4_user_arg<paramiocset_t> d;
 
-			if (data->notification) {
-				data->ret = param_set(data->param, data->val);
-
-			} else {
-				data->ret = param_set_no_notification(data->param, data->val);
+			if (!d.in(arg) || !px4_user_ok(d->val, sizeof(int32_t))) {
+				return -EFAULT;
 			}
+
+			((paramiocset_t *)arg)->ret = d->notification ? param_set(d->param, d->val) : param_set_no_notification(d->param,
+						      d->val);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCUSED: {
-			paramiocused_t *data = (paramiocused_t *)arg;
-			data->ret = param_used(data->param);
+			px4_user_arg<paramiocused_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			((paramiocused_t *)arg)->ret = param_used(d->param);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCSETUSED: {
-			paramiocsetused_t *data = (paramiocsetused_t *)arg;
-			param_set_used(data->param);
+			px4_user_arg<paramiocsetused_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			param_set_used(d->param);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCSETDEFAULT: {
-			paramiocsetdefault_t *data = (paramiocsetdefault_t *)arg;
-			data->ret = param_set_default_value(data->param, data->val);
+			px4_user_arg<paramiocsetdefault_t> d;
+
+			if (!d.in(arg) || !px4_user_ok(d->val, sizeof(int32_t))) {
+				return -EFAULT;
+			}
+
+			((paramiocsetdefault_t *)arg)->ret = param_set_default_value(d->param, d->val);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCRESET: {
-			paramiocreset_t *data = (paramiocreset_t *)arg;
+			px4_user_arg<paramiocreset_t> d;
 
-			if (data->notification) {
-				data->ret = param_reset(data->param);
-
-			} else {
-				data->ret = param_reset_no_notification(data->param);
+			if (!d.in(arg)) {
+				return -EFAULT;
 			}
+
+			((paramiocreset_t *)arg)->ret = d->notification ? param_reset(d->param) : param_reset_no_notification(d->param);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCRESETGROUP: {
-			paramiocresetgroup_t *data = (paramiocresetgroup_t *)arg;
+			px4_user_arg<paramiocresetgroup_t> d;
 
-			if (data->type == PARAM_RESET_EXCLUDES) {
-				param_reset_excludes(data->group, data->num_in_group);
-
-			} else if (data->type == PARAM_RESET_SPECIFIC) {
-				param_reset_specific(data->group, data->num_in_group);
-
-			} else {
-				param_reset_all();
+			if (!d.in(arg)) {
+				return -EFAULT;
 			}
+
+			return param_reset_group(*d);
 		}
-		break;
 
 	case PARAMIOCSAVEDEFAULT: {
-			paramiocsavedefault_t *data = (paramiocsavedefault_t *)arg;
-			data->ret = param_save_default(data->blocking);
+			px4_user_arg<paramiocsavedefault_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			((paramiocsavedefault_t *)arg)->ret = param_save_default(d->blocking);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCLOADDEFAULT: {
-			paramiocloaddefault_t *data = (paramiocloaddefault_t *)arg;
-			data->ret = param_load_default();
+			px4_user_arg<paramiocloaddefault_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			((paramiocloaddefault_t *)arg)->ret = param_load_default();
+			return OK;
 		}
-		break;
 
 	case PARAMIOCEXPORT: {
-			paramiocexport_t *data = (paramiocexport_t *)arg;
-			data->ret = param_export(data->filename, nullptr);
+			px4_user_arg<paramiocexport_t> d;
+
+			if (!d.in(arg) || (d->filename != nullptr && !px4_user_ok(d->filename, 1))) {
+				return -EFAULT;
+			}
+
+			((paramiocexport_t *)arg)->ret = param_export(d->filename, nullptr);
+			return OK;
 		}
-		break;
 
 	case PARAMIOCHASH: {
-			paramiochash_t *data = (paramiochash_t *)arg;
-			data->ret = param_hash_check();
+			px4_user_arg<paramiochash_t> d;
+
+			if (!d.in(arg)) {
+				return -EFAULT;
+			}
+
+			((paramiochash_t *)arg)->ret = param_hash_check();
+			return OK;
 		}
-		break;
 
 	default:
-		ret = -ENOTTY;
-		break;
+		return -ENOTTY;
 	}
-
-	return ret;
 }
