@@ -179,11 +179,30 @@ bool secure_link_pin_operator(const uint8_t operator_public[32])
 	return ok;
 }
 
+static bool station_held(char hex[NOISE_DHLEN * 2 + 1])
+{
+	PX4Crypto crypto;
+	uint8_t key[NOISE_DHLEN];
+	size_t len = sizeof(key);
+	bool held = crypto.open(CRYPTO_X25519) &&
+		    crypto.get_public_key(ZTCS_KEY_SLOT_STATION_PUBLIC, key, &len) && len == sizeof(key);
+
+	crypto.close();
+
+	for (unsigned i = 0; held && i < sizeof(key); i++) {
+		snprintf(&hex[i * 2], 3, "%02x", key[i]);
+	}
+
+	return held;
+}
+
 bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
 			const uint8_t *signature)
 {
 	PX4Crypto crypto;
 	uint8_t op[32];
+	char held[NOISE_DHLEN * 2 + 1];
+	bool pinned;
 	bool ok;
 
 	/* The session algorithm is the one the signature is checked under, not
@@ -194,7 +213,9 @@ bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
 		return false;
 	}
 
-	if (operator_pinned(crypto, op)) {
+	pinned = operator_pinned(crypto, op);
+
+	if (pinned) {
 		if (signature == NULL) {
 			crypto.close();
 			PX4_ERR("an operator key is pinned: this write must be signed");
@@ -211,11 +232,27 @@ bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
 
 	crypto.close();
 
-	if (!ok) {
+	if (ok) {
+		return true;
+	}
+
+	const bool stored = station_held(held);
+
+	if (pinned && stored) {
+		PX4_ERR("signature refused: re-sign with --previous-station-public, held:");
+		PX4_ERR("%s", held);
+
+	} else if (pinned) {
+		PX4_ERR("signature refused: not the pinned operator's, or not for this link key");
+
+	} else if (stored) {
+		PX4_ERR("a station key is held and no operator is pinned: only a reprovision replaces it");
+
+	} else {
 		PX4_ERR("could not store the station key");
 	}
 
-	return ok;
+	return false;
 }
 
 bool secure_link_self_sign(uint8_t out[NOISE_IDENTITY_PAYLOAD_LEN])
