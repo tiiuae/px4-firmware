@@ -319,14 +319,16 @@ static int pwm_probe(const char *dev)
 bool IsolationTest::test_bounds_refused()
 {
 	const int nr = probe("syscall", 0);
+	const int reserved = probe("reserved", 0);
 	const int pages = probe("pgalloc", 0x100000000);
 	const int flexio = pwm_probe("/dev/pwm1");
 	const int tpm = pwm_probe("/dev/pwm_buzz");
 
 	PX4_INFO("syscall one past the table: %s", nr == 0 ? "ENOSYS" : "DISPATCHED");
+	PX4_INFO("reserved syscalls from user space: %s", reserved == 0 ? "ENOSYS" : "DISPATCHED");
 	PX4_INFO("pgalloc above user space: %s", pages == 0 ? "refused" : "MAPPED");
 	PX4_INFO("PWM channel -2: FlexIO errno %d, TPM errno %d", flexio, tpm);
-	ut_assert("a bound let a caller through", nr == 0 && pages == 0 && flexio == EINVAL && tpm == EINVAL);
+	ut_assert("a bound let a caller through", nr == 0 && reserved == 0 && pages == 0 && flexio == EINVAL && tpm == EINVAL);
 	return true;
 }
 
@@ -457,6 +459,9 @@ extern "C" int test_isolation(int argc, char *argv[])
 
 		} else if (!strcmp(argv[1], "syscall")) {
 			return (long)sys_call0(SYS_maxsyscall) != -ENOSYS;
+
+		} else if (!strcmp(argv[1], "reserved")) {
+			return (long)sys_call0(SYS_switch_context) != -ENOSYS || (long)sys_call0(SYS_signal_handler_return) != -ENOSYS;
 
 		} else if (!strcmp(argv[1], "pgalloc")) {
 			return sys_call2(SYS_pgalloc, addr, 1) != 0;
