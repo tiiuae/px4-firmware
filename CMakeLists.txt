@@ -101,6 +101,22 @@
 
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
+# Allow GENERATED source files (e.g. the mavlink headers generated in
+# src/modules/mavlink) to be used by targets created in other directories
+# (e.g. src/lib/open_drone_id) without each directory re-marking them
+# GENERATED. Requires CMake 3.20+; older CMake simply keeps the OLD
+# (per-directory) behavior.
+if(POLICY CMP0118)
+	cmake_policy(SET CMP0118 NEW)
+endif()
+
+# Allow target_link_libraries() to be called on a target from a directory
+# other than the one that created it (e.g. src/lib/open_drone_id's target
+# linked against mavlink_c from src/modules/mavlink). Requires CMake 3.13+.
+if(POLICY CMP0079)
+	cmake_policy(SET CMP0079 NEW)
+endif()
+
 set(PX4_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE FILEPATH "PX4 source directory" FORCE)
 set(PX4_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE FILEPATH "PX4 binary directory" FORCE)
 
