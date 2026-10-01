@@ -12,7 +12,7 @@ trap 'rm -rf "$out"' EXIT
 
 gcc -O2 -Wall -Wextra -std=gnu99 -I "$here/.." \
     -o "$out/secure_link_test" \
-    "$here/secure_link_test.c" "$here/../secure_link.c" \
+    "$here/secure_link_test.c" "$here/../secure_link.c" "$here/../handshake_local.c" \
     "$here/../noise/noise_ik.c" "$here/../noise/chacha20_ietf.c" \
     "$ztcs/crates/ztcs-noise-udp/c/backend_sodium.c" \
     -lsodium

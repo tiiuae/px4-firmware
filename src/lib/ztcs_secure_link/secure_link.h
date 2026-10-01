@@ -13,7 +13,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "noise/noise_ik.h"
+#include "handshake.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,7 +64,7 @@ struct secure_link_keys {
 struct secure_link {
   enum secure_link_state state;
   struct secure_link_keys keys;
-  struct noise_initiator ini;
+  struct noise_hs hs;
   struct noise_session session;
   struct noise_session previous;
   bool has_previous;

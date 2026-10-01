@@ -43,7 +43,7 @@ SILENCE_US=1500000
 read -r -a SODIUM <<< "$(pkg-config --cflags --libs libsodium)"
 gcc -O2 -Wall -Wextra -std=gnu99 -I"$SL" \
   -DSECURE_LINK_SILENCE_US=${SILENCE_US}ULL -o "$WORK/aircraft" \
-  "$SL/secure_link.c" "$SL/cobs.c" "$SL/noise/noise_ik.c" "$SL/noise/chacha20_ietf.c" \
+  "$SL/secure_link.c" "$SL/handshake_local.c" "$SL/cobs.c" "$SL/noise/noise_ik.c" "$SL/noise/chacha20_ietf.c" \
   "$ZTCS/crates/ztcs-noise-udp/c/backend_sodium.c" \
   "$SL/test/secure_link_e2e.c" "${SODIUM[@]}"
 

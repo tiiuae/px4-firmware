@@ -35,9 +35,9 @@ static int start_handshake(struct secure_link *sl, uint64_t now_us,
       return NOISE_ERR_INPUT;
     }
 
-  rc = noise_initiator_start(&sl->ini, &sl->keys.link,
-                             sl->keys.station_public, sl->keys.identity,
-                             out, &n);
+  rc = noise_hs_start(&sl->hs, &sl->keys.link,
+                      sl->keys.station_public, sl->keys.identity,
+                      out, &n);
   if (rc != NOISE_OK)
     {
       return rc;
@@ -65,9 +65,9 @@ static int send_rekey(struct secure_link *sl, uint8_t *out, size_t cap)
       return NOISE_ERR_INPUT;
     }
 
-  rc = noise_initiator_start(&sl->ini, &sl->keys.link,
-                             sl->keys.station_public, sl->keys.identity,
-                             out, &n);
+  rc = noise_hs_start(&sl->hs, &sl->keys.link,
+                      sl->keys.station_public, sl->keys.identity,
+                      out, &n);
   if (rc != NOISE_OK)
     {
       return rc;
@@ -218,7 +218,7 @@ int secure_link_open(struct secure_link *sl, uint64_t now_us,
             }
 
           memset(&next, 0, sizeof(next));
-          rc = noise_initiator_finish(&sl->ini, frame, len, &next);
+          rc = noise_hs_finish(&sl->hs, frame, len, &next);
           if (rc != NOISE_OK)
             {
               return rc;
@@ -295,6 +295,6 @@ int secure_link_open(struct secure_link *sl, uint64_t now_us,
 void secure_link_close(struct secure_link *sl)
 {
   end_session(sl);
-  noise_wipe(&sl->ini, sizeof(sl->ini));
+  noise_hs_end(&sl->hs);
   sl->state = SECURE_LINK_DOWN;
 }
