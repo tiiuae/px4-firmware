@@ -42,6 +42,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#if defined(PX4_NOISE_KERNEL)
+#include <noise_ik.h>
+#endif
+
 extern "C" {
 #include <nuttx/random.h>
 }
@@ -278,6 +282,48 @@ static int session_open(px4_crypto_algorithm_t algorithm)
 	return -1;
 }
 
+#if defined(PX4_NOISE_KERNEL)
+static constexpr int NOISE_HANDSHAKES = 6;
+
+static struct {
+	struct noise_initiator ini;
+	struct noise_static_key link;
+	pid_t owner;
+} g_handshakes[NOISE_HANDSHAKES];
+
+static void handshake_release(int i)
+{
+	noise_wipe(&g_handshakes[i], sizeof(g_handshakes[i]));
+}
+
+static int handshake_claim()
+{
+	for (int i = 0; i < NOISE_HANDSHAKES; i++) {
+		if (g_handshakes[i].owner != 0 && kill(g_handshakes[i].owner, 0) < 0) {
+			handshake_release(i);
+		}
+
+		if (g_handshakes[i].owner == 0) {
+			g_handshakes[i].owner = getpid();
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static int handshake(int handle)
+{
+	const int i = handle - 1;
+
+	if (i < 0 || i >= NOISE_HANDSHAKES || g_handshakes[i].owner == 0 || g_handshakes[i].owner != getpid()) {
+		return -1;
+	}
+
+	return i;
+}
+#endif
+
 static int crypto_ioctl_locked(unsigned int cmd, unsigned long arg)
 {
 	crypto_session_handle_t *s = nullptr;
@@ -486,6 +532,88 @@ static int crypto_ioctl_locked(unsigned int cmd, unsigned long arg)
 			((cryptoiocdecryptdata_t *)arg)->ret = ret;
 			return PX4_OK;
 		}
+
+#if defined(PX4_NOISE_KERNEL)
+
+	case CRYPTOIOCNOISESTART: {
+			px4_user_arg<cryptoiocnoisestart_t> d;
+			uint8_t rs[NOISE_DHLEN];
+			uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN];
+			uint8_t msg[NOISE_MSG1_LEN];
+			size_t len = sizeof(msg);
+
+			if (!d.in(arg) || d->remote_static == nullptr || !px4_user_ok(d->remote_static, sizeof(rs))
+			    || d->identity == nullptr || d->identity_size != sizeof(identity) || !px4_user_ok(d->identity, sizeof(identity))
+			    || !size_in(&m, d->message_size) || m < sizeof(msg)
+			    || d->message == nullptr || !px4_user_ok(d->message, sizeof(msg))) {
+				return -EFAULT;
+			}
+
+			memcpy(rs, d->remote_static, sizeof(rs));
+			memcpy(identity, d->identity, sizeof(identity));
+
+			const int i = handshake_claim();
+			int rc = NOISE_ERR_BACKEND;
+
+			if (i >= 0) {
+				g_handshakes[i].link.index = d->link_index;
+				rc = noise_initiator_start(&g_handshakes[i].ini, &g_handshakes[i].link, rs, identity, msg, &len);
+
+				if (rc != NOISE_OK) {
+					handshake_release(i);
+				}
+			}
+
+			if (rc == NOISE_OK) {
+				memcpy(d->message, msg, len);
+				*d->message_size = len;
+			}
+
+			noise_wipe(msg, sizeof(msg));
+			((cryptoiocnoisestart_t *)arg)->handle = rc == NOISE_OK ? i + 1 : rc;
+			return PX4_OK;
+		}
+
+	case CRYPTOIOCNOISEFINISH: {
+			px4_user_arg<cryptoiocnoisefinish_t> d;
+			uint8_t msg[NOISE_MSG2_LEN];
+			struct noise_session session;
+
+			if (!d.in(arg) || d->message == nullptr || !px4_user_ok(d->message, d->message_size)
+			    || d->send_index == nullptr || !px4_user_ok(d->send_index, 1)
+			    || d->recv_index == nullptr || !px4_user_ok(d->recv_index, 1)) {
+				return -EFAULT;
+			}
+
+			const int i = handshake(d->handle);
+			int rc = i < 0 ? NOISE_ERR_STATE : NOISE_ERR_INPUT;
+
+			if (i >= 0 && d->message_size == sizeof(msg)) {
+				memcpy(msg, d->message, sizeof(msg));
+				rc = noise_initiator_finish(&g_handshakes[i].ini, msg, sizeof(msg), &session);
+			}
+
+			if (rc == NOISE_OK) {
+				*d->send_index = session.send.index;
+				*d->recv_index = session.recv.index;
+				handshake_release(i);
+			}
+
+			((cryptoiocnoisefinish_t *)arg)->ret = rc;
+			return PX4_OK;
+		}
+
+	case CRYPTOIOCNOISEABORT: {
+			const int i = handshake((int)arg);
+
+			if (i >= 0) {
+				handshake_release(i);
+			}
+
+			return PX4_OK;
+		}
+
+#endif
 
 	default:
 		return PX4_ERROR;

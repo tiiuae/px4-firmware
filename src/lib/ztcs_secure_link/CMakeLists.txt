@@ -50,7 +50,12 @@ px4_add_library(ztcs_secure_link
 # supplies its own backend against noise/noise_backend.h.
 target_include_directories(ztcs_secure_link PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_sources(ztcs_secure_link PRIVATE handshake_local.c)
+if(PX4_CRYPTO AND NOT DEFINED CONFIG_BUILD_FLAT AND "${PX4_PLATFORM}" MATCHES "nuttx")
+	target_sources(ztcs_secure_link PRIVATE handshake_kernel.cpp)
+	target_compile_definitions(ztcs_secure_link PUBLIC NOISE_HANDSHAKE_IN_KERNEL)
+else()
+	target_sources(ztcs_secure_link PRIVATE handshake_local.c)
+endif()
 
 # The archive, not the nuttx_crypto target: in a kernel build that target
 # carries nuttx_kc behind it, and this library is linked into user binaries,

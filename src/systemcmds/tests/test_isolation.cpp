@@ -19,6 +19,11 @@
 #include <nuttx/timers/pwm.h>
 #include <arch/syscall.h>
 #include <px4_platform/board_ctrl.h>
+
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+#include <lib/ztcs_secure_link/noise/noise_ik.h>
+#include <lib/ztcs_secure_link/secure_link_slots.h>
+#endif
 #include <sys/boardctl.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
@@ -43,6 +48,9 @@ private:
 	bool test_nested_pointers_fault();
 	bool test_ioctl_refused();
 	bool test_crypto_refused();
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+	bool test_handshake_owned();
+#endif
 	bool test_hrt_refused();
 	bool test_spawn_refused();
 	bool test_environ_refused();
@@ -165,6 +173,48 @@ bool IsolationTest::test_crypto_refused()
 	ut_compare("session closes", boardctl(CRYPTOIOCCLOSE, (uintptr_t)&own), 0);
 	return true;
 }
+
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+static int noise_start(int *handle)
+{
+	static const uint8_t station[NOISE_DHLEN] {9};
+	static const uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN] {};
+	uint8_t msg[NOISE_MSG1_LEN];
+	size_t len = sizeof(msg);
+	cryptoiocnoisestart_t d {ZTCS_KEY_SLOT_LINK, station, identity, sizeof(identity), msg, &len, 0};
+	const int ret = boardctl(CRYPTOIOCNOISESTART, (uintptr_t)&d);
+	*handle = d.handle;
+	return ret == 0 && d.handle > 0 && len == sizeof(msg) ? 0 : -1;
+}
+
+static int noise_finish(int handle)
+{
+	static const uint8_t reply[NOISE_MSG2_LEN] {NOISE_TYPE_HANDSHAKE_RESP};
+	uint8_t send = 0;
+	uint8_t recv = 0;
+	cryptoiocnoisefinish_t d {handle, reply, sizeof(reply), &send, &recv, NOISE_OK};
+	boardctl(CRYPTOIOCNOISEFINISH, (uintptr_t)&d);
+	return d.ret;
+}
+
+bool IsolationTest::test_handshake_owned()
+{
+	int handle = 0;
+	ut_compare("a handshake starts in the kernel", noise_start(&handle), 0);
+
+	const int child = probe("noise", (uintptr_t)handle);
+	PX4_INFO("another process on the handshake: %s", child == 0 ? "refused" : "REACHED");
+	ut_compare("another process reached the handshake", child, 0);
+
+	const int rc = noise_finish(handle);
+	PX4_INFO("the owner's forged reply: %d", rc);
+	ut_assert("the handshake survived the other process", rc != NOISE_ERR_STATE && rc != NOISE_OK);
+
+	boardctl(CRYPTOIOCNOISEABORT, (uintptr_t)handle);
+	ut_compare("an aborted handshake is gone", noise_finish(handle), NOISE_ERR_STATE);
+	return true;
+}
+#endif
 
 bool IsolationTest::test_hrt_refused()
 {
@@ -495,6 +545,9 @@ bool IsolationTest::run_tests()
 	ut_run_test(test_nested_pointers_fault);
 	ut_run_test(test_ioctl_refused);
 	ut_run_test(test_crypto_refused);
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+	ut_run_test(test_handshake_owned);
+#endif
 	ut_run_test(test_hrt_refused);
 	ut_run_test(test_spawn_refused);
 	ut_run_test(test_environ_refused);
@@ -527,6 +580,13 @@ extern "C" int test_isolation(int argc, char *argv[])
 
 		} else if (!strcmp(argv[1], "pgalloc")) {
 			return sys_call2(SYS_pgalloc, addr, 1) != 0;
+
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+
+		} else if (!strcmp(argv[1], "noise")) {
+			boardctl(CRYPTOIOCNOISEABORT, addr);
+			return noise_finish((int)addr) != NOISE_ERR_STATE;
+#endif
 
 		} else if (!strcmp(argv[1], "load")) {
 			(void) * (volatile uint32_t *)addr;

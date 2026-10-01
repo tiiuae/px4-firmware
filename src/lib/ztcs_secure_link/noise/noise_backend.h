@@ -68,6 +68,10 @@ int noise_session_key_set(struct noise_session_key *k,
 
 void noise_session_key_clear(struct noise_session_key *k);
 
+#ifdef NOISE_SESSION_KEY_BY_INDEX
+int noise_session_key_adopt(struct noise_session_key *k, uint8_t index);
+#endif
+
 /* The transport AEAD: RFC 8439, no associated data. */
 int noise_session_encrypt(const struct noise_session_key *k, uint64_t nonce,
                           const uint8_t *pt, size_t pt_len, uint8_t *out);

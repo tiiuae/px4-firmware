@@ -89,6 +89,20 @@ extern "C" int noise_session_key_set(struct noise_session_key *k,
 	return -1;
 }
 
+extern "C" int noise_session_key_adopt(struct noise_session_key *k, uint8_t index)
+{
+	PX4Crypto *crypto = new PX4Crypto();
+
+	if (crypto && crypto->open(CRYPTO_CHACHA20_POLY1305)) {
+		k->index = index;
+		k->backend = crypto;
+		return 0;
+	}
+
+	delete crypto;
+	return -1;
+}
+
 extern "C" void noise_session_key_clear(struct noise_session_key *k)
 {
 	PX4Crypto *crypto = static_cast<PX4Crypto *>(k->backend);

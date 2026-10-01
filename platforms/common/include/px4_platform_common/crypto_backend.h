@@ -461,6 +461,29 @@ typedef struct cryptoiocgetpublickey {
 	size_t ret;
 } cryptoiocgetpublickey_t;
 
+#define CRYPTOIOCNOISESTART _CRYPTOIOC(16)
+typedef struct cryptoiocnoisestart {
+	uint8_t link_index;
+	const uint8_t *remote_static;
+	const uint8_t *identity;
+	size_t identity_size;
+	uint8_t *message;
+	size_t *message_size;
+	int handle;
+} cryptoiocnoisestart_t;
+
+#define CRYPTOIOCNOISEFINISH _CRYPTOIOC(17)
+typedef struct cryptoiocnoisefinish {
+	int handle;
+	const uint8_t *message;
+	size_t message_size;
+	uint8_t *send_index;
+	uint8_t *recv_index;
+	int ret;
+} cryptoiocnoisefinish_t;
+
+#define CRYPTOIOCNOISEABORT _CRYPTOIOC(18)
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

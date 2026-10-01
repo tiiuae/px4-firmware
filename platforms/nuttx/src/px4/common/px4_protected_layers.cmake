@@ -62,6 +62,20 @@ target_link_libraries(px4_kernel_layer
 if (DEFINED PX4_CRYPTO)
 	target_link_libraries(px4_kernel_layer PUBLIC crypto_backend)
 	target_link_libraries(px4_layer PUBLIC crypto_backend_interface)
+
+	if (CONFIG_LIB_ZTCS_SECURE_LINK)
+		set(NOISE_DIR ${PX4_SOURCE_DIR}/src/lib/ztcs_secure_link/noise)
+		target_sources(px4_kernel_layer PRIVATE
+			${NOISE_DIR}/noise_ik.c
+			${NOISE_DIR}/backend_nuttx.c
+			${NOISE_DIR}/backend_kernel.c
+			${NOISE_DIR}/chacha20_ietf.c
+		)
+		target_include_directories(px4_kernel_layer PRIVATE ${NOISE_DIR})
+		target_compile_definitions(px4_kernel_layer PRIVATE
+			PX4_NOISE_KERNEL NOISE_STATIC_KEY_BY_INDEX NOISE_SESSION_KEY_BY_INDEX NOISE_RANDOM_EXTERNAL)
+		target_link_libraries(px4_kernel_layer PRIVATE nuttx_crypto px4_random)
+	endif()
 endif()
 
 add_dependencies(px4_kernel_layer prebuild_targets)
