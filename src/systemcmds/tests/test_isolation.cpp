@@ -212,6 +212,18 @@ bool IsolationTest::test_handshake_owned()
 
 	boardctl(CRYPTOIOCNOISEABORT, (uintptr_t)handle);
 	ut_compare("an aborted handshake is gone", noise_finish(handle), NOISE_ERR_STATE);
+
+	crypto_session_handle_t kex{};
+	cryptoiocopen_t open {CRYPTO_X25519, &kex};
+	boardctl(CRYPTOIOCOPEN, (uintptr_t)&open);
+	static const uint8_t peer[NOISE_DHLEN] {9};
+	uint8_t secret[NOISE_DHLEN] {};
+	size_t secret_size = sizeof(secret);
+	cryptoiockeyagreement_t k {&kex, ZTCS_KEY_SLOT_LINK, peer, sizeof(peer), secret, &secret_size, 0};
+	const int raw = boardctl(CRYPTOIOCKEYAGREEMENT, (uintptr_t)&k);
+	boardctl(CRYPTOIOCCLOSE, (uintptr_t)&kex);
+	PX4_INFO("the link key's raw DH: %s", raw != 0 && !k.ret ? "refused" : "RETURNED");
+	ut_assert("the link key's raw DH stays in the kernel", raw != 0 && !k.ret);
 	return true;
 }
 #endif

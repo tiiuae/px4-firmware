@@ -481,6 +481,8 @@ static int crypto_ioctl_locked(unsigned int cmd, unsigned long arg)
 			return PX4_OK;
 		}
 
+#if !defined(PX4_NOISE_KERNEL)
+
 	case CRYPTOIOCKEYAGREEMENT: {
 			px4_user_arg<cryptoiockeyagreement_t> d;
 
@@ -494,6 +496,8 @@ static int crypto_ioctl_locked(unsigned int cmd, unsigned long arg)
 			((cryptoiockeyagreement_t *)arg)->ret = ret;
 			return PX4_OK;
 		}
+
+#endif
 
 	case CRYPTOIOCSIGNATURECHECK: {
 			px4_user_arg<cryptoiocsignaturecheck_t> d;
