@@ -25,7 +25,9 @@
 #include <px4_arch/imxrt_flexspi_nor_flash.h>
 #include <px4_arch/imxrt_romapi.h>
 
-#include <hardware/rt117x/imxrt117x_anadig.h>
+#if defined(CONFIG_ARCH_FAMILY_IMXRT117x)
+#  include <hardware/rt117x/imxrt117x_anadig.h>
+#endif
 
 /*******************************************************************************
  * Definitions
@@ -71,10 +73,10 @@ typedef struct {
 	status_t (*get_config)(uint32_t instance, flexspi_nor_config_t *config,	serial_nor_config_option_t *option);
 } flexspi_nor_driver_interface_t;
 
-#elif defined(CONFIG_ARCH_FAMILY_IMXRT117x)
+#elif defined(CONFIG_ARCH_FAMILY_IMXRT117x) || defined(CONFIG_ARCH_FAMILY_IMXRT118x)
 
 /*!
- * @brief Interface for the IMXRT117X ROM FLEXSPI NOR flash driver.
+ * @brief Interface for the IMXRT117X/118X ROM FLEXSPI NOR flash driver.
  */
 typedef struct {
 	uint32_t version;
@@ -119,7 +121,7 @@ typedef struct {
 	const uint32_t *reserved2;
 } bootloader_api_entry_t;
 
-#elif defined(CONFIG_ARCH_FAMILY_IMXRT117x)
+#elif defined(CONFIG_ARCH_FAMILY_IMXRT117x) || defined(CONFIG_ARCH_FAMILY_IMXRT118x)
 
 /*!
  * @brief Root of the bootloader api tree.
@@ -156,6 +158,13 @@ void ROM_API_Init(void)
 {
 #ifdef CONFIG_ARCH_FAMILY_IMXRT106x
 	g_bootloaderTree = ((bootloader_api_entry_t *) * (uint32_t *)0x0020001cU);
+#elif defined(CONFIG_ARCH_FAMILY_IMXRT118x)
+# if defined(CONFIG_ARCH_ARMV7M)
+	g_bootloaderTree = (bootloader_api_entry_t *)(uintptr_t)0x0011f000U;
+# else
+	g_bootloaderTree = (bootloader_api_entry_t *)(uintptr_t)
+			   * (const uint32_t *)(uintptr_t)0x1000001cU;
+# endif
 #else
 
 	if (getreg32(IMXRT_ANADIG_MISC_MISC_DIFPROG) == 0x001170A0U) {
@@ -248,7 +257,7 @@ status_t ROM_FLEXSPI_NorFlash_Erase(uint32_t instance, flexspi_nor_config_t *con
 	return g_bootloaderTree->flexSpiNorDriver->erase(instance, config, start, length);
 }
 
-#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#if defined(CONFIG_ARCH_FAMILY_IMXRT117x) || defined(CONFIG_ARCH_FAMILY_IMXRT118x)
 
 /*!
  * @brief Erase one sector specified by address.
@@ -302,7 +311,7 @@ status_t ROM_FLEXSPI_NorFlash_UpdateLut(uint32_t instance,
 }
 
 
-#ifdef CONFIG_ARCH_FAMILY_IMXRT106x
+#if defined(CONFIG_ARCH_FAMILY_IMXRT106x) || defined(CONFIG_ARCH_FAMILY_IMXRT118x)
 
 /*! @brief Software reset for the FLEXSPI logic. */
 locate_code(".ramfunc")
@@ -336,7 +345,7 @@ void ROM_FLEXSPI_NorFlash_ClearCache(uint32_t instance)
 }
 #endif
 
-#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#if defined(CONFIG_ARCH_FAMILY_IMXRT117x) || defined(CONFIG_ARCH_FAMILY_IMXRT118x)
 
 /*! @brief Wait until device is idle*/
 locate_code(".ramfunc")
