@@ -17,10 +17,14 @@ gcc -O2 -Wall -Wextra -std=gnu99 -I "$here/.." \
     "$ztcs/crates/ztcs-noise-udp/c/backend_sodium.c" \
     -lsodium
 
+gcc -O2 -Wall -Wextra -std=gnu99 -I "$here/.." \
+    -o "$out/cobs_test" "$here/cobs_test.c" "$here/../cobs.c"
+
 g++ -std=c++17 -Wall -Wextra -I "$here/fake" -I "$here/.." \
     -o "$out/link_udp_test" \
     "$here/link_udp_test.cpp" "$here/stub_link.cpp" "$here/../ZtcsLinkUdp.cpp" \
     -lpthread
 
+"$out/cobs_test"
 "$out/secure_link_test"
 "$out/link_udp_test"

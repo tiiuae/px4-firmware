@@ -34,6 +34,7 @@
 
 px4_add_library(ztcs_secure_link
 	secure_link.c
+	cobs.c
 	secure_link_keys.cpp
 	identity_px4crypto.cpp
 	noise/backend_px4.cpp
