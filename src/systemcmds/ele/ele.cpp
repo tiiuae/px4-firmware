@@ -44,7 +44,7 @@ static void usage()
 	PRINT_MODULE_USAGE_COMMAND_DESCR("pubkey", "Print the public half, creating the key on first use");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("sign", "Sign a SHA-256 digest given as 64 hex characters");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("kex",
-					 "Key exchange probe: <peer public key: 64 hex X25519, 128 hex P-256> <case index>");
+					 "Key exchange probe: <peer public key: 64 hex X25519, 128 hex P-256> <case index> [variant]");
 }
 
 static void print_hex(const char *label, const uint8_t *buf, size_t len)
@@ -135,7 +135,7 @@ struct kex_result {
 	uint8_t  out[32];
 };
 
-static int cmd_kex(const char *hex, const char *case_arg)
+static int cmd_kex(const char *hex, const char *case_arg, const char *variant_arg)
 {
 	PX4Crypto crypto;
 	uint8_t peer[ELE_PUB_LEN] = {};
@@ -149,7 +149,8 @@ static int cmd_kex(const char *hex, const char *case_arg)
 	}
 
 	/* The case index rides in on the first word of the result buffer. */
-	res.generate_rsp = case_arg != nullptr ? (uint32_t)strtoul(case_arg, nullptr, 10) : 0;
+	res.generate_rsp = (case_arg != nullptr ? (uint32_t)strtoul(case_arg, nullptr, 10) : 0) |
+			   (variant_arg != nullptr ? (uint32_t)strtoul(variant_arg, nullptr, 10) << 8 : 0);
 
 	if (!crypto.open(CRYPTO_ECDSA_P256)) {
 		printf("ele: no P-256 crypto session\n");
@@ -176,7 +177,8 @@ int ele_main(int argc, char *argv[])
 {
 	if (argc >= 2 && strcmp(argv[1], "kex") == 0) {
 		return cmd_kex(argc >= 3 ? argv[2] : nullptr,
-			       argc >= 4 ? argv[3] : nullptr);
+			       argc >= 4 ? argv[3] : nullptr,
+			       argc >= 5 ? argv[4] : nullptr);
 	}
 
 	if (argc >= 2 && strcmp(argv[1], "pubkey") == 0) {
