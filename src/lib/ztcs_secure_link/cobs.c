@@ -1,7 +1,3 @@
-/****************************************************************************
- * COBS framing for the secure link over a byte stream. See cobs.h.
- ****************************************************************************/
-
 #include "cobs.h"
 
 size_t cobs_encode(const uint8_t *in, size_t len, uint8_t *out)
