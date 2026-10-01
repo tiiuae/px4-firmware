@@ -57,6 +57,11 @@
 #include <lib/drivers/magnetometer/PX4Magnetometer.hpp>
 #include <lib/systemlib/mavlink_log.h>
 #include <px4_platform_common/module_params.h>
+
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+#include <lib/ztcs_secure_link/cobs.h>
+#endif
+
 #include <uORB/Publication.hpp>
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/SubscriptionInterval.hpp>
@@ -268,6 +273,13 @@ private:
 	MavlinkStatustextHandler	_mavlink_statustext_handler;
 
 	mavlink_status_t		_status{}; ///< receiver status, used for mavlink_parse_char()
+
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+	static constexpr size_t SECURE_SERIAL_READ = 512;
+	struct cobs_rx			_cobs_rx {};
+	uint8_t				_secure_plain[COBS_FRAME_MAX + SECURE_SERIAL_READ] {};
+	ssize_t				open_secure_serial(const uint8_t *in, ssize_t len);
+#endif
 
 	orb_advert_t _mavlink_log_pub{nullptr};
 

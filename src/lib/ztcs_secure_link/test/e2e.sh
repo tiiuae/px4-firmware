@@ -11,8 +11,12 @@ ZTCS=${ZTCS_DIR:-$HOME/Code/ztcs}
 WORK=$(mktemp -d)
 GCS_PID=""
 GW_PID=""
+TTY_PID=""
+SERIAL_PID=""
 
 cleanup() {
+  if [ -n "$SERIAL_PID" ]; then kill "$SERIAL_PID" 2>/dev/null || true; fi
+  if [ -n "$TTY_PID" ]; then kill "$TTY_PID" 2>/dev/null || true; fi
   if [ -n "$GW_PID" ]; then kill "$GW_PID" 2>/dev/null || true; fi
   if [ -n "$GCS_PID" ]; then kill "$GCS_PID" 2>/dev/null || true; fi
   rm -rf "$WORK"
@@ -39,7 +43,7 @@ SILENCE_US=1500000
 read -r -a SODIUM <<< "$(pkg-config --cflags --libs libsodium)"
 gcc -O2 -Wall -Wextra -std=gnu99 -I"$SL" \
   -DSECURE_LINK_SILENCE_US=${SILENCE_US}ULL -o "$WORK/aircraft" \
-  "$SL/secure_link.c" "$SL/noise/noise_ik.c" "$SL/noise/chacha20_ietf.c" \
+  "$SL/secure_link.c" "$SL/cobs.c" "$SL/noise/noise_ik.c" "$SL/noise/chacha20_ietf.c" \
   "$ZTCS/crates/ztcs-noise-udp/c/backend_sodium.c" \
   "$SL/test/secure_link_e2e.c" "${SODIUM[@]}"
 
@@ -48,6 +52,7 @@ cargo build -q -p ztcs-cli -p ztcs-mavlink-gateway
 CLI="$ZTCS/target/debug/ztcs"
 GW="$ZTCS/target/debug/ztcs-mavlink-gateway"
 PROV="$ZTCS/target/debug/ztcs-mavlink-provision"
+SERIAL="$ZTCS/target/debug/ztcs-mavlink-serial"
 
 "$CLI" keygen --out-seed "$WORK/operator.seed" --out-pubkey "$WORK/operator.pub" >/dev/null 2>&1
 
@@ -77,7 +82,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind(("127.0.0.1", 0))
 print("port", s.getsockname()[1], flush=True)
 s.settimeout(60)
-for i in (1, 2):
+for i in (1, 2, 3, 4):
     data, addr = s.recvfrom(2048)
     # The source port is this aircraft's bridge. It must not move across a
     # rekey, or the GCS sees a second vehicle.
@@ -118,3 +123,26 @@ PORTS=$(awk '/^uplink/{print $4}' "$WORK/gcs.log" | sort -u | wc -l)
   || { echo "the bridge port moved across the rekey ($PORTS seen)" >&2; exit 1; }
 
 echo "e2e ok: two rounds across a dropout, rekeyed, one bridge port"
+
+socat pty,raw,echo=0,link="$WORK/air.tty" pty,raw,echo=0,link="$WORK/radio.tty" &
+TTY_PID=$!
+for _ in $(seq 50); do [ -e "$WORK/radio.tty" ] && break; sleep 0.1; done
+
+"$SERIAL" --device "$WORK/radio.tty" --baud 57600 --gateway "127.0.0.1:$GW_PORT" \
+  > "$WORK/serial.log" 2>&1 &
+SERIAL_PID=$!
+await "$WORK/serial.log" 'serial radio bridged to the gateway'
+
+"$WORK/aircraft" "$WORK/air.tty" 0 "$AIR_PRIV" "$STATION" "$IDENTITY" \
+  "RADIO" 2 | tee "$WORK/radio.log"
+
+for round in 1 2; do
+  grep -q "^uplink RADIO-$round " "$WORK/gcs.log" \
+    || { echo "radio round $round never reached the GCS" >&2; exit 1; }
+done
+[ "$(grep -c '^downlink COMMAND_ACK$' "$WORK/radio.log")" -eq 2 ] \
+  || { echo "the aircraft did not hear both replies over the radio" >&2; exit 1; }
+grep -q '^rekeyed after the dropout$' "$WORK/radio.log" \
+  || { echo "the aircraft did not rekey across the dropout over the radio" >&2; exit 1; }
+
+echo "e2e ok: the same over a serial radio, COBS-framed through ztcs-mavlink-serial"

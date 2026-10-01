@@ -3196,6 +3196,43 @@ MavlinkReceiver::handle_message_attitude_target(mavlink_message_t *msg)
 	}
 }
 
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+ssize_t
+MavlinkReceiver::open_secure_serial(const uint8_t *in, ssize_t len)
+{
+	uint8_t frame[SECURE_LINK_MTU];
+	size_t out = 0;
+
+	for (ssize_t i = 0; i < len; i++) {
+		const int n = cobs_rx_push(&_cobs_rx, in[i], frame, sizeof(frame));
+
+		if (n <= 0) {
+			continue;
+		}
+
+		int plain_len = -1;
+
+		if (_mavlink->secure_link_ready()) {
+			_mavlink->lock_secure_link();
+			plain_len = secure_link_open(_mavlink->get_secure_link(), hrt_absolute_time(), frame, n,
+						     _secure_plain + out, sizeof(_secure_plain) - out);
+			_mavlink->unlock_secure_link();
+		}
+
+		_mavlink->note_secure_link_open(plain_len);
+
+		if (plain_len > 0) {
+			out += plain_len;
+
+		} else {
+			_mavlink->count_rxbytes(n);
+		}
+	}
+
+	return (ssize_t)out;
+}
+#endif
+
 void
 MavlinkReceiver::run()
 {
@@ -3255,15 +3292,33 @@ MavlinkReceiver::run()
 		}
 
 		int ret = poll(&fds[0], 1, timeout);
+		const uint8_t *data = buf;
 
 		if (ret > 0) {
 			if (_mavlink->get_protocol() == Protocol::SERIAL) {
+				size_t cap = sizeof(buf);
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+
+				if (_mavlink->secure_serial() && cap > SECURE_SERIAL_READ) {
+					cap = SECURE_SERIAL_READ;
+				}
+
+#endif
 				/* non-blocking read. read may return negative values */
-				nread = ::read(fds[0].fd, buf, sizeof(buf));
+				nread = ::read(fds[0].fd, buf, cap);
 
 				if (nread == -1 && errno == ENOTCONN) { // Not connected (can happen for USB)
 					usleep(100000);
 				}
+
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+
+				if (nread > 0 && _mavlink->secure_serial()) {
+					nread = open_secure_serial(buf, nread);
+					data = _secure_plain;
+				}
+
+#endif
 			}
 
 #if defined(MAVLINK_UDP)
@@ -3341,11 +3396,12 @@ MavlinkReceiver::run()
 
 				/* if read failed, this loop won't execute */
 				for (ssize_t i = 0; i < nread; i++) {
-					if (mavlink_parse_char(_mavlink->get_channel(), buf[i], &msg, &_status)) {
+					if (mavlink_parse_char(_mavlink->get_channel(), data[i], &msg, &_status)) {
 
 #if defined(CONFIG_MAVLINK_SERIAL_FLASH_ONLY)
 
-						if (_mavlink->get_protocol() == Protocol::SERIAL && !serial_message_allowed(msg)) {
+						if (_mavlink->get_protocol() == Protocol::SERIAL && !_mavlink->secure_serial()
+						    && !serial_message_allowed(msg)) {
 							continue;
 						}
 
