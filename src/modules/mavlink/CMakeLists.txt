@@ -97,6 +97,13 @@ target_include_directories(mavlink_c
 		${MAVLINK_LIBRARY_DIR}/${MAVLINK_DIALECT_UAVIONIX}
 )
 
+# open_drone_id (src/lib/open_drone_id) is built early so that other
+# early-built targets (e.g. the uavcan driver) can depend on it. Its actual
+# mavlink header dependency can only be wired up here, once mavlink_c exists.
+# (See CMP0079/CMP0118 policy settings in the top-level CMakeLists.txt.)
+target_link_libraries(open_drone_id PUBLIC mavlink_c)
+add_dependencies(open_drone_id mavlink_c_generate)
+
 px4_add_module(
 	MODULE modules__mavlink
 	MAIN mavlink
@@ -122,7 +129,6 @@ px4_add_module(
 		mavlink_ulog.cpp
 		mavlink_sign_control.cpp
 		MavlinkStatustextHandler.cpp
-		open_drone_id_translations.cpp
 		tune_publisher.cpp
 	MODULE_CONFIG
 		module.yaml
@@ -140,6 +146,7 @@ px4_add_module(
 		sensor_calibration
 		geo
 		mavlink_c
+		open_drone_id
 		timesync
 		tunes
 		variable_length_ringbuffer
