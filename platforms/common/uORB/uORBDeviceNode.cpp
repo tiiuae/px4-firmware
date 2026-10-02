@@ -349,7 +349,7 @@ uORB::DeviceNode::DeviceNode(const ORB_ID id, const uint8_t instance, const char
 		PX4_ERR("node path too long %s", path);
 	}
 
-	strncpy(_devname, path, sizeof(_devname));
+	strlcpy(_devname, path, sizeof(_devname));
 #endif
 }
 
