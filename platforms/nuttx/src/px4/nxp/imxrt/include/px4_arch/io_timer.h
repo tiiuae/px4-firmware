@@ -45,6 +45,7 @@
 
 #pragma once
 __BEGIN_DECLS
+
 /* configuration limits */
 #ifdef BOARD_NUM_IO_TIMERS
 #define MAX_IO_TIMERS     BOARD_NUM_IO_TIMERS
@@ -104,9 +105,10 @@ typedef struct io_timers_channel_mapping_t {
 
 /* array of channels in logical order */
 typedef struct timer_io_channels_t {
-	uint32_t	gpio_out;            /* The timer valn_offset GPIO for PWM (this is the IOMUX Pad, e.g. PWM_IOMUX | GPIO_FLEXPWM2_PWMA00_2) */
-	uint32_t	gpio_in;             /* The timer valn_offset GPIO for Capture */
-	uint32_t	gpio_portpin;        /* The GPIO Port + Pin (e.g. GPIO_PORT2 | GPIO_PIN6) */
+	px4_gpio_pinset_t
+	gpio_out;    /* The timer valn_offset GPIO for PWM (this is the IOMUX Pad, e.g. PWM_IOMUX | GPIO_FLEXPWM2_PWMA00_2) */
+	px4_gpio_pinset_t	gpio_in;     /* The timer valn_offset GPIO for Capture */
+	px4_gpio_pinset_t	gpio_portpin; /* GPIO output pinset; port + pin on legacy i.MX RT */
 	uint8_t		timer_index;         /* 0 based index in the io_timers_t table */
 	uint8_t   val_offset;          /* IMXRT_FLEXPWM_SM0VAL3_OFFSET or IMXRT_FLEXPWM_SM0VAL5_OFFSET */
 	uint8_t   sub_module;          /* 0 based sub module offset */
@@ -168,11 +170,11 @@ __EXPORT int io_timer_unallocate_timer(unsigned timer);
  * Returns the pin configuration for a specific channel, to be used as GPIO output.
  * 0 is returned if the channel is not valid.
  */
-__EXPORT uint32_t io_timer_channel_get_gpio_output(unsigned channel);
+__EXPORT px4_gpio_pinset_t io_timer_channel_get_gpio_output(unsigned channel);
 /**
  * Returns the pin configuration for a specific channel, to be used as PWM input.
  * 0 is returned if the channel is not valid.
  */
-__EXPORT uint32_t io_timer_channel_get_as_pwm_input(unsigned channel);
+__EXPORT px4_gpio_pinset_t io_timer_channel_get_as_pwm_input(unsigned channel);
 
 __END_DECLS

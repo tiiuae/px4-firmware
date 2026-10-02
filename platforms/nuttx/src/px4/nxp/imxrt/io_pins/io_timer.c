@@ -79,8 +79,6 @@ static int io_timer_handler7(int irq, void *context, void *arg);
 #define BOARD_ONESHOT_FREQ 8000000
 #endif
 
-#define FLEXPWM_SRC_CLOCK_FREQ 16000000
-
 #define MAX_CHANNELS_PER_TIMER 2
 
 #define SM_SPACING (IMXRT_FLEXPWM_SM1CNT_OFFSET-IMXRT_FLEXPWM_SM0CNT_OFFSET)
@@ -276,18 +274,21 @@ int io_timer_validate_channel_index(unsigned channel)
 	return rv;
 }
 
-uint32_t io_timer_channel_get_gpio_output(unsigned channel)
+px4_gpio_pinset_t io_timer_channel_get_gpio_output(unsigned channel)
 {
 	if (io_timer_validate_channel_index(channel) != 0) {
 		return 0;
 	}
 
+#if defined(CONFIG_IMXRT_RGPIO)
+	return timer_io_channels[channel].gpio_portpin;
+#else
 	return timer_io_channels[channel].gpio_portpin | (GPIO_OUTPUT | GPIO_OUTPUT_ZERO | IOMUX_CMOS_OUTPUT | IOMUX_PULL_KEEP
 			| IOMUX_SLEW_FAST);
-	return 0;
+#endif
 }
 
-uint32_t io_timer_channel_get_as_pwm_input(unsigned channel)
+px4_gpio_pinset_t io_timer_channel_get_as_pwm_input(unsigned channel)
 {
 	if (io_timer_validate_channel_index(channel) != 0) {
 		return 0;
@@ -573,8 +574,10 @@ int io_timer_set_pwm_rate(unsigned timer, unsigned rate)
 
 	/* Get the channel bits that belong to the timer and are in PWM or OneShot mode */
 
-	uint32_t channels = get_channel_mask(timer) & (io_timer_get_mode_channels(IOTimerChanMode_OneShot) |
+	uint32_t channels = io_timer_get_group(timer) & (io_timer_get_mode_channels(IOTimerChanMode_OneShot) |
 			    io_timer_get_mode_channels(IOTimerChanMode_PWMOut));
+
+	unsigned channel = io_timers_channel_mapping.element[timer].first_channel_index;
 
 	/* Request to use OneShot ?*/
 
@@ -586,7 +589,7 @@ int io_timer_set_pwm_rate(unsigned timer, unsigned rate)
 
 		/* Did the allocation change */
 		if (changed_channels) {
-			io_timer_set_oneshot_mode(timer);
+			io_timer_set_oneshot_mode(channel);
 		}
 
 	} else {
@@ -596,10 +599,10 @@ int io_timer_set_pwm_rate(unsigned timer, unsigned rate)
 		int changed_channels = reallocate_channel_resources(channels, IOTimerChanMode_OneShot, IOTimerChanMode_PWMOut);
 
 		if (changed_channels) {
-			io_timer_set_PWM_mode(timer);
+			io_timer_set_PWM_mode(channel);
 		}
 
-		timer_set_rate(timer, rate);
+		timer_set_rate(channel, rate);
 	}
 
 	return OK;
@@ -612,7 +615,7 @@ int io_timer_channel_init(unsigned channel, io_timer_channel_mode_t mode,
 		return -EINVAL;
 	}
 
-	uint32_t gpio = 0;
+	px4_gpio_pinset_t gpio = 0;
 
 	/* figure out the GPIO config first */
 
@@ -713,7 +716,7 @@ int io_timer_set_enable(bool state, io_timer_channel_mode_t mode, io_timer_chann
 			uint32_t sm_ens;
 			uint32_t base;
 			uint32_t io_index;
-			uint32_t gpios[MAX_TIMER_IO_CHANNELS];
+			px4_gpio_pinset_t gpios[MAX_TIMER_IO_CHANNELS];
 		} action_cache[MAX_IO_TIMERS];
 
 		unsigned int actions = 0;
@@ -789,10 +792,22 @@ int io_timer_set_ccr(unsigned channel, uint16_t value)
 			rv = -EIO;
 
 		} else {
+			/* The API uses 1 MHz ticks for PWM and 8 MHz ticks for
+			 * OneShot. Convert to the board's actual counter clock.
+			 */
+
+			uint32_t frequency = mode == IOTimerChanMode_OneShot ? BOARD_ONESHOT_FREQ : BOARD_PWM_FREQ;
+			uint32_t reference = mode == IOTimerChanMode_OneShot ? 8000000 : 1000000;
+			uint32_t ticks = ((uint64_t)value * frequency + reference / 2) / reference;
+
+			if (ticks > UINT16_MAX) {
+				return -ERANGE;
+			}
+
 			irqstate_t flags = px4_enter_critical_section();
 			rMCTRL(channels_timer(channel)) |= (timer_io_channels[channel].sub_module_bits >> MCTRL_LDOK_SHIFT) << MCTRL_CLDOK_SHIFT
 							   ;
-			REG(channels_timer(channel), timer_io_channels[channel].sub_module, timer_io_channels[channel].val_offset) = value - 1;
+			REG(channels_timer(channel), timer_io_channels[channel].sub_module, timer_io_channels[channel].val_offset) = ticks - 1;
 			rMCTRL(channels_timer(channel)) |= timer_io_channels[channel].sub_module_bits;
 			px4_leave_critical_section(flags);
 		}
@@ -811,15 +826,30 @@ uint16_t io_channel_get_ccr(unsigned channel)
 		if ((mode == IOTimerChanMode_PWMOut) ||
 		    (mode == IOTimerChanMode_OneShot) ||
 		    (mode == IOTimerChanMode_Trigger)) {
-			value = REG(channels_timer(channel), timer_io_channels[channel].sub_module, timer_io_channels[channel].val_offset) + 1;
+			uint16_t ticks = REG(channels_timer(channel), timer_io_channels[channel].sub_module,
+					     timer_io_channels[channel].val_offset) + 1;
+			uint32_t frequency = mode == IOTimerChanMode_OneShot ? BOARD_ONESHOT_FREQ : BOARD_PWM_FREQ;
+			uint32_t reference = mode == IOTimerChanMode_OneShot ? 8000000 : 1000000;
+			value = ((uint64_t)ticks * reference + frequency / 2) / frequency;
 		}
 	}
 
 	return value;
 }
 
-// The rt has 1:1 group to channel
 uint32_t io_timer_get_group(unsigned group)
 {
-	return get_channel_mask(group);
+	if (validate_timer_index(group) < 0) {
+		return 0;
+	}
+
+	uint32_t channels = 0;
+	uint32_t first_channel = io_timers_channel_mapping.element[group].first_channel_index;
+	uint32_t last_channel = first_channel + io_timers_channel_mapping.element[group].channel_count;
+
+	for (uint32_t channel = first_channel; channel < last_channel; channel++) {
+		channels |= get_channel_mask(channel);
+	}
+
+	return channels;
 }

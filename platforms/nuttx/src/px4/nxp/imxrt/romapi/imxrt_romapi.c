@@ -25,7 +25,9 @@
 #include <px4_arch/imxrt_flexspi_nor_flash.h>
 #include <px4_arch/imxrt_romapi.h>
 
-#include <hardware/rt117x/imxrt117x_anadig.h>
+#if defined(CONFIG_ARCH_FAMILY_IMXRT117x)
+#  include <hardware/rt117x/imxrt117x_anadig.h>
+#endif
 
 /*******************************************************************************
  * Definitions
@@ -104,13 +106,21 @@ static bootloader_api_entry_t *g_bootloaderTree = NULL;
 locate_code(".ramfunc")
 void ROM_API_Init(void)
 {
-
+#if defined(CONFIG_ARCH_FAMILY_IMXRT118x)
+# if defined(CONFIG_ARCH_ARMV7M)
+	g_bootloaderTree = (bootloader_api_entry_t *)(uintptr_t)0x0011f000U;
+# else
+	g_bootloaderTree = (bootloader_api_entry_t *)(uintptr_t)
+			   *(const uint32_t *)(uintptr_t)0x1000001cU;
+# endif
+#else
 	if ((getreg32(IMXRT_ANADIG_MISC_MISC_DIFPROG) & ANADIG_MISC_MISC_DIFPROG_CHIPID(0x10U)) != 0U) {
 		g_bootloaderTree = ((bootloader_api_entry_t *) * (uint32_t *)0x0021001cU);
 
 	} else {
 		g_bootloaderTree = ((bootloader_api_entry_t *) * (uint32_t *)0x0020001cU);
 	}
+#endif
 }
 
 /*!
@@ -246,6 +256,9 @@ status_t ROM_FLEXSPI_NorFlash_UpdateLut(uint32_t instance,
 locate_code(".ramfunc")
 void ROM_FLEXSPI_NorFlash_ClearCache(uint32_t instance)
 {
+#if defined(CONFIG_ARCH_FAMILY_IMXRT118x)
+	g_bootloaderTree->flexSpiNorDriver->clear_cache(instance);
+#else
 	uint32_t clearCacheFunctionAddress;
 
 	if ((getreg32(IMXRT_ANADIG_MISC_MISC_DIFPROG) & ANADIG_MISC_MISC_DIFPROG_CHIPID(0x10U)) != 0U) {
@@ -258,6 +271,7 @@ void ROM_FLEXSPI_NorFlash_ClearCache(uint32_t instance)
 	clearCacheCommand_t clearCacheCommand;
 	MISRA_CAST(clearCacheCommand_t, clearCacheCommand, uint32_t, clearCacheFunctionAddress);
 	(void)clearCacheCommand(instance);
+#endif
 }
 
 /*! @brief Wait until device is idle*/
