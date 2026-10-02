@@ -296,6 +296,7 @@
 #define GPIO_HW_REV_SENSE     /* GPIO_AD_22 GPIO9 Pin 21 */  ADC_GPIO(4, 21)
 #define GPIO_HW_VER_SENSE     /* GPIO_AD_23 GPIO9 Pin 22 */  ADC_GPIO(5, 22)
 #define HW_INFO_INIT_PREFIX   "V6XRT"
+#define BOARD_REVISIONS       {{"i.MX RT1176", '0', NULL}}
 
 #define BOARD_NUM_SPI_CFG_HW_VERSIONS 2 // Rev 0 & 1
 #define V6XRT_0             HW_FMUM_ID(0x0)  // First Release
