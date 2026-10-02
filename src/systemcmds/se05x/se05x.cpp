@@ -37,6 +37,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -45,17 +46,58 @@
 
 static constexpr uint16_t SE05X_CONFIG_EDDSA = 0x0004;
 static constexpr uint16_t SE05X_CONFIG_DH_MONT = 0x0008;
+static constexpr uint32_t SE05X_TEST_KEY_ID = 0x7b000001;
+
+static int ecdh_test(int fd)
+{
+	struct se05x_generate_keypair_s keypair {};
+	keypair.id = SE05X_TEST_KEY_ID;
+	keypair.cipher = SE05X_ASYM_CIPHER_EC_NIST_P_256;
+
+	if (ioctl(fd, SEIOC_GENERATE_KEYPAIR, (unsigned long)&keypair) < 0) {
+		PX4_ERR("generate P-256 key: %d", errno);
+		return 1;
+	}
+
+	uint8_t secret[32];
+	struct se05x_derive_key_s derive {};
+	derive.private_key_id = SE05X_TEST_KEY_ID;
+	derive.public_key_id = SE05X_TEST_KEY_ID;
+	derive.content.buffer = secret;
+	derive.content.buffer_size = sizeof(secret);
+
+	int ret = ioctl(fd, SEIOC_DERIVE_SYMM_KEY, (unsigned long)&derive);
+	int err = errno;
+	explicit_bzero(secret, sizeof(secret));
+
+	if (ret < 0) {
+		PX4_ERR("ECDH refused: %d", err);
+
+	} else {
+		PX4_INFO_RAW("ECDH: %zu-byte shared secret\n", derive.content.buffer_content_size);
+	}
+
+	uint32_t id = SE05X_TEST_KEY_ID;
+
+	if (ioctl(fd, SEIOC_DELETE_KEY, (unsigned long)id) < 0) {
+		PX4_ERR("delete test key 0x%08" PRIx32 ": %d", id, errno);
+		return 1;
+	}
+
+	return ret < 0 ? 1 : 0;
+}
 
 static void usage()
 {
 	PRINT_MODULE_DESCRIPTION("Read the identity of the SE05x secure element");
 	PRINT_MODULE_USAGE_NAME("se05x", "command");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("info", "Print the applet version and features, the unique id and the OEF id");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("ecdh-test", "ECDH with a throwaway P-256 key inside the element, then delete it");
 }
 
 extern "C" __EXPORT int se05x_main(int argc, char *argv[])
 {
-	if (argc != 2 || strcmp(argv[1], "info") != 0) {
+	if (argc != 2 || (strcmp(argv[1], "info") != 0 && strcmp(argv[1], "ecdh-test") != 0)) {
 		usage();
 		return 1;
 	}
@@ -65,6 +107,12 @@ extern "C" __EXPORT int se05x_main(int argc, char *argv[])
 	if (fd < 0) {
 		PX4_ERR("/dev/se05x: %d", errno);
 		return 1;
+	}
+
+	if (strcmp(argv[1], "ecdh-test") == 0) {
+		int ret = ecdh_test(fd);
+		close(fd);
+		return ret;
 	}
 
 	struct se05x_version_s version {};
