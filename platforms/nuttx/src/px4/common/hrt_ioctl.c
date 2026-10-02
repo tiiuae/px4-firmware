@@ -43,6 +43,7 @@
 
 #include <drivers/drv_hrt.h>
 #include <nuttx/kmalloc.h>
+#include <nuttx/nuttx.h>
 #include <nuttx/spinlock.h>
 #include <queue.h>
 #include <signal.h>
@@ -264,7 +265,7 @@ static void hrt_unregister(px4_sem_t *callback_sem)
 	flags = spin_lock_irqsave_notrace(&g_hrt_ioctl_lock);
 
 	sq_for_every(&callout_queue, queued) {
-		e = (struct usr_hrt_call *)queued;
+		e = container_of(queued, struct usr_hrt_call, list_item);
 
 		if (callback_sem == e->entry.callout_sem) {
 			sq_rem(&e->list_item, &callout_queue);
@@ -288,7 +289,7 @@ static void hrt_unregister(px4_sem_t *callback_sem)
 
 	flags = enter_critical_section();
 	sq_for_every(&deleted, queued) {
-		e = (struct usr_hrt_call *)queued;
+		e = container_of(queued, struct usr_hrt_call, list_item);
 		e->entry.callout_sem = NULL;
 	}
 
@@ -298,7 +299,7 @@ static void hrt_unregister(px4_sem_t *callback_sem)
 	/* Free all the memory */
 
 	sq_for_every(&deleted, queued) {
-		e = (struct usr_hrt_call *)queued;
+		e = container_of(queued, struct usr_hrt_call, list_item);
 		kmm_free(e);
 	}
 
