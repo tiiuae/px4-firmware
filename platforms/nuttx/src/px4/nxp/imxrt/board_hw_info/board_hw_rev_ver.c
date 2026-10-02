@@ -50,6 +50,15 @@
 #include <lib/crc/crc.h>
 #include <lib/systemlib/px4_macros.h>
 
+#ifndef CONFIG_BUILD_FLAT
+#include <string.h>
+#include <drivers/drv_hrt.h>
+#include <uORB/uORB.h>
+#include <uORB/topics/guid.h>
+#include <uORB/topics/hw_info.h>
+#include <uORB/topics/system_version.h>
+#endif
+
 #if defined(BOARD_HAS_HW_VERSIONING) || defined(BOARD_HAS_HW_SPLIT_VERSIONING)
 
 #  if defined(GPIO_HW_VER_REV_DRIVE)
@@ -411,6 +420,30 @@ int board_determine_hw_info()
 		snprintf(hw_info, sizeof(hw_info), HW_INFO_INIT_PREFIX HW_INFO_SUFFIX, hw_version, hw_revision);
 #endif
 	}
+
+#ifndef CONFIG_BUILD_FLAT
+
+	if (rv == OK) {
+		struct system_version_s ver = {};
+		struct guid_s guid = {};
+		struct hw_info_s hwinfo = {};
+		uuid_byte_t uuid;
+
+		ver.timestamp = guid.timestamp = hwinfo.timestamp = hrt_absolute_time();
+		ver.hw_version = hw_version;
+		ver.hw_revision = hw_revision;
+		ver.soc_arch_id = PX4_SOC_ARCH_ID;
+
+		board_get_uuid(uuid);
+		memcpy(guid.mfguid, uuid, sizeof(uuid));
+		strlcpy(hwinfo.hw_info, hw_info, sizeof(hwinfo.hw_info));
+
+		orb_advertise(ORB_ID(system_version), &ver);
+		orb_advertise(ORB_ID(guid), &guid);
+		orb_advertise(ORB_ID(hw_info), &hwinfo);
+	}
+
+#endif
 
 	return rv;
 }

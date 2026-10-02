@@ -71,11 +71,21 @@ static unsigned hw_revision = 0;
 static char hw_info[HW_INFO_SIZE] = { 0 };
 static uint16_t soc_arch_id = 0;
 static mfguid_t device_serial_number = { 0 };
+#if defined(BOARD_HAS_HW_SPLIT_VERSIONING)
+static char hw_base_info[HW_INFO_SIZE] = { 0 };
+#endif
 
 __EXPORT const char *board_get_hw_type_name(void)
 {
 	return (const char *) hw_info;
 }
+
+#if defined(BOARD_HAS_HW_SPLIT_VERSIONING)
+__EXPORT const char *board_get_hw_base_type_name(void)
+{
+	return (const char *) hw_base_info;
+}
+#endif
 
 __EXPORT int board_get_hw_version(void)
 {
@@ -133,11 +143,11 @@ int board_get_px4_guid(px4_guid_t px4_guid)
 
 	memset(pb, 0, sizeof(px4_guid_t));
 
-	static_assert(sizeof(device_serial_number) == 16);
-	static_assert(sizeof(px4_guid_t) >= sizeof(device_serial_number) + 2);
+	static_assert(sizeof(px4_guid_t) >= sizeof(soc_arch_id) + sizeof(device_serial_number));
 
 	*pb++ = (soc_arch_id >> 8) & 0xff;
 	*pb++ = (soc_arch_id & 0xff);
+	pb += sizeof(px4_guid_t) - sizeof(soc_arch_id) - sizeof(device_serial_number);
 
 	memcpy(pb, device_serial_number, sizeof(device_serial_number));
 
@@ -189,6 +199,10 @@ int board_determine_hw_info(void)
 	hw_version = ver.hw_version;
 	hw_revision = ver.hw_revision;
 	soc_arch_id = ver.soc_arch_id;
+
+#if defined(BOARD_HAS_HW_SPLIT_VERSIONING)
+	snprintf(hw_base_info, sizeof(hw_base_info), HW_INFO_BASE_SUFFIX, GET_HW_BASE_ID());
+#endif
 
 	/* Hardware information string */
 	hwinfo_sub = orb_subscribe(ORB_ID(hw_info));
