@@ -43,11 +43,14 @@
 
 #include <nuttx/crypto/se05x.h>
 
+static constexpr uint16_t SE05X_CONFIG_EDDSA = 0x0004;
+static constexpr uint16_t SE05X_CONFIG_DH_MONT = 0x0008;
+
 static void usage()
 {
 	PRINT_MODULE_DESCRIPTION("Read the identity of the SE05x secure element");
 	PRINT_MODULE_USAGE_NAME("se05x", "command");
-	PRINT_MODULE_USAGE_COMMAND_DESCR("info", "Print the unique id and the OEF id");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("info", "Print the applet version and features, the unique id and the OEF id");
 }
 
 extern "C" __EXPORT int se05x_main(int argc, char *argv[])
@@ -64,17 +67,25 @@ extern "C" __EXPORT int se05x_main(int argc, char *argv[])
 		return 1;
 	}
 
+	struct se05x_version_s version {};
 	struct se05x_uid_s uid {};
 	struct se05x_info_s info {};
 	int ret = 1;
 
-	if (ioctl(fd, SEIOC_GET_UID, (unsigned long)&uid) < 0) {
+	if (ioctl(fd, SEIOC_GET_VERSION, (unsigned long)&version) < 0) {
+		PX4_ERR("applet version: %d", errno);
+
+	} else if (ioctl(fd, SEIOC_GET_UID, (unsigned long)&uid) < 0) {
 		PX4_ERR("unique id: %d", errno);
 
 	} else if (ioctl(fd, SEIOC_GET_INFO, (unsigned long)&info) < 0) {
 		PX4_ERR("OEF id: %d", errno);
 
 	} else {
+		PX4_INFO_RAW("applet: %u.%u.%u, features 0x%04x, secure box 0x%04x\n", version.major, version.minor,
+			     version.patch, version.applet_config, version.secure_box);
+		PX4_INFO_RAW("X25519: %s, Ed25519: %s\n", (version.applet_config & SE05X_CONFIG_DH_MONT) ? "yes" : "no",
+			     (version.applet_config & SE05X_CONFIG_EDDSA) ? "yes" : "no");
 		PX4_INFO_RAW("unique id: ");
 
 		for (size_t i = 0; i < sizeof(uid.uid); i++) {
