@@ -45,6 +45,7 @@
 
 #include <nuttx/config.h>
 
+#include <px4_platform/board_ctrl.h>
 #include <px4_platform_common/px4_config.h>
 #include <nuttx/compiler.h>
 #include <stdint.h>
@@ -322,8 +323,13 @@
 #define GPIO_nARMED_INIT     /* GPIO1_IO17 */ (GPIO_PORT1 | GPIO_PIN17 | GPIO_INPUT | nARMED_INPUT_IOMUX)
 #define GPIO_nARMED          /* GPIO1_IO17 */ (GPIO_PORT1 | GPIO_PIN17 | GPIO_OUTPUT | GPIO_OUTPUT_ZERO | nARMED_OUTPUT_IOMUX)
 
+#ifdef CONFIG_BUILD_FLAT
 #define BOARD_INDICATE_EXTERNAL_LOCKOUT_STATE(enabled)  px4_arch_configgpio((enabled) ? GPIO_nARMED : GPIO_nARMED_INIT)
 #define BOARD_GET_EXTERNAL_LOCKOUT_STATE() px4_arch_gpioread(GPIO_nARMED)
+#else
+#define BOARD_INDICATE_EXTERNAL_LOCKOUT_STATE(enabled) boardctrl_indicate_external_lockout_state(enabled)
+#define BOARD_GET_EXTERNAL_LOCKOUT_STATE() boardctrl_get_external_lockout_state()
+#endif
 
 /* PWM Capture
  *

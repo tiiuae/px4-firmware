@@ -174,4 +174,6 @@ int boardctrl_read_VBUS_state(void);
 void boardctrl_indicate_external_lockout_state(bool enable);
 bool boardctrl_get_external_lockout_state(void);
 
+int px4_spawn_kernel_builtin(char *const argv[]);
+
 __END_DECLS

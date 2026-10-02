@@ -39,6 +39,7 @@
 
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/defines.h>
+#include <px4_platform_common/tasks.h>
 #include <px4_platform/board_ctrl.h>
 #include "board_config.h"
 
@@ -133,6 +134,22 @@ static int launch_kernel_builtin(int argc, char **argv)
 		/* This is running in the userspace thread, created by nsh, and
 		   called via boardctl. Call the main directly */
 		return builtin->main(argc, argv);
+	}
+
+	return -ENOENT;
+}
+
+int px4_spawn_kernel_builtin(char *const argv[])
+{
+	const char *name = basename(argv[0]);
+
+	for (int i = 0; i < g_n_kernel_builtins; i++) {
+		const struct kernel_builtin_s *builtin = &g_kernel_builtins[i];
+
+		if (!strcmp(builtin->name, name)) {
+			return px4_task_spawn_cmd(builtin->name, SCHED_DEFAULT, builtin->priority,
+						  builtin->stacksize, builtin->main, &argv[1]);
+		}
 	}
 
 	return -ENOENT;

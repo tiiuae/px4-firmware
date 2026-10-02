@@ -38,6 +38,10 @@
 #include <px4_platform_common/getopt.h>
 #include <px4_arch/i2c_hw_description.h>
 
+#if defined(__KERNEL__)
+#include <px4_platform/board_ctrl.h>
+#endif
+
 constexpr I2CLauncher::I2CDevice I2CLauncher::_devices[];
 
 I2CLauncher::I2CLauncher(int bus) :
@@ -169,7 +173,15 @@ void I2CLauncher::scan_i2c_bus(int bus)
 
 			// Try starting, if it succeeds we assume it's started and we no longer have to
 			// check this device.
+#if defined(__KERNEL__)
+			char bus_str[4];
+			snprintf(bus_str, sizeof(bus_str), "%d", bus);
+			char *const argv[] {const_cast<char *>(_devices[i].cmd), (char *)"-X", (char *)"-b", bus_str,
+					    (char *)"-t", bus_str, (char *)"start", nullptr};
+			const int ret = px4_spawn_kernel_builtin(argv) < 0;
+#else
 			const int ret = system(buf);
+#endif
 
 			if (ret == 0) {
 				PX4_INFO("Started 0x%x successfully", _devices[i].i2c_addr);
