@@ -141,21 +141,10 @@ RCInput::task_spawn(int argc, char *argv[])
 	device_name = RC_SERIAL_PORT;
 #endif // RC_SERIAL_PORT
 
-#if defined(RC_SERIAL_PORT) && defined(PX4IO_SERIAL_DEVICE)
-
-	// if RC_SERIAL_PORT == PX4IO_SERIAL_DEVICE then don't use it by default if the px4io is running
-	if ((strcmp(RC_SERIAL_PORT, PX4IO_SERIAL_DEVICE) == 0) && (access("/dev/px4io", R_OK) == 0)) {
-		device_name = nullptr;
-		silent = true;
-	}
-
-#endif // RC_SERIAL_PORT && PX4IO_SERIAL_DEVICE
-
 	while ((ch = px4_getopt(argc, argv, "d:", &myoptind, &myoptarg)) != EOF) {
 		switch (ch) {
 		case 'd':
 			device_name = myoptarg;
-			silent = false;
 			break;
 
 		case '?':
@@ -171,6 +160,16 @@ RCInput::task_spawn(int argc, char *argv[])
 
 	if (error_flag) {
 		return -1;
+	}
+
+	// A board may wire its RC serial device to the same UART used for the PX4IO
+	// link. In that case PX4IO decodes RC itself and publishes input_rc, so don't
+	// start here if PX4IO is actually present (per the board's HW manifest) and
+	// running. Checked after option parsing so this can't be bypassed by an
+	// explicit -d (e.g. from the generated rc.serial script).
+	if (device_name && board_rc_conflicting(device_name)) {
+		device_name = nullptr;
+		silent = true;
 	}
 
 	if (device_name && (access(device_name, R_OK | W_OK) == 0)) {
