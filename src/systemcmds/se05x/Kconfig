@@ -1,0 +1,6 @@
+menuconfig SYSTEMCMDS_SE05X
+	bool "se05x"
+	default n
+	depends on PLATFORM_NUTTX
+	---help---
+		Read the identity of an NXP SE05x secure element on /dev/se05x

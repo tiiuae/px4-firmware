@@ -59,6 +59,7 @@
 #include <nuttx/board.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/i2c/i2c_master.h>
+#include <nuttx/crypto/se05x.h>
 #include <nuttx/sdio.h>
 #include <nuttx/mmcsd.h>
 #include <nuttx/analog/adc.h>
@@ -70,6 +71,7 @@
 #include "imxrt_iomuxc.h"
 #include "imxrt_flexcan.h"
 #include "imxrt_enet.h"
+#include "imxrt_lpi2c.h"
 #include <chip.h>
 
 #include <hardware/imxrt_lpuart.h>
@@ -440,6 +442,20 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	/* Do the I2C init late BOARD_I2C_LATEINIT */
 
 	px4_platform_i2c_init();
+
+#ifdef CONFIG_DEV_SE05X
+	static struct se05x_config_s se05x_config = {
+		.address = PX4_I2C_OBDEV_SE050,
+		.frequency = 400000,
+	};
+
+	struct i2c_master_s *se05x_i2c = imxrt_i2cbus_initialize(3);
+
+	if (se05x_i2c == NULL || se05x_register("/dev/se05x", se05x_i2c, &se05x_config) < 0) {
+		syslog(LOG_ERR, "[boot] SE05x not registered\n");
+	}
+
+#endif
 
 	/* Configure the Actual SPI interfaces (after we determined the HW version)  */
 
