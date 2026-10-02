@@ -100,6 +100,17 @@ else()
 			drivers__led # drv_led_start
 			nuttx_arch # sdio
 			nuttx_drivers # sdio
-			px4_layer
 	)
+
+	if (NOT DEFINED CONFIG_BUILD_FLAT)
+		target_link_libraries(drivers_board PRIVATE px4_kernel_layer)
+		target_compile_options(drivers_board PRIVATE -D__KERNEL__)
+
+		add_library(drivers_userspace
+			imxrt_userspace.c
+		)
+		add_dependencies(drivers_userspace nuttx_context)
+	else()
+		target_link_libraries(drivers_board PRIVATE px4_layer)
+	endif()
 endif()

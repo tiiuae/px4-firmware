@@ -93,8 +93,10 @@ case $target in
     # There is no ssrc label for this board; default is what exists.
     $build_cmd_fw px4_fmu-v6xrt_bootloader
     $build_cmd_fw px4_fmu-v6xrt_default
+    $build_cmd_fw px4_fmu-v6xrt_protected
     cp ${script_dir}/build/px4_fmu-v6xrt_bootloader/px4_fmu-v6xrt_bootloader.elf ${dest_dir}/px4_fmu-v6xrt_bootloader-${version}.elf
     cp ${script_dir}/build/px4_fmu-v6xrt_default/px4_fmu-v6xrt_default.px4 ${dest_dir}/px4_fmu-v6xrt_default-${version}.px4
+    cp ${script_dir}/build/px4_fmu-v6xrt_protected/px4_fmu-v6xrt_protected.px4 ${dest_dir}/px4_fmu-v6xrt_protected-${version}.px4
     ;;
   # handle all normal ssrc targets
   saluki-*)
