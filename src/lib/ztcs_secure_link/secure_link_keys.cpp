@@ -147,6 +147,25 @@ bool secure_link_public_key(uint8_t out[NOISE_DHLEN])
 	return noise_static_public(&s, out) == 0;
 }
 
+bool secure_link_enrolment_closed(void)
+{
+	PX4Crypto ed;
+	PX4Crypto x;
+	uint8_t key[32];
+	size_t len = NOISE_DHLEN;
+	bool closed = true;
+
+	if (ed.open(CRYPTO_ED25519) && x.open(CRYPTO_X25519)) {
+		closed = operator_pinned(ed, key)
+			 && x.get_public_key(ZTCS_KEY_SLOT_STATION_PUBLIC, key, &len)
+			 && len == NOISE_DHLEN;
+	}
+
+	ed.close();
+	x.close();
+	return closed;
+}
+
 bool secure_link_pin_operator(const uint8_t operator_public[32])
 {
 	PX4Crypto crypto;
@@ -308,6 +327,11 @@ bool secure_link_public_key(uint8_t out[NOISE_DHLEN])
 {
 	memset(out, 0, NOISE_DHLEN);
 	return false;
+}
+
+bool secure_link_enrolment_closed(void)
+{
+	return true;
 }
 
 bool secure_link_pin_operator(const uint8_t operator_public[32])

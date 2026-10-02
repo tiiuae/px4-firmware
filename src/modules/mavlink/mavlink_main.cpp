@@ -857,16 +857,33 @@ void Mavlink::print_secure_link_status()
 #endif
 
 #if defined(CONFIG_MAVLINK_SERIAL_FLASH_ONLY)
-static bool is_heartbeat(const uint8_t *frame, size_t len)
+static int32_t frame_msgid(const uint8_t *frame, size_t len)
 {
 	if (len > 5 && frame[0] == MAVLINK_STX_MAVLINK1) {
-		return frame[5] == MAVLINK_MSG_ID_HEARTBEAT;
+		return frame[5];
 	}
 
-	return len > 9 && frame[0] == MAVLINK_STX
-	       && (frame[7] | frame[8] << 8 | frame[9] << 16) == MAVLINK_MSG_ID_HEARTBEAT;
+	if (len > 9 && frame[0] == MAVLINK_STX) {
+		return frame[7] | frame[8] << 8 | frame[9] << 16;
+	}
+
+	return -1;
 }
 #endif
+
+bool Mavlink::usb_enrolment_open()
+{
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+
+	if (_usb_enrolment < 0) {
+		_usb_enrolment = _is_usb_uart && !secure_link_enrolment_closed();
+	}
+
+	return _usb_enrolment > 0;
+#else
+	return false;
+#endif
+}
 
 void Mavlink::send_finish()
 {
@@ -888,7 +905,10 @@ void Mavlink::send_finish()
 #endif
 		{
 #if defined(CONFIG_MAVLINK_SERIAL_FLASH_ONLY)
-			ret = is_heartbeat(_buf, _buf_fill) ? ::write(_uart_fd, _buf, _buf_fill) : (int)_buf_fill;
+			const int32_t msgid = frame_msgid(_buf, _buf_fill);
+			const bool allowed = msgid == MAVLINK_MSG_ID_HEARTBEAT
+					     || (msgid == MAVLINK_MSG_ID_SERIAL_CONTROL && usb_enrolment_open());
+			ret = allowed ? ::write(_uart_fd, _buf, _buf_fill) : (int)_buf_fill;
 #else
 			ret = ::write(_uart_fd, _buf, _buf_fill);
 #endif

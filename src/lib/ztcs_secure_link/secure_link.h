@@ -124,6 +124,8 @@ bool secure_link_public_key(uint8_t out[NOISE_DHLEN]);
  */
 bool secure_link_pin_operator(const uint8_t operator_public[32]);
 
+bool secure_link_enrolment_closed(void);
+
 /* Stores the station key to pin. Once an operator key is pinned the write
  * must carry that operator's signature over the station key, so a fielded
  * aircraft cannot be pointed at another ground station.

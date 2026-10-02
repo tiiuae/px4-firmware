@@ -1849,6 +1849,10 @@ MavlinkReceiver::serial_message_allowed(const mavlink_message_t &msg) const
 		return true;
 	}
 
+	if (msg.msgid == MAVLINK_MSG_ID_SERIAL_CONTROL) {
+		return _mavlink->usb_enrolment_open();
+	}
+
 	if (msg.msgid != MAVLINK_MSG_ID_COMMAND_LONG || strcmp(_mavlink->_device_name, usb_device) != 0) {
 		return false;
 	}
@@ -1881,7 +1885,7 @@ MavlinkReceiver::handle_message_serial_control(mavlink_message_t *msg)
 
 #if defined(CONFIG_MAVLINK_SHELL_REQUIRES_SECURE_LINK)
 
-	if (!_mavlink->secure_link_up()) {
+	if (!_mavlink->secure_link_up() && !_mavlink->usb_enrolment_open()) {
 		return;
 	}
 
