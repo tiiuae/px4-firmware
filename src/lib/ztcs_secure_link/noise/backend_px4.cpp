@@ -20,6 +20,7 @@ static bool open_session(PX4Crypto &crypto)
 	return crypto.open(CRYPTO_X25519);
 }
 
+#ifndef NOISE_HANDSHAKE_IN_KERNEL
 extern "C" int noise_dh_static(const struct noise_static_key *s,
 			       const uint8_t pk[NOISE_DHLEN],
 			       uint8_t out[NOISE_DHLEN])
@@ -42,6 +43,7 @@ extern "C" int noise_dh_static(const struct noise_static_key *s,
 
 	return 0;
 }
+#endif
 
 extern "C" int noise_static_public(const struct noise_static_key *s,
 				   uint8_t pk[NOISE_DHLEN])

@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#ifndef NOISE_HANDSHAKE_IN_KERNEL
 /* Exactly NOISE_HASHLEN bytes, so h starts as the name itself with no hash. */
 static const char PROTOCOL[] = "Noise_IK_25519_ChaChaPoly_SHA256";
 
@@ -201,6 +202,8 @@ int noise_initiator_finish(struct noise_initiator *ini, const uint8_t *frame,
   ini->stage = 2;
   return NOISE_OK;
 }
+
+#endif
 
 static void put_be64(uint8_t *p, uint64_t v) {
   for (int i = 0; i < 8; i++) {
