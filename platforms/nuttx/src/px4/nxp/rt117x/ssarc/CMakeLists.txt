@@ -37,4 +37,7 @@ px4_add_library(arch_ssarc
 	ssarc_dump.c
 )
 target_link_libraries(px4_layer PUBLIC arch_ssarc)
+if (NOT DEFINED CONFIG_BUILD_FLAT)
+	target_link_libraries(px4_kernel_layer PUBLIC arch_ssarc)
+endif()
 cmake_policy(POP)
