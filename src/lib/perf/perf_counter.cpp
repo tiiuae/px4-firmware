@@ -242,7 +242,7 @@ perf_alloc(enum perf_counter_type type, const char *name)
 #ifdef CONFIG_BUILD_FLAT
 		ctr->name = name;
 #else
-		strncpy(ctr->name, name, PERF_SHMNAME_MAX);
+		strlcpy(ctr->name, name, sizeof(ctr->name));
 #endif
 		ctr->instance = inst;
 	}
