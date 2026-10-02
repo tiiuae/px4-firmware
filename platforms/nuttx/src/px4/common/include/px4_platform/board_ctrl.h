@@ -41,12 +41,38 @@
 
 #ifdef CONFIG_BUILD_KERNEL
 #include <nuttx/addrenv.h>
+#elif defined(CONFIG_BUILD_PROTECTED) && defined(__KERNEL__)
+#include <stdint.h>
+#include <nuttx/mm/mm.h>
+#include <nuttx/userspace.h>
 #endif
 
 static inline bool px4_user_ok(const void *ptr, size_t len)
 {
 #ifdef CONFIG_BUILD_KERNEL
 	return ptr == NULL || uaccess_ok(ptr, len);
+#elif defined(CONFIG_BUILD_PROTECTED) && defined(__KERNEL__)
+	const uintptr_t start = (uintptr_t)ptr;
+	const uintptr_t end = start + len;
+
+	if (ptr == NULL) {
+		return true;
+	}
+
+	if (end < start) {
+		return false;
+	}
+
+	if (start >= USERSPACE->us_datastart && end <= USERSPACE->us_bssend) {
+		return true;
+	}
+
+	if (start >= USERSPACE->us_textstart && end <= USERSPACE->us_textend) {
+		return true;
+	}
+
+	return mm_heapmember(*USERSPACE->us_heap, (void *)start) &&
+	       (len == 0 || mm_heapmember(*USERSPACE->us_heap, (void *)(end - 1)));
 #else
 	(void)ptr;
 	(void)len;
