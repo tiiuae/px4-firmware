@@ -844,6 +844,15 @@ void Mavlink::print_secure_link_status()
 	       : st < 3 ? state_name[st] : "unknown",
 	       (unsigned)_secure_link.handshakes,
 	       (unsigned)_secure_link.decrypt_fails);
+	printf("\tsessions dropped: %u silent, %u aged out, %u failing to open; %u replays\n",
+	       (unsigned)_secure_link.silence_drops,
+	       (unsigned)_secure_link.age_drops,
+	       (unsigned)_secure_link.open_drops,
+	       (unsigned)_secure_link.replays);
+
+	if (_secure_link.last_drop_us != 0) {
+		printf("\tlast drop at %.1f s uptime\n", (double)_secure_link.last_drop_us / 1e6);
+	}
 }
 #endif
 

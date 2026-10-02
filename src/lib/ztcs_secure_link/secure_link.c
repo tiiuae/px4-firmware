@@ -128,6 +128,17 @@ int secure_link_poll(struct secure_link *sl, uint64_t now_us,
       if (now_us - sl->last_open_us >= SECURE_LINK_SILENCE_US
           || now_us - sl->established_us >= SECURE_LINK_MAX_AGE_US)
         {
+          if (now_us - sl->last_open_us >= SECURE_LINK_SILENCE_US)
+            {
+              sl->silence_drops++;
+              sl->last_drop_us = now_us;
+            }
+          else
+            {
+              sl->age_drops++;
+              sl->last_drop_us = now_us;
+            }
+
           end_session(sl);
           reset_backoff(sl);
           return start_handshake(sl, now_us, out, cap);
@@ -269,10 +280,17 @@ int secure_link_open(struct secure_link *sl, uint64_t now_us,
 
         if (rc != NOISE_OK)
           {
+            if (rc == NOISE_ERR_REPLAY)
+              {
+                sl->replays++;
+              }
+
             /* A replay is a radio event, not evidence of a rekey. */
             if (rc != NOISE_ERR_REPLAY
                 && ++sl->decrypt_fails >= SECURE_LINK_DECRYPT_FAILS)
               {
+                sl->open_drops++;
+                sl->last_drop_us = now_us;
                 end_session(sl);
                 sl->state = SECURE_LINK_HANDSHAKING;
                 reset_backoff(sl);

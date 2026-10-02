@@ -79,6 +79,11 @@ struct secure_link {
 
   /* For the log: a link that rekeys often is a symptom. */
   uint32_t handshakes;
+  uint32_t silence_drops;
+  uint32_t age_drops;
+  uint32_t open_drops;
+  uint32_t replays;
+  uint64_t last_drop_us;
 };
 
 /* Returns 0, or a negative NOISE_ERR_*. */
