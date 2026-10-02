@@ -243,6 +243,7 @@ if (NOT CONFIG_BUILD_FLAT)
 		-fno-rtti
 
 		-Wl,--script=${LDKERNEL}
+		-L${NUTTX_CONFIG_DIR_CYG}/scripts
 
 		-Wl,-Map=${PX4_CONFIG}_kernel.map
 		-Wl,--warn-common
