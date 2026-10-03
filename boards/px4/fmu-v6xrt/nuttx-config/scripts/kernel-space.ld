@@ -170,7 +170,7 @@ SECTIONS
 
     _boot_loadaddr = ORIGIN(kflash);
     _boot_size = LENGTH(kflash) + LENGTH(uflash);
-    _ram_size = LENGTH(ksram) + LENGTH(usram);
+    _ram_size = LENGTH(ksram) + LENGTH(usram) + 512K;
     _sdtcm = ORIGIN(dtcm);
     _edtcm = ORIGIN(dtcm) + LENGTH(dtcm);
 }
