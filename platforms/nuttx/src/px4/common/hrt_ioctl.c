@@ -250,7 +250,11 @@ static px4_sem_t *hrt_client(px4_hrt_handle_t handle)
 {
 	uintptr_t i = (uintptr_t)handle - 1;
 
+#ifdef CONFIG_BUILD_KERNEL
 	return i < HRT_CLIENTS && g_hrt_clients[i].owner == getpid() ? g_hrt_clients[i].sem : NULL;
+#else
+	return i < HRT_CLIENTS ? g_hrt_clients[i].sem : NULL;
+#endif
 }
 
 static void hrt_unregister(px4_sem_t *callback_sem)

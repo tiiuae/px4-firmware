@@ -102,7 +102,10 @@ static int event_thread(int argc, char *argv[])
 
 	while (1) {
 		/* Wait for hrt tick */
-		boardctl(HRT_WAITEVENT, (uintptr_t)&ioc_parm);
+		if (boardctl(HRT_WAITEVENT, (uintptr_t)&ioc_parm) < 0) {
+			PX4_ERR("HRT_WAITEVENT failed (%d)", errno);
+			break;
+		}
 
 		/* HRT event received, dispatch */
 		if (ioc_parm.callout) {
