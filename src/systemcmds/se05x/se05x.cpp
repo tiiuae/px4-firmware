@@ -38,15 +38,117 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <drivers/drv_hrt.h>
 #include <nuttx/crypto/se05x.h>
 
 static constexpr uint16_t SE05X_CONFIG_EDDSA = 0x0004;
 static constexpr uint16_t SE05X_CONFIG_DH_MONT = 0x0008;
 static constexpr uint32_t SE05X_TEST_KEY_ID = 0x7b000001;
+static constexpr uint32_t SE05X_IDENTITY_KEY_ID = 0x7b000010;
+
+static void print_hex(const char *label, const uint8_t *buf, size_t len)
+{
+	PX4_INFO_RAW("%s: ", label);
+
+	for (size_t i = 0; i < len; i++) {
+		PX4_INFO_RAW("%02x", buf[i]);
+	}
+
+	PX4_INFO_RAW("\n");
+}
+
+static bool parse_digest(const char *hex, uint8_t digest[32])
+{
+	if (strlen(hex) != 64) {
+		return false;
+	}
+
+	for (size_t i = 0; i < 32; i++) {
+		unsigned byte;
+
+		if (sscanf(hex + 2 * i, "%2x", &byte) != 1) {
+			return false;
+		}
+
+		digest[i] = byte;
+	}
+
+	return true;
+}
+
+static int identity(int fd)
+{
+	struct se05x_generate_keypair_s keypair {};
+	keypair.id = SE05X_IDENTITY_KEY_ID;
+	keypair.cipher = SE05X_ASYM_CIPHER_EC_NIST_P_256;
+
+	if (ioctl(fd, SEIOC_GENERATE_KEYPAIR, (unsigned long)&keypair) == 0) {
+		PX4_INFO_RAW("identity key generated\n");
+
+	} else if (errno != EEXIST) {
+		PX4_ERR("generate identity key: %d", errno);
+		return 1;
+	}
+
+	uint8_t point[65];
+	struct se05x_key_transmission_s key {};
+	key.entry.id = SE05X_IDENTITY_KEY_ID;
+	key.entry.cipher = SE05X_ASYM_CIPHER_EC_NIST_P_256;
+	key.content.buffer = point;
+	key.content.buffer_size = sizeof(point);
+
+	if (ioctl(fd, SEIOC_GET_KEY, (unsigned long)&key) < 0) {
+		PX4_ERR("read identity public key: %d", errno);
+		return 1;
+	}
+
+	if (key.content.buffer_content_size != sizeof(point)) {
+		PX4_ERR("identity public key is %zu bytes, want 65", key.content.buffer_content_size);
+		return 1;
+	}
+
+	PX4_INFO_RAW("key id: 0x%08" PRIx32 "\n", SE05X_IDENTITY_KEY_ID);
+	print_hex("public", point, sizeof(point));
+	return 0;
+}
+
+static int sign(int fd, const char *hex)
+{
+	uint8_t digest[32];
+
+	if (!parse_digest(hex, digest)) {
+		PX4_ERR("want a SHA-256 digest as 64 hex digits");
+		return 1;
+	}
+
+	uint8_t der[72];
+	struct se05x_signature_s signature {};
+	signature.key_id = SE05X_IDENTITY_KEY_ID;
+	signature.algorithm = SE05X_ALGORITHM_SHA256;
+	signature.tbs.buffer = digest;
+	signature.tbs.buffer_size = sizeof(digest);
+	signature.tbs.buffer_content_size = sizeof(digest);
+	signature.signature.buffer = der;
+	signature.signature.buffer_size = sizeof(der);
+
+	const hrt_abstime start = hrt_absolute_time();
+	int ret = ioctl(fd, SEIOC_CREATE_SIGNATURE, (unsigned long)&signature);
+	const hrt_abstime elapsed = hrt_elapsed_time(&start);
+
+	if (ret < 0) {
+		PX4_ERR("sign: %d", errno);
+		return 1;
+	}
+
+	print_hex("signature", der, signature.signature.buffer_content_size);
+	PX4_INFO_RAW("signed in %" PRIu64 " us\n", elapsed);
+	return 0;
+}
 
 static int ecdh_test(int fd)
 {
@@ -54,7 +156,7 @@ static int ecdh_test(int fd)
 	keypair.id = SE05X_TEST_KEY_ID;
 	keypair.cipher = SE05X_ASYM_CIPHER_EC_NIST_P_256;
 
-	if (ioctl(fd, SEIOC_GENERATE_KEYPAIR, (unsigned long)&keypair) < 0) {
+	if (ioctl(fd, SEIOC_GENERATE_KEYPAIR, (unsigned long)&keypair) < 0 && errno != EEXIST) {
 		PX4_ERR("generate P-256 key: %d", errno);
 		return 1;
 	}
@@ -87,34 +189,8 @@ static int ecdh_test(int fd)
 	return ret < 0 ? 1 : 0;
 }
 
-static void usage()
+static int info(int fd)
 {
-	PRINT_MODULE_DESCRIPTION("Read the identity of the SE05x secure element");
-	PRINT_MODULE_USAGE_NAME("se05x", "command");
-	PRINT_MODULE_USAGE_COMMAND_DESCR("info", "Print the applet version and features, the unique id and the OEF id");
-	PRINT_MODULE_USAGE_COMMAND_DESCR("ecdh-test", "ECDH with a throwaway P-256 key inside the element, then delete it");
-}
-
-extern "C" __EXPORT int se05x_main(int argc, char *argv[])
-{
-	if (argc != 2 || (strcmp(argv[1], "info") != 0 && strcmp(argv[1], "ecdh-test") != 0)) {
-		usage();
-		return 1;
-	}
-
-	int fd = open("/dev/se05x", O_RDWR);
-
-	if (fd < 0) {
-		PX4_ERR("/dev/se05x: %d", errno);
-		return 1;
-	}
-
-	if (strcmp(argv[1], "ecdh-test") == 0) {
-		int ret = ecdh_test(fd);
-		close(fd);
-		return ret;
-	}
-
 	struct se05x_version_s version {};
 	struct se05x_uid_s uid {};
 	struct se05x_info_s info {};
@@ -142,6 +218,52 @@ extern "C" __EXPORT int se05x_main(int argc, char *argv[])
 
 		PX4_INFO_RAW("\nOEF id: 0x%04x\n", info.oef_id);
 		ret = 0;
+	}
+
+	return ret;
+}
+
+static void usage()
+{
+	PRINT_MODULE_DESCRIPTION("Read the SE05x secure element and use its identity key");
+	PRINT_MODULE_USAGE_NAME("se05x", "command");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("info", "Print the applet version and features, the unique id and the OEF id");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("ecdh-test", "ECDH with a throwaway P-256 key inside the element, then delete it");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("identity", "Generate the P-256 identity key on first use, print its public point");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("sign", "Sign a SHA-256 digest with the identity key, print the signature and time");
+	PRINT_MODULE_USAGE_ARG("<digest>", "64 hex digits", false);
+}
+
+extern "C" __EXPORT int se05x_main(int argc, char *argv[])
+{
+	if (argc < 2 || argc != (strcmp(argv[1], "sign") == 0 ? 3 : 2)) {
+		usage();
+		return 1;
+	}
+
+	int fd = open("/dev/se05x", O_RDWR);
+
+	if (fd < 0) {
+		PX4_ERR("/dev/se05x: %d", errno);
+		return 1;
+	}
+
+	int ret = 1;
+
+	if (strcmp(argv[1], "info") == 0) {
+		ret = info(fd);
+
+	} else if (strcmp(argv[1], "ecdh-test") == 0) {
+		ret = ecdh_test(fd);
+
+	} else if (strcmp(argv[1], "identity") == 0) {
+		ret = identity(fd);
+
+	} else if (strcmp(argv[1], "sign") == 0) {
+		ret = sign(fd, argv[2]);
+
+	} else {
+		usage();
 	}
 
 	close(fd);
