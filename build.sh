@@ -97,6 +97,7 @@ case $target in
     cp ${script_dir}/build/px4_fmu-v6xrt_bootloader/px4_fmu-v6xrt_bootloader.elf ${dest_dir}/px4_fmu-v6xrt_bootloader-${version}.elf
     cp ${script_dir}/build/px4_fmu-v6xrt_default/px4_fmu-v6xrt_default.px4 ${dest_dir}/px4_fmu-v6xrt_default-${version}.px4
     cp ${script_dir}/build/px4_fmu-v6xrt_protected/px4_fmu-v6xrt_protected.px4 ${dest_dir}/px4_fmu-v6xrt_protected-${version}.px4
+    (cd ${script_dir}/build/px4_fmu-v6xrt_protected && tar czf ${dest_dir}/px4_fmu-v6xrt_protected_elfs-${version}.tar.gz *.elf)
     ;;
   # handle all normal ssrc targets
   saluki-*)
