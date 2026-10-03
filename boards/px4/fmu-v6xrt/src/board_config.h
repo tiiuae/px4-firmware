@@ -398,34 +398,6 @@
 #define GPIO_GPIO_EMC_B2_12           /* GPIO_EMC_B2_12 AKA PD15, PH11 */  (GPIO_PORT2 | GPIO_PIN22 | GPIO_OUTPUT | GPIO_OUTPUT_ZERO | OUT_IOMUX)
 
 
-/* 10/100 Mbps Ethernet & Gigabit Ethernet */
-
-/* 10/100 Mbps Ethernet Interrupt: GPIO_AD_12
- * Gigabit Ethernet Interrupt: GPIO_DISP_B2_12
- *
- * This pin has a week pull-up within the PHY, is open-drain, and requires
- * an external 1k ohm pull-up resistor (present on the EVK).  A falling
- * edge then indicates a change in state of the PHY.
- */
-
-#define GPIO_ENET_INT  (IOMUX_ENET_INT_DEFAULT | GPIO_OUTPUT | GPIO_PORT3 | GPIO_PIN11)  /* GPIO_AD_12 */
-#define GPIO_ENET_IRQ  IMXRT_IRQ_GPIO3_0_15
-
-#define GPIO_ENET1G_INT (IOMUX_ENET_INT_DEFAULT | GPIO_PORT5 | GPIO_PIN13)  /* GPIO_DISP_B2_12 */
-#define GPIO_ENET1G_IRQ IMXRT_IRQ_GPIO5_13
-
-/* 10/100 Mbps Ethernet Reset:  GPIO_LPSR_12
- * Gigabit Ethernet Reset: GPIO_DISP_B2_13
- *
- * The #RST uses inverted logic.  The initial value of zero will put the
- * PHY into the reset state.
- */
-
-#define GPIO_ENET_RST   (GPIO_OUTPUT | GPIO_OUTPUT_ZERO | GPIO_PORT6 | GPIO_PIN12 | IOMUX_ENET_RST_DEFAULT)  /* GPIO_LPSR_12 */
-
-#define GPIO_ENET1G_RST (GPIO_OUTPUT | GPIO_OUTPUT_ZERO | GPIO_PORT5 | GPIO_PIN14 | IOMUX_ENET_RST_DEFAULT)  /* GPIO_DISP_B2_13 */
-
-
 /* Define True logic Power Control in arch agnostic form */
 
 #define VDD_5V_PERIPH_EN(on_true)          px4_arch_gpiowrite(GPIO_VDD_5V_PERIPH_nEN, !(on_true))
