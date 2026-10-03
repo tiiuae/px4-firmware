@@ -170,6 +170,7 @@ endif()
 
 if(CONFIG_CRYPTO)
 	list(APPEND nuttx_libs nuttx_crypto)
+	target_link_libraries(nuttx_drivers INTERFACE nuttx_crypto)
 	if (NOT CONFIG_BUILD_FLAT)
 		target_link_libraries(nuttx_crypto INTERFACE nuttx_kc)
 	else()
