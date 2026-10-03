@@ -50,6 +50,11 @@ static constexpr uint16_t SE05X_CONFIG_EDDSA = 0x0004;
 static constexpr uint16_t SE05X_CONFIG_DH_MONT = 0x0008;
 static constexpr uint32_t SE05X_TEST_KEY_ID = 0x7b000001;
 static constexpr uint32_t SE05X_IDENTITY_KEY_ID = 0x7b000010;
+static constexpr uint32_t SE05X_LINK_KEY_ID = 0x7b000011;
+static constexpr uint32_t SE05X_IDENTITY_POLICY = SE05X_POLICY_ALLOW_SIGN | SE05X_POLICY_ALLOW_READ |
+		SE05X_POLICY_REQUIRE_SM;
+static constexpr uint32_t SE05X_LINK_POLICY = SE05X_POLICY_ALLOW_KA | SE05X_POLICY_ALLOW_READ |
+		SE05X_POLICY_ALLOW_DELETE | SE05X_POLICY_REQUIRE_SM;
 static constexpr uint8_t SE05X_ED25519_TEST_MESSAGE[] = "se05x ed25519 test";
 
 static void print_hex(const char *label, const uint8_t *buf, size_t len)
@@ -200,39 +205,35 @@ static int x25519_test(int fd, const char *hex)
 	return delete_test_key(fd, 0);
 }
 
-static int identity(int fd)
+static int provision(int fd, uint32_t id, se05x_asym_cipher_type_e cipher, uint32_t policy, size_t size)
 {
 	struct se05x_generate_keypair_s keypair {};
-	keypair.id = SE05X_IDENTITY_KEY_ID;
-	keypair.cipher = SE05X_ASYM_CIPHER_EC_NIST_P_256;
+	keypair.id = id;
+	keypair.cipher = cipher;
+	keypair.policy = policy;
 
 	if (ioctl(fd, SEIOC_GENERATE_KEYPAIR, (unsigned long)&keypair) == 0) {
-		PX4_INFO_RAW("identity key generated\n");
+		PX4_INFO_RAW("key generated\n");
 
 	} else if (errno != EEXIST) {
-		PX4_ERR("generate identity key: %d", errno);
+		PX4_ERR("generate key 0x%08" PRIx32 ": %d", id, errno);
 		return 1;
 	}
 
 	uint8_t point[65];
 	struct se05x_key_transmission_s key {};
-	key.entry.id = SE05X_IDENTITY_KEY_ID;
-	key.entry.cipher = SE05X_ASYM_CIPHER_EC_NIST_P_256;
+	key.entry.id = id;
+	key.entry.cipher = cipher;
 	key.content.buffer = point;
-	key.content.buffer_size = sizeof(point);
+	key.content.buffer_size = size;
 
 	if (ioctl(fd, SEIOC_GET_KEY, (unsigned long)&key) < 0) {
-		PX4_ERR("read identity public key: %d", errno);
+		PX4_ERR("read public key 0x%08" PRIx32 ": %d", id, errno);
 		return 1;
 	}
 
-	if (key.content.buffer_content_size != sizeof(point)) {
-		PX4_ERR("identity public key is %zu bytes, want 65", key.content.buffer_content_size);
-		return 1;
-	}
-
-	PX4_INFO_RAW("key id: 0x%08" PRIx32 "\n", SE05X_IDENTITY_KEY_ID);
-	print_hex("public", point, sizeof(point));
+	PX4_INFO_RAW("key id: 0x%08" PRIx32 "\n", id);
+	print_hex("public", point, key.content.buffer_content_size);
 	return 0;
 }
 
@@ -332,7 +333,7 @@ static int info(int fd)
 
 static void usage()
 {
-	PRINT_MODULE_DESCRIPTION("Read the SE05x secure element and use its identity key");
+	PRINT_MODULE_DESCRIPTION("Read the SE05x secure element and use its keys");
 	PRINT_MODULE_USAGE_NAME("se05x", "command");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("info", "Print the applet version and features, the unique id and the OEF id");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("ecdh-test", "ECDH with a throwaway P-256 key inside the element, then delete it");
@@ -340,6 +341,7 @@ static void usage()
 	PRINT_MODULE_USAGE_COMMAND_DESCR("x25519-test", "X25519 of a throwaway key and a peer key, then delete it");
 	PRINT_MODULE_USAGE_ARG("<peer>", "64 hex digits", false);
 	PRINT_MODULE_USAGE_COMMAND_DESCR("identity", "Generate the P-256 identity key on first use, print its public point");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("link-key", "Generate the X25519 link key on first use, print its public key");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("sign", "Sign a SHA-256 digest with the identity key, print the signature and time");
 	PRINT_MODULE_USAGE_ARG("<digest>", "64 hex digits", false);
 }
@@ -373,7 +375,10 @@ extern "C" __EXPORT int se05x_main(int argc, char *argv[])
 		ret = x25519_test(fd, argv[2]);
 
 	} else if (strcmp(argv[1], "identity") == 0) {
-		ret = identity(fd);
+		ret = provision(fd, SE05X_IDENTITY_KEY_ID, SE05X_ASYM_CIPHER_EC_NIST_P_256, SE05X_IDENTITY_POLICY, 65);
+
+	} else if (strcmp(argv[1], "link-key") == 0) {
+		ret = provision(fd, SE05X_LINK_KEY_ID, SE05X_ASYM_CIPHER_EC_X25519, SE05X_LINK_POLICY, 32);
 
 	} else if (strcmp(argv[1], "sign") == 0) {
 		ret = sign(fd, argv[2]);
