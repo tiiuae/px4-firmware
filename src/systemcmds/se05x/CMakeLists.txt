@@ -34,6 +34,7 @@
 px4_add_module(
 	MODULE systemcmds__se05x
 	MAIN se05x
+	STACK_MAIN 4096
 	SRCS
 		se05x.cpp
 	)
