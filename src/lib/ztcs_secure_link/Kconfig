@@ -11,3 +11,12 @@ menuconfig LIB_ZTCS_SECURE_LINK
 		HMAC, Poly1305 and X25519, and a seeded /dev/random for the
 		ephemeral keys. A session key drawn from an unseeded pool is
 		worthless whatever the protocol above it.
+
+config LIB_ZTCS_SECURE_LINK_IDENTITY_PATH
+	string "Signed identity payload"
+	depends on LIB_ZTCS_SECURE_LINK
+	default "/fs/certs/ztcs-identity"
+	---help---
+		Where the signed identity payload is cached. It is public and
+		checked against the live keys when read, so any persistent
+		path will do.

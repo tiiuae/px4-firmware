@@ -1,13 +1,15 @@
 /****************************************************************************
  * Identity key through the PX4 crypto backend. On an i.MX9 it is the P-256
- * key the EdgeLock Enclave generated and never exports, so no identity bytes
- * are ever unwrapped from the keystore. Elsewhere it is Ed25519 in a keystore
- * slot, which only the kernel reads.
+ * key the EdgeLock Enclave generated and never exports, and on an SE05x board
+ * the one the element holds, so no identity bytes are ever unwrapped from the
+ * keystore. Elsewhere it is Ed25519 in a keystore slot, which only the kernel
+ * reads.
  ****************************************************************************/
 
 #include "secure_link_identity.h"
 #include "secure_link_slots.h"
 
+#include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/log.h>
 
 #include <string.h>
@@ -16,7 +18,7 @@
 
 #include <px4_platform_common/crypto.h>
 
-#if defined(CONFIG_ARCH_CHIP_IMX9)
+#if defined(CONFIG_ARCH_CHIP_IMX9) || defined(CONFIG_SSRC_CRYPTO_SE05X)
 
 /* The enclave key, asked to hash the message itself. */
 #define ELE_IDENTITY_MSG_INDEX 0xe1
@@ -145,6 +147,6 @@ bool secure_link_identity_sign(const uint8_t *msg, size_t msg_len,
 	return ok;
 }
 
-#endif /* CONFIG_ARCH_CHIP_IMX9 */
+#endif /* CONFIG_ARCH_CHIP_IMX9 || CONFIG_SSRC_CRYPTO_SE05X */
 
 #endif /* PX4_CRYPTO && !ZTCS_IDENTITY_SE05X */

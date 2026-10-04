@@ -18,7 +18,15 @@
 #define ZTCS_KEY_SLOT_IDENTITY 17
 #endif
 
-/* The signed identity payload, public, kept beside the enclave's store. */
+#if __has_include(<px4_boardconfig.h>)
+#include <px4_boardconfig.h>
+#endif
+
+/* The signed identity payload, public and checked against the live keys. */
 #ifndef ZTCS_IDENTITY_PAYLOAD_PATH
+#ifdef CONFIG_LIB_ZTCS_SECURE_LINK_IDENTITY_PATH
+#define ZTCS_IDENTITY_PAYLOAD_PATH CONFIG_LIB_ZTCS_SECURE_LINK_IDENTITY_PATH
+#else
 #define ZTCS_IDENTITY_PAYLOAD_PATH "/fs/certs/ztcs-identity"
+#endif
 #endif
