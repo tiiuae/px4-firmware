@@ -41,6 +41,7 @@
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/log.h>
+#include <inttypes.h>
 #include <netinet/in.h>
 #include <netutils/netlib.h>
 #include <lib/parameters/param.h>
@@ -249,6 +250,8 @@ int netconfig_main(int argc, char *argv[])
 	param_get(param_find("MAV_COMP_ID"), &mav_comp_id);
 
 	if (mav_id < 1 || mav_id > 63 || mav_comp_id < 1 || mav_comp_id > 4) {
+		PX4_ERR("no address for MAV_SYS_ID %" PRId32 ", MAV_COMP_ID %" PRId32 ": needs 1 to 63 and 1 to 4",
+			mav_id, mav_comp_id);
 		return PX4_ERROR;
 	}
 
