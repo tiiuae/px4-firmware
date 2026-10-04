@@ -33,6 +33,7 @@
 px4_add_module(
 	MODULE systemcmds__ztcs_enroll
 	MAIN ztcs_enroll
+	STACK_MAIN 4096
 	COMPILE_FLAGS
 	SRCS
 		ztcs_enroll.cpp
