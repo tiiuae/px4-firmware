@@ -19,6 +19,7 @@ param set-default MAV_2_UDP_PRT 14541
 param set-default UXRCE_DDS_CFG 1000
 param set-default UXRCE_DDS_AG_IP -1062679810
 param set-default UXRCE_DDS_PRT 10020
+param set-default UXRCE_DDS_KEY -1
 
 # By disabling all 3 INA modules, we use the
 # i2c_launcher instead.

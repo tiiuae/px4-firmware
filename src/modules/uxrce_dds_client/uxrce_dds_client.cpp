@@ -432,7 +432,15 @@ void UxrceddsClient::run()
 
 		// Session
 		// The key identifier of the Client. All Clients connected to an Agent must have a different key.
-		const uint32_t key = (uint32_t)_param_uxrce_key.get();
+		uint32_t key = (uint32_t)_param_uxrce_key.get();
+
+		if (_param_uxrce_key.get() < 0) {
+			int32_t sys_id = 0;
+			int32_t comp_id = 1;
+			param_get(param_find("MAV_SYS_ID"), &sys_id);
+			param_get(param_find("MAV_COMP_ID"), &comp_id);
+			key = (((uint32_t)(comp_id - 1) & 0x3) << 6) | ((uint32_t)sys_id & 0x3f);
+		}
 
 		if (key == 0) {
 			PX4_ERR("session key must be different from zero");

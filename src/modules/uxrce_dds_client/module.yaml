@@ -32,7 +32,8 @@ parameters:
                 long: |
                     uXRCE-DDS key, must be different from zero.
                     In a single agent - multi client configuration, each client
-                    must have a unique session key.
+                    must have a unique session key. -1 takes it from
+                    MAV_COMP_ID and MAV_SYS_ID, as the FC's address does.
             category: System
             type: int32
             reboot_required: true
