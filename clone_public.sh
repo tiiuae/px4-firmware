@@ -12,17 +12,12 @@ do
   [[ "${repo}" == *imx9_keystore ]]  || \
   [[ "${repo}" == *pf_crypto ]] || \
   [[ "${repo}" == *px4_fw_update_client ]] || \
-  [[ "${repo}" == *secure_udp ]] || \
   [[ "${repo}" == *saluki_packaging ]] || \
   [[ "${repo}" == *rust_px4_nuttx ]] || \
-  [[ "${repo}" == *rust_module_example ]] || \
   [[ "${repo}" == *assembly_agent ]] || \
   [[ "${repo}" == *moi_agent ]] || \
-  [[ "${repo}" == *secure_udp_proxy ]] || \
-  [[ "${repo}" == *libatt ]] || \
   [[ "${repo}" == src/modules/redundancy ]] || \
   [[ "${repo}" == *process ]] || \
-  [[ "${repo}" == *nxp93-attestation ]] || \
   [[ "${repo}" == src/modules/enroll_agent ]] || \
   [[ "${repo}" == *calibration_bridge ]] && continue
   git submodule update --init --recursive "${repo}"
