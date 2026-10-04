@@ -1,17 +1,19 @@
 /****************************************************************************
- * A secure_udp::Udp backed by the Noise link the aircraft is enrolled on.
+ * A ztcs::Transport backed by the Noise link the aircraft is enrolled on.
  ****************************************************************************/
 
 #pragma once
 
-#include <secure_udp/SecureUdp.hpp>
+#include "ZtcsTransport.hpp"
+
+#include <netinet/in.h>
 
 #include "secure_link.h"
 
 namespace ztcs
 {
 
-class ZtcsLinkUdp : public secure_udp::Udp
+class ZtcsLinkUdp : public Transport
 {
 public:
 	/* Borrowed: a shared link can be passed in later. */
@@ -29,12 +31,11 @@ public:
 			 socklen_t *addrlen) override;
 	ssize_t recv_within(void *buf, size_t len, unsigned timeout_ms);
 
-	void set_new_key_request(const char *prefix = nullptr) override;
-	void invalidate_key_for(CryptoOp op) override;
-
+	bool set_timeout(unsigned seconds) override;
 	void print_stats() const override;
 	size_t overhead_size() const override;
-	const char *get_remote_address() const override { return _remote; }
+	const char *remote_address() const override { return _remote; }
+	uint16_t remote_port() const override { return _remote_port; }
 
 private:
 	void pump();
@@ -49,6 +50,10 @@ private:
 	uint32_t _tx{0};
 
 	struct secure_link *_link;
+	int _sockfd{-1};
+	uint16_t _remote_port{0};
+	struct sockaddr_in _addr {};
+	struct sockaddr_in _remote_addr {};
 	char _remote[INET_ADDRSTRLEN] {};
 	uint16_t _local_port;
 	unsigned _timeout_s;  /* seconds, as the caller counts them */

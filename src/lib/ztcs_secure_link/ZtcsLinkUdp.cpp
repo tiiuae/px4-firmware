@@ -1,5 +1,5 @@
 /****************************************************************************
- * A secure_udp::Udp backed by the Noise link. See ZtcsLinkUdp.hpp.
+ * A ztcs::Transport backed by the Noise link. See ZtcsLinkUdp.hpp.
  ****************************************************************************/
 
 #include "ZtcsLinkUdp.hpp"
@@ -14,6 +14,7 @@
 #include <poll.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 namespace ztcs
@@ -27,7 +28,7 @@ ZtcsLinkUdp::ZtcsLinkUdp(struct secure_link *link, const char *remote, uint16_t 
 			 uint16_t remote_port, unsigned timeout_s)
 	: _link(link), _local_port(local_port), _timeout_s(timeout_s)
 {
-	remote_port_ = remote_port;
+	_remote_port = remote_port;
 
 	if (remote != nullptr) {
 		strncpy(_remote, remote, sizeof(_remote) - 1);
@@ -75,33 +76,33 @@ bool ZtcsLinkUdp::open(uint16_t remote_port)
 	}
 
 	if (remote_port != 0) {
-		remote_port_ = remote_port;
+		_remote_port = remote_port;
 	}
 
-	sockfd_ = socket(AF_INET, SOCK_DGRAM, 0);
+	_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
-	if (sockfd_ < 0) {
+	if (_sockfd < 0) {
 		PX4_ERR("socket: %d", errno);
 		return false;
 	}
 
-	addr_.sin_family = AF_INET;
-	addr_.sin_addr.s_addr = htonl(INADDR_ANY);
-	addr_.sin_port = htons(_local_port);
+	_addr.sin_family = AF_INET;
+	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_addr.sin_port = htons(_local_port);
 
 	int reuse = 1;
-	setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+	setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
 
-	if (bind(sockfd_, (struct sockaddr *)&addr_, sizeof(addr_)) < 0) {
+	if (bind(_sockfd, (struct sockaddr *)&_addr, sizeof(_addr)) < 0) {
 		PX4_ERR("bind %u: %d", _local_port, errno);
 		close();
 		return false;
 	}
 
-	remote_addr_.sin_family = AF_INET;
-	remote_addr_.sin_port = htons(remote_port_);
+	_remote_addr.sin_family = AF_INET;
+	_remote_addr.sin_port = htons(_remote_port);
 
-	if (inet_pton(AF_INET, _remote, &remote_addr_.sin_addr) != 1) {
+	if (inet_pton(AF_INET, _remote, &_remote_addr.sin_addr) != 1) {
 		PX4_ERR("remote address %s is not v4", _remote);
 		close();
 		return false;
@@ -131,7 +132,7 @@ bool ZtcsLinkUdp::establish()
 
 		pump();
 
-		ssize_t got = ::recvfrom(sockfd_, _frame, sizeof(_frame), 0, nullptr, nullptr);
+		ssize_t got = ::recvfrom(_sockfd, _frame, sizeof(_frame), 0, nullptr, nullptr);
 
 		if (got > 0) {
 			secure_link_open(_link, hrt_absolute_time(), _frame, got, _scratch,
@@ -148,14 +149,14 @@ bool ZtcsLinkUdp::establish()
 void ZtcsLinkUdp::set_timeout_ms(unsigned ms)
 {
 	struct timeval tv {(time_t)(ms / 1000), (suseconds_t)((ms % 1000) * 1000)};
-	setsockopt(sockfd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+	setsockopt(_sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 }
 
 void ZtcsLinkUdp::close()
 {
-	if (sockfd_ >= 0) {
-		::close(sockfd_);
-		sockfd_ = -1;
+	if (_sockfd >= 0) {
+		::close(_sockfd);
+		_sockfd = -1;
 	}
 }
 
@@ -170,8 +171,8 @@ void ZtcsLinkUdp::pump()
 	int len = secure_link_poll(_link, now, _frame, sizeof(_frame));
 
 	if (len > 0) {
-		sendto(sockfd_, _frame, len, 0, (struct sockaddr *)&remote_addr_,
-		       sizeof(remote_addr_));
+		sendto(_sockfd, _frame, len, 0, (struct sockaddr *)&_remote_addr,
+		       sizeof(_remote_addr));
 	}
 }
 
@@ -199,8 +200,8 @@ ssize_t ZtcsLinkUdp::send(const void *buf, size_t len, int flags)
 		return -1;
 	}
 
-	ssize_t sent = sendto(sockfd_, _frame, sealed, flags,
-			      (struct sockaddr *)&remote_addr_, sizeof(remote_addr_));
+	ssize_t sent = sendto(_sockfd, _frame, sealed, flags,
+			      (struct sockaddr *)&_remote_addr, sizeof(_remote_addr));
 
 	if (sent > 0) {
 		_tx++;
@@ -221,7 +222,7 @@ ssize_t ZtcsLinkUdp::recvfrom(void *buf, size_t len, int flags, struct sockaddr 
 	const uint64_t deadline = hrt_absolute_time() + (uint64_t)_timeout_s * 1000000;
 
 	while (hrt_absolute_time() < deadline) {
-		ssize_t got = ::recvfrom(sockfd_, _frame, sizeof(_frame), flags, src_addr, addrlen);
+		ssize_t got = ::recvfrom(_sockfd, _frame, sizeof(_frame), flags, src_addr, addrlen);
 
 		if (got <= 0) {
 			print_stats();
@@ -254,14 +255,14 @@ ssize_t ZtcsLinkUdp::recv_within(void *buf, size_t len, unsigned timeout_ms)
 
 	for (;;) {
 		const uint64_t now = hrt_absolute_time();
-		struct pollfd pfd {sockfd_, POLLIN, 0};
+		struct pollfd pfd {_sockfd, POLLIN, 0};
 		int ready = ::poll(&pfd, 1, now < deadline ? (int)((deadline - now + 999) / 1000) : 0);
 
 		if (ready <= 0) {
 			return ready;
 		}
 
-		ssize_t got = ::recvfrom(sockfd_, _frame, sizeof(_frame), MSG_DONTWAIT, nullptr, nullptr);
+		ssize_t got = ::recvfrom(_sockfd, _frame, sizeof(_frame), MSG_DONTWAIT, nullptr, nullptr);
 
 		if (got <= 0) {
 			return got;
@@ -282,14 +283,20 @@ ssize_t ZtcsLinkUdp::recv(void *buf, size_t len, int flags)
 	return recvfrom(buf, len, flags, nullptr, nullptr);
 }
 
-void ZtcsLinkUdp::set_new_key_request(const char *prefix)
+bool ZtcsLinkUdp::set_timeout(unsigned seconds)
 {
-	(void)prefix;
+	if (_sockfd < 0) {
+		return false;
+	}
+
+	_timeout_s = seconds;
+	set_timeout_ms(seconds * 1000);
+	return true;
 }
 
-void ZtcsLinkUdp::invalidate_key_for(CryptoOp op)
+size_t ZtcsLinkUdp::overhead_size() const
 {
-	(void)op;
+	return NOISE_TRANSPORT_HDR_LEN + NOISE_TAGLEN;
 }
 
 void ZtcsLinkUdp::print_stats() const
@@ -303,12 +310,7 @@ void ZtcsLinkUdp::print_stats() const
 		 ", rx %" PRIu32 ", peer %s:%u",
 		 _link->state == SECURE_LINK_ESTABLISHED ? "established" : "handshaking",
 		 _link->handshakes, _link->decrypt_fails, _tx, _rx, _remote,
-		 (unsigned)remote_port_);
-}
-
-size_t ZtcsLinkUdp::overhead_size() const
-{
-	return NOISE_TRANSPORT_HDR_LEN + NOISE_TAGLEN;
+		 (unsigned)_remote_port);
 }
 
 } /* namespace ztcs */

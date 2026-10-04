@@ -10,7 +10,7 @@ Built as part of the image: [build](../../../README.md#build).
 | ------------------------------------------------ | --------------------------------------------------------------------------- |
 | `secure_link.[ch]`                               | session state machine: handshake retransmit, rekey, replay, silence         |
 | `noise/`                                         | Noise IK core, vendored, not edited here                                    |
-| `ZtcsLinkUdp.[ch]pp`                             | `secure_udp::Udp` over the link, for request and response users (OTA, TFTP) |
+| `ZtcsTransport.hpp`, `ZtcsLinkUdp.[ch]pp`         | a UDP transport over the link, for request and response users (OTA, TFTP, DDS) |
 | `secure_link_keys.cpp`, `identity_px4crypto.cpp` | keys from keystore slots, identity from the enclave                         |
 | `test/`                                          | host tests and an end-to-end run against the real gateway                   |
 
