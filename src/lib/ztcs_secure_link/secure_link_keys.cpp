@@ -166,6 +166,22 @@ bool secure_link_enrolment_closed(void)
 	return closed;
 }
 
+bool secure_link_enrolled(void)
+{
+	PX4Crypto ed;
+	PX4Crypto x;
+	uint8_t key[32];
+	size_t len = NOISE_DHLEN;
+	bool enrolled = ed.open(CRYPTO_ED25519) && x.open(CRYPTO_X25519)
+			&& operator_pinned(ed, key)
+			&& x.get_public_key(ZTCS_KEY_SLOT_STATION_PUBLIC, key, &len)
+			&& len == NOISE_DHLEN;
+
+	ed.close();
+	x.close();
+	return enrolled;
+}
+
 bool secure_link_pin_operator(const uint8_t operator_public[32])
 {
 	PX4Crypto crypto;
@@ -332,6 +348,11 @@ bool secure_link_public_key(uint8_t out[NOISE_DHLEN])
 bool secure_link_enrolment_closed(void)
 {
 	return true;
+}
+
+bool secure_link_enrolled(void)
+{
+	return false;
 }
 
 bool secure_link_pin_operator(const uint8_t operator_public[32])

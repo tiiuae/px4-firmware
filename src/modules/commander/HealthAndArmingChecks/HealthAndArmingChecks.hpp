@@ -69,6 +69,9 @@
 #include "checks/vtolCheck.hpp"
 #include "checks/offboardCheck.hpp"
 #include "checks/openDroneIDCheck.hpp"
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+#include "checks/secureLinkCheck.hpp"
+#endif
 #include "checks/externalChecks.hpp"
 
 class HealthAndArmingChecks : public ModuleParams
@@ -135,6 +138,9 @@ private:
 	HomePositionChecks _home_position_checks;
 	ModeChecks _mode_checks;
 	OpenDroneIDChecks _open_drone_id_checks;
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+	SecureLinkChecks _secure_link_checks;
+#endif
 	ParachuteChecks _parachute_checks;
 	PowerChecks _power_checks;
 	RcCalibrationChecks _rc_calibration_checks;
@@ -155,6 +161,9 @@ private:
 	HealthAndArmingCheckBase *_checks[40] = {
 #ifndef CONSTRAINED_FLASH
 		&_external_checks,
+#endif
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+		&_secure_link_checks,
 #endif
 		&_accelerometer_checks,
 		&_airspeed_checks,

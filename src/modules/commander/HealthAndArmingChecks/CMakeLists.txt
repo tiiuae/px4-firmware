@@ -69,6 +69,11 @@ px4_add_library(health_and_arming_checks
 )
 add_dependencies(health_and_arming_checks mode_util)
 
+if(CONFIG_LIB_ZTCS_SECURE_LINK)
+	target_sources(health_and_arming_checks PRIVATE checks/secureLinkCheck.cpp)
+	target_link_libraries(health_and_arming_checks PRIVATE ztcs_secure_link)
+endif()
+
 px4_add_functional_gtest(SRC HealthAndArmingChecksTest.cpp
 	LINKLIBS health_and_arming_checks mode_util
 	)
