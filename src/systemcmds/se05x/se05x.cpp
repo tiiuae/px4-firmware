@@ -40,6 +40,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
@@ -68,13 +69,13 @@ static void print_hex(const char *label, const uint8_t *buf, size_t len)
 	PX4_INFO_RAW("\n");
 }
 
-static bool parse_hex32(const char *hex, uint8_t out[32])
+static bool parse_hex(const char *hex, uint8_t *out, size_t len)
 {
-	if (strlen(hex) != 64) {
+	if (strlen(hex) != 2 * len) {
 		return false;
 	}
 
-	for (size_t i = 0; i < 32; i++) {
+	for (size_t i = 0; i < len; i++) {
 		unsigned byte;
 
 		if (sscanf(hex + 2 * i, "%2x", &byte) != 1) {
@@ -172,7 +173,7 @@ static int x25519_test(int fd, const char *hex)
 {
 	uint8_t peer[32];
 
-	if (!parse_hex32(hex, peer)) {
+	if (!parse_hex(hex, peer, sizeof(peer))) {
 		PX4_ERR("want the peer's X25519 public key as 64 hex digits");
 		return 1;
 	}
@@ -204,6 +205,32 @@ static int x25519_test(int fd, const char *hex)
 	PX4_INFO_RAW("derived in %" PRIu64 " us\n", elapsed);
 	return delete_test_key(fd, 0);
 }
+
+#if defined(CONFIG_DEV_SE05X_SCP03) && defined(CONFIG_BUILD_FLAT)
+extern "C" int board_se05x_rotate(const struct se05x_scp03_keys_s *keys);
+extern "C" int board_se05x_restore(const struct se05x_scp03_keys_s *keys);
+
+static int with_keys(const char *hex, int (*op)(const struct se05x_scp03_keys_s *), const char *done)
+{
+	struct se05x_scp03_keys_s keys;
+
+	if (!parse_hex(hex, (uint8_t *)&keys, sizeof(keys))) {
+		PX4_ERR("want ENC, MAC and DEK as 96 hex digits");
+		return 1;
+	}
+
+	int ret = op(&keys);
+	explicit_bzero(&keys, sizeof(keys));
+
+	if (ret < 0) {
+		PX4_ERR("%d", ret);
+		return 1;
+	}
+
+	PX4_INFO_RAW("%s\n", done);
+	return 0;
+}
+#endif
 
 static int provision(int fd, uint32_t id, se05x_asym_cipher_type_e cipher, uint32_t policy, size_t size)
 {
@@ -241,7 +268,7 @@ static int sign(int fd, const char *hex)
 {
 	uint8_t digest[32];
 
-	if (!parse_hex32(hex, digest)) {
+	if (!parse_hex(hex, digest, sizeof(digest))) {
 		PX4_ERR("want a SHA-256 digest as 64 hex digits");
 		return 1;
 	}
@@ -342,16 +369,35 @@ static void usage()
 	PRINT_MODULE_USAGE_ARG("<peer>", "64 hex digits", false);
 	PRINT_MODULE_USAGE_COMMAND_DESCR("identity", "Generate the P-256 identity key on first use, print its public point");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("link-key", "Generate the X25519 link key on first use, print its public key");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("rotate", "Replace the SE's SCP03 keys, kept sealed in a CAAM blob first");
+	PRINT_MODULE_USAGE_ARG("<keys>", "ENC, MAC and DEK, 96 hex digits", false);
+	PRINT_MODULE_USAGE_COMMAND_DESCR("restore", "Open an element the board lost its keys for, and seal them again");
+	PRINT_MODULE_USAGE_ARG("<keys>", "ENC, MAC and DEK, 96 hex digits", false);
 	PRINT_MODULE_USAGE_COMMAND_DESCR("sign", "Sign a SHA-256 digest with the identity key, print the signature and time");
 	PRINT_MODULE_USAGE_ARG("<digest>", "64 hex digits", false);
 }
 
 extern "C" __EXPORT int se05x_main(int argc, char *argv[])
 {
-	if (argc < 2 || argc != (strcmp(argv[1], "sign") == 0 || strcmp(argv[1], "x25519-test") == 0 ? 3 : 2)) {
+	const bool with_arg = argc > 1 && (strcmp(argv[1], "sign") == 0 || strcmp(argv[1], "x25519-test") == 0
+					   || strcmp(argv[1], "rotate") == 0 || strcmp(argv[1], "restore") == 0);
+
+	if (argc < 2 || argc != (with_arg ? 3 : 2)) {
 		usage();
 		return 1;
 	}
+
+#if defined(CONFIG_DEV_SE05X_SCP03) && defined(CONFIG_BUILD_FLAT)
+
+	if (strcmp(argv[1], "rotate") == 0) {
+		return with_keys(argv[2], board_se05x_rotate, "SCP03 keys rotated");
+	}
+
+	if (strcmp(argv[1], "restore") == 0) {
+		return with_keys(argv[2], board_se05x_restore, "SCP03 keys restored");
+	}
+
+#endif
 
 	int fd = open("/dev/se05x", O_RDWR);
 
