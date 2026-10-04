@@ -639,6 +639,15 @@ extern void imxrt_usbinitialize(void);
 
 extern void board_peripheral_reset(int ms);
 
+#ifdef CONFIG_DEV_SE05X
+struct i2c_master_s;
+struct se05x_scp03_keys_s;
+
+int board_se05x_initialize(struct i2c_master_s *i2c);
+int board_se05x_rotate(const struct se05x_scp03_keys_s *keys);
+int board_se05x_restore(const struct se05x_scp03_keys_s *keys);
+#endif
+
 extern void fmuv6xrt_timer_initialize(void);
 
 #include <px4_platform_common/board_common.h>

@@ -53,12 +53,17 @@ static const px4_mft_device_t i2c6 = {             // 24LC64T on BASE  8K 32 X 2
 
 static const px4_mtd_entry_t fmum_fram = {
 	.device = &qspi_flash,
-	.npart = 1,
+	.npart = 2,
 	.partd = {
 		{
 			.type = MTD_PARAMETERS,
 			.path = "/fs/mtd_params",
-			.nblocks = 256
+			.nblocks = 254
+		},
+		{
+			.type = MTD_KEYS,
+			.path = "/fs/mtd_keys",
+			.nblocks = 2
 		}
 	},
 };

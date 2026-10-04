@@ -66,6 +66,10 @@ else()
 	    )
 	endif()
 
+	if(CONFIG_DEV_SE05X)
+		list(APPEND SRCS se05x.c)
+	endif()
+
 	# px4_platform links board_bus_info unconditionally, so every board that
 	# has buses has to offer it. Same split as the saluki boards.
 	add_library(board_bus_info
