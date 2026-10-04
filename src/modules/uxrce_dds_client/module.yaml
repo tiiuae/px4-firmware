@@ -43,8 +43,9 @@ parameters:
             description:
                 short: uXRCE-DDS namespace per aircraft
                 long: |
-                    Put every topic under uav<MAV_SYS_ID>, so aircraft sharing one
-                    agent stay apart: rt/uav7/fmu/out/... for namespace fmu.
+                    Put every topic under uav<MAV_SYS_ID>/fc<MAV_COMP_ID>, so aircraft
+                    and the redundant FCs in each stay apart on one agent:
+                    rt/uav7/fc1/fmu/out/... for namespace fmu.
             category: System
             type: boolean
             reboot_required: true

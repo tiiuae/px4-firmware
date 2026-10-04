@@ -139,8 +139,10 @@ UxrceddsClient::UxrceddsClient(Transport transport, const char *device, int baud
 {
 	if (_param_uxrce_dds_ns_ac.get()) {
 		int32_t sys_id = 0;
+		int32_t comp_id = 1;
 		param_get(param_find("MAV_SYS_ID"), &sys_id);
-		snprintf(_aircraft_namespace, sizeof(_aircraft_namespace), "uav%" PRId32 "/%s", sys_id,
+		param_get(param_find("MAV_COMP_ID"), &comp_id);
+		snprintf(_aircraft_namespace, sizeof(_aircraft_namespace), "uav%" PRId32 "/fc%" PRId32 "/%s", sys_id, comp_id,
 			 client_namespace != nullptr ? client_namespace : "fmu");
 		_client_namespace = _aircraft_namespace;
 	}
