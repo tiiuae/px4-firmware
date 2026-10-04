@@ -4,7 +4,7 @@ serial_config:
         if [ $SERIAL_DEV != ethernet ]; then
             set UXRCE_DDS_ARGS "-t serial -d ${SERIAL_DEV} -b p:${BAUD_PARAM}"
         else
-            set UXRCE_DDS_ARGS "-t udp"
+            set UXRCE_DDS_ARGS ""
         fi
         uxrce_dds_client start ${UXRCE_DDS_ARGS}
 

@@ -988,7 +988,7 @@ UxrceddsClient *UxrceddsClient::instantiate(int argc, char *argv[])
 	const char *myoptarg = nullptr;
 
 	char recv_port[PORT_MAX_LENGTH] = {0};
-	char send_port[PORT_MAX_LENGTH] = {'8', '8', '8', '8'};
+	char send_port[PORT_MAX_LENGTH] = {0};
 	char agent_ip[AGENT_IP_MAX_LENGTH] = {0};
 
 #if defined(UXRCE_DDS_CLIENT_LINK)
