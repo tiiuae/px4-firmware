@@ -1,0 +1,5 @@
+menuconfig DRIVERS_SE05X_KEYSTORE
+	bool "se05x_keystore"
+	default n
+	---help---
+		Keystore slots kept as data objects in an SE05x
