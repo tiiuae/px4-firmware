@@ -39,6 +39,17 @@ parameters:
             reboot_required: true
             default: 1
 
+        UXRCE_DDS_NS_AC:
+            description:
+                short: uXRCE-DDS namespace per aircraft
+                long: |
+                    Put every topic under uav<MAV_SYS_ID>, so aircraft sharing one
+                    agent stay apart: rt/uav7/fmu/out/... for namespace fmu.
+            category: System
+            type: boolean
+            reboot_required: true
+            default: 0
+
         UXRCE_DDS_PRT:
             description:
                 short: uXRCE-DDS UDP port

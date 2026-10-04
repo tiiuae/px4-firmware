@@ -146,6 +146,7 @@ private:
 	int _baudrate{};
 
 	const char *_client_namespace;
+	char _aircraft_namespace[40] {};
 
 	enum class ParticipantConfig {
 		Default,
@@ -200,6 +201,7 @@ private:
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::UXRCE_DDS_DOM_ID>) _param_uxrce_dds_dom_id,
 		(ParamInt<px4::params::UXRCE_DDS_KEY>) _param_uxrce_key,
+		(ParamBool<px4::params::UXRCE_DDS_NS_AC>) _param_uxrce_dds_ns_ac,
 		(ParamInt<px4::params::UXRCE_DDS_PTCFG>) _param_uxrce_dds_ptcfg,
 		(ParamInt<px4::params::UXRCE_DDS_SYNCC>) _param_uxrce_dds_syncc,
 		(ParamInt<px4::params::UXRCE_DDS_SYNCT>) _param_uxrce_dds_synct

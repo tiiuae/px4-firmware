@@ -34,6 +34,7 @@
 #include <px4_platform_common/getopt.h>
 #include <px4_platform_common/cli.h>
 #include <px4_platform_common/posix.h>
+#include <inttypes.h>
 
 #include "uxrce_dds_client.h"
 
@@ -136,6 +137,14 @@ UxrceddsClient::UxrceddsClient(Transport transport, const char *device, int baud
 	_baudrate(baudrate),
 	_client_namespace(client_namespace)
 {
+	if (_param_uxrce_dds_ns_ac.get()) {
+		int32_t sys_id = 0;
+		param_get(param_find("MAV_SYS_ID"), &sys_id);
+		snprintf(_aircraft_namespace, sizeof(_aircraft_namespace), "uav%" PRId32 "/%s", sys_id,
+			 client_namespace != nullptr ? client_namespace : "fmu");
+		_client_namespace = _aircraft_namespace;
+	}
+
 	if (device) {
 		// store serial port name */
 		strncpy(_device, device, sizeof(_device) - 1);
@@ -439,7 +448,14 @@ void UxrceddsClient::run()
 			int32_t comp_id = 1;
 			param_get(param_find("MAV_SYS_ID"), &sys_id);
 			param_get(param_find("MAV_COMP_ID"), &comp_id);
-			key = (((uint32_t)(comp_id - 1) & 0x3) << 6) | ((uint32_t)sys_id & 0x3f);
+
+			if (sys_id < 1 || sys_id > 63 || comp_id < 1 || comp_id > 4) {
+				PX4_ERR("no session key for MAV_SYS_ID %" PRId32 ", MAV_COMP_ID %" PRId32 ": needs 1 to 63 and 1 to 4",
+					sys_id, comp_id);
+				return;
+			}
+
+			key = ((uint32_t)(comp_id - 1) << 6) | (uint32_t)sys_id;
 		}
 
 		if (key == 0) {
