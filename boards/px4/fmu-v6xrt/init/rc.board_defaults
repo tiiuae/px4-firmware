@@ -5,12 +5,20 @@
 
 # Mavlink ethernet (CFG 1000)
 param set-default MAV_2_CONFIG 1000
-param set-default MAV_2_BROADCAST 1
+param set-default MAV_2_BROADCAST 0
 param set-default MAV_2_MODE 0
 param set-default MAV_2_RADIO_CTL 0
 param set-default MAV_2_RATE 100000
-param set-default MAV_2_REMOTE_PRT 14550
-param set-default MAV_2_UDP_PRT 14550
+param set-default MAV_2_REMOTE_IP0 192
+param set-default MAV_2_REMOTE_IP1 168
+param set-default MAV_2_REMOTE_IP2 202
+param set-default MAV_2_REMOTE_IP3 254
+param set-default MAV_2_REMOTE_PRT 14540
+param set-default MAV_2_UDP_PRT 14541
+
+param set-default UXRCE_DDS_CFG 1000
+param set-default UXRCE_DDS_AG_IP -1062679810
+param set-default UXRCE_DDS_PRT 10020
 
 # By disabling all 3 INA modules, we use the
 # i2c_launcher instead.
