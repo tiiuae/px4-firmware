@@ -169,26 +169,18 @@ static int keys_store(const struct se05x_scp03_keys_s *keys, const struct se05x_
 
 int board_se05x_rotate(const struct se05x_scp03_keys_s *keys)
 {
-	struct file file;
 	int ret = keys_store(keys, &g_live);
 
 	if (ret < 0) {
 		return ret;
 	}
 
-	ret = file_open(&file, SE05X_PATH, O_RDWR);
-
-	if (ret < 0) {
-		return ret;
-	}
-
-	ret = file_ioctl(&file, SEIOC_ROTATE_SCP03, (unsigned long)keys);
+	ret = se05x_kioctl(SEIOC_ROTATE_SCP03, (unsigned long)keys);
 
 	if (ret == 0) {
 		memcpy(&g_live, keys, sizeof(g_live));
 	}
 
-	file_close(&file);
 	return ret;
 }
 

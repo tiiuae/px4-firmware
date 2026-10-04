@@ -75,6 +75,11 @@ SECTIONS
         *(.ram_vectors)
     } > dtcm
 
+    .secmem (NOLOAD) : ALIGN(4)
+    {
+        *(.secmem .secmem.*)
+    } > dtcm
+
     .text : ALIGN(4)
     {
         _stext = ABSOLUTE(.);
