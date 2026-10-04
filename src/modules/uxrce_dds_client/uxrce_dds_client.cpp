@@ -949,7 +949,7 @@ int UxrceddsClient::task_spawn(int argc, char *argv[])
 	_task_id = px4_task_spawn_cmd("uxrce_dds_client",
 				      SCHED_DEFAULT,
 				      SCHED_PRIORITY_DEFAULT,
-				      PX4_STACK_ADJUSTED(11000),
+				      PX4_STACK_ADJUSTED(13000),
 				      (px4_main_t)&run_trampoline,
 				      (char *const *)argv);
 
