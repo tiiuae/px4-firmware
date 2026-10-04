@@ -62,7 +62,11 @@ endif()
 # where the kernel libc pulls in the kernel heap and does not resolve. The
 # primitives themselves are ordinary computation and link either side.
 if("${PX4_PLATFORM}" MATCHES "nuttx")
-	target_link_libraries(ztcs_secure_link PRIVATE $<TARGET_FILE:nuttx_crypto>)
+	if(CONFIG_BUILD_FLAT)
+		target_link_libraries(ztcs_secure_link PRIVATE nuttx_crypto)
+	else()
+		target_link_libraries(ztcs_secure_link PRIVATE $<TARGET_FILE:nuttx_crypto>)
+	endif()
 endif()
 
 # The identity key is the one that must be unreadable: identity_px4crypto.cpp
