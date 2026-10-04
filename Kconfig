@@ -158,6 +158,12 @@ config BOARD_PROTECTED
     help
         Enable memory protection via MPU/MMU
 
+config BOARD_NO_DEBUG_CONSOLE
+    bool "No debug console"
+    help
+        Turn the debug UART receiver off at boot: the boot log still prints,
+        nothing typed reaches a shell.
+
 menu "Serial ports"
 
     config BOARD_SERIAL_URT6

@@ -509,6 +509,10 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	imxrt_caninitialize(3);
 #endif
 
+#if defined(CONFIG_BOARD_NO_DEBUG_CONSOLE)
+	modifyreg32(IMXRT_LPUART1_BASE + IMXRT_LPUART_CTRL_OFFSET, LPUART_CTRL_RE, 0);
+#endif
+
 #endif /* !defined(BOOTLOADER) */
 
 	return ret;
