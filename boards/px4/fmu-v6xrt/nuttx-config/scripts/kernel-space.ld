@@ -78,7 +78,7 @@ SECTIONS
     .secmem (NOLOAD) : ALIGN(4)
     {
         *(.secmem .secmem.*)
-    } > dtcm
+    } > ksec
 
     .text : ALIGN(4)
     {
@@ -178,4 +178,6 @@ SECTIONS
     _ram_size = 0x20380000 - ORIGIN(ksram);
     _sdtcm = ORIGIN(dtcm);
     _edtcm = ORIGIN(dtcm) + LENGTH(dtcm);
+    _ssecmem = ORIGIN(ksec);
+    _esecmem = ORIGIN(ksec) + LENGTH(ksec);
 }

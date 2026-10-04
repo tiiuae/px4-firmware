@@ -72,6 +72,7 @@
 #include "imxrt_flexcan.h"
 #include "imxrt_enet.h"
 #include "imxrt_lpi2c.h"
+#include "imxrt_xrdc2.h"
 #include <chip.h>
 
 #include <hardware/imxrt_lpuart.h>
@@ -116,6 +117,8 @@ extern uint64_t _sitcmfuncs;         /* Copy destination start address in ITCM *
 extern uint64_t _eitcmfuncs;         /* Copy destination end address in ITCM */
 extern uint64_t _sdtcm;              /* Copy destination start address in DTCM */
 extern uint64_t _edtcm;              /* Copy destination end address in DTCM */
+extern uint64_t _ssecmem;
+extern uint64_t _esecmem;
 __END_DECLS
 
 /************************************************************************************
@@ -274,6 +277,12 @@ __EXPORT void imxrt_ocram_initialize(void)
 		*dest++ = 0;
 	}
 
+#if !defined(BOOTLOADER)
+	for (dest = &_ssecmem; dest < &_esecmem;) {
+		*dest++ = 0;
+	}
+#endif
+
 #if defined(CONFIG_BOOT_RUNFROMISRAM)
 	const uint32_t *src;
 	uint32_t *dest;
@@ -351,6 +360,10 @@ __EXPORT void imxrt_boardinitialize(void)
  ****************************************************************************/
 __EXPORT int board_app_initialize(uintptr_t arg)
 {
+#ifdef CONFIG_IMXRT_XRDC2
+	imxrt_xrdc2_fence((uintptr_t)&_ssecmem, (uintptr_t)&_esecmem);
+#endif
+
 	int ret = OK;
 
 #if !defined(BOOTLOADER)

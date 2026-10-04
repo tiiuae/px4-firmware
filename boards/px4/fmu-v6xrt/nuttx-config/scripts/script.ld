@@ -35,7 +35,8 @@
 MEMORY
 {
   flash (rx)  : ORIGIN = 0x30020000, LENGTH = 4M-128K /* We have 64M but we do not want to wait to program it all */
-  sram  (rwx) : ORIGIN = 0x20240000, LENGTH = 2M-256k-512k
+  sram  (rwx) : ORIGIN = 0x20248000, LENGTH = 2M-256k-512k-32k
+  sec   (rw)  : ORIGIN = 0x20240000, LENGTH = 32K
   itcm  (rwx) : ORIGIN = 0x00000000, LENGTH = 256K   /* TODO FlexRAM partition */
   dtcm  (rwx) : ORIGIN = 0x20000000, LENGTH = 256K
 }
@@ -96,6 +97,11 @@ SECTIONS
     .ram_vectors (COPY) : {
         *(.ram_vectors)
     } > dtcm
+
+    .secmem (NOLOAD) : ALIGN(4)
+    {
+        *(.secmem .secmem.*)
+    } > sec
 
     .text : ALIGN(4)
     {
@@ -195,4 +201,6 @@ SECTIONS
     _ram_size = LENGTH(sram);
     _sdtcm = ORIGIN(dtcm);
     _edtcm = ORIGIN(dtcm) + LENGTH(dtcm);
+    _ssecmem = ORIGIN(sec);
+    _esecmem = ORIGIN(sec) + LENGTH(sec);
 }
