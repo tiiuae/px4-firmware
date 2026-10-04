@@ -232,6 +232,24 @@ static int with_keys(const char *hex, int (*op)(const struct se05x_scp03_keys_s 
 }
 #endif
 
+static int platform_scp(int fd, const char *mode)
+{
+	const bool required = strcmp(mode, "required") == 0;
+
+	if (!required && strcmp(mode, "optional") != 0) {
+		PX4_ERR("want required or optional");
+		return 1;
+	}
+
+	if (ioctl(fd, SEIOC_PLATFORM_SCP, (unsigned long)required) < 0) {
+		PX4_ERR("platform SCP: %d", errno);
+		return 1;
+	}
+
+	PX4_INFO_RAW("platform SCP %s\n", mode);
+	return 0;
+}
+
 static int provision(int fd, uint32_t id, se05x_asym_cipher_type_e cipher, uint32_t policy, size_t size)
 {
 	struct se05x_generate_keypair_s keypair {};
@@ -371,6 +389,8 @@ static void usage()
 	PRINT_MODULE_USAGE_COMMAND_DESCR("link-key", "Generate the X25519 link key on first use, print its public key");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("rotate", "Replace the SE's SCP03 keys, kept sealed in a CAAM blob first");
 	PRINT_MODULE_USAGE_ARG("<keys>", "ENC, MAC and DEK, 96 hex digits", false);
+	PRINT_MODULE_USAGE_COMMAND_DESCR("platform-scp", "Make the element refuse any session that is not SCP03, or allow it");
+	PRINT_MODULE_USAGE_ARG("required|optional", "", false);
 	PRINT_MODULE_USAGE_COMMAND_DESCR("restore", "Open an element the board lost its keys for, and seal them again");
 	PRINT_MODULE_USAGE_ARG("<keys>", "ENC, MAC and DEK, 96 hex digits", false);
 	PRINT_MODULE_USAGE_COMMAND_DESCR("sign", "Sign a SHA-256 digest with the identity key, print the signature and time");
@@ -380,7 +400,8 @@ static void usage()
 extern "C" __EXPORT int se05x_main(int argc, char *argv[])
 {
 	const bool with_arg = argc > 1 && (strcmp(argv[1], "sign") == 0 || strcmp(argv[1], "x25519-test") == 0
-					   || strcmp(argv[1], "rotate") == 0 || strcmp(argv[1], "restore") == 0);
+					   || strcmp(argv[1], "rotate") == 0 || strcmp(argv[1], "restore") == 0
+					   || strcmp(argv[1], "platform-scp") == 0);
 
 	if (argc < 2 || argc != (with_arg ? 3 : 2)) {
 		usage();
@@ -428,6 +449,9 @@ extern "C" __EXPORT int se05x_main(int argc, char *argv[])
 
 	} else if (strcmp(argv[1], "sign") == 0) {
 		ret = sign(fd, argv[2]);
+
+	} else if (strcmp(argv[1], "platform-scp") == 0) {
+		ret = platform_scp(fd, argv[2]);
 
 	} else {
 		usage();
