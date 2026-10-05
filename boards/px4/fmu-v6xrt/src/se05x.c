@@ -56,6 +56,7 @@ static bool g_registered;
 
 #ifdef CONFIG_DEV_SE05X_SCP03
 #include "imxrt_caam.h"
+#include <lib/crypto/crypto_utils/secure_heap.h>
 
 #define KEYS_PATH  "/fs/mtd_keys"
 #define SLOT_SIZE  128
@@ -68,7 +69,7 @@ struct keys_slot_s {
 };
 
 static const uint8_t g_keymod[IMXRT_CAAM_BLOB_KEYMOD] = "se05x-scp03-v1";
-static struct se05x_scp03_keys_s g_live;
+static struct se05x_scp03_keys_s g_live __attribute__((section(".secmem")));
 
 static const struct se05x_scp03_keys_s g_se050c1_default = {
 	.enc = {0x85, 0x2b, 0x59, 0x62, 0xe9, 0xcc, 0xe5, 0xd0, 0xbe, 0x74, 0x6b, 0x83, 0x3b, 0xcc, 0x62, 0x87},
@@ -109,9 +110,13 @@ static int slot_open(int index, struct keys_slot_s *slot, struct se05x_scp03_key
 static int keys_load(struct se05x_scp03_keys_s *keys)
 {
 	struct keys_slot_s slot[2];
-	struct se05x_scp03_keys_s tmp[2];
+	struct se05x_scp03_keys_s *tmp = sec_malloc(2 * sizeof(*tmp));
 	bool valid[2];
 	int count = 0;
+
+	if (tmp == NULL) {
+		return 0;
+	}
 
 	for (int i = 0; i < 2; i++) {
 		valid[i] = slot_open(i, &slot[i], &tmp[i]) == 0;
@@ -127,28 +132,34 @@ static int keys_load(struct se05x_scp03_keys_s *keys)
 		}
 	}
 
-	explicit_bzero(tmp, sizeof(tmp));
+	explicit_bzero(tmp, 2 * sizeof(*tmp));
+	sec_free(tmp);
 	return count;
 }
 
 static int keys_store(const struct se05x_scp03_keys_s *keys, const struct se05x_scp03_keys_s *live)
 {
 	struct keys_slot_s slot[2];
-	struct se05x_scp03_keys_s tmp;
+	struct se05x_scp03_keys_s *tmp = sec_malloc(sizeof(*tmp));
 	bool valid[2];
 	bool holds_live[2];
 	uint32_t seq = 0;
 
+	if (tmp == NULL) {
+		return -ENOMEM;
+	}
+
 	for (int i = 0; i < 2; i++) {
-		valid[i] = slot_open(i, &slot[i], &tmp) == 0;
-		holds_live[i] = valid[i] && memcmp(&tmp, live, sizeof(tmp)) == 0;
+		valid[i] = slot_open(i, &slot[i], tmp) == 0;
+		holds_live[i] = valid[i] && memcmp(tmp, live, sizeof(*tmp)) == 0;
 
 		if (valid[i] && slot[i].seq >= seq) {
 			seq = slot[i].seq + 1;
 		}
 	}
 
-	explicit_bzero(&tmp, sizeof(tmp));
+	explicit_bzero(tmp, sizeof(*tmp));
+	sec_free(tmp);
 
 	int target = holds_live[0] ? 1 : holds_live[1] ? 0 :
 		     !valid[0] ? 0 : !valid[1] ? 1 : (slot[0].seq < slot[1].seq ? 0 : 1);
@@ -227,7 +238,16 @@ int board_se05x_initialize(struct i2c_master_s *i2c)
 	}
 
 #ifdef CONFIG_DEV_SE05X_SCP03
-	struct se05x_scp03_keys_s keys[3];
+	secure_heap_init();
+	g_config.zalloc = sec_malloc;
+	g_config.free = sec_free;
+
+	struct se05x_scp03_keys_s *keys = sec_malloc(3 * sizeof(*keys));
+
+	if (keys == NULL) {
+		return -ENOMEM;
+	}
+
 	int n = keys_load(keys);
 	int ret = -ENODEV;
 
@@ -237,7 +257,8 @@ int board_se05x_initialize(struct i2c_master_s *i2c)
 		ret = try_register(&keys[i]);
 	}
 
-	explicit_bzero(keys, sizeof(keys));
+	explicit_bzero(keys, 3 * sizeof(*keys));
+	sec_free(keys);
 	return ret;
 #else
 	int ret = se05x_register(SE05X_PATH, i2c, &g_config);

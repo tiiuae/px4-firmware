@@ -78,6 +78,8 @@ SECTIONS
     .secmem (NOLOAD) : ALIGN(4)
     {
         *(.secmem .secmem.*)
+        *libdrivers.a:pnt_hcrypto.o(.bss .bss.*)
+        *libdrivers.a:se05x_scp03.o(.bss .bss.*)
     } > ksec
 
     .text : ALIGN(4)

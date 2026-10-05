@@ -42,13 +42,19 @@
 
 #include <nuttx/config.h>
 #include <nuttx/kmalloc.h>
+#include <stdbool.h>
 
 static struct mm_heap_s *sec_heap __attribute__((section(".secmem")));
 static uint32_t memory_pool[6 * 1024 - sizeof(sec_heap) / 4] __attribute__((section(".secmem"))); /* 24 KB */
 
+static bool sec_heap_ready;
+
 void secure_heap_init(void)
 {
-	sec_heap = mm_initialize("Secmem", memory_pool, sizeof(memory_pool));
+	if (!sec_heap_ready) {
+		sec_heap = mm_initialize("Secmem", memory_pool, sizeof(memory_pool));
+		sec_heap_ready = true;
+	}
 }
 
 void *sec_malloc(size_t size)

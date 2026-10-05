@@ -106,6 +106,10 @@ else()
 			nuttx_drivers # sdio
 	)
 
+	if(CONFIG_DEV_SE05X)
+		target_link_libraries(drivers_board PRIVATE crypto_utils)
+	endif()
+
 	if (NOT DEFINED CONFIG_BUILD_FLAT)
 		target_link_libraries(drivers_board PRIVATE px4_kernel_layer)
 		target_compile_options(drivers_board PRIVATE -D__KERNEL__)
