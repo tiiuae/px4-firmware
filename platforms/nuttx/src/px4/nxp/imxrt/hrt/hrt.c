@@ -69,6 +69,10 @@
 #include "hardware/imxrt_gpt.h"
 #include "imxrt_periphclks.h"
 
+#ifdef PX4_USERSPACE_HRT
+#include <mpu.h>
+#endif
+
 #undef PPM_DEBUG
 
 #ifdef CONFIG_DEBUG_HRT
@@ -597,11 +601,23 @@ hrt_init(void)
 	sq_init(&callout_queue);
 	hrt_tim_init();
 
+#ifdef PX4_USERSPACE_HRT
+	mpu_configure_region(HRT_TIMER_BASE, 16 * 1024, MPU_RASR_TEX_DEV | MPU_RASR_AP_RWRO | MPU_RASR_XN);
+#endif
+
 #ifdef HRT_PPM_CHANNEL
 	/* configure the PPM input pin */
 	px4_arch_configgpio(GPIO_PPM_IN);
 #endif
 }
+
+#ifdef PX4_USERSPACE_HRT
+uintptr_t
+hrt_absolute_time_usr_base(void)
+{
+	return HRT_TIMER_BASE + IMXRT_GPT_CNT_OFFSET;
+}
+#endif
 
 /**
  * Call callout(arg) after interval has elapsed.

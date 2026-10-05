@@ -73,6 +73,30 @@ static px4_sem_t g_worker_lock;
 static uintptr_t g_abstime_base;
 #endif
 
+#ifdef PX4_USERSPACE_HRT_COUNTER32
+static volatile uint32_t g_epoch_seq;
+static volatile hrt_abstime g_epoch_base;
+static volatile uint32_t g_epoch_count;
+static px4_sem_t g_epoch_lock;
+
+static void epoch_refresh(void)
+{
+	hrt_abstime now = 0;
+
+	do {} while (px4_sem_wait(&g_epoch_lock) != 0);
+
+	boardctl(HRT_ABSOLUTE_TIME, (uintptr_t)&now);
+	g_epoch_seq = g_epoch_seq + 1;
+	__atomic_signal_fence(__ATOMIC_SEQ_CST);
+	g_epoch_base = now & ~(hrt_abstime)UINT32_MAX;
+	g_epoch_count = (uint32_t)now;
+	__atomic_signal_fence(__ATOMIC_SEQ_CST);
+	g_epoch_seq = g_epoch_seq + 1;
+
+	px4_sem_post(&g_epoch_lock);
+}
+#endif
+
 /**
  * Wrapper for atexit()
  */
@@ -147,13 +171,31 @@ hrt_absolute_time(void)
 	return abstime;
 #else
 
-	if (g_abstime_base)	{
-		return getreg64(g_abstime_base);
-
-	} else {
+	if (!g_abstime_base) {
 		PX4_ERR("g_abstime_base is NULL\n");
 		return 0;
 	}
+
+#ifdef PX4_USERSPACE_HRT_COUNTER32
+
+	for (;;) {
+		uint32_t seq = g_epoch_seq;
+		__atomic_signal_fence(__ATOMIC_SEQ_CST);
+		hrt_abstime base = g_epoch_base;
+		uint32_t last = g_epoch_count;
+		uint32_t count = *(volatile uint32_t *)g_abstime_base;
+		__atomic_signal_fence(__ATOMIC_SEQ_CST);
+
+		if ((seq & 1) == 0 && seq == g_epoch_seq && count >= last && count - last < (UINT32_MAX / 2)) {
+			return base + count;
+		}
+
+		epoch_refresh();
+	}
+
+#else
+	return getreg64(g_abstime_base);
+#endif
 
 #endif
 }
@@ -176,6 +218,11 @@ hrt_init(void)
 	boardctl(HRT_REGISTER, (uintptr_t)&g_hrt_client_handle);
 #ifdef PX4_USERSPACE_HRT
 	boardctl(HRT_ABSTIME_BASE, (uintptr_t)&g_abstime_base);
+#endif
+
+#ifdef PX4_USERSPACE_HRT_COUNTER32
+	px4_sem_init(&g_epoch_lock, 0, 1);
+	epoch_refresh();
 #endif
 
 	if (g_hrt_client_handle) {

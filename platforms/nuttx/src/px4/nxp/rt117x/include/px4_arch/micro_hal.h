@@ -119,4 +119,10 @@ int imxrt_gpiosetevent(uint32_t pinset, bool risingedge, bool fallingedge, bool 
 #  define HAS_FLEXSPI
 #endif
 
+#if defined(CONFIG_BUILD_PROTECTED)
+#define PX4_USERSPACE_HRT
+#define PX4_USERSPACE_HRT_COUNTER32
+uintptr_t hrt_absolute_time_usr_base(void);
+#endif
+
 __END_DECLS
