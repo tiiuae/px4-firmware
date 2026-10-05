@@ -48,7 +48,7 @@ namespace uORB
 // Subscription wrapper class with callbacks on new publications
 class SubscriptionCallback : public SubscriptionInterval
 #ifndef CONFIG_BUILD_FLAT
-	, public ListNode<SubscriptionCallback *>
+	, public ListNode<SubscriptionCallback *>, public px4::WorkQueueCallback
 #endif
 {
 public:
@@ -81,6 +81,29 @@ public:
 		bool ret = false;
 
 		if (orb_advert_valid(_subscription.get_node())) {
+#ifndef CONFIG_BUILD_FLAT
+			px4::WorkItem *item = callback_work_item();
+
+			if ((item != nullptr) && (item->wake_lock() >= 0)) {
+				if (uorb_cb_handle_valid(_cb_handle)) {
+					return true;
+				}
+
+				item->AddCallback(this);
+				ret = DeviceNode::register_callback(_subscription.get_node(), this, item->wake_lock(), _last_update,
+								    _interval_us, _cb_handle);
+
+				if (ret) {
+					_direct_item = item;
+
+				} else {
+					item->RemoveCallback(this);
+				}
+
+				return ret;
+			}
+
+#endif
 			ret = Manager::registerCallback(_subscription.get_node(), this, _last_update, _interval_us, _cb_handle);
 		}
 
@@ -89,6 +112,20 @@ public:
 
 	void unregisterCallback()
 	{
+#ifndef CONFIG_BUILD_FLAT
+
+		if (_direct_item != nullptr) {
+			_direct_item->RemoveCallback(this);
+			_direct_item = nullptr;
+
+			if (uorb_cb_handle_valid(_cb_handle)) {
+				DeviceNode::unregister_callback(_subscription.get_node(), _cb_handle);
+			}
+
+			return;
+		}
+
+#endif
 		Manager::unregisterCallback(_subscription.get_node(), this, _cb_handle);
 	}
 
@@ -136,11 +173,48 @@ public:
 
 		return dequeued;
 	}
+
+	bool dispatch() override
+	{
+		return uorb_cb_handle_valid(_cb_handle) && do_call();
+	}
+
+	void unbind() override
+	{
+		if (uorb_cb_handle_valid(_cb_handle)) {
+			DeviceNode::unregister_callback(_subscription.get_node(), _cb_handle);
+		}
+	}
+
+	void bind() override
+	{
+		px4::WorkItem *item = _direct_item;
+
+		if (item == nullptr) {
+			return;
+		}
+
+		if (item->wake_lock() >= 0) {
+			DeviceNode::register_callback(_subscription.get_node(), this, item->wake_lock(), _last_update, _interval_us,
+						      _cb_handle);
+
+		} else {
+			item->RemoveCallback(this);
+			_direct_item = nullptr;
+			Manager::registerCallback(_subscription.get_node(), this, _last_update, _interval_us, _cb_handle);
+		}
+	}
 #endif
 
 	bool registered() const { return uorb_cb_handle_valid(_cb_handle); }
 
 protected:
+
+#ifndef CONFIG_BUILD_FLAT
+	virtual px4::WorkItem *callback_work_item() { return nullptr; }
+
+	px4::WorkItem *_direct_item{nullptr};
+#endif
 
 	uorb_cb_handle_t _cb_handle{UORB_INVALID_CB_HANDLE};
 };
@@ -162,7 +236,10 @@ public:
 	{
 	}
 
-	virtual ~SubscriptionCallbackWorkItem() = default;
+	virtual ~SubscriptionCallbackWorkItem()
+	{
+		unregisterCallback();
+	}
 
 	void call() override
 	{
@@ -185,6 +262,11 @@ public:
 		// TODO: constrain to queue depth?
 		_required_updates = required_updates;
 	}
+
+protected:
+#ifndef CONFIG_BUILD_FLAT
+	px4::WorkItem *callback_work_item() override { return _work_item; }
+#endif
 
 private:
 	px4::WorkItem *_work_item;

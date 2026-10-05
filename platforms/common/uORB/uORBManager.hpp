@@ -51,7 +51,7 @@
 #include "uORBCommunicator.hpp"
 #endif /* CONFIG_ORB_COMMUNICATOR */
 
-#define NUM_GLOBAL_SEMS 40
+#define NUM_GLOBAL_SEMS 64
 #define SEM_LIST_T GlobalLock, int8_t, NUM_GLOBAL_SEMS
 
 namespace uORB
@@ -448,6 +448,8 @@ public:
 	{
 		_Instance->g_sem_pool.release(idx);
 	}
+
+	static int threadLockValue(int idx) { return _Instance->g_sem_pool.value(idx); }
 
 	static void freeThreadLock(int i) {_Instance->g_sem_pool.free(i);}
 

@@ -41,6 +41,11 @@
 #include <px4_platform_common/time.h>
 #include <drivers/drv_hrt.h>
 
+#ifndef CONFIG_BUILD_FLAT
+#include <containers/LockGuard.hpp>
+#include <uORB/uORBManager.hpp>
+#endif
+
 namespace px4
 {
 
@@ -63,6 +68,14 @@ WorkQueue::WorkQueue(const wq_config_t &config) :
 
 	px4_sem_init(&_exit_lock, 0, 1);
 	px4_sem_setprotocol(&_exit_lock, SEM_PRIO_NONE);
+
+#ifndef CONFIG_BUILD_FLAT
+
+	if (uORB::Manager::get_instance() != nullptr) {
+		_wake = uORB::Manager::getThreadLock();
+	}
+
+#endif
 }
 
 WorkQueue::~WorkQueue()
@@ -75,6 +88,15 @@ WorkQueue::~WorkQueue()
 	px4_sem_destroy(&_exit_lock);
 
 	px4_sem_destroy(&_process_lock);
+
+#ifndef CONFIG_BUILD_FLAT
+
+	if (_wake >= 0) {
+		uORB::Manager::freeThreadLock(_wake);
+	}
+
+#endif
+
 	work_unlock();
 
 #ifndef __PX4_NUTTX
@@ -146,6 +168,18 @@ void WorkQueue::Add(WorkItem *item)
 
 void WorkQueue::SignalWorkerThread()
 {
+#ifndef CONFIG_BUILD_FLAT
+
+	if (_wake >= 0) {
+		if (uORB::Manager::threadLockValue(_wake) <= 0) {
+			uORB::Manager::unlockThread(_wake);
+		}
+
+		return;
+	}
+
+#endif
+
 	int sem_val;
 
 	if (px4_sem_getvalue(&_process_lock, &sem_val) == 0 && sem_val <= 0) {
@@ -174,8 +208,20 @@ void WorkQueue::Clear()
 void WorkQueue::Run()
 {
 	while (!should_exit()) {
+#ifndef CONFIG_BUILD_FLAT
+
+		if (_wake >= 0) {
+			uORB::Manager::lockThread(_wake);
+			DispatchCallbacks();
+
+		} else {
+			do {} while (px4_sem_wait(&_process_lock) != 0);
+		}
+
+#else
 		// loop as the wait may be interrupted by a signal
 		do {} while (px4_sem_wait(&_process_lock) != 0);
+#endif
 
 		work_lock();
 
@@ -204,6 +250,19 @@ void WorkQueue::Run()
 
 	PX4_DEBUG("%s: exiting", _config.name);
 }
+
+#ifndef CONFIG_BUILD_FLAT
+void WorkQueue::DispatchCallbacks()
+{
+	LockGuard lg{_work_items.mutex()};
+
+	for (WorkItem *item : _work_items) {
+		for (WorkQueueCallback *cb = item->_callbacks; cb != nullptr; cb = cb->_wq_next) {
+			while (cb->dispatch()) {}
+		}
+	}
+}
+#endif
 
 void WorkQueue::print_status(bool last)
 {

@@ -39,6 +39,10 @@
 #include <px4_platform_common/log.h>
 #include <drivers/drv_hrt.h>
 
+#ifndef CONFIG_BUILD_FLAT
+#include <containers/LockGuard.hpp>
+#endif
+
 namespace px4
 {
 
@@ -67,6 +71,18 @@ WorkItem::~WorkItem()
 
 bool WorkItem::Init(const wq_config_t &config)
 {
+#ifndef CONFIG_BUILD_FLAT
+
+	if (_wq != nullptr) {
+		LockGuard lg{_wq->items_mutex()};
+
+		for (WorkQueueCallback *cb = _callbacks; cb != nullptr; cb = cb->_wq_next) {
+			cb->unbind();
+		}
+	}
+
+#endif
+
 	// clear any existing first
 	Deinit();
 
@@ -75,6 +91,19 @@ bool WorkItem::Init(const wq_config_t &config)
 	if ((wq != nullptr) && wq->Attach(this)) {
 		_wq = wq;
 		_time_first_run = 0;
+
+#ifndef CONFIG_BUILD_FLAT
+
+		for (WorkQueueCallback *cb = _callbacks, *next; cb != nullptr; cb = next) {
+			next = cb->_wq_next;
+			cb->bind();
+		}
+
+		if (_callbacks != nullptr) {
+			ScheduleNow();
+		}
+
+#endif
 		return true;
 	}
 
@@ -96,6 +125,42 @@ void WorkItem::Deinit()
 		wq_temp->Detach(this);
 	}
 }
+
+#ifndef CONFIG_BUILD_FLAT
+void WorkItem::AddCallback(WorkQueueCallback *cb)
+{
+	if (_wq != nullptr) {
+		LockGuard lg{_wq->items_mutex()};
+		cb->_wq_next = _callbacks;
+		_callbacks = cb;
+
+	} else {
+		cb->_wq_next = _callbacks;
+		_callbacks = cb;
+	}
+}
+
+void WorkItem::RemoveCallback(WorkQueueCallback *cb)
+{
+	auto unlink = [this, cb]() {
+		for (WorkQueueCallback **p = &_callbacks; *p != nullptr; p = &(*p)->_wq_next) {
+			if (*p == cb) {
+				*p = cb->_wq_next;
+				cb->_wq_next = nullptr;
+				return;
+			}
+		}
+	};
+
+	if (_wq != nullptr) {
+		LockGuard lg{_wq->items_mutex()};
+		unlink();
+
+	} else {
+		unlink();
+	}
+}
+#endif
 
 void WorkItem::ScheduleClear()
 {

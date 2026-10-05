@@ -83,6 +83,13 @@ public:
 
 	const char *ItemName() const { return _item_name; }
 
+#ifndef CONFIG_BUILD_FLAT
+	int8_t wake_lock() const { return (_wq != nullptr) ? _wq->wake_lock() : -1; }
+
+	void AddCallback(WorkQueueCallback *cb);
+	void RemoveCallback(WorkQueueCallback *cb);
+#endif
+
 protected:
 
 	explicit WorkItem(const char *name, const wq_config_t &config);
@@ -133,6 +140,11 @@ protected:
 private:
 
 	WorkQueue	*_wq{nullptr};
+
+#ifndef CONFIG_BUILD_FLAT
+	friend class WorkQueue;
+	WorkQueueCallback *_callbacks{nullptr};
+#endif
 
 };
 
