@@ -73,6 +73,8 @@
 #include "imxrt_enet.h"
 #include "imxrt_lpi2c.h"
 #include "imxrt_xrdc2.h"
+#include <mpu.h>
+#include <nuttx/userspace.h>
 #include <chip.h>
 
 #include <hardware/imxrt_lpuart.h>
@@ -119,6 +121,8 @@ extern uint64_t _sdtcm;              /* Copy destination start address in DTCM *
 extern uint64_t _edtcm;              /* Copy destination end address in DTCM */
 extern uint64_t _ssecmem;
 extern uint64_t _esecmem;
+extern uint32_t _suitcm;
+extern uint32_t _euitcm;
 __END_DECLS
 
 /************************************************************************************
@@ -283,6 +287,20 @@ __EXPORT void imxrt_ocram_initialize(void)
 	}
 #endif
 
+#if defined(CONFIG_BUILD_PROTECTED)
+	const uintptr_t *uitcm = (const uintptr_t *)(CONFIG_NUTTX_USERSPACE + sizeof(struct userspace_s));
+
+	if (uitcm[0] == USERSPACE_ITCM_MAGIC && uitcm[2] == (uintptr_t)&_suitcm && uitcm[2] <= uitcm[3]
+	    && uitcm[3] <= (uintptr_t)&_euitcm) {
+		const uint32_t *usrc = (const uint32_t *)uitcm[1];
+
+		for (uint32_t *udest = (uint32_t *)uitcm[2]; udest < (uint32_t *)uitcm[3];) {
+			*udest++ = *usrc++;
+		}
+	}
+
+#endif
+
 #if defined(CONFIG_BOOT_RUNFROMISRAM)
 	const uint32_t *src;
 	uint32_t *dest;
@@ -333,6 +351,14 @@ __EXPORT void imxrt_boardinitialize(void)
 	VDD_3V3_ETH_POWER_EN(true);
 }
 
+
+#if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_BOARD_LATE_INITIALIZE)
+void board_late_initialize(void)
+{
+	mpu_configure_region((uintptr_t)&_suitcm, (uintptr_t)&_euitcm - (uintptr_t)&_suitcm,
+			     MPU_RASR_TEX_NOR | MPU_RASR_AP_RORO);
+}
+#endif
 
 /****************************************************************************
  * Name: board_app_initialize

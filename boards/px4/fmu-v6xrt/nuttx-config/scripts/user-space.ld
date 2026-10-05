@@ -26,7 +26,20 @@ SECTIONS
     .userspace :
     {
         *(.userspace)
+        KEEP(*(.userspace_itcm))
     } > uflash
+
+    .itcmfunc :
+    {
+        . = ALIGN(8);
+        _suitcmfuncs = ABSOLUTE(.);
+        INCLUDE "itcm_static_functions.ld"
+        INCLUDE "itcm_functions_includes.ld"
+        . = ALIGN(8);
+        _euitcmfuncs = ABSOLUTE(.);
+    } > uitcm AT > uflash
+
+    _fuitcmfuncs = LOADADDR(.itcmfunc);
 
     .text :
     {

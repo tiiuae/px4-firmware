@@ -25,6 +25,7 @@ MEMORY
   ksram  (rwx) : ORIGIN = 0x20240000, LENGTH = 480K
   ksec   (rw)  : ORIGIN = 0x202B8000, LENGTH = 32K
   usram  (rwx) : ORIGIN = 0x202C0000, LENGTH = 32K
-  itcm   (rwx) : ORIGIN = 0x00000000, LENGTH = 256K
+  itcm   (rwx) : ORIGIN = 0x00000000, LENGTH = 144K
+  uitcm  (rx)  : ORIGIN = 0x00024000, LENGTH = 112K
   dtcm   (rwx) : ORIGIN = 0x20000000, LENGTH = 256K
 }

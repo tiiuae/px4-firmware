@@ -178,6 +178,8 @@ SECTIONS
     _ram_size = 0x20380000 - ORIGIN(ksram);
     _sdtcm = ORIGIN(dtcm);
     _edtcm = ORIGIN(dtcm) + LENGTH(dtcm);
+    _suitcm = ORIGIN(uitcm);
+    _euitcm = ORIGIN(uitcm) + LENGTH(uitcm);
     _ssecmem = ORIGIN(ksec);
     _esecmem = ORIGIN(ksec) + LENGTH(ksec);
 }

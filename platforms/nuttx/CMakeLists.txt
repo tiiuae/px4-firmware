@@ -412,6 +412,7 @@ else() # CONFIG_BUILD_PROTECTED
 		-fno-rtti
 
 		-Wl,--script=${LDSCRIPT}
+		-L${NUTTX_CONFIG_DIR_CYG}/scripts
 
 		-Wl,-Map=${PX4_CONFIG}.map
 		-Wl,--warn-common

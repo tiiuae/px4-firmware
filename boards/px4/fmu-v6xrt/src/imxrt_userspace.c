@@ -47,6 +47,8 @@
 #include <nuttx/userspace.h>
 #include <sys/boardctl.h>
 
+#include "board_config.h"
+
 #if !defined(CONFIG_BUILD_FLAT) && !defined(__KERNEL__)
 
 /****************************************************************************
@@ -86,11 +88,21 @@ extern uint32_t _sdata;           /* Start of .data */
 extern uint32_t _edata;           /* End+1 of .data */
 extern uint32_t _sbss;            /* Start of .bss */
 extern uint32_t _ebss;            /* End+1 of .bss */
+extern uint32_t _suitcmfuncs;
+extern uint32_t _euitcmfuncs;
+extern uint32_t _fuitcmfuncs;
 
 /* This is the user space entry point */
 
 int CONFIG_INIT_ENTRYPOINT(int argc, char *argv[]);
 int nsh_main(int argc, char *argv[]);
+
+const uintptr_t userspace_itcm[4] __attribute__((section(".userspace_itcm"), used)) = {
+	USERSPACE_ITCM_MAGIC,
+	(uintptr_t) &_fuitcmfuncs,
+	(uintptr_t) &_suitcmfuncs,
+	(uintptr_t) &_euitcmfuncs,
+};
 
 const struct userspace_s userspace __attribute__((section(".userspace"))) = {
 	/* General memory map */

@@ -64,6 +64,8 @@
 /* PX4IO connection configuration */
 // This requires serial DMA driver
 #define BOARD_USES_PX4IO_VERSION       2
+
+#define USERSPACE_ITCM_MAGIC           0x4d435449
 #define PX4IO_SERIAL_DEVICE            "/dev/ttyS4"
 #define PX4IO_SERIAL_TX_GPIO           GPIO_LPUART6_TX
 #define PX4IO_SERIAL_RX_GPIO           GPIO_LPUART6_RX
