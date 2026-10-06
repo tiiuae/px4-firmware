@@ -145,6 +145,7 @@ int noise_initiator_start(struct noise_initiator *ini,
 
 int noise_initiator_finish(struct noise_initiator *ini, const uint8_t *frame,
                            size_t frame_len, struct noise_session *out) {
+  struct noise_symmetric ss;
   uint8_t dh[NOISE_DHLEN];
   uint8_t re[NOISE_DHLEN];
   uint8_t send[NOISE_KEYLEN];
@@ -162,25 +163,27 @@ int noise_initiator_finish(struct noise_initiator *ini, const uint8_t *frame,
     return NOISE_ERR_INPUT;
   }
 
+  ss = ini->ss;
   memcpy(re, frame + 1, NOISE_DHLEN);
-  mix_hash(&ini->ss, re, NOISE_DHLEN);
+  mix_hash(&ss, re, NOISE_DHLEN);
 
+  rc = NOISE_ERR_DH;
   if (noise_dh(ini->e_priv, re, dh) != 0) {
-    return NOISE_ERR_DH;
+    goto out;
   }
-  mix_key(&ini->ss, dh, NOISE_DHLEN);
+  mix_key(&ss, dh, NOISE_DHLEN);
 
   if (noise_dh_static(ini->s, re, dh) != 0) {
-    return NOISE_ERR_DH;
+    goto out;
   }
-  mix_key(&ini->ss, dh, NOISE_DHLEN);
+  mix_key(&ss, dh, NOISE_DHLEN);
 
-  rc = decrypt_and_hash(&ini->ss, frame + 1 + NOISE_DHLEN, NOISE_TAGLEN, empty);
+  rc = decrypt_and_hash(&ss, frame + 1 + NOISE_DHLEN, NOISE_TAGLEN, empty);
   if (rc != NOISE_OK) {
-    return rc;
+    goto out;
   }
 
-  hkdf2(ini->ss.ck, NULL, 0, send, recv);
+  hkdf2(ss.ck, NULL, 0, send, recv);
 
   memset(out, 0, sizeof(*out));
   rc = noise_session_key_set(&out->send, send);
@@ -189,18 +192,21 @@ int noise_initiator_finish(struct noise_initiator *ini, const uint8_t *frame,
   }
   if (rc != 0) {
     noise_session_wipe(out);
+    rc = NOISE_ERR_BACKEND;
+    goto out;
   }
 
+  noise_wipe(&ini->ss, sizeof(ini->ss));
+  noise_wipe(ini->e_priv, sizeof(ini->e_priv));
+  ini->stage = 2;
+  rc = NOISE_OK;
+
+out:
+  noise_wipe(&ss, sizeof(ss));
   noise_wipe(send, sizeof(send));
   noise_wipe(recv, sizeof(recv));
   noise_wipe(dh, sizeof(dh));
-  noise_wipe(&ini->ss, sizeof(ini->ss));
-  noise_wipe(ini->e_priv, sizeof(ini->e_priv));
-  if (rc != 0) {
-    return NOISE_ERR_BACKEND;
-  }
-  ini->stage = 2;
-  return NOISE_OK;
+  return rc;
 }
 
 #endif
