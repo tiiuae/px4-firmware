@@ -289,12 +289,17 @@ int secure_link_open(struct secure_link *sl, uint64_t now_us,
             if (rc != NOISE_ERR_REPLAY
                 && ++sl->decrypt_fails >= SECURE_LINK_DECRYPT_FAILS)
               {
-                sl->open_drops++;
-                sl->last_drop_us = now_us;
-                end_session(sl);
-                sl->state = SECURE_LINK_HANDSHAKING;
-                reset_backoff(sl);
-                sl->next_retry_us = 0;
+                sl->decrypt_fails = 0;
+
+                if (!sl->rekeying
+                    && (sl->fail_rekeys == 0
+                        || now_us - sl->last_fail_rekey_us
+                           >= SECURE_LINK_SILENCE_US))
+                  {
+                    sl->fail_rekeys++;
+                    sl->last_fail_rekey_us = now_us;
+                    sl->next_rekey_us = now_us;
+                  }
               }
 
             return rc;

@@ -152,7 +152,7 @@ static void test_silence_triggers_a_rekey(void)
   end_session(&sl, &peer);
 }
 
-static void test_decrypt_failures_trigger_a_rekey(void)
+static void test_decrypt_failures_rekey_without_dropping(void)
 {
   struct secure_link sl;
   struct noise_session peer;
@@ -168,13 +168,60 @@ static void test_decrypt_failures_trigger_a_rekey(void)
   for (uint32_t i = 0; i < SECURE_LINK_DECRYPT_FAILS - 1; i++)
     {
       secure_link_open(&sl, t, frame, sizeof(frame), out, sizeof(out));
-      CHECK(sl.state == SECURE_LINK_ESTABLISHED,
-            "rekeyed after %u failures, before the threshold", i + 1);
     }
 
+  CHECK(secure_link_poll(&sl, t, out, sizeof(out)) == 0,
+        "rekeyed before the threshold");
+
   secure_link_open(&sl, t, frame, sizeof(frame), out, sizeof(out));
-  CHECK(sl.state == SECURE_LINK_HANDSHAKING,
-        "the threshold did not rekey");
+  CHECK(sl.state == SECURE_LINK_ESTABLISHED,
+        "forged frames took the session down");
+  CHECK(secure_link_poll(&sl, t, out, sizeof(out)) == NOISE_MSG1_LEN,
+        "the threshold did not start a rekey");
+  CHECK(secure_link_seal(&sl, t, (const uint8_t *)"x", 1, out, sizeof(out)) > 0,
+        "the session stopped sealing");
+
+  end_session(&sl, &peer);
+}
+
+static void test_failed_frames_rekey_at_most_once_per_silence(void)
+{
+  struct secure_link sl;
+  struct noise_session peer;
+  uint8_t frame[64];
+  uint8_t out[SECURE_LINK_MTU];
+  uint64_t t = 1000000;
+
+  fake_session(&sl, &peer, t);
+
+  memset(frame, 0, sizeof(frame));
+  frame[0] = NOISE_TYPE_TRANSPORT;
+
+  for (uint32_t i = 0; i < SECURE_LINK_DECRYPT_FAILS; i++)
+    {
+      secure_link_open(&sl, t, frame, sizeof(frame), out, sizeof(out));
+    }
+
+  sl.rekeying = false;
+  sl.next_rekey_us = t + SECURE_LINK_REKEY_US;
+
+  for (uint32_t i = 0; i < SECURE_LINK_DECRYPT_FAILS * 4; i++)
+    {
+      secure_link_open(&sl, t + 1, frame, sizeof(frame), out, sizeof(out));
+    }
+
+  CHECK(sl.fail_rekeys == 1, "failed frames rekeyed %u times in one window",
+        (unsigned)sl.fail_rekeys);
+  CHECK(secure_link_poll(&sl, t + 1, out, sizeof(out)) == 0,
+        "a second rekey inside the silence window");
+
+  for (uint32_t i = 0; i < SECURE_LINK_DECRYPT_FAILS; i++)
+    {
+      secure_link_open(&sl, t + SECURE_LINK_SILENCE_US, frame, sizeof(frame),
+                       out, sizeof(out));
+    }
+
+  CHECK(sl.fail_rekeys == 2, "no rekey once the window passed");
 
   end_session(&sl, &peer);
 }
@@ -361,7 +408,8 @@ int main(void)
 {
   test_backoff_widens_and_settles();
   test_silence_triggers_a_rekey();
-  test_decrypt_failures_trigger_a_rekey();
+  test_decrypt_failures_rekey_without_dropping();
+  test_failed_frames_rekey_at_most_once_per_silence();
   test_a_replay_is_not_a_decrypt_failure();
   test_a_frame_opens_into_a_buffer_the_size_of_its_plaintext();
   test_counter_exhaustion_ends_the_session();

@@ -81,7 +81,8 @@ struct secure_link {
   uint32_t handshakes;
   uint32_t silence_drops;
   uint32_t age_drops;
-  uint32_t open_drops;
+  uint32_t fail_rekeys;
+  uint64_t last_fail_rekey_us;
   uint32_t replays;
   uint64_t last_drop_us;
 };
