@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstring>
 #include <thread>
+#include <unistd.h>
 #include <atomic>
 #include <chrono>
 
@@ -285,6 +286,28 @@ int main()
 		u.send("DDS", 3, 0);
 		got = u.recv_within(back, sizeof(back), 500);
 		check(got == 3 && memcmp(back, "DDS", 3) == 0, "recv_within returns the payload");
+
+		u.close();
+		stop_peer = true; t.join();
+	}
+
+	{
+		stop_peer = false; peer_rx = 0;
+		std::thread t(peer, 19120, true);
+		std::this_thread::sleep_for(milliseconds(50));
+
+		ztcs::ZtcsLinkUdp u(nullptr, "127.0.0.1", 19121, 19120, 1);
+		check(u.open(), "link up for the stranger case");
+
+		int fd = socket(AF_INET, SOCK_DGRAM, 0);
+		sockaddr_in a{}; a.sin_family = AF_INET; a.sin_port = htons(19121);
+		a.sin_addr.s_addr = inet_addr("127.0.0.1");
+		sendto(fd, "PTstranger", 10, 0, (sockaddr *)&a, sizeof(a));
+		close(fd);
+
+		char back[64] = {};
+		ssize_t got = u.recv_within(back, sizeof(back), 300);
+		check(got == 0, "a datagram from anyone but the station never arrives");
 
 		u.close();
 		stop_peer = true; t.join();

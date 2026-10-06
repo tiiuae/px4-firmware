@@ -53,7 +53,6 @@ private:
 	int _sockfd{-1};
 	uint16_t _remote_port{0};
 	struct sockaddr_in _addr {};
-	struct sockaddr_in _remote_addr {};
 	char _remote[INET_ADDRSTRLEN] {};
 	uint16_t _local_port;
 	unsigned _timeout_s;  /* seconds, as the caller counts them */

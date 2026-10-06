@@ -99,11 +99,18 @@ bool ZtcsLinkUdp::open(uint16_t remote_port)
 		return false;
 	}
 
-	_remote_addr.sin_family = AF_INET;
-	_remote_addr.sin_port = htons(_remote_port);
+	struct sockaddr_in remote {};
+	remote.sin_family = AF_INET;
+	remote.sin_port = htons(_remote_port);
 
-	if (inet_pton(AF_INET, _remote, &_remote_addr.sin_addr) != 1) {
+	if (inet_pton(AF_INET, _remote, &remote.sin_addr) != 1) {
 		PX4_ERR("remote address %s is not v4", _remote);
+		close();
+		return false;
+	}
+
+	if (connect(_sockfd, (struct sockaddr *)&remote, sizeof(remote)) < 0) {
+		PX4_ERR("connect %s:%u: %d", _remote, _remote_port, errno);
 		close();
 		return false;
 	}
@@ -171,8 +178,7 @@ void ZtcsLinkUdp::pump()
 	int len = secure_link_poll(_link, now, _frame, sizeof(_frame));
 
 	if (len > 0) {
-		sendto(_sockfd, _frame, len, 0, (struct sockaddr *)&_remote_addr,
-		       sizeof(_remote_addr));
+		::send(_sockfd, _frame, len, 0);
 	}
 }
 
@@ -200,8 +206,7 @@ ssize_t ZtcsLinkUdp::send(const void *buf, size_t len, int flags)
 		return -1;
 	}
 
-	ssize_t sent = sendto(_sockfd, _frame, sealed, flags,
-			      (struct sockaddr *)&_remote_addr, sizeof(_remote_addr));
+	ssize_t sent = ::send(_sockfd, _frame, sealed, flags);
 
 	if (sent > 0) {
 		_tx++;

@@ -815,8 +815,7 @@ int Mavlink::secure_link_transmit(const uint8_t *frame, size_t len)
 	}
 
 #if defined(MAVLINK_UDP)
-	return sendto(_socket_fd, frame, len, 0, (struct sockaddr *)&_src_addr,
-		      sizeof(_src_addr)) == (ssize_t)len ? (int)len : -1;
+	return ::send(_socket_fd, frame, len, 0) == (ssize_t)len ? (int)len : -1;
 #else
 	return -1;
 #endif
@@ -1182,6 +1181,21 @@ void Mavlink::init_udp()
 	}
 
 	_src_addr.sin_port = htons(_remote_port);
+
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
+
+	if (!_src_addr_initialized) {
+		PX4_ERR("secure link needs a fixed peer: -c, -t or -i");
+		::close(_socket_fd);
+		_socket_fd = -1;
+
+	} else if (connect(_socket_fd, (struct sockaddr *)&_src_addr, sizeof(_src_addr)) < 0) {
+		PX4_ERR("connect failed: %s", strerror(errno));
+		::close(_socket_fd);
+		_socket_fd = -1;
+	}
+
+#endif
 }
 #endif // MAVLINK_UDP
 
