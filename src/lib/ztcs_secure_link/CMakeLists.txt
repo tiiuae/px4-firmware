@@ -82,7 +82,7 @@ if(PX4_CRYPTO)
 	target_link_libraries(ztcs_secure_link PRIVATE crypto_backend_interface)
 endif()
 
-px4_add_library(ztcs_link_udp ZtcsLinkUdp.cpp)
+px4_add_library(ztcs_link_udp ZtcsLinkUdp.cpp ztcs_link_udp_c.cpp)
 target_link_libraries(ztcs_link_udp PUBLIC ztcs_secure_link)
 target_include_directories(ztcs_link_udp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
