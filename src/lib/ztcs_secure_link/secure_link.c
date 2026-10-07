@@ -19,6 +19,11 @@ static uint64_t jitter_us(uint64_t interval_us)
   return (interval_us / 4) * r / 255;
 }
 
+static uint64_t since(uint64_t now_us, uint64_t then_us)
+{
+  return now_us > then_us ? now_us - then_us : 0;
+}
+
 static int start_handshake(struct secure_link *sl, uint64_t now_us,
                            uint8_t *out, size_t cap)
 {
@@ -125,10 +130,10 @@ int secure_link_poll(struct secure_link *sl, uint64_t now_us,
   if (sl->state == SECURE_LINK_ESTABLISHED)
     {
       /* Link gone, or peer stopped answering. Either way, drop it. */
-      if (now_us - sl->last_open_us >= SECURE_LINK_SILENCE_US
-          || now_us - sl->established_us >= SECURE_LINK_MAX_AGE_US)
+      if (since(now_us, sl->last_open_us) >= SECURE_LINK_SILENCE_US
+          || since(now_us, sl->established_us) >= SECURE_LINK_MAX_AGE_US)
         {
-          if (now_us - sl->last_open_us >= SECURE_LINK_SILENCE_US)
+          if (since(now_us, sl->last_open_us) >= SECURE_LINK_SILENCE_US)
             {
               sl->silence_drops++;
               sl->last_drop_us = now_us;
@@ -293,7 +298,7 @@ int secure_link_open(struct secure_link *sl, uint64_t now_us,
 
                 if (!sl->rekeying
                     && (sl->fail_rekeys == 0
-                        || now_us - sl->last_fail_rekey_us
+                        || since(now_us, sl->last_fail_rekey_us)
                            >= SECURE_LINK_SILENCE_US))
                   {
                     sl->fail_rekeys++;

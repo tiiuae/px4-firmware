@@ -152,6 +152,29 @@ static void test_silence_triggers_a_rekey(void)
   end_session(&sl, &peer);
 }
 
+static void test_a_frame_opened_after_the_poll_clock_is_not_silence(void)
+{
+  struct secure_link sl;
+  struct noise_session peer;
+  uint8_t out[SECURE_LINK_MTU];
+  uint64_t t = 1000000;
+
+  fake_session(&sl, &peer, t);
+  sl.last_open_us = t + 1000;
+
+  CHECK(secure_link_poll(&sl, t, out, sizeof(out)) == 0,
+        "a poll clock read before the last open dropped the session");
+  CHECK(sl.state == SECURE_LINK_ESTABLISHED, "left established");
+  CHECK(sl.silence_drops == 0, "counted a silence that never happened");
+
+  sl.established_us = t + 1000;
+  CHECK(secure_link_poll(&sl, t, out, sizeof(out)) == 0,
+        "a poll clock read before establishment aged the session out");
+  CHECK(sl.age_drops == 0, "counted an age-out that never happened");
+
+  end_session(&sl, &peer);
+}
+
 static void test_decrypt_failures_rekey_without_dropping(void)
 {
   struct secure_link sl;
@@ -408,6 +431,7 @@ int main(void)
 {
   test_backoff_widens_and_settles();
   test_silence_triggers_a_rekey();
+  test_a_frame_opened_after_the_poll_clock_is_not_silence();
   test_decrypt_failures_rekey_without_dropping();
   test_failed_frames_rekey_at_most_once_per_silence();
   test_a_replay_is_not_a_decrypt_failure();
