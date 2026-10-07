@@ -140,7 +140,7 @@ The fmu-v6x variant files are kept small and self-contained for exactly this rea
 The layout shown above assumes the whole signed image is flashed to memory-mapped (execute-in-place, or XIP) flash at `APP_LOAD_ADDRESS`, where the bootloader can hash it in place.
 
 That assumption doesn't hold for boards that host images on media such as an SD card or eMMC, because the data isn't stored as a contiguous block, and the CPU can't address it directly.
-Loading the whole (potentially large) image into RAM just to authenticate it is inefficient, and may not be possible.
+Loading the whole (potentially large) image into RAM just to authenticate it would be inefficient, and may not be possible.
 
 To support these kinds of boards, PX4 can instead build a small, separately signed TOC block that is prepended to the signed app image on the media.
 The bootloader can then authenticate this standalone TOC (which board startup code loads into a small RAM buffer) before anything else is trusted, and without having to load the whole image.
