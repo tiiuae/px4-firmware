@@ -43,6 +43,7 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/mm/mm.h>
+#include <nuttx/tls.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/userspace.h>
 #include <sys/boardctl.h>
@@ -132,6 +133,10 @@ const struct userspace_s userspace __attribute__((section(".userspace"))) = {
 
 #ifdef CONFIG_LIBC_USRWORK
 	.work_usrstart    = work_usrstart,
+#endif
+
+#ifdef CONFIG_TLS_USERSPACE_POINTER
+	.us_tlsinfo       = &g_tls_userinfo,
 #endif
 };
 
