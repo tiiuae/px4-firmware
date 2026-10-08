@@ -3341,13 +3341,13 @@ MavlinkReceiver::run()
 					 * nothing, rather than commands from anyone who can
 					 * reach the port.
 					 */
-					uint8_t plain[SECURE_LINK_MTU];
+					static_assert(sizeof(_secure_plain) >= SECURE_LINK_MTU, "UDP plaintext fits the serial buffer");
 					int plain_len = -1;
 
 					if (_mavlink->secure_link_ready()) {
 						_mavlink->lock_secure_link();
 						plain_len = secure_link_open(_mavlink->get_secure_link(), hrt_absolute_time(),
-									     buf, nread, plain, sizeof(plain));
+									     buf, nread, _secure_plain, SECURE_LINK_MTU);
 						_mavlink->unlock_secure_link();
 					}
 
@@ -3357,7 +3357,7 @@ MavlinkReceiver::run()
 					 * Neither is MAVLink.
 					 */
 					if (plain_len > 0) {
-						memcpy(buf, plain, plain_len);
+						data = _secure_plain;
 						nread = plain_len;
 
 					} else {
