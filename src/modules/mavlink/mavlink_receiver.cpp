@@ -111,7 +111,9 @@ static constexpr vehicle_odometry_s vehicle_odometry_empty {
 MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	ModuleParams(nullptr),
 	_mavlink(parent),
+#if defined(CONFIG_MAVLINK_FTP)
 	_mavlink_ftp(parent),
+#endif
 	_mavlink_log_handler(parent),
 	_mission_manager(parent),
 	_parameters_manager(parent),
@@ -3435,10 +3437,14 @@ MavlinkReceiver::run()
 							}
 						}
 
+#if defined(CONFIG_MAVLINK_FTP)
+
 						if (_mavlink->ftp_enabled()) {
 							/* handle packet with ftp component */
 							_mavlink_ftp.handle_message(&msg);
 						}
+
+#endif
 
 						/* handle packet with log component */
 						_mavlink_log_handler.handle_message(&msg);
@@ -3503,9 +3509,13 @@ MavlinkReceiver::run()
 				_parameters_manager.send();
 			}
 
+#if defined(CONFIG_MAVLINK_FTP)
+
 			if (_mavlink->ftp_enabled()) {
 				_mavlink_ftp.send();
 			}
+
+#endif
 
 			_mavlink_log_handler.send();
 			last_send_update = t;

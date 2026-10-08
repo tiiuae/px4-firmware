@@ -500,7 +500,11 @@ public:
 	}
 
 	const events::SendProtocol &get_events_protocol() const { return _events; };
+#if defined(CONFIG_MAVLINK_FTP)
 	bool ftp_enabled() const { return _ftp_on; }
+#else
+	bool ftp_enabled() const { return false; }
+#endif
 
 	bool hash_check_enabled() const { return _param_mav_hash_chk_en.get(); }
 	bool forward_heartbeats_enabled() const { return _param_mav_hb_forw_en.get(); }

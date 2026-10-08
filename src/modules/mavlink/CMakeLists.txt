@@ -110,6 +110,10 @@ else()
 	set(SHELL_CAPABILITIES RAWIO SPAWN ADMIN)
 endif()
 
+if(CONFIG_MAVLINK_FTP)
+	set(MAVLINK_FTP_SRCS mavlink_ftp.cpp)
+endif()
+
 px4_add_module(
 	MODULE modules__mavlink
 	MAIN mavlink
@@ -121,7 +125,7 @@ px4_add_module(
 		mavlink.c
 		mavlink_command_sender.cpp
 		mavlink_events.cpp
-		mavlink_ftp.cpp
+		${MAVLINK_FTP_SRCS}
 		mavlink_log_handler.cpp
 		mavlink_main.cpp
 		mavlink_messages.cpp

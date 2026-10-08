@@ -33,6 +33,14 @@ menuconfig MAVLINK_SHELL_REQUIRES_SECURE_LINK
 		A shell is root. Refuse SERIAL_CONTROL on any instance whose peer
 		has not authenticated, which includes USB.
 
+menuconfig MAVLINK_FTP
+	bool "MAVLink FTP"
+	default y
+	depends on MODULES_MAVLINK
+	---help---
+		File access over MAVLink, read and write. The GCS falls back to
+		the parameter protocol without it.
+
 menuconfig MAVLINK_SERIAL_FLASH_ONLY
 	bool "MAVLink over serial takes only what flashing needs"
 	default n

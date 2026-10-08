@@ -43,7 +43,9 @@
 
 #pragma once
 
+#if defined(CONFIG_MAVLINK_FTP)
 #include "mavlink_ftp.h"
+#endif
 #include "mavlink_log_handler.h"
 #include "mavlink_mission.h"
 #include "mavlink_parameters.h"
@@ -265,7 +267,9 @@ private:
 
 	Mavlink				*_mavlink;
 
+#if defined(CONFIG_MAVLINK_FTP)
 	MavlinkFTP			_mavlink_ftp;
+#endif
 	MavlinkLogHandler		_mavlink_log_handler;
 	MavlinkMissionManager		_mission_manager;
 	MavlinkParametersManager	_parameters_manager;
