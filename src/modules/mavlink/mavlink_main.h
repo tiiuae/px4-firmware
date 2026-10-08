@@ -64,6 +64,7 @@
 #include <perf/perf_counter.h>
 #include <px4_platform_common/cli.h>
 #include <px4_platform_common/px4_config.h>
+#include <px4_platform_common/sem.h>
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/getopt.h>
 #include <px4_platform_common/module.h>
@@ -698,7 +699,7 @@ private:
 	pthread_mutex_t		_message_buffer_mutex{};
 	VariableLengthRingbuffer _message_buffer{};
 
-	pthread_mutex_t		_send_mutex {};
+	px4_sem_t		_send_mutex {};
 	pthread_mutex_t         _radio_status_mutex {};
 
 	bool			_crit_act_enabled{false};

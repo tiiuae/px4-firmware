@@ -754,7 +754,7 @@ Mavlink::get_free_tx_buf()
 
 void Mavlink::send_start(int length)
 {
-	pthread_mutex_lock(&_send_mutex);
+	do {} while (px4_sem_wait(&_send_mutex) != 0);
 	_last_write_try_time = hrt_absolute_time();
 
 	// check if there is space in the buffer
@@ -893,7 +893,7 @@ bool Mavlink::usb_enrolment_open()
 void Mavlink::send_finish()
 {
 	if (_tx_buffer_low || (_buf_fill == 0)) {
-		pthread_mutex_unlock(&_send_mutex);
+		px4_sem_post(&_send_mutex);
 		return;
 	}
 
@@ -989,7 +989,7 @@ void Mavlink::send_finish()
 
 	_buf_fill = 0;
 
-	pthread_mutex_unlock(&_send_mutex);
+	px4_sem_post(&_send_mutex);
 }
 
 void Mavlink::send_bytes(const uint8_t *buf, unsigned packet_len)
@@ -2374,7 +2374,7 @@ Mavlink::task_main(int argc, char *argv[])
 	}
 
 	pthread_mutex_init(&_message_buffer_mutex, nullptr);
-	pthread_mutex_init(&_send_mutex, nullptr);
+	px4_mutex_init(&_send_mutex, 0);
 	pthread_mutex_init(&_radio_status_mutex, nullptr);
 #if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
 	pthread_mutex_init(&_secure_link_mutex, nullptr);
@@ -2886,7 +2886,7 @@ Mavlink::task_main(int argc, char *argv[])
 		_mavlink_ulog = nullptr;
 	}
 
-	pthread_mutex_destroy(&_send_mutex);
+	px4_sem_destroy(&_send_mutex);
 	pthread_mutex_destroy(&_radio_status_mutex);
 	pthread_mutex_destroy(&_message_buffer_mutex);
 
