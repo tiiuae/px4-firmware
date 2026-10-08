@@ -1,0 +1,3 @@
+# CONFIG_NET_ICMP is not set
+# CONFIG_NET_ICMP_SOCKET is not set
+# CONFIG_SYSTEM_PING is not set
