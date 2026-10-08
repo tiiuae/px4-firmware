@@ -50,6 +50,13 @@ if(DEFINED ENV{PX4_EXTRA_NUTTX_CONFIG})
 	endforeach ()
 endif()
 
+set(NUTTX_LABEL_FRAGMENT ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/${PX4_BOARD_LABEL}.fragment)
+if(EXISTS ${NUTTX_LABEL_FRAGMENT})
+	file(READ ${NUTTX_LABEL_FRAGMENT} fragment)
+	file(APPEND ${EXTRA_NUTTX_CONFIG_FILE} "${fragment}")
+	set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${NUTTX_LABEL_FRAGMENT})
+endif()
+
 
 # inflate .config
 add_custom_command(

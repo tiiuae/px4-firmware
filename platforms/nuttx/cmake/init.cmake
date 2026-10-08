@@ -75,6 +75,12 @@ file(CREATE_LINK ${NUTTX_SRC_DIR}/extern/apps ${NUTTX_APPS_DIR}/external SYMBOLI
 execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${NUTTX_CONFIG_DIR}/src) # needed for NuttX build
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_SRC_DIR}/Make.defs.in ${NUTTX_DIR}/Make.defs) # Create a temporary Toplevel Make.defs for the oldconfig step
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DEFCONFIG} ${NUTTX_DIR}/.config)
+set(NUTTX_LABEL_FRAGMENT ${NUTTX_CONFIG_DIR}/${NUTTX_CONFIG}/${PX4_BOARD_LABEL}.fragment)
+if(EXISTS ${NUTTX_LABEL_FRAGMENT})
+	file(READ ${NUTTX_LABEL_FRAGMENT} fragment)
+	file(APPEND ${NUTTX_DIR}/.config "${fragment}")
+	set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${NUTTX_LABEL_FRAGMENT})
+endif()
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NUTTX_DEFCONFIG} ${NUTTX_DIR}/defconfig)
 
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${NUTTX_DIR}/defconfig)
