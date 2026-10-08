@@ -58,6 +58,13 @@ enum FIRMWARE_TYPE {
 	FIRMWARE_TYPE_RELEASE = 255
 };
 
+__attribute__((used, aligned(16)))
+const struct fw_manifest px4_fw_manifest = {
+	.magic = "px4-fw-manifest",
+	.commit_time = PX4_GIT_COMMIT_TIME,
+	.board = PX4_BOARD_NAME,
+};
+
 const char *px4_build_uri(void)
 {
 	return STRINGIFY(BUILD_URI);

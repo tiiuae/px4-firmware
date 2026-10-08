@@ -48,6 +48,14 @@
 
 __BEGIN_DECLS
 
+struct fw_manifest {
+	char magic[16];
+	uint64_t commit_time;
+	char board[64];
+};
+
+__EXPORT extern const struct fw_manifest px4_fw_manifest;
+
 /**
  * get the board name as string (including the version if there are multiple)
  */

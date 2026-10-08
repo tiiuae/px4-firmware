@@ -117,6 +117,9 @@ try:
 except:
     git_tag_top = 0
 
+git_commit_time = subprocess.check_output('git log -1 --format=%ct'.split(),
+                                          stderr=subprocess.STDOUT).decode('utf-8').strip()
+
 # build timestamp in epoch format
 build_timestamp = subprocess.check_output('date -u +%s'.split(),
                                           stderr=subprocess.STDOUT).decode('utf-8').strip()
@@ -131,6 +134,7 @@ header += f"""
 #define PX4_GIT_TAG_OR_BRANCH_NAME "{tag_or_branch}" // special variable: git tag, release or master branch
 #define PX4_GIT_VERSION_TOP {git_tag_top}
 #define PX4_BUILD_TIME {build_timestamp}
+#define PX4_GIT_COMMIT_TIME {git_commit_time}
 """
 
 
