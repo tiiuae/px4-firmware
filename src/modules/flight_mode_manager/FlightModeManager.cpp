@@ -38,6 +38,8 @@
 
 using namespace time_literals;
 
+static constexpr hrt_abstime ACTIVATION_RETRY_INTERVAL{100_ms};
+
 FlightModeManager::FlightModeManager() :
 	ModuleParams(nullptr),
 	WorkItem(MODULE_NAME, px4::wq_configurations::nav_and_controllers)
@@ -376,6 +378,14 @@ FlightTaskError FlightModeManager::switchTask(FlightTaskIndex new_task_index)
 		return FlightTaskError::NoError;
 	}
 
+	const int slot = static_cast<int>(new_task_index);
+	const bool has_slot = slot >= 0 && slot < static_cast<int>(FlightTaskIndex::Count);
+
+	if (has_slot && _activation_failed_at[slot] != 0
+	    && hrt_elapsed_time(&_activation_failed_at[slot]) < ACTIVATION_RETRY_INTERVAL) {
+		return FlightTaskError::ActivationFailed;
+	}
+
 	// Save current setpoints for the next FlightTask
 	trajectory_setpoint_s last_setpoint = FlightTask::empty_trajectory_setpoint;
 	ekf_reset_counters_s last_reset_counters{};
@@ -400,7 +410,16 @@ FlightTaskError FlightModeManager::switchTask(FlightTaskIndex new_task_index)
 		_current_task.task->~FlightTask();
 		_current_task.task = nullptr;
 		_current_task.index = FlightTaskIndex::None;
+
+		if (has_slot) {
+			_activation_failed_at[slot] = hrt_absolute_time();
+		}
+
 		return FlightTaskError::ActivationFailed;
+	}
+
+	if (has_slot) {
+		_activation_failed_at[slot] = 0;
 	}
 
 	_current_task.task->setResetCounters(last_reset_counters);

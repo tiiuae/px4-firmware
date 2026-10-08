@@ -127,6 +127,8 @@ private:
 		FlightTaskIndex index{FlightTaskIndex::None};
 	} _current_task{};
 
+	hrt_abstime _activation_failed_at[static_cast<int>(FlightTaskIndex::Count)] {};
+
 	int8_t _old_landing_gear_position{landing_gear_s::GEAR_KEEP};
 	uint8_t _takeoff_state{takeoff_status_s::TAKEOFF_STATE_UNINITIALIZED};
 
