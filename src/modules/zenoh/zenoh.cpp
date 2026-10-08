@@ -394,6 +394,12 @@ void ZENOH::run()
 	_sub_count =  _config.getSubCount();
 	px4_pollfd_struct_t pfds[_pub_count];
 
+	// Publishers that fail to set up keep an invalid subscription handle so poll skips them.
+	for (i = 0; i < _pub_count; i++) {
+		pfds[i] = {};
+		pfds[i].fd = ORB_SUB_INVALID;
+	}
+
 	if (setupSession() < 0) {
 		PX4_ERR("Failed to setup Zenoh session");
 		return;
