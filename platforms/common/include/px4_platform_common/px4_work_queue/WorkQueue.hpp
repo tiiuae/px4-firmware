@@ -92,7 +92,7 @@ public:
 #ifndef CONFIG_BUILD_FLAT
 	int8_t wake_lock() const { return _wake; }
 
-	pthread_mutex_t &items_mutex() { return _work_items.mutex(); }
+	px4_sem_t &items_mutex() { return _work_items.mutex(); }
 #endif
 
 	// WorkQueues sorted numerically by relative priority (-1 to -255)

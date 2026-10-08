@@ -34,14 +34,21 @@
 #pragma once
 
 #include <pthread.h>
+#include <px4_platform_common/sem.h>
 
 class LockGuard
 {
 public:
 	explicit LockGuard(pthread_mutex_t &mutex) :
-		_mutex(mutex)
+		_pthread_mutex(&mutex)
 	{
-		pthread_mutex_lock(&_mutex);
+		pthread_mutex_lock(_pthread_mutex);
+	}
+
+	explicit LockGuard(px4_sem_t &mutex) :
+		_px4_mutex(&mutex)
+	{
+		do {} while (px4_sem_wait(_px4_mutex) != 0);
 	}
 
 	LockGuard(const LockGuard &other) = delete;
@@ -49,9 +56,15 @@ public:
 
 	~LockGuard()
 	{
-		pthread_mutex_unlock(&_mutex);
+		if (_pthread_mutex != nullptr) {
+			pthread_mutex_unlock(_pthread_mutex);
+
+		} else {
+			px4_sem_post(_px4_mutex);
+		}
 	}
 
 private:
-	pthread_mutex_t &_mutex;
+	pthread_mutex_t *_pthread_mutex{nullptr};
+	px4_sem_t *_px4_mutex{nullptr};
 };

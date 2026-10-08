@@ -42,7 +42,7 @@
 #include "IntrusiveSortedList.hpp"
 #include "LockGuard.hpp"
 
-#include <pthread.h>
+#include <px4_platform_common/sem.h>
 #include <stdlib.h>
 
 template<class T>
@@ -50,10 +50,14 @@ class BlockingList : public IntrusiveSortedList<T>
 {
 public:
 
+	BlockingList()
+	{
+		px4_mutex_init(&_mutex, 0);
+	}
+
 	~BlockingList()
 	{
-		pthread_mutex_destroy(&_mutex);
-		pthread_cond_destroy(&_cv);
+		px4_sem_destroy(&_mutex);
 	}
 
 	void add(T newNode)
@@ -80,11 +84,10 @@ public:
 		IntrusiveSortedList<T>::clear();
 	}
 
-	pthread_mutex_t &mutex() { return _mutex; }
+	px4_sem_t &mutex() { return _mutex; }
 
 private:
 
-	pthread_mutex_t	_mutex = PTHREAD_MUTEX_INITIALIZER;
-	pthread_cond_t	_cv = PTHREAD_COND_INITIALIZER;
+	px4_sem_t _mutex;
 
 };
