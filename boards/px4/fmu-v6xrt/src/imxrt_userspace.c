@@ -98,6 +98,10 @@ extern uint32_t _fuitcmfuncs;
 int CONFIG_INIT_ENTRYPOINT(int argc, char *argv[]);
 int nsh_main(int argc, char *argv[]);
 
+#ifdef CONFIG_STACK_CANARIES
+FAR const void *__stack_chk_guard = &__stack_chk_guard;
+#endif
+
 const uintptr_t userspace_itcm[4] __attribute__((section(".userspace_itcm"), used)) = {
 	USERSPACE_ITCM_MAGIC,
 	(uintptr_t) &_fuitcmfuncs,
@@ -137,6 +141,10 @@ const struct userspace_s userspace __attribute__((section(".userspace"))) = {
 
 #ifdef CONFIG_TLS_USERSPACE_POINTER
 	.us_tlsinfo       = &g_tls_userinfo,
+#endif
+
+#ifdef CONFIG_STACK_CANARIES
+	.us_stackguard    = &__stack_chk_guard,
 #endif
 };
 
