@@ -101,7 +101,7 @@
 # error TONE_ALARM_TIMER_CLOCK must be greater than 1MHz
 #endif
 
-#if (TONE_ALARM_TIMER_CHANNEL > 1) || (TONE_ALARM_TIMER_CHANNEL > 3)
+#if (TONE_ALARM_CHANNEL < 1) || (TONE_ALARM_CHANNEL > 3)
 #  error TONE_ALARM_CHANNEL must be a value between 1 and 3
 #endif
 

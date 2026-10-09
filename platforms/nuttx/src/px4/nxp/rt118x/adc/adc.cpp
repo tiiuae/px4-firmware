@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2016 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2026 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,23 +30,47 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#pragma once
 
 /*
- * This file is a shim to bridge to the many SoC architecture supported by PX4
+ * This is a placeholder LPADC arch implementation for i.MX RT1180 (rt118x).
+ * The register level driver has not been ported/validated for this chip
+ * yet, so all entry points are stubbed out to keep the build working for
+ * boards that enable CONFIG_DRIVERS_ADC_BOARD_ADC without any ADC channels
+ * configured. Replace with a real implementation once the ADC is wired up.
  */
 
-// include arch-specific header
-#include <px4_arch/micro_hal.h>
-
-#ifndef PX4_ARCH_DCACHE_ALIGNMENT
-#define PX4_ARCH_DCACHE_ALIGNMENT 1
-#endif
-
-/* The architecture specific micro_hal might have already defined the
- * px4_gpio_pinset_t. If not, use the default uint32_t type
- */
-#ifndef PX4_IMXRT_PINSET_T_DEFINED
+#include <board_config.h>
 #include <stdint.h>
-typedef uint32_t px4_gpio_pinset_t;
-#endif
+#include <errno.h>
+
+#include <drivers/drv_adc.h>
+#include <px4_arch/adc.h>
+
+__EXPORT uint32_t px4_arch_adc_temp_sensor_mask(void)
+{
+	return 0;
+}
+
+__EXPORT int px4_arch_adc_init(uint32_t base_address)
+{
+	return -ENODEV;
+}
+
+__EXPORT void px4_arch_adc_uninit(uint32_t base_address)
+{
+}
+
+__EXPORT uint32_t px4_arch_adc_sample(uint32_t base_address, unsigned channel)
+{
+	return UINT32_MAX;
+}
+
+__EXPORT float px4_arch_adc_reference_v(void)
+{
+	return 3.3f;
+}
+
+__EXPORT uint32_t px4_arch_adc_dn_fullcount(void)
+{
+	return 1 << 12;
+}
