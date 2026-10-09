@@ -98,6 +98,11 @@ SECTIONS
         *(.ram_vectors)
     } > dtcm
 
+    .dtcm (NOLOAD) : ALIGN(4)
+    {
+        *(.dtcm .dtcm.*)
+    } > dtcm
+
     .secmem (NOLOAD) : ALIGN(4)
     {
         *(.secmem .secmem.*)
