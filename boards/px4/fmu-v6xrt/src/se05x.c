@@ -57,8 +57,10 @@ static bool g_registered;
 #ifdef CONFIG_DEV_SE05X_SCP03
 #include "imxrt_caam.h"
 #include <lib/crypto/crypto_utils/secure_heap.h>
+#include <nuttx/mtd/mtd.h>
+#include <px4_platform_common/px4_manifest.h>
+#include <px4_platform_common/px4_mtd.h>
 
-#define KEYS_PATH  "/fs/mtd_keys"
 #define SLOT_SIZE  128
 #define SLOT_MAGIC 0x53435033
 
@@ -67,6 +69,8 @@ struct keys_slot_s {
 	uint32_t seq;
 	uint8_t blob[sizeof(struct se05x_scp03_keys_s) + IMXRT_CAAM_BLOB_OVERHEAD];
 };
+
+_Static_assert(sizeof(struct keys_slot_s) <= SLOT_SIZE, "a key slot fits one FRAM block");
 
 static const uint8_t g_keymod[IMXRT_CAAM_BLOB_KEYMOD] = "se05x-scp03-v1";
 static struct se05x_scp03_keys_s g_live __attribute__((section(".secmem")));
@@ -91,23 +95,25 @@ static const struct se05x_scp03_keys_s g_defaults[] = {
 
 static int slot_io(int index, struct keys_slot_s *slot, bool write)
 {
-	struct file file;
+	struct mtd_dev_s *mtd = px4_mtd_kernel_partition(MTD_KEYS);
+	uint8_t block[SLOT_SIZE];
 	ssize_t n;
-	int ret = file_open(&file, KEYS_PATH, write ? O_WRONLY : O_RDONLY);
 
-	if (ret < 0) {
-		return ret;
+	if (mtd == NULL) {
+		return -ENODEV;
 	}
 
-	ret = file_seek(&file, index * SLOT_SIZE, SEEK_SET);
+	if (write) {
+		memset(block, 0xff, sizeof(block));
+		memcpy(block, slot, sizeof(*slot));
+		n = MTD_BWRITE(mtd, index, 1, block);
 
-	if (ret >= 0) {
-		n = write ? file_write(&file, slot, sizeof(*slot)) : file_read(&file, slot, sizeof(*slot));
-		ret = n == sizeof(*slot) ? 0 : -EIO;
+	} else {
+		n = MTD_BREAD(mtd, index, 1, block);
+		memcpy(slot, block, sizeof(*slot));
 	}
 
-	file_close(&file);
-	return ret;
+	return n == 1 ? 0 : -EIO;
 }
 
 static int slot_open(int index, struct keys_slot_s *slot, struct se05x_scp03_keys_s *keys)

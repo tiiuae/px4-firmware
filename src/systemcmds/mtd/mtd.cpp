@@ -112,7 +112,7 @@ static int mtd_status(void)
 						FAR struct mtd_geometry_s geo;
 						ret = instances[i]->part_dev[p]->ioctl(instances[i]->part_dev[p], MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
 						printf("    partition: %u:\n", p);
-						printf("     name:   %s\n", instances[i]->partition_names[p]);
+						printf("     name:   %s\n", instances[i]->partition_names[p] ? instances[i]->partition_names[p] : "kernel only");
 						printf("     blocks: %" PRIu32 " (%lu bytes)\n", geo.neraseblocks, erasesize * geo.neraseblocks);
 						totalnblocks += geo.neraseblocks;
 						totalpartsize += erasesize * geo.neraseblocks;
@@ -162,6 +162,10 @@ int mtd_erase(mtd_instance_s &instance)
 	memset(v, 0xFF, sizeof(v));
 
 	for (uint8_t i = 0; i < instance.n_partitions_current; i++) {
+		if (instance.partition_names[i] == nullptr) {
+			continue;
+		}
+
 
 		uint32_t count = 0;
 		printf("Erasing %s\n", instance.partition_names[i]);
@@ -195,6 +199,10 @@ int mtd_readtest(const mtd_instance_s &instance)
 	uint8_t v[128];
 
 	for (uint8_t i = 0; i < instance.n_partitions_current; i++) {
+		if (instance.partition_names[i] == nullptr) {
+			continue;
+		}
+
 		ssize_t count = 0;
 
 		ssize_t expected_size = px4_mtd_get_partition_size(&instance, instance.partition_names[i]);
@@ -239,6 +247,10 @@ int mtd_rwtest(const mtd_instance_s &instance)
 	uint8_t v[128], v2[128];
 
 	for (uint8_t i = 0; i < instance.n_partitions_current; i++) {
+		if (instance.partition_names[i] == nullptr) {
+			continue;
+		}
+
 		ssize_t count = 0;
 		off_t offset = 0;
 

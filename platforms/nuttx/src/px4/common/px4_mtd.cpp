@@ -237,6 +237,19 @@ ssize_t px4_mtd_get_partition_size(const mtd_instance_s *instance, const char *p
 	return instance->partition_block_counts[partn] * blocksize;
 }
 
+FAR struct mtd_dev_s *px4_mtd_kernel_partition(int type)
+{
+	for (int i = 0; i < num_instances; i++) {
+		for (unsigned n = 0; n < instances[i]->n_partitions_current; n++) {
+			if (instances[i]->partition_types[n] == type && instances[i]->partition_names[n] == nullptr) {
+				return instances[i]->part_dev[n];
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 mtd_instance_s **px4_mtd_get_instances(unsigned int *count)
 {
 	*count = num_instances;
@@ -401,6 +414,11 @@ memoryout:
 				goto errout;
 			}
 
+			if (instances[i]->partition_names[part] == nullptr) {
+				instances[i]->n_partitions_current++;
+				continue;
+			}
+
 			/* Initialize to provide an FTL block driver on the MTD FLASH interface */
 
 			snprintf(blockname, sizeof(blockname), "/dev/mtdblock%d", total_blocks);
@@ -470,7 +488,8 @@ __EXPORT int px4_mtd_query(const char *sub, const char *val, const char **get)
 						return 0;
 					}
 
-					if (val != nullptr && strcmp(instances[i]->partition_names[n], val) == 0) {
+					if (val != nullptr && instances[i]->partition_names[n] != nullptr &&
+					    strcmp(instances[i]->partition_names[n], val) == 0) {
 						return 0;
 					}
 				}
