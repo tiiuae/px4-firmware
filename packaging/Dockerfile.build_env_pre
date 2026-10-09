@@ -38,12 +38,12 @@ RUN curl -LOs https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releas
     tar xf xpack-riscv-none-elf-gcc-14.2.0-3-linux-x64.tar.gz -C /tools && \
     rm -f xpack-riscv-none-elf-gcc-14.2.0-3-linux-x64.tar.gz
 
-RUN curl -LOs https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2019q4/gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2 && \
-    tar xvf gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2 -C /tools && \
-    rm -f gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2
+RUN curl -fLOs https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz && \
+    tar xvf arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz -C /tools && \
+    rm -f arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
 
 RUN curl -LOs https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/arm-gnu-toolchain-13.2.rel1-x86_64-aarch64-none-elf.tar.xz && \
     tar xvf arm-gnu-toolchain-13.2.rel1-x86_64-aarch64-none-elf.tar.xz -C /tools && \
     rm -f arm-gnu-toolchain-13.2.rel1-x86_64-aarch64-none-elf.tar.xz
 
-ENV PATH=/tools/arm-gnu-toolchain-13.2.Rel1-x86_64-aarch64-none-elf/bin:/tools/xpack-riscv-none-elf-gcc-14.2.0-3/bin:/tools/gcc-arm-none-eabi-9-2019-q4-major/bin/:/opt/rust/bin:$PATH
+ENV PATH=/tools/arm-gnu-toolchain-13.2.Rel1-x86_64-aarch64-none-elf/bin:/tools/xpack-riscv-none-elf-gcc-14.2.0-3/bin:/tools/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi/bin/:/opt/rust/bin:$PATH
