@@ -41,6 +41,7 @@ if("${PX4_BOARD_LABEL}" STREQUAL  "bootloader")
 
 	add_library(drivers_board
 		bootloader_main.c
+		imxrt_flexspi_fram.c
 		init.c
 		usb.c
 		imxrt_flexspi_nor_boot.c

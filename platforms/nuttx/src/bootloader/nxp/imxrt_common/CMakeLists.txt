@@ -34,6 +34,13 @@
 px4_add_library(arch_bootloader
 	main.c
 	systick.c
+	../../common/slots.c
+)
+
+target_include_directories(arch_bootloader
+	PRIVATE
+		${PX4_SOURCE_DIR}/platforms/nuttx/src/bootloader/common
+		${PX4_SOURCE_DIR}/boards/ssrc/common
 )
 
 target_link_libraries(arch_bootloader

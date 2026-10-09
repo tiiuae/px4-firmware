@@ -107,6 +107,7 @@
  * Note that these are unshifted addresses.
  */
 #define BOARD_MTD_NUM_EEPROM        2 /* MTD: base_eeprom, imu_eeprom*/
+#define BOARD_FRAM_DEVSTATE_BLOCK   253
 #define PX4_I2C_OBDEV_SE050         0x48
 
 
@@ -655,6 +656,7 @@ extern void fmuv6xrt_timer_initialize(void);
 #include <px4_platform_common/board_common.h>
 
 int imxrt_flexspi_fram_initialize(void);
+struct mtd_dev_s *imxrt_flexspi_fram_mtd(void);
 
 #endif /* __ASSEMBLY__ */
 

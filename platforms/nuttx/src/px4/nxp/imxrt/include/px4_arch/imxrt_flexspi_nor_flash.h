@@ -132,7 +132,7 @@
 /*! @} */
 
 /* The count of FLEXSPI_LUT */
-#define FLEXSPI_LUT_COUNT                        (64U)
+#define FLEXSPI_LUT_COUNT                        (64u)
 
 #define FLEXSPI_LUT_SEQ(cmd0, pad0, op0, cmd1, pad1, op1)                                                              \
 	(FLEXSPI_LUT_OPERAND0(op0) | FLEXSPI_LUT_NUM_PADS0(pad0) | FLEXSPI_LUT_OPCODE0(cmd0) | FLEXSPI_LUT_OPERAND1(op1) | \

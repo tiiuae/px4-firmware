@@ -21,6 +21,7 @@
 #include <lib/flash_cache.h>
 
 #include "bl.h"
+#include "slots.h"
 #include "uart.h"
 #include "arm_internal.h"
 
@@ -432,6 +433,10 @@ flash_func_erase_sector(unsigned sector, bool force)
 		return;
 	}
 
+	if (sector == BOARD_FIRST_FLASH_SECTOR_TO_ERASE) {
+		slots_reset();
+	}
+
 	if (force || up_progmem_ispageerased(sector) != 0) {
 
 		struct flexspi_nor_config_s *pConfig = &g_bootConfig;
@@ -757,6 +762,7 @@ bootloader_main(int argc, char *argv[])
 #endif
 
 		/* try to boot immediately */
+		slots_select();
 		jump_to_app();
 
 		// If it failed to boot, reset the boot signature and stay in bootloader
@@ -810,6 +816,7 @@ bootloader_main(int argc, char *argv[])
 #endif
 
 		/* look to see if we can boot the app */
+		slots_select();
 		jump_to_app();
 
 		/* launching the app failed - stay in the bootloader forever */

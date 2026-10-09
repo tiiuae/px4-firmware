@@ -187,6 +187,9 @@ locate_code(".ramfunc")
 void imxrt_octl_flash_initialize(void)
 {
 	const uint32_t instance =  1;
+	const uint32_t remap_start = getreg32(IMXRT_FLEXSPI1_HADDRSTART);
+	const uint32_t remap_end = getreg32(IMXRT_FLEXSPI1_HADDREND);
+	const uint32_t remap_offset = getreg32(IMXRT_FLEXSPI1_HADDROFFSET);
 
 
 	memcpy((struct flexspi_nor_config_s *)&g_bootConfig, &g_flash_fast_config,
@@ -196,6 +199,10 @@ void imxrt_octl_flash_initialize(void)
 	ROM_API_Init();
 
 	ROM_FLEXSPI_NorFlash_Init(instance, (struct flexspi_nor_config_s *)&g_bootConfig);
+
+	putreg32(remap_offset, IMXRT_FLEXSPI1_HADDROFFSET);
+	putreg32(remap_end, IMXRT_FLEXSPI1_HADDREND);
+	putreg32(remap_start, IMXRT_FLEXSPI1_HADDRSTART);
 	ROM_FLEXSPI_NorFlash_ClearCache(1);
 
 	UP_DSB();

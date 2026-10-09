@@ -77,6 +77,7 @@
 #define BOARD_FLASH_SECTORS            1024 // Really (16384)
 #define BOARD_FIRST_FLASH_SECTOR_TO_ERASE 32 // We resreve 128K for the bootloader
 #define BOARD_FLASH_SIZE               (4 * 1024 * 1024)
+#define BOARD_SLOT_B_OFFSET            0x02000000
 
 #define OSC_FREQ                       24
 

@@ -632,6 +632,12 @@ static int imxrt_flexspi_fram_ioctl(struct mtd_dev_s *dev,
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+struct mtd_dev_s *imxrt_flexspi_fram_mtd(void)
+{
+	return &g_flexspi_nor.mtd;
+}
+
+#ifndef BOOTLOADER
 int flexspi_attach(mtd_instance_s *instance)
 {
 	int rv = imxrt_flexspi_fram_initialize();
@@ -644,6 +650,7 @@ int flexspi_attach(mtd_instance_s *instance)
 	instance->mtd_dev = &g_flexspi_nor.mtd;
 	return OK;
 }
+#endif
 
 /****************************************************************************
  * Name: imxrt_flexspi_fram_initialize

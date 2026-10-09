@@ -58,7 +58,7 @@ static const px4_mtd_entry_t fmum_fram = {
 		{
 			.type = MTD_PARAMETERS,
 			.path = "/fs/mtd_params",
-			.nblocks = 253
+			.nblocks = BOARD_FRAM_DEVSTATE_BLOCK
 		},
 		{
 			.type = MTD_DEVSTATE,
