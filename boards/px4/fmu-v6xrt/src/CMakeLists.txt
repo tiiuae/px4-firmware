@@ -93,6 +93,7 @@ else()
 		imxrt_flexspi_nor_boot.c
 		imxrt_flexspi_nor_flash.c
 		imxrt_clockconfig.c
+		imxrt_nor_slots.c
 		${SRCS}
 	)
 

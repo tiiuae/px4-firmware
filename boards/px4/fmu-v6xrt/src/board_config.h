@@ -108,6 +108,9 @@
  */
 #define BOARD_MTD_NUM_EEPROM        2 /* MTD: base_eeprom, imu_eeprom*/
 #define BOARD_FRAM_DEVSTATE_BLOCK   253
+#define BOARD_SLOT_A_OFFSET         0x00020000
+#define BOARD_SLOT_B_OFFSET         0x02000000
+#define BOARD_SLOT_SIZE             (4 * 1024 * 1024 - BOARD_SLOT_A_OFFSET)
 #define PX4_I2C_OBDEV_SE050         0x48
 
 
@@ -657,6 +660,7 @@ extern void fmuv6xrt_timer_initialize(void);
 
 int imxrt_flexspi_fram_initialize(void);
 struct mtd_dev_s *imxrt_flexspi_fram_mtd(void);
+int imxrt_nor_slots_initialize(void);
 
 #endif /* __ASSEMBLY__ */
 

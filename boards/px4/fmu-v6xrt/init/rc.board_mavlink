@@ -13,3 +13,8 @@ then
 fi
 
 moi_agent start -s 192.168.202.254
+
+if moi_agent cmp M
+then
+	px4_fw_update_client start -v 1000 -b 1296 -y
+fi

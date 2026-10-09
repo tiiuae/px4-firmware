@@ -500,6 +500,10 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 
 	statectrl_init(&board_trial_guard);
 
+	if (imxrt_nor_slots_initialize() < 0) {
+		syslog(LOG_ERR, "[boot] NOR slots not registered\n");
+	}
+
 	/* Configure the Actual SPI interfaces (after we determined the HW version)  */
 
 	imxrt_spiinitialize();
