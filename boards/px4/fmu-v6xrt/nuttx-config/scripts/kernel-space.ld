@@ -141,12 +141,12 @@ SECTIONS
         _edata = ABSOLUTE(.);
     } > ksram AT > kflash
 
-    .ramfunc ALIGN(4):
+    .ramfunc : ALIGN(4)
     {
         _sramfuncs = ABSOLUTE(.);
         *(.ramfunc  .ramfunc.*)
         _eramfuncs = ABSOLUTE(.);
-    } > ksram AT > kflash
+    } > itcm AT > kflash
 
     _framfuncs = LOADADDR(.ramfunc);
 

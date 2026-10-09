@@ -163,12 +163,12 @@ SECTIONS
         _edata = ABSOLUTE(.);
     } > sram AT > flash
 
-    .ramfunc ALIGN(4):
+    .ramfunc : ALIGN(4)
     {
         _sramfuncs = ABSOLUTE(.);
         *(.ramfunc  .ramfunc.*)
         _eramfuncs = ABSOLUTE(.);
-    } > sram AT > flash
+    } > itcm AT > flash
 
     _framfuncs = LOADADDR(.ramfunc);
 
