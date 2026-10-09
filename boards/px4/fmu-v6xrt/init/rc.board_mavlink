@@ -11,3 +11,5 @@ then
 	# Ensure nothing else starts on TEL2 (ttyS5)
 	set PRT_TEL2_ 1
 fi
+
+moi_agent start -s 192.168.202.254
