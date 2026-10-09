@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2015 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2026 Technology Innovation Institute. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,92 +31,12 @@
 #
 ############################################################################
 
-set(srcs
-	test_atomic_bitset.cpp
-	test_bezierQuad.cpp
-	test_bitset.cpp
-	test_dataman.cpp
-	test_file.c
-	test_file2.c
-	test_float.cpp
-	test_hott_telemetry.c
-	test_hrt.cpp
-	test_int.cpp
-	test_i2c_spi_cli.cpp
-	test_IntrusiveQueue.cpp
-	test_led.c
-	test_List.cpp
-	test_IntrusiveSortedList.cpp
-	test_mathlib.cpp
-	test_matrix.cpp
-	test_param.c
-	test_parameters.cpp
-	test_perf.c
-	test_ppm.cpp
-	test_rc.cpp
-	test_search_min.cpp
-	test_sleep.c
-	test_uart_baudchange.c
-	test_uart_console.c
-	test_uart_loopback.c
-	test_uart_send.c
-	test_versioning.cpp
-	test_cli.c
-	tests_main.c
-	)
-
-if(CONFIG_BUILD_FLAT)
-	list(APPEND srcs
-		test_bson.cpp
-		)
-endif()
-
-if(${PX4_PLATFORM} STREQUAL "nuttx")
-	list(APPEND srcs
-		test_mount.cpp
-		test_uart_break.c
-		test_crypto.cpp
-		)
-
-	if(CONFIG_BUILD_FLAT)
-		list(APPEND srcs
-			test_time.c
-			)
-	endif()
-endif()
-
-if(CONFIG_SSRC_CRYPTO_IMX9)
-	list(APPEND srcs
-		test_session_slots.cpp
-		)
-
-endif()
-
 px4_add_module(
-	MODULE systemcmds__tests
-	MAIN tests
+	MODULE systemcmds__isolation
+	MAIN isolation
 	CAPABILITIES RAWIO SPAWN ADMIN
-	STACK_MAIN 10000
+	STACK_MAIN 4096
 	NO_DAEMON
-	COMPILE_FLAGS
-		-Wno-double-promotion
-		-Wno-float-equal
-		-Wno-missing-declarations
-		-Wno-sign-compare # TODO: fix all sign-compare
-		-Wno-unknown-warning-option
-		-Wno-unused-but-set-variable
-		-Wno-unused-result
-		-Wno-unused-variable
-		-Wno-vla-larger-than
-		-Wno-unused-but-set-parameter
-		-O2 # optimization needed to keep matrix code size reasonable
 	SRCS
-		${srcs}
-	DEPENDS
-		dataman_client
-		version
+		isolation.cpp
 	)
-
-if(CONFIG_BUILD_FLAT OR NOT ${PX4_PLATFORM} STREQUAL "nuttx")
-	add_subdirectory(hrt_test)
-endif()

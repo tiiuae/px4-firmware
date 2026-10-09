@@ -82,7 +82,6 @@ const struct {
 #ifdef CONFIG_SSRC_CRYPTO_IMX9
 	{"session_slots",	test_session_slots,	OPT_NOJIGTEST | OPT_NOALLTEST},
 #ifdef CONFIG_BUILD_KERNEL
-	{"isolation",		test_isolation,		OPT_NOJIGTEST | OPT_NOALLTEST},
 #endif
 #endif
 

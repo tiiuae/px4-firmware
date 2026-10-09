@@ -36,6 +36,7 @@
  * Tests for crypto interfaces.
  */
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <unit_test.h>
 #include <px4_platform_common/crypto.h>
@@ -500,7 +501,7 @@ void CryptoTest::dump_data32(const void *d, size_t sz)
 
 	for (size_t i = 0; i < sz_w; i += 8) {
 		for (size_t j = 0; j < 8 && i + j < sz_w; j++) {
-			printf(" 0x%08x,", data[i + j]);
+			printf(" 0x%08" PRIx32 ",", data[i + j]);
 		}
 
 		printf("\n");

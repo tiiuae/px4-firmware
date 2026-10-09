@@ -1,0 +1,13 @@
+menuconfig SYSTEMCMDS_ISOLATION
+	bool "isolation"
+	default n
+	depends on BOARD_PROTECTED
+	---help---
+		Enable support for isolation, which checks the kernel boundary
+
+menuconfig USER_ISOLATION
+	bool "isolation running as userspace module"
+	default y
+	depends on BOARD_PROTECTED && SYSTEMCMDS_ISOLATION
+	---help---
+		Put isolation in userspace memory

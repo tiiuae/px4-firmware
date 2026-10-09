@@ -37,6 +37,8 @@
 #include <time.h>
 #include <unistd.h>
 
+extern "C" int isolation_main(int argc, char *argv[]);
+
 class IsolationTest : public UnitTest
 {
 public:
@@ -46,13 +48,17 @@ private:
 	bool test_loads_fault();
 	bool test_syscall_pointers_fault();
 	bool test_nested_pointers_fault();
+	bool test_range_refused();
 	bool test_ioctl_refused();
+#ifdef CONFIG_BUILD_KERNEL
 	bool test_crypto_refused();
 #if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
 	bool test_handshake_owned();
 #endif
+#endif
 	bool test_hrt_refused();
 	bool test_spawn_refused();
+#ifdef CONFIG_BUILD_KERNEL
 	bool test_environ_refused();
 	bool test_anonymous_map();
 	bool test_kernel_pointer_ioctls_refused();
@@ -61,6 +67,7 @@ private:
 	bool test_erase_bounded();
 	bool test_spawn_race();
 	bool test_nested_ioctls_refused();
+#endif
 };
 
 static const struct {
@@ -68,26 +75,50 @@ static const struct {
 	uintptr_t addr;
 	bool memory;
 } targets[] {
+#ifdef CONFIG_BUILD_KERNEL
 	{"kernel", CONFIG_RAM_START, true},
 	{"page pool", CONFIG_ARCH_PGPOOL_PBASE, true},
 	{"session keys", 0x20499000, true},
 	{"ELE mailbox", 0x47520000, false},
+#else
+	{"kernel", CONFIG_RAM_START, true},
+#endif
 };
 
-static const uintptr_t session_keys = targets[2].addr;
+#ifdef CONFIG_BUILD_KERNEL
+static const uintptr_t kernel_mem = targets[2].addr;
+#else
+static const uintptr_t kernel_mem = targets[0].addr;
+#endif
 
 static int probe(const char *op, uintptr_t addr)
 {
 	char hex[19];
-	char *const argv[] {(char *)"tests", (char *)"isolation", (char *)op, hex, nullptr};
 	pid_t pid;
 	int status = -1;
 
 	snprintf(hex, sizeof(hex), "0x%lx", (unsigned long)addr);
 
-	if (posix_spawnp(&pid, "tests", nullptr, nullptr, argv, nullptr) != 0 || waitpid(pid, &status, 0) != pid) {
+#ifdef CONFIG_BUILD_KERNEL
+	char *const argv[] {(char *)"isolation", (char *)op, hex, nullptr};
+
+	if (posix_spawnp(&pid, "isolation", nullptr, nullptr, argv, nullptr) != 0 || waitpid(pid, &status, 0) != pid) {
 		return -1;
 	}
+
+#else
+	/* task_spawn() puts the name in argv[0], so the vector holds only the
+	 * arguments after it.
+	 */
+
+	char *const argv[] {(char *)op, hex, nullptr};
+	pid = task_spawn("isolation", isolation_main, nullptr, nullptr, argv, nullptr);
+
+	if (pid < 0 || waitpid(pid, &status, 0) != pid) {
+		return -1;
+	}
+
+#endif
 
 	return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 }
@@ -124,9 +155,20 @@ bool IsolationTest::test_syscall_pointers_fault()
 
 bool IsolationTest::test_nested_pointers_fault()
 {
-	const bool killed = probe("writev", session_keys) == SIGSEGV;
-	PX4_INFO("writev() of session keys: %s", killed ? "process killed" : "COPIED");
+	const bool killed = probe("writev", kernel_mem) == SIGSEGV;
+	PX4_INFO("writev() of kernel memory: %s", killed ? "process killed" : "COPIED");
 	ut_assert("a nested pointer reached a protected address", killed);
+	return true;
+}
+
+static char range_buf[64];
+
+bool IsolationTest::test_range_refused()
+{
+	const bool killed = probe("range", sizeof(range_buf) * 1024) == SIGSEGV;
+	PX4_INFO("write() of %u bytes from a %u byte buffer: %s", (unsigned)sizeof(range_buf) * 1024,
+		 (unsigned)sizeof(range_buf), killed ? "process killed" : "COPIED");
+	ut_assert("a length past the end of its buffer reached kernel memory", killed);
 	return true;
 }
 
@@ -136,15 +178,16 @@ bool IsolationTest::test_ioctl_refused()
 	ut_assert("open /dev/null", fd >= 0);
 
 	errno = 0;
-	const int ret = ioctl(fd, FIONREAD, (unsigned long)session_keys);
+	const int ret = ioctl(fd, FIONREAD, (unsigned long)kernel_mem);
 	const int err = errno;
 	close(fd);
 
-	PX4_INFO("ioctl() into session keys: %d, errno %d", ret, err);
+	PX4_INFO("ioctl() into kernel memory: %d, errno %d", ret, err);
 	ut_assert("ioctl wrote to a protected address", ret < 0 && err == EFAULT);
 	return true;
 }
 
+#ifdef CONFIG_BUILD_KERNEL
 bool IsolationTest::test_crypto_refused()
 {
 	crypto_session_handle_t own{};
@@ -164,11 +207,11 @@ bool IsolationTest::test_crypto_refused()
 	PX4_INFO("encrypt under a forged session: %d, errno %d", ret, errno);
 	ut_assert("a forged session sealed", ret < 0 && errno == EFAULT && !foreign.ret);
 
-	cryptoiocencrypt_t kernel {&own, 0, (const uint8_t *)session_keys, 16, cipher, &cipher_size, nullptr, nullptr, false};
+	cryptoiocencrypt_t kernel {&own, 0, (const uint8_t *)kernel_mem, 16, cipher, &cipher_size, nullptr, nullptr, false};
 	errno = 0;
 	ret = boardctl(CRYPTOIOCENCRYPT, (uintptr_t)&kernel);
-	PX4_INFO("encrypt of session keys: %d, errno %d", ret, errno);
-	ut_assert("the session keys were sealed out", ret < 0 && errno == EFAULT && !kernel.ret);
+	PX4_INFO("encrypt of kernel memory: %d, errno %d", ret, errno);
+	ut_assert("kernel memory was sealed out", ret < 0 && errno == EFAULT && !kernel.ret);
 
 	ut_compare("session closes", boardctl(CRYPTOIOCCLOSE, (uintptr_t)&own), 0);
 	return true;
@@ -228,6 +271,8 @@ bool IsolationTest::test_handshake_owned()
 }
 #endif
 
+#endif
+
 bool IsolationTest::test_hrt_refused()
 {
 	px4_hrt_handle_t forged = (px4_hrt_handle_t)targets[0].addr;
@@ -241,39 +286,51 @@ bool IsolationTest::test_hrt_refused()
 
 bool IsolationTest::test_spawn_refused()
 {
-	char *const argv[] {(char *)"tests", (char *)session_keys, nullptr};
+	char *const argv[] {(char *)"isolation", (char *)kernel_mem, nullptr};
+#ifdef CONFIG_BUILD_KERNEL
 	pid_t pid;
 
-	const int ret = posix_spawnp(&pid, "tests", nullptr, nullptr, argv, nullptr);
-	PX4_INFO("spawn with session keys as an argument: %d", ret);
+	const int ret = posix_spawnp(&pid, "isolation", nullptr, nullptr, argv, nullptr);
 
 	if (ret == 0) {
 		waitpid(pid, nullptr, 0);
 	}
 
-	ut_assert("a kernel argument was copied into a new process", ret == EFAULT);
+	const bool refused = ret == EFAULT;
+#else
+	const int ret = task_spawn("probe", isolation_main, nullptr, nullptr, argv, nullptr);
+
+	if (ret >= 0) {
+		waitpid(ret, nullptr, 0);
+	}
+
+	const bool refused = ret == -EFAULT;
+#endif
+	PX4_INFO("spawn with a kernel address as an argument: %d", ret);
+	ut_assert("a kernel argument was copied into a new process", refused);
 	return true;
 }
 
+#ifdef CONFIG_BUILD_KERNEL
 bool IsolationTest::test_environ_refused()
 {
 	char **saved = get_environ_ptr();
-	char *forged[] {(char *)session_keys, nullptr};
-	char *const argv[] {(char *)"tests", nullptr};
+	char *forged[] {(char *)kernel_mem, nullptr};
+	char *const argv[] {(char *)"isolation", nullptr};
 	pid_t pid;
 
 	ut_compare("setenv", setenv("ISOLATION", "1", 1), 0);
 	ut_assert("getenv", getenv("ISOLATION") != nullptr && strcmp(getenv("ISOLATION"), "1") == 0);
 
 	set_environ_ptr(forged);
-	const int ret = posix_spawn(&pid, "/bin/tests", nullptr, nullptr, argv, nullptr);
+	const int ret = posix_spawn(&pid, "/bin/isolation", nullptr, nullptr, argv, nullptr);
 	set_environ_ptr(saved);
 
 	if (ret == 0) {
 		waitpid(pid, nullptr, 0);
 	}
 
-	PX4_INFO("spawn inheriting session keys as environment: %d", ret);
+	PX4_INFO("spawn inheriting kernel memory as environment: %d", ret);
 	ut_assert("a kernel string was copied into a new environment", ret == EFAULT);
 	ut_compare("unsetenv", unsetenv("ISOLATION"), 0);
 	ut_assert("environment intact", getenv("ISOLATION") == nullptr);
@@ -336,7 +393,7 @@ static int capability_probe()
 		close(fd);
 	}
 
-	got |= (posix_spawn(&pid, "/bin/tests", nullptr, nullptr, argv, nullptr) != EPERM) << 1;
+	got |= (posix_spawn(&pid, "/bin/isolation", nullptr, nullptr, argv, nullptr) != EPERM) << 1;
 	got |= (boardctl(PLATFORMIOCLAUNCH, (uintptr_t)&launch) == 0 || errno != EPERM) << 2;
 	got |= (mount(nullptr, "/tmp/caps", "tmpfs", 0, nullptr) == 0 || errno != EPERM) << 3;
 	got |= (prctl(PR_CAPS_GET) != 0) << 4;
@@ -513,7 +570,7 @@ bool IsolationTest::test_spawn_race()
 bool IsolationTest::test_nested_ioctls_refused()
 {
 	struct ifreq reqs[4];
-	struct ifconf ifc {sizeof(reqs), {(char *)session_keys}};
+	struct ifconf ifc {sizeof(reqs), {(char *)kernel_mem}};
 	const int sock = socket(AF_INET, SOCK_DGRAM, 0);
 	ut_assert("socket", sock >= 0);
 
@@ -527,7 +584,7 @@ bool IsolationTest::test_nested_ioctls_refused()
 	uint8_t cid[512];
 	mmc_ioc_cmd cmd {};
 	cmd.opcode = 2;
-	cmd.data_ptr = session_keys;
+	cmd.data_ptr = kernel_mem;
 	const int fd = open("/dev/mmcsd0", O_RDONLY);
 	ut_assert("open /dev/mmcsd0", fd >= 0);
 
@@ -540,9 +597,9 @@ bool IsolationTest::test_nested_ioctls_refused()
 	const int mmc_own_err = errno;
 	close(fd);
 
-	PX4_INFO("SIOCGIFCONF into session keys: %d errno %d, into its own buffer: %d, %u bytes",
+	PX4_INFO("SIOCGIFCONF into kernel memory: %d errno %d, into its own buffer: %d, %u bytes",
 		 ifconf, ifconf_err, ifconf_own, (unsigned)ifc.ifc_len);
-	PX4_INFO("MMC_IOC_CMD into session keys: %d errno %d, into its own buffer: %d errno %d", mmc, mmc_err, mmc_own,
+	PX4_INFO("MMC_IOC_CMD into kernel memory: %d errno %d, into its own buffer: %d errno %d", mmc, mmc_err, mmc_own,
 		 mmc_own_err);
 	ut_assert("a nested pointer reached kernel memory", ifconf < 0 && ifconf_err == EFAULT && mmc < 0
 		  && mmc_err == EFAULT);
@@ -550,18 +607,22 @@ bool IsolationTest::test_nested_ioctls_refused()
 	return true;
 }
 
+#endif
+
 bool IsolationTest::run_tests()
 {
 	ut_run_test(test_loads_fault);
 	ut_run_test(test_syscall_pointers_fault);
 	ut_run_test(test_nested_pointers_fault);
+	ut_run_test(test_range_refused);
 	ut_run_test(test_ioctl_refused);
+	ut_run_test(test_hrt_refused);
+	ut_run_test(test_spawn_refused);
+#ifdef CONFIG_BUILD_KERNEL
 	ut_run_test(test_crypto_refused);
 #if defined(CONFIG_LIB_ZTCS_SECURE_LINK)
 	ut_run_test(test_handshake_owned);
 #endif
-	ut_run_test(test_hrt_refused);
-	ut_run_test(test_spawn_refused);
 	ut_run_test(test_environ_refused);
 	ut_run_test(test_anonymous_map);
 	ut_run_test(test_kernel_pointer_ioctls_refused);
@@ -570,16 +631,27 @@ bool IsolationTest::run_tests()
 	ut_run_test(test_spawn_race);
 	ut_run_test(test_nested_ioctls_refused);
 	ut_run_test(test_bounds_refused);
+#endif
 
 	return (_tests_failed == 0);
 }
 
-extern "C" int test_isolation(int argc, char *argv[])
+extern "C" int isolation_main(int argc, char *argv[])
 {
 	if (argc == 3) {
 		const uintptr_t addr = strtoul(argv[2], nullptr, 0);
 		struct iovec iov {(void *)addr, 32};
 		int fds[2];
+
+		if (!strcmp(argv[1], "range")) {
+			if (pipe(fds) == 0) {
+				(void)write(fds[1], range_buf, (size_t)addr);
+			}
+
+			return 0;
+		}
+
+#ifdef CONFIG_BUILD_KERNEL
 
 		if (!strcmp(argv[1], "caps")) {
 			return capability_probe();
@@ -600,7 +672,11 @@ extern "C" int test_isolation(int argc, char *argv[])
 			return noise_finish((int)addr) != NOISE_ERR_STATE;
 #endif
 
-		} else if (!strcmp(argv[1], "load")) {
+		}
+
+#endif
+
+		if (!strcmp(argv[1], "load")) {
 			(void) * (volatile uint32_t *)addr;
 
 		} else if (pipe(fds) == 0) {
