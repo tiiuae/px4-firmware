@@ -93,6 +93,7 @@
 #include <px4_platform/gpio.h>
 #include <px4_platform/board_determine_hw_info.h>
 #include <px4_platform/board_dma_alloc.h>
+#include <common_src/state_ctrl.h>
 
 /****************************************************************************
  * Pre-Processor Definitions
@@ -489,6 +490,8 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	}
 
 #endif
+
+	statectrl_init(&board_trial_guard);
 
 	/* Configure the Actual SPI interfaces (after we determined the HW version)  */
 

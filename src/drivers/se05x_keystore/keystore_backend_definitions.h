@@ -46,3 +46,5 @@ static inline bool keystore_session_handle_valid(keystore_session_handle_t handl
 
 #define MAX_KEYS     50
 #define MAX_KEY_SIZE 508
+
+#define DEVSTATE_KEY_IDX (MAX_KEYS - 3)

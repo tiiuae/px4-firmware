@@ -110,6 +110,8 @@ else()
 		target_link_libraries(drivers_board PRIVATE crypto_utils)
 	endif()
 
+	target_include_directories(drivers_board PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
 	if (NOT DEFINED CONFIG_BUILD_FLAT)
 		target_link_libraries(drivers_board PRIVATE px4_kernel_layer)
 		target_compile_options(drivers_board PRIVATE -D__KERNEL__)
@@ -121,4 +123,6 @@ else()
 	else()
 		target_link_libraries(drivers_board PRIVATE px4_layer)
 	endif()
+
+	include(common_src/CMakeLists.txt)
 endif()

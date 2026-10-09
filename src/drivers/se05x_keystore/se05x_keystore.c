@@ -39,13 +39,54 @@
 #include <strings.h>
 
 #include <nuttx/crypto/se05x.h>
+#include <nuttx/mtd/mtd.h>
 #include <nuttx/mutex.h>
+#include <px4_platform_common/px4_manifest.h>
+#include <px4_platform_common/px4_mtd.h>
 #include "keystore_backend_definitions.h"
 
 #define SE05X_KEYSTORE_ID(idx) (0x7b002000 + (idx))
 
 static mutex_t g_lock = NXMUTEX_INITIALIZER;
 static uint8_t g_buf[MAX_KEY_SIZE];
+
+static size_t devstate_io(uint8_t *buf, size_t size, bool write)
+{
+	struct mtd_dev_s *mtd = px4_mtd_kernel_partition(MTD_DEVSTATE);
+	struct mtd_geometry_s geo;
+	size_t len;
+
+	if (mtd == NULL || MTD_IOCTL(mtd, MTDIOC_GEOMETRY, (unsigned long)&geo) < 0 ||
+	    geo.blocksize > sizeof(g_buf)) {
+		return 0;
+	}
+
+	if (write) {
+		if (size > geo.blocksize) {
+			return 0;
+		}
+
+		memset(g_buf, 0xff, geo.blocksize);
+		memcpy(g_buf, buf, size);
+		return MTD_BWRITE(mtd, 0, 1, g_buf) == 1 ? size : 0;
+	}
+
+	if (MTD_BREAD(mtd, 0, 1, g_buf) != 1) {
+		return 0;
+	}
+
+	len = g_buf[2] | (g_buf[3] << 8);
+
+	if (len < 4 || len > geo.blocksize || (buf != NULL && len > size)) {
+		return 0;
+	}
+
+	if (buf != NULL) {
+		memcpy(buf, g_buf, len);
+	}
+
+	return len;
+}
 
 void keystore_init(void)
 {
@@ -80,7 +121,10 @@ size_t keystore_get_key(keystore_session_handle_t handle, uint8_t idx, uint8_t *
 
 	nxmutex_lock(&g_lock);
 
-	if (se05x_kioctl(SEIOC_GET_DATA, (unsigned long)&data) == 0) {
+	if (idx == DEVSTATE_KEY_IDX) {
+		len = devstate_io(key_buf, key_buf_size, false);
+
+	} else if (se05x_kioctl(SEIOC_GET_DATA, (unsigned long)&data) == 0) {
 		len = data.content.buffer_content_size;
 
 		if (key_buf != NULL) {
@@ -112,9 +156,16 @@ bool keystore_put_key(keystore_session_handle_t handle, uint8_t idx, const uint8
 	}
 
 	nxmutex_lock(&g_lock);
-	memcpy(g_buf, key, key_size);
-	se05x_kioctl(SEIOC_DELETE_KEY, SE05X_KEYSTORE_ID(idx));
-	ret = se05x_kioctl(SEIOC_SET_DATA, (unsigned long)&data);
+
+	if (idx == DEVSTATE_KEY_IDX) {
+		ret = devstate_io((uint8_t *)key, key_size, true) == key_size ? 0 : -EIO;
+
+	} else {
+		memcpy(g_buf, key, key_size);
+		se05x_kioctl(SEIOC_DELETE_KEY, SE05X_KEYSTORE_ID(idx));
+		ret = se05x_kioctl(SEIOC_SET_DATA, (unsigned long)&data);
+	}
+
 	explicit_bzero(g_buf, sizeof(g_buf));
 	nxmutex_unlock(&g_lock);
 	return ret == 0;
