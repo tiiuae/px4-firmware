@@ -1,7 +1,7 @@
 /****************************************************************************
- * Secure MAVLink link, aircraft side. Terminates
+ * Secure link, aircraft side. Terminates
  * Noise_IK_25519_ChaChaPoly_SHA256 against ztcs-mavlink-gateway; the wire
- * contract is docs/rfc-secure-mavlink.md in tiiuae/ZTCS.
+ * contract is docs/rfc-secure-link.md in tiiuae/ZTCS.
  *
  * Sans-io: the caller owns the socket and the clock, which is what makes
  * the state machine testable off the aircraft.

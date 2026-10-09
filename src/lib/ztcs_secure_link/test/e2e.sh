@@ -98,7 +98,7 @@ GCS_PORT=$(awk '/^port/{print $2}' "$WORK/gcs.log")
   --idle-timeout-secs 60 \
   --attest-dir "$WORK/attest" > "$WORK/gw.log" 2>&1 &
 GW_PID=$!
-await "$WORK/gw.log" 'secure MAVLink gateway up'
+await "$WORK/gw.log" 'secure link gateway up'
 GW_PORT=$(grep -oE 'listen=127\.0\.0\.1:[0-9]+' "$WORK/gw.log" | head -1 | cut -d: -f2)
 
 # Two rounds, with a dropout between them. The station's idle timeout is set

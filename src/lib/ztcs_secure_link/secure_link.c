@@ -1,5 +1,5 @@
 /****************************************************************************
- * Secure MAVLink link, aircraft side. See secure_link.h.
+ * Secure link, aircraft side. See secure_link.h.
  ****************************************************************************/
 
 #include "secure_link.h"

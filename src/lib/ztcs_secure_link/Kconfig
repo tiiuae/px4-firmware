@@ -1,5 +1,5 @@
 menuconfig LIB_ZTCS_SECURE_LINK
-	bool "Secure MAVLink link (Noise IK)"
+	bool "Secure link (Noise IK)"
 	default n
 	---help---
 		Terminate Noise_IK_25519_ChaChaPoly_SHA256 against the ground

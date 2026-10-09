@@ -1,6 +1,6 @@
 /* Noise_IK_25519_ChaChaPoly_SHA256 initiator, aircraft side.
  *
- * Wire format and rationale: docs/rfc-secure-mavlink.md. The Rust responder
+ * Wire format and rationale: docs/rfc-secure-link.md. The Rust responder
  * is crates/ztcs-noise-udp; the two are tested against each other.
  *
  * Sans-io: no sockets, no timers. Caller owns both.

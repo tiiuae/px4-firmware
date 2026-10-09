@@ -34,7 +34,7 @@
 /**
  * @file ztcs_enroll.cpp
  *
- * Enrolment for the secure MAVLink link: reads the aircraft's link public key
+ * Enrolment for the secure link: reads the aircraft's link public key
  * out, and writes the station key and identity payload back in. The private
  * half never appears on this console.
  */
@@ -53,7 +53,7 @@ static void usage(void)
 	PRINT_MODULE_DESCRIPTION(
 		R"DESCR_STR(
 ### Description
-Enrols this aircraft on the secure MAVLink link.
+Enrols this aircraft on the secure link.
 
 Run `key` and `sign`, give both to `ztcs-mavlink-provision` on the ground,
 then paste back the `operator` and `write` lines it prints, in that order. Both private keys are generated

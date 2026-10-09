@@ -5,7 +5,7 @@ for the secure link, secure OTA and trial-boot work: every submodule this
 branch moves is pinned at its own `skunkworks`, and `.gitmodules` tracks it.
 
 PX4 itself: <https://docs.px4.io>, <https://github.com/PX4/PX4-Autopilot>.
-Design and proof: [RFC, secure MAVLink](https://github.com/tiiuae/ZTCS/blob/main/docs/rfc-secure-mavlink.md).
+Design and proof: [RFC, secure link](https://github.com/tiiuae/ZTCS/blob/main/docs/rfc-secure-link.md).
 
 ## What is where
 
@@ -93,5 +93,5 @@ not boot it.
 | Step                               | Where                                                                                      |
 | ---------------------------------- | ------------------------------------------------------------------------------------------ |
 | flash, provision                   | [fmu-tools](https://github.com/tiiuae/fmu-tools)                                           |
-| enrol, secure MAVLink, mode change | [ZTCS bench demo](https://github.com/tiiuae/ZTCS/tree/main/docs/demos/secure-mavlink)      |
-| update over the link               | [ZTCS `ota.md`](https://github.com/tiiuae/ZTCS/blob/main/docs/demos/secure-mavlink/ota.md) |
+| enrol, secure link, mode change    | [ZTCS bench demo](https://github.com/tiiuae/ZTCS/tree/main/docs/demos/secure-link)         |
+| update over the link               | [ZTCS `ota.md`](https://github.com/tiiuae/ZTCS/blob/main/docs/demos/secure-link/ota.md)    |

@@ -797,7 +797,7 @@ bool Mavlink::arm_secure_link(const hrt_abstime now)
 		secure_link_init(&_secure_link, &keys, now);
 		unlock_secure_link();
 		_secure_link_ready = true;
-		PX4_INFO("secure MAVLink link armed");
+		PX4_INFO("secure link armed");
 	}
 
 	memset(&keys, 0, sizeof(keys));

@@ -3,7 +3,7 @@
 The aircraft end of the secure link: `Noise_IK_25519_ChaChaPoly_SHA256` over UDP
 to the ZTCS gateway. The payload is opaque, so MAVLink and the OTA client ride
 the same link. Wire contract and threat model:
-[RFC, secure MAVLink](https://github.com/tiiuae/ZTCS/blob/main/docs/rfc-secure-mavlink.md).
+[RFC, secure link](https://github.com/tiiuae/ZTCS/blob/main/docs/rfc-secure-link.md).
 Built as part of the image: [build](../../../README.md#build).
 
 | Path                                             | What                                                                        |
