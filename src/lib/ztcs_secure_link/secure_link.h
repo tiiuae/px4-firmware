@@ -29,9 +29,6 @@ extern "C" {
 #ifndef SECURE_LINK_RETRY_CAP_US
 #define SECURE_LINK_RETRY_CAP_US    2000000ULL   /* 2 s */
 #endif
-#ifndef SECURE_LINK_RETRY_SLOW_US
-#define SECURE_LINK_RETRY_SLOW_US   5000000ULL   /* 5 s once backed off */
-#endif
 
 #ifndef SECURE_LINK_SILENCE_US
 #define SECURE_LINK_SILENCE_US     10000000ULL   /* nothing opened in 10 s */

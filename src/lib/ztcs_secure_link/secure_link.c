@@ -91,12 +91,6 @@ static void reset_backoff(struct secure_link *sl)
 
 static void bump_backoff(struct secure_link *sl)
 {
-  if (sl->retry_interval_us >= SECURE_LINK_RETRY_CAP_US)
-    {
-      sl->retry_interval_us = SECURE_LINK_RETRY_SLOW_US;
-      return;
-    }
-
   sl->retry_interval_us *= 2;
 
   if (sl->retry_interval_us > SECURE_LINK_RETRY_CAP_US)

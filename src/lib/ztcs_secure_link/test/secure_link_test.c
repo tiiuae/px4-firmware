@@ -110,7 +110,7 @@ static void test_backoff_widens_and_settles(void)
         }
     }
 
-  CHECK(sends >= 5 && sends <= 9, "expected a handful of retries, got %d", sends);
+  CHECK(sends >= 10 && sends <= 16, "expected a retry every 2 s, got %d", sends);
 
   /* Backing off means the gaps grow. Jitter adds up to a quarter and is
    * redrawn each time, so consecutive gaps are not strictly ordered: a gap
@@ -126,8 +126,9 @@ static void test_backoff_widens_and_settles(void)
     }
 
   CHECK(gaps[0] < 2 * SECURE_LINK_RETRY_MIN_US, "first retry was not prompt");
-  CHECK(gaps[sends - 2] >= SECURE_LINK_RETRY_SLOW_US,
-        "never settled at the slow interval");
+  CHECK(gaps[7] >= SECURE_LINK_RETRY_CAP_US
+        && gaps[7] <= SECURE_LINK_RETRY_CAP_US * 5 / 4 + 5000,
+        "never settled at the cap");
 
   CHECK(sl.state == SECURE_LINK_HANDSHAKING, "still handshaking");
 }
@@ -414,7 +415,7 @@ static void test_no_entropy_retries_on_the_backoff(void)
       attempts += secure_link_poll(&sl, now, out, sizeof(out)) == NOISE_ERR_RANDOM;
     }
 
-  CHECK(attempts >= 5 && attempts <= 9, "expected a handful of attempts, got %d", attempts);
+  CHECK(attempts >= 10 && attempts <= 16, "expected an attempt every 2 s, got %d", attempts);
 
   random_fails = false;
 
