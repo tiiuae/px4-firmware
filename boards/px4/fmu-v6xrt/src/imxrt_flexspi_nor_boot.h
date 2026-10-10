@@ -82,10 +82,23 @@
 #define LOCATE_IN_DEST(x)           (((uint32_t)(x)) - FLASH_BASE + IMAGE_DEST)
 #define LOCATE_IN_SRC(x)            (((uint32_t)(x)) - IMAGE_DEST + FLASH_BASE)
 
+#if defined(BOOTLOADER)
+#  define IMAGE_REGION_START        IMAGE_DEST
+#  define IMAGE_REGION_SIZE         (IMAGE_DEST_END - IMAGE_DEST)
+#else
+extern const uint8_t _boot_loadaddr[];
+extern const uint8_t _boot_size[];
+extern const uint8_t _csf_start[];
+#  define IMAGE_REGION_START        ((uint32_t)_boot_loadaddr)
+#  define IMAGE_REGION_SIZE         ((uint32_t)_boot_size)
+#endif
+
 #define DCD_ADDRESS                 0
 #define BOOT_DATA_ADDRESS           LOCATE_IN_DEST(&g_boot_data)
-#if defined(BOARD_HAB_CSF_OFFSET)
+#if defined(BOOTLOADER) && defined(BOARD_HAB_CSF_OFFSET)
 #  define CSF_ADDRESS               (FLASH_BASE + BOARD_HAB_CSF_OFFSET)
+#elif !defined(BOOTLOADER) && defined(BOARD_HAB_SIGNED)
+#  define CSF_ADDRESS               ((uint32_t)_csf_start)
 #else
 #  define CSF_ADDRESS               0
 #endif
