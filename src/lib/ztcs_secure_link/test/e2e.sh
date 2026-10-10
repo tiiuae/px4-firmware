@@ -48,7 +48,7 @@ gcc -O2 -Wall -Wextra -std=gnu99 -I"$SL" \
   "$SL/test/secure_link_e2e.c" "${SODIUM[@]}"
 
 cd "$ZTCS"
-cargo build -q -p ztcs-cli -p ztcs-mavlink-gateway
+cargo build -q -p ztcs-cli --features operator -p ztcs-mavlink-gateway
 CLI="$ZTCS/target/debug/ztcs"
 GW="$ZTCS/target/debug/ztcs-mavlink-gateway"
 PROV="$ZTCS/target/debug/ztcs-mavlink-provision"
