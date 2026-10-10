@@ -57,7 +57,6 @@
 #include <string.h>
 
 #include "slots.h"
-#include "uart.h"
 
 #define FRAM_BLOCK_SIZE 128
 
@@ -67,6 +66,7 @@
 #define HAB_CID_CALLER  1
 #define HAB_EVENT_MAX   32
 #define HAB_MARK        0x48414231
+#define HAB_STAGES      3
 
 struct hab_rvt_s {
 	uint32_t hdr;
@@ -191,50 +191,60 @@ static uint32_t hab_events(const struct hab_rvt_s *rvt)
 }
 
 locate_code(".ramfunc")
-static void hab_step(char c)
-{
-	uart_cout((uint8_t *)&c, 1);
-}
-
-locate_code(".ramfunc")
-static bool hab_accepts_slot(const struct hab_rvt_s *rvt)
+static uint8_t hab_call(const struct hab_rvt_s *rvt, uint8_t stage, uint32_t *events)
 {
 	void *start = (void *)APP_LOAD_ADDRESS;
 	size_t bytes = BOARD_SLOT_SIZE;
 	irqstate_t flags = enter_critical_section();
+	uint8_t clean = 0;
 
-	hab_step('a');
-	rvt->entry();
-	hab_step('b');
-	uint32_t before = hab_events(rvt);
-	hab_step('c');
-	void *entry = rvt->authenticate_image(HAB_CID_CALLER, APP_IVT_OFFSET, &start, &bytes, NULL);
-	hab_step('d');
-	bool clean = entry != NULL && hab_events(rvt) == before;
-	hab_step('e');
-	rvt->exit();
-	hab_step('f');
+	switch (stage) {
+	case 1:
+		rvt->entry();
+		clean = 1;
+		break;
+
+	case 2:
+		*events = hab_events(rvt);
+		clean = 1;
+		break;
+
+	case 3:
+		clean = rvt->authenticate_image(HAB_CID_CALLER, APP_IVT_OFFSET, &start, &bytes, NULL) != NULL &&
+			hab_events(rvt) == *events;
+		rvt->exit();
+		break;
+	}
 
 	ROM_FLEXSPI_NorFlash_ClearCache(1);
 	leave_critical_section(flags);
-	hab_step(clean ? 'Y' : 'N');
 	return clean;
 }
 
-static bool hab_mark_set(void)
+/* reached: the highest stage known to return. running: the stage being tried
+ * right now, 0 when nothing is. A boot that finds running set knows that stage
+ * never came back.
+ */
+struct hab_state_s {
+	uint32_t mark;
+	uint8_t reached;
+	uint8_t running;
+	uint8_t stuck;
+};
+
+static bool hab_state_read(struct hab_state_s *st)
 {
 	uint8_t block[FRAM_BLOCK_SIZE];
-	uint32_t mark;
 
 	if (fram() == NULL || MTD_BREAD(g_fram, BOARD_FRAM_HAB_BLOCK, 1, block) != 1) {
 		return false;
 	}
 
-	memcpy(&mark, block, sizeof(mark));
-	return mark == HAB_MARK;
+	memcpy(st, block, sizeof(*st));
+	return st->mark == HAB_MARK;
 }
 
-static void hab_mark_write(uint32_t mark)
+static void hab_state_write(const struct hab_state_s *st)
 {
 	uint8_t block[FRAM_BLOCK_SIZE];
 
@@ -243,7 +253,7 @@ static void hab_mark_write(uint32_t mark)
 	}
 
 	memset(block, 0xff, sizeof(block));
-	memcpy(block, &mark, sizeof(mark));
+	memcpy(block, st, sizeof(*st));
 	MTD_BWRITE(g_fram, BOARD_FRAM_HAB_BLOCK, 1, block);
 }
 
@@ -268,23 +278,44 @@ static bool slot_claims_signature(void)
 bool board_slot_verify(void)
 {
 	const struct hab_rvt_s *rvt = hab_rvt();
+	struct hab_state_s st;
+	uint32_t events = 0;
+	uint8_t clean = 0;
 
 	if (rvt == NULL || !slot_claims_signature()) {
 		return false;
 	}
 
-	if (hab_mark_set()) {
-		hab_mark_write(0);
+	if (!hab_state_read(&st)) {
+		memset(&st, 0, sizeof(st));
+		st.mark = HAB_MARK;
+	}
+
+	if (st.running != 0) {
+		st.stuck = st.running;
+		st.running = 0;
+		hab_state_write(&st);
 		return true;
 	}
 
-	hab_mark_write(HAB_MARK);
+	if (st.stuck != 0) {
+		return true;
+	}
+
 	up_flush_dcache_all();
-	bool clean = hab_accepts_slot(rvt);
+
+	for (uint8_t stage = 1; stage <= HAB_STAGES; stage++) {
+		st.running = stage;
+		hab_state_write(&st);
+		clean = hab_call(rvt, stage, &events);
+		st.reached = stage;
+		st.running = 0;
+		hab_state_write(&st);
+	}
+
 	up_invalidate_dcache_all();
 	up_invalidate_icache_all();
-	hab_mark_write(0);
-	return clean;
+	return clean != 0;
 }
 #endif
 
