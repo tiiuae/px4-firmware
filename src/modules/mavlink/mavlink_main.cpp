@@ -807,7 +807,7 @@ bool Mavlink::arm_secure_link(const hrt_abstime now)
 int Mavlink::secure_link_transmit(const uint8_t *frame, size_t len)
 {
 	if (_secure_serial) {
-		uint8_t out[COBS_ENCODED_MAX(SECURE_LINK_MTU) + 2];
+		uint8_t out[COBS_ENCODED_MAX(SECURE_LINK_FRAME_MAX) + 2];
 		const size_t n = cobs_encode(frame, len, out + 1);
 		out[0] = 0;
 		out[n + 1] = 0;
@@ -2533,7 +2533,7 @@ Mavlink::task_main(int argc, char *argv[])
 			}
 
 			if (_secure_link_ready) {
-				uint8_t frame[SECURE_LINK_MTU];
+				uint8_t frame[SECURE_LINK_FRAME_MAX];
 				lock_secure_link();
 				int frame_len = secure_link_poll(&_secure_link, now, frame, sizeof(frame));
 				unlock_secure_link();

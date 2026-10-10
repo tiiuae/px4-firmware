@@ -3206,7 +3206,7 @@ MavlinkReceiver::handle_message_attitude_target(mavlink_message_t *msg)
 ssize_t
 MavlinkReceiver::open_secure_serial(const uint8_t *in, ssize_t len)
 {
-	uint8_t frame[SECURE_LINK_MTU];
+	uint8_t frame[SECURE_LINK_FRAME_MAX];
 	size_t out = 0;
 
 	for (ssize_t i = 0; i < len; i++) {
@@ -3256,8 +3256,15 @@ MavlinkReceiver::run()
 	/* 1500 is the Wifi MTU, so we make sure to fit a full packet */
 	uint8_t buf[1600 * 5];
 #elif defined(CONFIG_NET)
-	/* 1500 is the Wifi MTU, so we make sure to fit a full packet */
+	/* 1500 is the Wifi MTU, so we make sure to fit a full packet, and a
+	 * handshake datagram is larger than a MAVLink one once the secure link
+	 * carries a KEM field.
+	 */
+#if defined(CONFIG_LIB_ZTCS_SECURE_LINK) && SECURE_LINK_FRAME_MAX > 1000
+	uint8_t buf[SECURE_LINK_FRAME_MAX];
+#else
 	uint8_t buf[1000];
+#endif
 #else
 	/* the serial port buffers internally as well, we just need to fit a small chunk */
 	uint8_t buf[64];
