@@ -54,6 +54,34 @@ int noise_dh_static(const struct noise_static_key *s,
 int noise_static_public(const struct noise_static_key *s,
                         uint8_t pk[NOISE_DHLEN]);
 
+#ifdef NOISE_HFS
+#define NOISE_KEM_PUBLEN 1184
+#define NOISE_KEM_CTLEN 1088
+#define NOISE_KEM_SSLEN 32
+#define NOISE_KEM_SEEDLEN 64
+#define NOISE_KEM_COINLEN 32
+
+/* ML-KEM-768, keyed by the seed its keypair is derived from rather than by
+ * the 2400-byte key itself: the handshake then carries 64 bytes between its
+ * two messages instead, and derives again when the ciphertext arrives. The
+ * seed is the caller's randomness, so the TRNG stays where it is.
+ */
+
+int noise_kem_public(const uint8_t seed[NOISE_KEM_SEEDLEN],
+                     uint8_t pk[NOISE_KEM_PUBLEN]);
+
+int noise_kem_decap(const uint8_t seed[NOISE_KEM_SEEDLEN],
+                    const uint8_t ct[NOISE_KEM_CTLEN],
+                    uint8_t ss[NOISE_KEM_SSLEN]);
+
+/* The responder's half. The aircraft is always the initiator, so this is here
+ * for the tests that stand in for a station.
+ */
+int noise_kem_encap(const uint8_t pk[NOISE_KEM_PUBLEN],
+                    const uint8_t coins[NOISE_KEM_COINLEN],
+                    uint8_t ct[NOISE_KEM_CTLEN], uint8_t ss[NOISE_KEM_SSLEN]);
+#endif
+
 /* The transport keys, by the same rule: a backend may keep them where this
  * code cannot read them and answer by index. Index 0 holds nothing.
  */

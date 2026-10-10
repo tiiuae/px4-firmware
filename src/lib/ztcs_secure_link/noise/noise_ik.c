@@ -3,8 +3,19 @@
 #include <string.h>
 
 #ifndef NOISE_HANDSHAKE_IN_KERNEL
-/* Exactly NOISE_HASHLEN bytes, so h starts as the name itself with no hash. */
+#ifdef NOISE_HFS
+static const char PROTOCOL[] = "Noise_IKhfs_25519+MLKEM768_ChaChaPoly_SHA256";
+#else
 static const char PROTOCOL[] = "Noise_IK_25519_ChaChaPoly_SHA256";
+#endif
+
+#define PROTOCOL_LEN (sizeof(PROTOCOL) - 1)
+
+#ifdef NOISE_HFS
+#define KEM_FIELD_LEN (NOISE_KEM_CTLEN + NOISE_TAGLEN)
+#else
+#define KEM_FIELD_LEN 0
+#endif
 
 static void mix_hash(struct noise_symmetric *ss, const uint8_t *data,
                      size_t len) {
@@ -40,9 +51,17 @@ static void mix_key(struct noise_symmetric *ss, const uint8_t *ikm,
   noise_wipe(ck, sizeof(ck));
 }
 
+/* Noise: a name of HASHLEN bytes or fewer is the hash, zero-padded; a longer
+ * one is hashed. The classical name is exactly 32 and the hybrid one is not,
+ * and getting this wrong is silent until the station disagrees.
+ */
 static void symmetric_init(struct noise_symmetric *ss) {
   memset(ss, 0, sizeof(*ss));
-  memcpy(ss->h, PROTOCOL, NOISE_HASHLEN);
+  if (PROTOCOL_LEN <= NOISE_HASHLEN) {
+    memcpy(ss->h, PROTOCOL, PROTOCOL_LEN);
+  } else {
+    noise_sha256((const uint8_t *)PROTOCOL, PROTOCOL_LEN, ss->h);
+  }
   memcpy(ss->ck, ss->h, NOISE_HASHLEN);
   /* Empty prologue, but the MixHash still runs. */
   mix_hash(ss, (const uint8_t *)"", 0);
@@ -112,6 +131,20 @@ int noise_initiator_start(struct noise_initiator *ini,
   }
   mix_key(&ini->ss, dh, NOISE_DHLEN);
 
+#ifdef NOISE_HFS
+  {
+    uint8_t kem_pub[NOISE_KEM_PUBLEN];
+    if (noise_random(ini->kem_seed, NOISE_KEM_SEEDLEN) != 0) {
+      return NOISE_ERR_RANDOM;
+    }
+    if (noise_kem_public(ini->kem_seed, kem_pub) != 0) {
+      return NOISE_ERR_BACKEND;
+    }
+    encrypt_and_hash(&ini->ss, kem_pub, NOISE_KEM_PUBLEN, p);
+    p += NOISE_KEM_PUBLEN + NOISE_TAGLEN;
+  }
+#endif
+
   encrypt_and_hash(&ini->ss, ini->s_pub, NOISE_DHLEN, p);
   p += NOISE_DHLEN + NOISE_TAGLEN;
 
@@ -159,12 +192,33 @@ int noise_initiator_finish(struct noise_initiator *ini, const uint8_t *frame,
   }
   mix_key(&ss, dh, NOISE_DHLEN);
 
+#ifdef NOISE_HFS
+  {
+    uint8_t kem_ct[NOISE_KEM_CTLEN];
+    uint8_t kem_ss[NOISE_KEM_SSLEN];
+    rc = decrypt_and_hash(&ss, frame + 1 + NOISE_DHLEN,
+                          NOISE_KEM_CTLEN + NOISE_TAGLEN, kem_ct);
+    if (rc == NOISE_OK && noise_kem_decap(ini->kem_seed, kem_ct, kem_ss) != 0) {
+      rc = NOISE_ERR_BACKEND;
+    }
+    if (rc == NOISE_OK) {
+      mix_key(&ss, kem_ss, NOISE_KEM_SSLEN);
+    }
+    noise_wipe(kem_ss, sizeof(kem_ss));
+    if (rc != NOISE_OK) {
+      goto out;
+    }
+  }
+#endif
+
   if (noise_dh_static(ini->s, re, dh) != 0) {
+    rc = NOISE_ERR_DH;
     goto out;
   }
   mix_key(&ss, dh, NOISE_DHLEN);
 
-  rc = decrypt_and_hash(&ss, frame + 1 + NOISE_DHLEN, NOISE_TAGLEN, empty);
+  rc = decrypt_and_hash(&ss, frame + 1 + NOISE_DHLEN + KEM_FIELD_LEN,
+                        NOISE_TAGLEN, empty);
   if (rc != NOISE_OK) {
     goto out;
   }
@@ -184,6 +238,9 @@ int noise_initiator_finish(struct noise_initiator *ini, const uint8_t *frame,
 
   noise_wipe(&ini->ss, sizeof(ini->ss));
   noise_wipe(ini->e_priv, sizeof(ini->e_priv));
+#ifdef NOISE_HFS
+  noise_wipe(ini->kem_seed, sizeof(ini->kem_seed));
+#endif
   ini->stage = 2;
   rc = NOISE_OK;
 

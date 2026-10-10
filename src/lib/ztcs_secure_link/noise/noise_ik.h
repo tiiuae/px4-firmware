@@ -32,8 +32,22 @@ extern "C" {
 #define NOISE_PAYLOAD_VERSION_P256_EVEN 2
 #define NOISE_PAYLOAD_VERSION_P256_ODD 3
 
+/* IKhfs puts the KEM public key after the first DH in its message, not after
+ * `e`, so both KEM fields go out encrypted:
+ *
+ *   -> e, es, e1, s, ss
+ *   <- e, ee, ekem1, se
+ */
+#ifdef NOISE_HFS
+#define NOISE_MSG1_LEN                                                    \
+  (1 + 32 + (NOISE_KEM_PUBLEN + NOISE_TAGLEN) + (32 + NOISE_TAGLEN) +     \
+   (NOISE_IDENTITY_PAYLOAD_LEN + NOISE_TAGLEN))
+#define NOISE_MSG2_LEN \
+  (1 + 32 + (NOISE_KEM_CTLEN + NOISE_TAGLEN) + NOISE_TAGLEN)
+#else
 #define NOISE_MSG1_LEN (1 + 32 + (32 + NOISE_TAGLEN) + (NOISE_IDENTITY_PAYLOAD_LEN + NOISE_TAGLEN))
 #define NOISE_MSG2_LEN (1 + 32 + NOISE_TAGLEN)
+#endif
 
 #define NOISE_STATIC_KEY_CONTEXT "ztcs-mavlink-static-key:"
 
@@ -72,6 +86,9 @@ struct noise_initiator {
   uint8_t e_pub[NOISE_DHLEN];
   const struct noise_static_key *s;
   uint8_t s_pub[NOISE_DHLEN];
+#ifdef NOISE_HFS
+  uint8_t kem_seed[NOISE_KEM_SEEDLEN];
+#endif
   int stage;
 };
 
