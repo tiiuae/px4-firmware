@@ -52,11 +52,32 @@
 #include <px4_arch/imxrt_romapi.h>
 #include <nuttx/cache.h>
 #include <nuttx/mtd/mtd.h>
+#include <stddef.h>
 #include <string.h>
 
 #include "slots.h"
 
 #define FRAM_BLOCK_SIZE 128
+
+#define HAB_TAG_RVT     0xdd
+#define HAB_SUCCESS     0xf0
+#define HAB_STS_ANY     0x00
+#define HAB_CID_CALLER  1
+#define HAB_EVENT_MAX   32
+
+struct hab_rvt_s {
+	uint32_t hdr;
+	uint8_t (*entry)(void);
+	uint8_t (*exit)(void);
+	uint8_t (*check_target)(uint8_t type, const void *start, size_t bytes);
+	void *(*authenticate_image)(uint8_t cid, ptrdiff_t ivt_offset, void **start, size_t *bytes, void *loader);
+	uint8_t (*run_dcd)(const uint8_t *dcd);
+	uint8_t (*run_csf)(const uint8_t *csf, uint8_t cid, uint32_t srkmask);
+	uint8_t (*assert_check)(uint8_t type, const void *data, uint32_t count);
+	uint8_t (*report_event)(uint8_t status, uint32_t index, uint8_t *event, size_t *bytes);
+	uint8_t (*report_status)(uint8_t *config, uint8_t *state);
+	void (*failsafe)(void);
+};
 
 extern struct flexspi_nor_config_s g_bootConfig;
 
@@ -130,6 +151,61 @@ void board_slot_erase(int slot)
 	leave_critical_section(flags);
 	up_invalidate_dcache_all();
 }
+
+#if !defined(BOARD_HAB_CSF_OFFSET)
+bool board_slot_verify(void)
+{
+	return true;
+}
+
+#else
+static const struct hab_rvt_s *hab_rvt(void)
+{
+	static const uint32_t cand[] = {0x00211c0c, 0x00211c14};
+
+	for (unsigned i = 0; i < sizeof(cand) / sizeof(cand[0]); i++) {
+		const struct hab_rvt_s *rvt = (const struct hab_rvt_s *)cand[i];
+
+		if ((rvt->hdr & 0xff) == HAB_TAG_RVT) {
+			return rvt;
+		}
+	}
+
+	return NULL;
+}
+
+static uint32_t hab_events(const struct hab_rvt_s *rvt)
+{
+	uint32_t n = 0;
+	size_t bytes = 0;
+
+	while (n < HAB_EVENT_MAX && rvt->report_event(HAB_STS_ANY, n, NULL, &bytes) == HAB_SUCCESS) {
+		n++;
+	}
+
+	return n;
+}
+
+bool board_slot_verify(void)
+{
+	const struct hab_rvt_s *rvt = hab_rvt();
+	void *start = (void *)APP_LOAD_ADDRESS;
+	size_t bytes = BOARD_FLASH_SIZE - (APP_LOAD_ADDRESS - IMXRT_FLEXSPI1_CIPHER_BASE);
+
+	if (rvt == NULL) {
+		return false;
+	}
+
+	uint32_t events = hab_events(rvt);
+
+	up_flush_dcache_all();
+	rvt->entry();
+	void *entry = rvt->authenticate_image(HAB_CID_CALLER, APP_IVT_OFFSET, &start, &bytes, NULL);
+	rvt->exit();
+
+	return entry != NULL && hab_events(rvt) == events;
+}
+#endif
 
 void board_slot_select(int slot)
 {

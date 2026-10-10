@@ -35,6 +35,12 @@ static void slots_load(void)
 	slots_store();
 }
 
+static bool slot_verify(int slot)
+{
+	board_slot_select(slot);
+	return board_slot_verify();
+}
+
 int slots_select(void)
 {
 	slots_load();
@@ -67,8 +73,18 @@ int slots_select(void)
 		slot = other;
 	}
 
+	int alt = slot == PARTITION_1 ? PARTITION_2 : PARTITION_1;
+
+	if (slot_verify(slot)) {
+		return slot;
+	}
+
+	if (board_slot_bootable(alt) && slot_verify(alt)) {
+		return alt;
+	}
+
 	board_slot_select(slot);
-	return slot;
+	return -1;
 }
 
 void slots_reset(void)

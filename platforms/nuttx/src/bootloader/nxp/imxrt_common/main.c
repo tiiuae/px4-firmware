@@ -762,8 +762,9 @@ bootloader_main(int argc, char *argv[])
 #endif
 
 		/* try to boot immediately */
-		slots_select();
-		jump_to_app();
+		if (slots_select() >= 0) {
+			jump_to_app();
+		}
 
 		// If it failed to boot, reset the boot signature and stay in bootloader
 		board_set_rtc_signature(BOOT_RTC_SIGNATURE);
@@ -816,8 +817,9 @@ bootloader_main(int argc, char *argv[])
 #endif
 
 		/* look to see if we can boot the app */
-		slots_select();
-		jump_to_app();
+		if (slots_select() >= 0) {
+			jump_to_app();
+		}
 
 		/* launching the app failed - stay in the bootloader forever */
 		timeout = 0;

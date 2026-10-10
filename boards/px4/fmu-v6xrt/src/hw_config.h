@@ -62,6 +62,7 @@
 #define SERIAL1_DEV    0x04
 
 #define APP_LOAD_ADDRESS               0x30020000
+#define APP_IVT_OFFSET                 0x1000
 #define APP_VECTOR_OFFSET              0x2000
 #define BOOTLOADER_DELAY               5000
 #define INTERFACE_USB                  1

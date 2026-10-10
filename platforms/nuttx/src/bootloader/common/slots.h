@@ -7,6 +7,7 @@
 int board_devstate_read(uint8_t *buf, size_t size);
 int board_devstate_write(const uint8_t *buf, size_t size);
 bool board_slot_bootable(int slot);
+bool board_slot_verify(void);
 void board_slot_erase(int slot);
 void board_slot_select(int slot);
 
