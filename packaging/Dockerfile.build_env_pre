@@ -31,7 +31,7 @@ ENV RUSTUP_HOME /opt/rust
 ENV CARGO_HOME /opt/rust
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
 RUN /opt/rust/bin/rustup toolchain install stable-x86_64-unknown-linux-gnu
-RUN /opt/rust/bin/rustup target add aarch64-unknown-none riscv64gc-unknown-none-elf
+RUN /opt/rust/bin/rustup target add aarch64-unknown-none riscv64gc-unknown-none-elf thumbv7em-none-eabihf
 RUN /opt/rust/bin/cargo install bindgen-cli
 
 RUN curl -LOs https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releases/download/v14.2.0-3/xpack-riscv-none-elf-gcc-14.2.0-3-linux-x64.tar.gz && \
