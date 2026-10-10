@@ -22,6 +22,16 @@ extern "C" {
 /* A MAVLink v2 frame plus 25 bytes of transport overhead, rounded up. */
 #define SECURE_LINK_MTU 512
 
+/* What a datagram buffer has to hold. Transport frames stay inside the MTU,
+ * but a handshake message does not once the KEM fields are in it, so the
+ * caller sizes its buffers by this and not by the MTU.
+ */
+#if NOISE_MSG1_LEN > SECURE_LINK_MTU
+#define SECURE_LINK_FRAME_MAX NOISE_MSG1_LEN
+#else
+#define SECURE_LINK_FRAME_MAX SECURE_LINK_MTU
+#endif
+
 /* Over raw UDP a lost message 1 is a dead session, so retransmit is ours. */
 #ifndef SECURE_LINK_RETRY_MIN_US
 #define SECURE_LINK_RETRY_MIN_US     100000ULL   /* 100 ms */

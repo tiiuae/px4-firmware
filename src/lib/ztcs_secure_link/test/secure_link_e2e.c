@@ -43,7 +43,7 @@ static struct cobs_rx g_rx;
 
 static void tx(const uint8_t *frame, size_t len)
 {
-  uint8_t out[COBS_ENCODED_MAX(SECURE_LINK_MTU) + 2];
+  uint8_t out[COBS_ENCODED_MAX(SECURE_LINK_FRAME_MAX) + 2];
   size_t n;
 
   if (!g_serial)
@@ -133,8 +133,8 @@ int main(int argc, char **argv)
   struct secure_link_keys keys;
   struct sockaddr_in to;
   struct timeval tv = {0, POLL_INTERVAL_US};
-  uint8_t buf[SECURE_LINK_MTU];
-  uint8_t plain[SECURE_LINK_MTU];
+  uint8_t buf[SECURE_LINK_FRAME_MAX];
+  uint8_t plain[SECURE_LINK_FRAME_MAX];
   uint64_t start;
   uint64_t quiet_until = 0;
   unsigned handshakes_at_send = 0;

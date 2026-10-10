@@ -41,14 +41,29 @@ await() {
 # tests pin the boundary value itself.
 SILENCE_US=1500000
 read -r -a SODIUM <<< "$(pkg-config --cflags --libs libsodium)"
+
+# HFS=1 runs the same test over the hybrid handshake. Both ends or neither:
+# the protocol name is part of the hash, so a mismatch is a dead session
+# rather than a weak one.
+HFS_C=()
+HFS_CARGO=()
+if [ "${HFS:-0}" = "1" ]; then
+  MLK=$ZTCS/crates/ztcs-noise-udp/c/mlkem-native
+  HFS_C=(-DNOISE_HFS -DMLK_CONFIG_PARAMETER_SET=768
+         -DMLK_CONFIG_NAMESPACE_PREFIX=ztcs_mlkem -DMLK_CONFIG_NO_RANDOMIZED_API
+         -I"$MLK/mlkem" "$MLK/mlkem/mlkem_native.c" "$SL/noise/kem_mlkem.c")
+  HFS_CARGO=(--features hfs)
+fi
+
 gcc -O2 -Wall -Wextra -std=gnu99 -I"$SL" \
   -DSECURE_LINK_SILENCE_US=${SILENCE_US}ULL -o "$WORK/aircraft" \
   "$SL/secure_link.c" "$SL/handshake_local.c" "$SL/cobs.c" "$SL/noise/noise_ik.c" "$SL/noise/chacha20_ietf.c" \
   "$ZTCS/crates/ztcs-noise-udp/c/backend_sodium.c" \
-  "$SL/test/secure_link_e2e.c" "${SODIUM[@]}"
+  "$SL/test/secure_link_e2e.c" "${HFS_C[@]}" "${SODIUM[@]}"
 
 cd "$ZTCS"
-cargo build -q -p ztcs-cli --features operator -p ztcs-mavlink-gateway
+cargo build -q -p ztcs-cli --features operator
+cargo build -q -p ztcs-mavlink-gateway "${HFS_CARGO[@]}"
 CLI="$ZTCS/target/debug/ztcs"
 GW="$ZTCS/target/debug/ztcs-mavlink-gateway"
 PROV="$ZTCS/target/debug/ztcs-mavlink-provision"

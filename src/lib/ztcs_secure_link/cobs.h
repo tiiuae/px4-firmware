@@ -9,7 +9,16 @@ extern "C" {
 #endif
 
 #define COBS_ENCODED_MAX(n) ((n) + (n) / 254 + 1)
+
+/* Big enough for the largest datagram the link can carry, which is a
+ * handshake message rather than a transport frame once the KEM fields are in
+ * it. The receive buffer is one of these per link.
+ */
+#ifdef NOISE_HFS
+#define COBS_FRAME_MAX      1536
+#else
 #define COBS_FRAME_MAX      520
+#endif
 
 struct cobs_rx
 {
