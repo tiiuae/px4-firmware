@@ -38,9 +38,6 @@
 #include <px4_platform_common/defines.h>
 #include <px4_platform/board_ctrl.h>
 
-#include <nuttx/kthread.h>
-#include <nuttx/mutex.h>
-#include <semaphore.h>
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
@@ -300,105 +297,9 @@ static struct {
 
 static_assert(NOISE_MSG2_LEN <= NOISE_MSG1_LEN, "the slot buffer carries both messages");
 
+static_assert(NOISE_MSG2_LEN <= NOISE_MSG1_LEN, "the slot buffer carries both messages");
+
 #if defined(NOISE_HFS)
-
-/* ML-KEM-768 needs more stack than a syscall has: measured at 18.6 KB to
- * generate and 22.9 KB to decapsulate, against the 8 KB a syscall runs on.
- * So the handshake itself runs on a thread with a stack of its own and the
- * caller waits. One stack for the whole system rather than one per task,
- * which is what raising the kernel stack would have cost.
- */
-
-enum noise_job_op { NOISE_JOB_IDLE, NOISE_JOB_START, NOISE_JOB_FINISH };
-
-static struct {
-	sem_t request;
-	sem_t done;
-	enum noise_job_op op;
-	int slot;
-	const uint8_t *rs;
-	const uint8_t *identity;
-	size_t len;
-	struct noise_session *session;
-	int rc;
-} g_kem_job;
-
-static int noise_worker(int argc, char *argv[])
-{
-	(void)argc;
-	(void)argv;
-
-	for (;;) {
-		while (sem_wait(&g_kem_job.request) != 0) {
-		}
-
-		switch (g_kem_job.op) {
-		case NOISE_JOB_START:
-			g_kem_job.len = NOISE_MSG1_LEN;
-			g_kem_job.rc = noise_initiator_start(&g_handshakes[g_kem_job.slot].ini,
-							     &g_handshakes[g_kem_job.slot].link,
-							     g_kem_job.rs, g_kem_job.identity,
-							     g_handshakes[g_kem_job.slot].msg, &g_kem_job.len);
-			break;
-
-		case NOISE_JOB_FINISH:
-			g_kem_job.rc = noise_initiator_finish(&g_handshakes[g_kem_job.slot].ini,
-							      g_handshakes[g_kem_job.slot].msg,
-							      g_kem_job.len, g_kem_job.session);
-			break;
-
-		default:
-			g_kem_job.rc = NOISE_ERR_STATE;
-			break;
-		}
-
-		g_kem_job.op = NOISE_JOB_IDLE;
-		sem_post(&g_kem_job.done);
-	}
-
-	return 0;
-}
-
-static mutex_t g_kem_lock = NXMUTEX_INITIALIZER;
-static bool g_kem_ready;
-
-static int noise_run(enum noise_job_op op, int slot, const uint8_t *rs,
-		     const uint8_t *identity, size_t len, struct noise_session *session)
-{
-	int rc;
-
-	nxmutex_lock(&g_kem_lock);
-
-	if (!g_kem_ready) {
-		sem_init(&g_kem_job.request, 0, 0);
-		sem_init(&g_kem_job.done, 0, 0);
-
-		if (kthread_create("noise_kem", SCHED_PRIORITY_DEFAULT,
-				   CONFIG_PX4_NOISE_KEM_STACKSIZE, noise_worker, nullptr) < 0) {
-			nxmutex_unlock(&g_kem_lock);
-			return NOISE_ERR_BACKEND;
-		}
-
-		g_kem_ready = true;
-	}
-
-	g_kem_job.op = op;
-	g_kem_job.slot = slot;
-	g_kem_job.rs = rs;
-	g_kem_job.identity = identity;
-	g_kem_job.len = len;
-	g_kem_job.session = session;
-	sem_post(&g_kem_job.request);
-
-	while (sem_wait(&g_kem_job.done) != 0) {
-	}
-
-	rc = g_kem_job.rc;
-	nxmutex_unlock(&g_kem_lock);
-	return rc;
-}
-
-#endif
 
 static void handshake_release(int i)
 {
@@ -669,13 +570,8 @@ static int crypto_ioctl_locked(unsigned int cmd, unsigned long arg)
 
 			if (i >= 0) {
 				g_handshakes[i].link.index = d->link_index;
-#if defined(NOISE_HFS)
-				rc = noise_run(NOISE_JOB_START, i, rs, identity, 0, nullptr);
-				len = g_kem_job.len;
-#else
 				rc = noise_initiator_start(&g_handshakes[i].ini, &g_handshakes[i].link, rs, identity,
 							   g_handshakes[i].msg, &len);
-#endif
 
 				if (rc != NOISE_OK) {
 					handshake_release(i);
@@ -706,11 +602,7 @@ static int crypto_ioctl_locked(unsigned int cmd, unsigned long arg)
 
 			if (i >= 0 && d->message_size == NOISE_MSG2_LEN) {
 				memcpy(g_handshakes[i].msg, d->message, NOISE_MSG2_LEN);
-#if defined(NOISE_HFS)
-				rc = noise_run(NOISE_JOB_FINISH, i, nullptr, nullptr, NOISE_MSG2_LEN, &session);
-#else
 				rc = noise_initiator_finish(&g_handshakes[i].ini, g_handshakes[i].msg, NOISE_MSG2_LEN, &session);
-#endif
 			}
 
 			if (rc == NOISE_OK) {
