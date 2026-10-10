@@ -40,6 +40,7 @@
 #include "board_config.h"
 #include "hw_config.h"
 #include "bl.h"
+#include "imxrt_flexspi_nor_boot.h"
 
 #include <nuttx/config.h>
 #include <nuttx/board.h>
@@ -186,13 +187,31 @@ static uint32_t hab_events(const struct hab_rvt_s *rvt)
 	return n;
 }
 
+static bool slot_claims_signature(void)
+{
+	const uint32_t self = APP_LOAD_ADDRESS + APP_IVT_OFFSET;
+	const uint32_t *ivt = (const uint32_t *)self;
+
+	if ((ivt[0] & 0xff) != IVT_TAG_HEADER || ivt[5] != self || ivt[4] != self + 0x20) {
+		return false;
+	}
+
+	if (ivt[6] <= self || ivt[6] >= APP_LOAD_ADDRESS + BOARD_SLOT_SIZE) {
+		return false;
+	}
+
+	const uint32_t *bdata = (const uint32_t *)ivt[4];
+
+	return bdata[0] == APP_LOAD_ADDRESS && bdata[1] <= BOARD_SLOT_SIZE;
+}
+
 bool board_slot_verify(void)
 {
 	const struct hab_rvt_s *rvt = hab_rvt();
 	void *start = (void *)APP_LOAD_ADDRESS;
-	size_t bytes = BOARD_FLASH_SIZE - (APP_LOAD_ADDRESS - IMXRT_FLEXSPI1_CIPHER_BASE);
+	size_t bytes = BOARD_SLOT_SIZE;
 
-	if (rvt == NULL) {
+	if (rvt == NULL || !slot_claims_signature()) {
 		return false;
 	}
 
