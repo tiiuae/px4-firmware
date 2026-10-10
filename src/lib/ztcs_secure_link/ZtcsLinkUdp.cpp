@@ -311,9 +311,10 @@ void ZtcsLinkUdp::print_stats() const
 		return;
 	}
 
-	PX4_INFO("ztcs link: %s, %" PRIu32 " hs, %" PRIu32 " rejected, tx %" PRIu32
+	PX4_INFO("ztcs link: %s, %s suite, %" PRIu32 " hs, %" PRIu32 " rejected, tx %" PRIu32
 		 ", rx %" PRIu32 ", peer %s:%u",
 		 _link->state == SECURE_LINK_ESTABLISHED ? "established" : "handshaking",
+		 NOISE_SUITE_NAME,
 		 _link->handshakes, _link->decrypt_fails, _tx, _rx, _remote,
 		 (unsigned)_remote_port);
 }
