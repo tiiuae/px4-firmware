@@ -50,6 +50,24 @@ px4_add_library(ztcs_secure_link
 # supplies its own backend against noise/noise_backend.h.
 target_include_directories(ztcs_secure_link PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+# ML-KEM-768 beside X25519. One compilation unit, the deterministic API only,
+# so the coins come from the board's TRNG through noise_random and no
+# randombytes has to exist. See noise/mlkem-native/VENDOR.md.
+if(CONFIG_LIB_ZTCS_SECURE_LINK_HFS)
+	target_sources(ztcs_secure_link PRIVATE
+		noise/kem_mlkem.c
+		noise/mlkem-native/mlkem/mlkem_native.c
+	)
+	target_include_directories(ztcs_secure_link PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/noise/mlkem-native/mlkem)
+	target_compile_definitions(ztcs_secure_link PUBLIC
+		NOISE_HFS
+		MLK_CONFIG_PARAMETER_SET=768
+		MLK_CONFIG_NAMESPACE_PREFIX=ztcs_mlkem
+		MLK_CONFIG_NO_RANDOMIZED_API
+	)
+endif()
+
 if(PX4_CRYPTO AND NOT DEFINED CONFIG_BUILD_FLAT AND "${PX4_PLATFORM}" MATCHES "nuttx")
 	target_sources(ztcs_secure_link PRIVATE handshake_kernel.cpp)
 	target_compile_definitions(ztcs_secure_link PUBLIC NOISE_HANDSHAKE_IN_KERNEL)

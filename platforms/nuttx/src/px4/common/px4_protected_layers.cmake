@@ -75,6 +75,21 @@ if (DEFINED PX4_CRYPTO)
 		target_compile_definitions(px4_kernel_layer PRIVATE
 			PX4_NOISE_KERNEL NOISE_STATIC_KEY_BY_INDEX NOISE_SESSION_KEY_BY_INDEX NOISE_RANDOM_EXTERNAL)
 		target_link_libraries(px4_kernel_layer PRIVATE nuttx_crypto px4_random)
+
+		# The handshake runs here, so the KEM does too: a user process
+		# never sees the ephemeral keys, the KEM's included.
+		if (CONFIG_LIB_ZTCS_SECURE_LINK_HFS)
+			target_sources(px4_kernel_layer PRIVATE
+				${NOISE_DIR}/kem_mlkem.c
+				${NOISE_DIR}/mlkem-native/mlkem/mlkem_native.c
+			)
+			target_include_directories(px4_kernel_layer PRIVATE ${NOISE_DIR}/mlkem-native/mlkem)
+			target_compile_definitions(px4_kernel_layer PRIVATE
+				NOISE_HFS
+				MLK_CONFIG_PARAMETER_SET=768
+				MLK_CONFIG_NAMESPACE_PREFIX=ztcs_mlkem
+				MLK_CONFIG_NO_RANDOMIZED_API)
+		endif()
 	endif()
 endif()
 
