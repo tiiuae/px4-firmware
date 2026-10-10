@@ -297,10 +297,6 @@ static struct {
 
 static_assert(NOISE_MSG2_LEN <= NOISE_MSG1_LEN, "the slot buffer carries both messages");
 
-static_assert(NOISE_MSG2_LEN <= NOISE_MSG1_LEN, "the slot buffer carries both messages");
-
-#if defined(NOISE_HFS)
-
 static void handshake_release(int i)
 {
 	noise_wipe(&g_handshakes[i], sizeof(g_handshakes[i]));

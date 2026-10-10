@@ -66,6 +66,10 @@ int noise_kem_encap(const uint8_t pk[NOISE_KEM_PUBLEN],
 #include <sched.h>
 #include <semaphore.h>
 
+#ifndef CONFIG_PX4_NOISE_KEM_STACKSIZE
+#define CONFIG_PX4_NOISE_KEM_STACKSIZE 32768
+#endif
+
 enum kem_op { KEM_PUBLIC, KEM_DECAP };
 
 static struct {
