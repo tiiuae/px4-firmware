@@ -22,6 +22,13 @@ extern "C" {
 
 void noise_sha256(const uint8_t *in, size_t len, uint8_t out[NOISE_HASHLEN]);
 
+/* Two chunks, one digest. MixHash is always a hash of h and one field, and
+ * the field can be a KEM key, so concatenating them first would mean a
+ * kilobyte of stack in the kernel for nothing.
+ */
+void noise_sha256_2(const uint8_t *a, size_t a_len, const uint8_t *b,
+                    size_t b_len, uint8_t out[NOISE_HASHLEN]);
+
 void noise_hmac_sha256(const uint8_t *key, size_t key_len, const uint8_t *msg,
                        size_t msg_len, uint8_t out[NOISE_HASHLEN]);
 
