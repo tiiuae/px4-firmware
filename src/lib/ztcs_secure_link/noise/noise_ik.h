@@ -49,6 +49,12 @@ extern "C" {
 #define NOISE_MSG2_LEN (1 + 32 + NOISE_TAGLEN)
 #endif
 
+#ifdef NOISE_HFS
+#define NOISE_SUITE_NAME "hybrid"
+#else
+#define NOISE_SUITE_NAME "classical"
+#endif
+
 #define NOISE_STATIC_KEY_CONTEXT "ztcs-mavlink-static-key:"
 
 enum noise_result {

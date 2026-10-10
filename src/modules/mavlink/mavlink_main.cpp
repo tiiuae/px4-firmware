@@ -844,9 +844,10 @@ void Mavlink::print_secure_link_status()
 {
 	static const char *const state_name[] = {"down", "handshaking", "established"};
 	const unsigned st = (unsigned)_secure_link.state;
-	printf("\tsecure link: %s, %u handshakes, %u refused\n",
+	printf("\tsecure link: %s, %s suite, %u handshakes, %u refused\n",
 	       !_secure_link_ready ? "unkeyed"
 	       : st < 3 ? state_name[st] : "unknown",
+	       NOISE_SUITE_NAME,
 	       (unsigned)_secure_link.handshakes,
 	       (unsigned)_secure_link.decrypt_fails);
 	printf("\tsessions dropped: %u silent, %u aged out; %u rekeys on failed frames, %u replays\n",
