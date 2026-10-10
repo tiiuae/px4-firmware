@@ -33,6 +33,18 @@
 if("${PX4_BOARD_LABEL}" STREQUAL  "bootloader")
 	add_compile_definitions(BOOTLOADER)
 
+	# Where the HAB command sequence file will be appended, matching the 8K
+	# the linker script keeps free. Set it to sign the bootloader; left unset
+	# the image carries no CSF pointer and the ROM has nothing to check.
+	if(NOT PX4_HAB_CSF_OFFSET AND DEFINED ENV{PX4_HAB_CSF_OFFSET})
+		set(PX4_HAB_CSF_OFFSET $ENV{PX4_HAB_CSF_OFFSET})
+	endif()
+
+	if(PX4_HAB_CSF_OFFSET)
+		add_compile_definitions(BOARD_HAB_CSF_OFFSET=${PX4_HAB_CSF_OFFSET})
+		message(STATUS "HAB: the IVT points at a CSF appended at ${PX4_HAB_CSF_OFFSET}")
+	endif()
+
 	# px4_platform asks for this on every NuttX build, bootloader included.
 	add_library(board_bus_info
 		bootloader_bus_info.c

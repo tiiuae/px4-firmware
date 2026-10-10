@@ -84,7 +84,11 @@
 
 #define DCD_ADDRESS                 0
 #define BOOT_DATA_ADDRESS           LOCATE_IN_DEST(&g_boot_data)
-#define CSF_ADDRESS                 0
+#if defined(BOARD_HAB_CSF_OFFSET)
+#  define CSF_ADDRESS               (FLASH_BASE + BOARD_HAB_CSF_OFFSET)
+#else
+#  define CSF_ADDRESS               0
+#endif
 #define PLUGIN_FLAG                 (uint32_t)0
 
 /* Located in Destination Memory */

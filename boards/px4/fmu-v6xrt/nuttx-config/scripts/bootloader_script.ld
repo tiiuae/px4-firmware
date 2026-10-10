@@ -34,7 +34,11 @@
 
 MEMORY
 {
-  flash (rx)  : ORIGIN = 0x30000000, LENGTH = 128K
+  /* The last 8K holds the HAB command sequence file, appended after the
+   * build. Reserving it here makes a bootloader that would reach it fail to
+   * link instead of overwriting its own signature.
+   */
+  flash (rx)  : ORIGIN = 0x30000000, LENGTH = 128K - 8K
   sram  (rwx) : ORIGIN = 0x20240000, LENGTH = 2M-256k-512k
   itcm  (rwx) : ORIGIN = 0x00000000, LENGTH = 256K   /* TODO FlexRAM partition */
   dtcm  (rwx) : ORIGIN = 0x20000000, LENGTH = 256K
@@ -189,6 +193,7 @@ SECTIONS
 
     _boot_loadaddr = ORIGIN(flash);
     _boot_size = LENGTH(flash);
+    _csf_start = ORIGIN(flash) + LENGTH(flash);
     _ram_size = LENGTH(sram);
     _sdtcm = ORIGIN(dtcm);
     _edtcm = ORIGIN(dtcm) + LENGTH(dtcm);
