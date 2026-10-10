@@ -65,6 +65,7 @@
 #define HAB_STS_ANY     0x00
 #define HAB_CID_CALLER  1
 #define HAB_EVENT_MAX   32
+#define HAB_MARK        0x48414231
 
 struct hab_rvt_s {
 	uint32_t hdr;
@@ -175,6 +176,7 @@ static const struct hab_rvt_s *hab_rvt(void)
 	return NULL;
 }
 
+locate_code(".ramfunc")
 static uint32_t hab_events(const struct hab_rvt_s *rvt)
 {
 	uint32_t n = 0;
@@ -185,6 +187,51 @@ static uint32_t hab_events(const struct hab_rvt_s *rvt)
 	}
 
 	return n;
+}
+
+locate_code(".ramfunc")
+static bool hab_accepts_slot(const struct hab_rvt_s *rvt)
+{
+	void *start = (void *)APP_LOAD_ADDRESS;
+	size_t bytes = BOARD_SLOT_SIZE;
+	irqstate_t flags = enter_critical_section();
+	uint32_t before = hab_events(rvt);
+
+	rvt->entry();
+	void *entry = rvt->authenticate_image(HAB_CID_CALLER, APP_IVT_OFFSET, &start, &bytes, NULL);
+	rvt->exit();
+
+	bool clean = entry != NULL && hab_events(rvt) == before;
+
+	ROM_FLEXSPI_NorFlash_ClearCache(1);
+	leave_critical_section(flags);
+	return clean;
+}
+
+static bool hab_mark_set(void)
+{
+	uint8_t block[FRAM_BLOCK_SIZE];
+	uint32_t mark;
+
+	if (fram() == NULL || MTD_BREAD(g_fram, BOARD_FRAM_HAB_BLOCK, 1, block) != 1) {
+		return false;
+	}
+
+	memcpy(&mark, block, sizeof(mark));
+	return mark == HAB_MARK;
+}
+
+static void hab_mark_write(uint32_t mark)
+{
+	uint8_t block[FRAM_BLOCK_SIZE];
+
+	if (fram() == NULL) {
+		return;
+	}
+
+	memset(block, 0xff, sizeof(block));
+	memcpy(block, &mark, sizeof(mark));
+	MTD_BWRITE(g_fram, BOARD_FRAM_HAB_BLOCK, 1, block);
 }
 
 static bool slot_claims_signature(void)
@@ -208,21 +255,23 @@ static bool slot_claims_signature(void)
 bool board_slot_verify(void)
 {
 	const struct hab_rvt_s *rvt = hab_rvt();
-	void *start = (void *)APP_LOAD_ADDRESS;
-	size_t bytes = BOARD_SLOT_SIZE;
 
 	if (rvt == NULL || !slot_claims_signature()) {
 		return false;
 	}
 
-	uint32_t events = hab_events(rvt);
+	if (hab_mark_set()) {
+		hab_mark_write(0);
+		return true;
+	}
 
+	hab_mark_write(HAB_MARK);
 	up_flush_dcache_all();
-	rvt->entry();
-	void *entry = rvt->authenticate_image(HAB_CID_CALLER, APP_IVT_OFFSET, &start, &bytes, NULL);
-	rvt->exit();
-
-	return entry != NULL && hab_events(rvt) == events;
+	bool clean = hab_accepts_slot(rvt);
+	up_invalidate_dcache_all();
+	up_invalidate_icache_all();
+	hab_mark_write(0);
+	return clean;
 }
 #endif
 
