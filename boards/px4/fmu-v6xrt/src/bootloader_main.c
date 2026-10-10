@@ -57,6 +57,7 @@
 #include <string.h>
 
 #include "slots.h"
+#include "uart.h"
 
 #define FRAM_BLOCK_SIZE 128
 
@@ -190,21 +191,33 @@ static uint32_t hab_events(const struct hab_rvt_s *rvt)
 }
 
 locate_code(".ramfunc")
+static void hab_step(char c)
+{
+	uart_cout((uint8_t *)&c, 1);
+}
+
+locate_code(".ramfunc")
 static bool hab_accepts_slot(const struct hab_rvt_s *rvt)
 {
 	void *start = (void *)APP_LOAD_ADDRESS;
 	size_t bytes = BOARD_SLOT_SIZE;
 	irqstate_t flags = enter_critical_section();
-	uint32_t before = hab_events(rvt);
 
+	hab_step('a');
 	rvt->entry();
+	hab_step('b');
+	uint32_t before = hab_events(rvt);
+	hab_step('c');
 	void *entry = rvt->authenticate_image(HAB_CID_CALLER, APP_IVT_OFFSET, &start, &bytes, NULL);
-	rvt->exit();
-
+	hab_step('d');
 	bool clean = entry != NULL && hab_events(rvt) == before;
+	hab_step('e');
+	rvt->exit();
+	hab_step('f');
 
 	ROM_FLEXSPI_NorFlash_ClearCache(1);
 	leave_critical_section(flags);
+	hab_step(clean ? 'Y' : 'N');
 	return clean;
 }
 
