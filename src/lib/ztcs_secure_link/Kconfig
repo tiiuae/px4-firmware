@@ -12,6 +12,35 @@ menuconfig LIB_ZTCS_SECURE_LINK
 		ephemeral keys. A session key drawn from an unseeded pool is
 		worthless whatever the protocol above it.
 
+config LIB_ZTCS_SECURE_LINK_HFS
+	bool "Hybrid forward secrecy (ML-KEM-768)"
+	depends on LIB_ZTCS_SECURE_LINK
+	default n
+	---help---
+		Add ML-KEM-768 to the handshake beside X25519, so a session
+		recorded today is not readable by a quantum computer later.
+		The session holds if either half holds.
+
+		Both ends or neither: the protocol name is part of the hash,
+		so a station without it cannot open a link from an aircraft
+		with it. The ground station end is the gateway's `hfs`
+		feature.
+
+		Handshake messages grow to 1394 and 1153 bytes, which the
+		radio carries in about 0.45 s each way, once per rekey.
+		Transport frames do not change.
+
+config PX4_NOISE_KEM_STACKSIZE
+	int "Stack for the KEM worker"
+	depends on LIB_ZTCS_SECURE_LINK_HFS
+	default 32768
+	---help---
+		ML-KEM-768 needs far more stack than a syscall has: measured
+		at 18.6 KB to generate a keypair and 22.9 KB to decapsulate,
+		against the 8 KB a syscall runs on. The handshake therefore
+		runs on a thread of its own and the caller waits. One stack
+		for the system, rather than raising every task's.
+
 config LIB_ZTCS_SECURE_LINK_IDENTITY_PATH
 	string "Signed identity payload"
 	depends on LIB_ZTCS_SECURE_LINK
