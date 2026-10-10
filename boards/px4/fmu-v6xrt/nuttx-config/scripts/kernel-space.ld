@@ -181,7 +181,8 @@ SECTIONS
     .debug_aranges 0 : { *(.debug_aranges) }
 
     _boot_loadaddr = ORIGIN(kflash);
-    _boot_size = LENGTH(kflash) + LENGTH(uflash);
+    _boot_size = LENGTH(kflash) + LENGTH(uflash) + 8K;
+    _csf_start = ORIGIN(uflash) + LENGTH(uflash);
     _ram_size = 0x20380000 - ORIGIN(ksram);
     _sdtcm = ORIGIN(dtcm);
     _edtcm = ORIGIN(dtcm) + LENGTH(dtcm);

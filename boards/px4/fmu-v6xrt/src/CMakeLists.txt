@@ -83,6 +83,15 @@ else()
 		list(APPEND SRCS se05x.c)
 	endif()
 
+	if(NOT PX4_HAB_SIGNED AND DEFINED ENV{PX4_HAB_SIGNED})
+		set(PX4_HAB_SIGNED $ENV{PX4_HAB_SIGNED})
+	endif()
+
+	if(PX4_HAB_SIGNED)
+		add_compile_definitions(BOARD_HAB_SIGNED=1)
+		message(STATUS "HAB: the application IVT points at the CSF slot")
+	endif()
+
 	# px4_platform links board_bus_info unconditionally, so every board that
 	# has buses has to offer it. Same split as the saluki boards.
 	add_library(board_bus_info

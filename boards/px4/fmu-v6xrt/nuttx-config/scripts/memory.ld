@@ -21,7 +21,7 @@
 MEMORY
 {
   kflash (rx)  : ORIGIN = 0x30020000, LENGTH = 2M-128K
-  uflash (rx)  : ORIGIN = 0x30200000, LENGTH = 2M
+  uflash (rx)  : ORIGIN = 0x30200000, LENGTH = 2M - 8K
   ksram  (rwx) : ORIGIN = 0x20240000, LENGTH = 480K
   ksec   (rw)  : ORIGIN = 0x202B8000, LENGTH = 32K
   usram  (rwx) : ORIGIN = 0x202C0000, LENGTH = 32K
