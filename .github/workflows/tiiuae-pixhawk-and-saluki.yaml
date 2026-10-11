@@ -73,6 +73,8 @@ jobs:
             include_in_packaging: false
           - product: saluki-nxp93_release
             include_in_packaging: false
+          - product: saluki-nxp93_hfs
+            include_in_packaging: false
     uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
     with:
       product: ${{ matrix.product }}
