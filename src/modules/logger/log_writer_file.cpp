@@ -630,12 +630,18 @@ size_t LogWriterFile::LogFileBuffer::get_read_ptr(void **ptr, bool *is_part)
 
 bool LogWriterFile::LogFileBuffer::start_log(const char *filename)
 {
-	_fd = ::open(filename, O_CREAT | O_WRONLY, PX4_O_MODE_666);
+	_fd = ::open(filename, O_CREAT | O_EXCL | O_WRONLY, PX4_O_MODE_666);
 
 	_had_write_error.store(false);
 
 	if (_fd < 0) {
-		PX4_ERR("Can't open log file %s, errno: %d", filename, errno);
+		if (errno == EEXIST) {
+			PX4_ERR("Log file with same name already exists %s", filename);
+
+		} else {
+			PX4_ERR("Can't open log file %s, errno: %d", filename, errno);
+		}
+
 		return false;
 	}
 
