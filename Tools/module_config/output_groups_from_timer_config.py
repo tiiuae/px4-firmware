@@ -47,10 +47,17 @@ def extract_timer_from_channel(line, num_channels_already_found):
     if search:
         return search.group(1)
 
-    # nxp rt1062 format: initIOTimerChannel(io_timers, {PWM::PWM2_PWM_A, PWM::Submodule0}, IOMUX::Pad::GPIO_B0_06),
+    # nxp rt1062/imxrt format: initIOTimerChannel(io_timers, {PWM::PWM2_PWM_A, PWM::Submodule0}, IOMUX::Pad::GPIO_B0_06),
+    # Channels sharing the same FlexPWM module + submodule (e.g. the A and B
+    # outputs of one submodule) share one hardware timer/rate, so group by
+    # that pair rather than assuming a 1:1 channel-to-timer-group mapping.
+    search = re.search('PWM::(PWM[0-9]+)_PWM_[A-Z0-9]+.*?PWM::(Submodule[0-9]+)', line, re.IGNORECASE)
+    if search:
+        return search.group(1) + '_' + search.group(2)
+
     search = re.search('PWM::(PWM[0-9]+)[_,\)]', line, re.IGNORECASE)
     if search:
-        # imxrt uses a 1:1 timer group to channel association
+        # fallback: assume a 1:1 timer group to channel association
         return str(num_channels_already_found)
 
     return None
@@ -117,6 +124,12 @@ def get_timer_groups(timer_config_file, verbose=False):
     channels = timer_config[open_idx:close_idx]
     channel_timers = []
     channel_types = []
+    # For imxrt boards, extract_timer_from_channel() returns either a raw
+    # "PWMx_SubmoduleY" key (channels sharing one hardware timer/rate) or,
+    # as a fallback, a 1:1 per-channel index. Translate the former into the
+    # synthetic 0..15 indices "timers"/"dshot_support" above are keyed by,
+    # reusing the same index for channels that share one key.
+    imxrt_channel_timer_map = {}
 
     for line in channels.splitlines():
         line = line.strip()
@@ -129,6 +142,12 @@ def get_timer_groups(timer_config_file, verbose=False):
         if timer:
             if verbose: print('Found timer: {:} in channel line {:}'.format(timer, line))
             channel_types.append('cap' if 'capture' in line.lower() else 'pwm')
+
+            if timer_type == 'imxrt' and not timer.isdigit():
+                if timer not in imxrt_channel_timer_map:
+                    imxrt_channel_timer_map[timer] = str(len(imxrt_channel_timer_map))
+                timer = imxrt_channel_timer_map[timer]
+
             channel_timers.append(timer)
         else:
             # Make sure we don't miss anything (e.g. for different syntax) or misparse (e.g. multi-line comments)
@@ -137,7 +156,25 @@ def get_timer_groups(timer_config_file, verbose=False):
     if len(channel_timers) == 0:
         raise Exception('No channels found in "{:}"'.format(channels))
 
-    groups = [(timers.index(k), len(list(g)), dshot_support[k]) for k, g in groupby(channel_timers)]
+    groups = []
+    channel_offset = 0
+
+    for k, g in groupby(channel_timers):
+        group_count = len(list(g))
+
+        if timer_type == 'imxrt':
+            # dshot_support above is keyed by a 1:1 channel index, which no
+            # longer matches a group's key once channels sharing one timer
+            # (e.g. the A/B outputs of one submodule) are grouped together.
+            # A group is dshot-capable only if all the channels it covers
+            # fall within the first 8 (FlexIO has 8 shifters).
+            group_dshot_support = (channel_offset + group_count) <= 8
+        else:
+            group_dshot_support = dshot_support[k]
+
+        groups.append((timers.index(k), group_count, group_dshot_support))
+        channel_offset += group_count
+
     outputs = {
         'types': channel_types,
         'groups': groups
