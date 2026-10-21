@@ -150,7 +150,7 @@ jobs:
       - fc_matrix
     steps:
       - name: Checkout px4-firmware
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           path: px4-firmware
           submodules: true
@@ -366,7 +366,7 @@ jobs:
       - fc_matrix
     steps:
       - name: Checkout px4-firmware
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           path: px4-firmware
           submodules: true
