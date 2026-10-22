@@ -151,7 +151,7 @@ typedef enum _FlexSpiSerialClockFreq {
 	kFlexSpiSerialClk_133MHz = 8,
 	kFlexSpiSerialClk_166MHz = 9,
 } flexspi_serial_clk_freq_t;
-#elif defined(CONFIG_ARCH_FAMILY_IMXRT117x)
+#elif defined(CONFIG_ARCH_FAMILY_IMXRT117x) || defined(CONFIG_ARCH_FAMILY_IMXRT118x)
 //!@brief Definitions for FlexSPI Serial Clock Frequency
 typedef enum _FlexSpiSerialClockFreq {
 	kFlexSpiSerialClk_30MHz  = 1,
