@@ -286,7 +286,7 @@ bool RcvTopicsPubs::init(uxrSession *session, uxrStreamId reliable_out_stream_id
 {
 @[    for idx, sub in enumerate(subscriptions)]@
 	{
-			uint16_t queue_depth = orb_get_queue_size(ORB_ID(@(sub['simple_base_type']))) * 2; // use a bit larger queue size than internal
+			uint16_t queue_depth = orb_get_queue_size(ORB_ID(@(sub['topic_simple']))) * 2; // use a bit larger queue size than internal
 			uint32_t message_version = get_message_version<@(sub['simple_base_type'])_s>();
 
 			if (!create_data_reader(session, reliable_out_stream_id, best_effort_in_stream_id, participant_id, @(idx), client_namespace, "@(sub['topic_name'])", message_version, "@(sub['dds_type'])", queue_depth)) {
