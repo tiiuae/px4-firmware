@@ -39,6 +39,7 @@
 #include <nuttx/config.h>
 #include <nuttx/fs/fs.h>
 #include <poll.h>
+#include <pthread.h>
 #include <errno.h>
 #include <cstdio>
 #include <ctime>
