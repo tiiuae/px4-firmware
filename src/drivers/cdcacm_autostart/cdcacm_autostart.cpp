@@ -584,7 +584,7 @@ bool CdcAcmAutostart::start_nsh()
 bool CdcAcmAutostart::start_ublox_serial_passthru(speed_t baudrate)
 {
 	char baudstring[16];
-	snprintf(baudstring, sizeof(baudstring), "%ld", baudrate);
+	snprintf(baudstring, sizeof(baudstring), "%lu", (unsigned long)baudrate);
 
 	// Stop the GPS driver first
 	char *gps_argv[] { (char *)"gps", (char *)"stop", nullptr };
@@ -688,7 +688,7 @@ int CdcAcmAutostart::print_status()
 	PX4_INFO("State: %s", state);
 	PX4_INFO("Protocol: %s", protocol);
 	PX4_INFO("VBUS: %s", _vbus_present ? "present" : "absent");
-	PX4_INFO("SYS_USB_AUTO: %ld", _sys_usb_auto.get());
+	PX4_INFO("SYS_USB_AUTO: %" PRId32, _sys_usb_auto.get());
 
 	return PX4_OK;
 }
