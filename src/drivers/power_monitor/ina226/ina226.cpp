@@ -296,7 +296,7 @@ void INA226::print_status()
 	}
 
 	PX4_INFO("state: %s", state_str);
-	PX4_INFO("sample interval: %llu us", SAMPLE_INTERVAL_US);
+	PX4_INFO("sample interval: %" PRIu64 " us", SAMPLE_INTERVAL_US);
 	perf_print_counter(_sample_perf);
 	perf_print_counter(_comms_errors);
 	perf_print_counter(_collection_errors);
@@ -318,7 +318,7 @@ I2CSPIDriverBase *INA226::instantiate(const I2CSPIDriverConfig &config, int /*ru
 
 	} else if (config.keep_running) {
 		// Driver stays alive even if the device isn't powered yet; RunImpl will retry.
-		PX4_INFO("ina226 init failed on bus %d, will retry every %llu ms.", config.bus, INIT_RETRY_INTERVAL_US / 1000);
+		PX4_INFO("ina226 init failed on bus %d, will retry every %" PRIu64 " ms.", config.bus, INIT_RETRY_INTERVAL_US / 1000);
 		instance->ScheduleDelayed(INIT_RETRY_INTERVAL_US);
 
 	} else {

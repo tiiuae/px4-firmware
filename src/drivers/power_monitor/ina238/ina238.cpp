@@ -311,7 +311,7 @@ void INA238::print_status()
 	}
 
 	PX4_INFO("state: %s", state_str);
-	PX4_INFO("sample interval: %llu us", SAMPLE_INTERVAL_US);
+	PX4_INFO("sample interval: %" PRIu64 " us", SAMPLE_INTERVAL_US);
 	perf_print_counter(_sample_perf);
 	perf_print_counter(_comms_errors);
 	perf_print_counter(_collection_errors);
