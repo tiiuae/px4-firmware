@@ -1,0 +1,159 @@
+/****************************************************************************
+ * Secure link, aircraft side. Terminates
+ * Noise_IK_25519_ChaChaPoly_SHA256 against ztcs-mavlink-gateway; the wire
+ * contract is docs/rfc-secure-link.md in tiiuae/ZTCS.
+ *
+ * Sans-io: the caller owns the socket and the clock, which is what makes
+ * the state machine testable off the aircraft.
+ ****************************************************************************/
+
+#pragma once
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include "handshake.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* A MAVLink v2 frame plus 25 bytes of transport overhead, rounded up. */
+#define SECURE_LINK_MTU 512
+
+/* What a datagram buffer has to hold. Transport frames stay inside the MTU,
+ * but a handshake message does not once the KEM fields are in it, so the
+ * caller sizes its buffers by this and not by the MTU.
+ */
+#if NOISE_MSG1_LEN > SECURE_LINK_MTU
+#define SECURE_LINK_FRAME_MAX NOISE_MSG1_LEN
+#else
+#define SECURE_LINK_FRAME_MAX SECURE_LINK_MTU
+#endif
+
+/* Over raw UDP a lost message 1 is a dead session, so retransmit is ours. */
+#ifndef SECURE_LINK_RETRY_MIN_US
+#define SECURE_LINK_RETRY_MIN_US     100000ULL   /* 100 ms */
+#endif
+#ifndef SECURE_LINK_RETRY_CAP_US
+#define SECURE_LINK_RETRY_CAP_US    2000000ULL   /* 2 s */
+#endif
+
+#ifndef SECURE_LINK_SILENCE_US
+#define SECURE_LINK_SILENCE_US     10000000ULL   /* nothing opened in 10 s */
+#endif
+#ifndef SECURE_LINK_REKEY_US
+#define SECURE_LINK_REKEY_US      600000000ULL
+#endif
+#ifndef SECURE_LINK_MAX_AGE_US
+#define SECURE_LINK_MAX_AGE_US   1200000000ULL
+#endif
+#ifndef SECURE_LINK_DECRYPT_FAILS
+#define SECURE_LINK_DECRYPT_FAILS        16      /* peer restarted, likely */
+#endif
+
+enum secure_link_state {
+	SECURE_LINK_DOWN = 0,   /* no keys */
+	SECURE_LINK_HANDSHAKING,
+	SECURE_LINK_ESTABLISHED,
+};
+
+/* Neither private key appears here. The link key is a handle the backend
+ * resolves, and the identity key only ever signs.
+ */
+struct secure_link_keys {
+	struct noise_static_key link;
+	uint8_t station_public[NOISE_DHLEN];
+	uint8_t identity[NOISE_IDENTITY_PAYLOAD_LEN];
+};
+
+struct secure_link {
+	enum secure_link_state state;
+	struct secure_link_keys keys;
+	struct noise_hs hs;
+	struct noise_session session;
+	struct noise_session previous;
+	bool has_previous;
+	bool rekeying;
+
+	uint64_t established_us;
+	uint64_t next_rekey_us;
+	uint64_t next_retry_us;
+	uint64_t retry_interval_us;
+	uint64_t last_open_us;   /* last frame that passed the AEAD */
+	uint32_t decrypt_fails;
+
+	/* For the log: a link that rekeys often is a symptom. */
+	uint32_t handshakes;
+	uint32_t silence_drops;
+	uint32_t age_drops;
+	uint32_t fail_rekeys;
+	uint64_t last_fail_rekey_us;
+	uint32_t replays;
+	uint64_t last_drop_us;
+};
+
+/* Returns 0, or a negative NOISE_ERR_*. */
+int secure_link_init(struct secure_link *sl,
+		     const struct secure_link_keys *keys, uint64_t now_us);
+
+/* Datagram due now, or 0. Retransmit and the silence trigger live here, so
+ * it runs whether or not there is traffic.
+ */
+int secure_link_poll(struct secure_link *sl, uint64_t now_us,
+		     uint8_t *out, size_t cap);
+
+/* Negative means no session yet: drop, do not retry. */
+int secure_link_seal(struct secure_link *sl, uint64_t now_us,
+		     const uint8_t *pt, size_t pt_len,
+		     uint8_t *out, size_t cap);
+
+/* Plaintext length, 0 if the datagram was protocol and consumed,
+ * negative if rejected.
+ */
+int secure_link_open(struct secure_link *sl, uint64_t now_us,
+		     const uint8_t *frame, size_t len,
+		     uint8_t *out, size_t cap);
+
+/* Releases the session keys. Before the link's memory goes away. */
+void secure_link_close(struct secure_link *sl);
+
+/* Generates the static private key on first boot if absent. False also
+ * means "has a key, not enrolled yet", which is a normal first boot.
+ */
+bool secure_link_ensure_keys(struct secure_link_keys *keys);
+
+/* For enrolment to sign. The private half has no accessor. */
+bool secure_link_public_key(uint8_t out[NOISE_DHLEN]);
+
+/* Pins the operator key. Pinning the same key again is a no-op; any other is
+ * refused: the aircraft must not be talked into trusting a second operator.
+ */
+bool secure_link_pin_operator(const uint8_t operator_public[32]);
+
+bool secure_link_enrolment_closed(void);
+
+bool secure_link_enrolled(void);
+
+/* Stores the station key to pin. Once an operator key is pinned the write
+ * must carry that operator's signature over the station key, so a fielded
+ * aircraft cannot be pointed at another ground station.
+ */
+bool secure_link_enroll(const uint8_t station_public[NOISE_DHLEN],
+			const uint8_t *signature);
+
+/* Signs this aircraft's link key with an identity key of its own, generating
+ * one on first use, and stores the result; afterwards returns the stored one.
+ * Hand the payload to enrolment.
+ */
+bool secure_link_self_sign(uint8_t out[NOISE_IDENTITY_PAYLOAD_LEN]);
+
+static inline bool secure_link_is_up(const struct secure_link *sl)
+{
+	return sl->state == SECURE_LINK_ESTABLISHED;
+}
+
+#ifdef __cplusplus
+}
+#endif

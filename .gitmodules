@@ -166,3 +166,6 @@
 [submodule "boards/ssrc/salukini"]
 	path = boards/ssrc/salukini
 	url = ../salukini.git
+[submodule "src/lib/secure_mavlink/noise/sm-noise-c"]
+	path = src/lib/secure_mavlink/noise/sm-noise-c
+	url = git@github.com:tiiuae/sm-noise-c.git
