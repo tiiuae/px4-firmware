@@ -64,6 +64,7 @@
 #include <perf/perf_counter.h>
 #include <px4_platform_common/cli.h>
 #include <px4_platform_common/px4_config.h>
+#include <px4_platform_common/sem.h>
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/getopt.h>
 #include <px4_platform_common/module.h>
@@ -104,6 +105,11 @@ enum class Protocol {
 };
 
 using namespace time_literals;
+
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+#include <lib/secure_mavlink/cobs.h>
+#include <lib/secure_mavlink/secure_link.h>
+#endif
 
 class Mavlink final : public ModuleParams
 {
@@ -645,7 +651,38 @@ private:
 	const char 		*_interface_name{nullptr};
 
 	int			_socket_fd{-1};
-	Protocol		_protocol{Protocol::SERIAL};
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+	struct secure_link	_secure_link {};
+	bool			_secure_link_ready{false};
+	hrt_abstime		_secure_link_arm_us{0};
+	int			_secure_link_last_err{0};
+	int			_secure_link_open_err{0};
+	bool			_secure_serial{false};
+	/* Sealing runs on the sender, opening on the receiver pthread. A torn
+	 * nonce increment repeats a nonce, which breaks ChaCha20-Poly1305.
+	 */
+	pthread_mutex_t		_secure_link_mutex {};
+	bool			arm_secure_link(const hrt_abstime now);
+	int			secure_link_transmit(const uint8_t *frame, size_t len);
+	int			secure_link_send_buf();
+	void			print_secure_link_status();
+public:
+	bool			secure_serial() const { return _secure_serial; }
+	struct secure_link	*get_secure_link() { return &_secure_link; }
+	bool			secure_link_ready() const { return _secure_link_ready; }
+	void			note_secure_link_open(int rc);
+	void			lock_secure_link() { pthread_mutex_lock(&_secure_link_mutex); }
+	void			unlock_secure_link() { pthread_mutex_unlock(&_secure_link_mutex); }
+	bool			secure_link_up()
+	{
+		lock_secure_link();
+		const bool up = _secure_link_ready && secure_link_is_up(&_secure_link);
+		unlock_secure_link();
+		return up;
+	}
+private:
+#endif
+	Protocol		_protocol {Protocol::SERIAL};
 
 	radio_status_s		_rstatus {};
 	telemetry_status_s	_tstatus {};
@@ -656,7 +693,7 @@ private:
 	pthread_mutex_t		_message_buffer_mutex{};
 	VariableLengthRingbuffer _message_buffer{};
 
-	pthread_mutex_t		_send_mutex {};
+	px4_sem_t		_send_mutex {};
 	pthread_mutex_t         _radio_status_mutex {};
 
 	bool			_crit_act_enabled{false};

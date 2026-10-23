@@ -76,6 +76,12 @@
 #define MAVLINK_NET_ADDED_STACK 0
 #endif
 
+#ifdef CONFIG_LIB_SECURE_MAVLINK
+#define MAVLINK_SECURE_ADDED_STACK PX4_STACK_ADJUSTED(1800)
+#else
+#define MAVLINK_SECURE_ADDED_STACK 0
+#endif
+
 #define FLOW_CONTROL_DISABLE_THRESHOLD 40              ///< picked so that some messages still would fit it.
 #define MAX_DATA_RATE                  10000000        ///< max data rate in bytes/s
 #define MAIN_LOOP_DELAY                10000           ///< 100 Hz @ 1000 bytes/s data rate
@@ -163,6 +169,10 @@ Mavlink::~Mavlink()
 	if (_instance_id >= 0) {
 		mavlink_module_instances[_instance_id] = nullptr;
 	}
+
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+	secure_link_close(&_secure_link);
+#endif
 
 	// if this instance was responsible for checking events then select a new mavlink instance
 	if (check_events()) {
@@ -744,7 +754,8 @@ Mavlink::get_free_tx_buf()
 
 void Mavlink::send_start(int length)
 {
-	pthread_mutex_lock(&_send_mutex);
+	do {} while (px4_sem_wait(&_send_mutex) != 0);
+
 	_last_write_try_time = hrt_absolute_time();
 
 	// check if there is space in the buffer
@@ -762,10 +773,100 @@ void Mavlink::send_start(int length)
 	}
 }
 
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+/* A refused datagram is either an attacker or a broken link, and the two look
+ * identical from silence.
+ */
+void Mavlink::note_secure_link_open(int rc)
+{
+	if (rc < 0 && rc != _secure_link_open_err) {
+		_secure_link_open_err = rc;
+		PX4_ERR("secure link refused a datagram: %d", rc);
+
+	} else if (rc > 0) {
+		_secure_link_open_err = 0;
+	}
+}
+
+bool Mavlink::arm_secure_link(const hrt_abstime now)
+{
+	struct secure_link_keys keys {};
+	const bool ok = secure_link_ensure_keys(&keys);
+
+	if (ok) {
+		lock_secure_link();
+		secure_link_init(&_secure_link, &keys, now);
+		unlock_secure_link();
+		_secure_link_ready = true;
+		PX4_INFO("secure link armed");
+	}
+
+	memset(&keys, 0, sizeof(keys));
+	return ok;
+}
+
+int Mavlink::secure_link_transmit(const uint8_t *frame, size_t len)
+{
+	if (_secure_serial) {
+		uint8_t out[COBS_ENCODED_MAX(SECURE_LINK_FRAME_MAX) + 2];
+		const size_t n = cobs_encode(frame, len, out + 1);
+		out[0] = 0;
+		out[n + 1] = 0;
+		return ::write(_uart_fd, out, n + 2) == (ssize_t)(n + 2) ? (int)len : -1;
+	}
+
+#if defined(MAVLINK_UDP)
+	return ::send(_socket_fd, frame, len, 0) == (ssize_t)len ? (int)len : -1;
+#else
+	return -1;
+#endif
+}
+
+int Mavlink::secure_link_send_buf()
+{
+	uint8_t sealed[SECURE_LINK_MTU];
+	int sealed_len = -1;
+
+	if (_secure_link_ready) {
+		lock_secure_link();
+		sealed_len = secure_link_seal(&_secure_link, hrt_absolute_time(),
+					      _buf, _buf_fill, sealed, sizeof(sealed));
+		unlock_secure_link();
+	}
+
+	if (sealed_len > 0 && secure_link_transmit(sealed, sealed_len) == sealed_len) {
+		return (int)_buf_fill;
+	}
+
+	return -1;
+}
+
+void Mavlink::print_secure_link_status()
+{
+	static const char *const state_name[] = {"down", "handshaking", "established"};
+	const unsigned st = (unsigned)_secure_link.state;
+	printf("\tsecure link: %s, %s suite, %u handshakes, %u refused\n",
+	       !_secure_link_ready ? "unkeyed"
+	       : st < 3 ? state_name[st] : "unknown",
+	       NOISE_SUITE_NAME,
+	       (unsigned)_secure_link.handshakes,
+	       (unsigned)_secure_link.decrypt_fails);
+	printf("\tsessions dropped: %u silent, %u aged out; %u rekeys on failed frames, %u replays\n",
+	       (unsigned)_secure_link.silence_drops,
+	       (unsigned)_secure_link.age_drops,
+	       (unsigned)_secure_link.fail_rekeys,
+	       (unsigned)_secure_link.replays);
+
+	if (_secure_link.last_drop_us != 0) {
+		printf("\tlast drop at %.1f s uptime\n", (double)_secure_link.last_drop_us / 1e6);
+	}
+}
+#endif
+
 void Mavlink::send_finish()
 {
 	if (_tx_buffer_low || (_buf_fill == 0)) {
-		pthread_mutex_unlock(&_send_mutex);
+		px4_sem_post(&_send_mutex);
 		return;
 	}
 
@@ -773,7 +874,16 @@ void Mavlink::send_finish()
 
 	// send message to UART
 	if (get_protocol() == Protocol::SERIAL) {
-		ret = ::write(_uart_fd, _buf, _buf_fill);
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+
+		if (_secure_serial) {
+			ret = secure_link_send_buf();
+
+		} else
+#endif
+		{
+			ret = ::write(_uart_fd, _buf, _buf_fill);
+		}
 	}
 
 #if defined(MAVLINK_UDP)
@@ -784,11 +894,27 @@ void Mavlink::send_finish()
 
 		if (_src_addr_initialized) {
 # endif // CONFIG_NET
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+			/* Fail closed: unkeyed, or not yet through the handshake,
+			 * means nothing leaves. Dropping is right rather than
+			 * retrying, because MAVLink is a stream of state. The caller
+			 * compares ret against _buf_fill and throttles the link on the
+			 * difference, so a sealed frame reports the payload it carried.
+			 */
+			ret = secure_link_send_buf();
+#else
 			ret = sendto(_socket_fd, _buf, _buf_fill, 0, (struct sockaddr *)&_src_addr, sizeof(_src_addr));
+#endif
 # if defined(CONFIG_NET)
 		}
 
 # endif // CONFIG_NET
+
+		/* Broadcast is addressed to whoever is listening, so it has no
+		 * session to seal under and would put in the clear what the rest
+		 * of this protects.
+		 */
+#if !defined(CONFIG_LIB_SECURE_MAVLINK)
 
 		if ((_mode != MAVLINK_MODE_ONBOARD) && broadcast_enabled() &&
 		    (!get_client_source_initialized() || !is_gcs_connected())) {
@@ -812,6 +938,8 @@ void Mavlink::send_finish()
 				}
 			}
 		}
+
+#endif // !CONFIG_LIB_SECURE_MAVLINK
 	}
 
 #endif // MAVLINK_UDP
@@ -827,7 +955,7 @@ void Mavlink::send_finish()
 
 	_buf_fill = 0;
 
-	pthread_mutex_unlock(&_send_mutex);
+	px4_sem_post(&_send_mutex);
 }
 
 void Mavlink::send_bytes(const uint8_t *buf, unsigned packet_len)
@@ -1019,6 +1147,21 @@ void Mavlink::init_udp()
 	}
 
 	_src_addr.sin_port = htons(_remote_port);
+
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+
+	if (!_src_addr_initialized) {
+		PX4_ERR("secure link needs a fixed peer: -c, -t or -i");
+		::close(_socket_fd);
+		_socket_fd = -1;
+
+	} else if (connect(_socket_fd, (struct sockaddr *)&_src_addr, sizeof(_src_addr)) < 0) {
+		PX4_ERR("connect failed: %s", strerror(errno));
+		::close(_socket_fd);
+		_socket_fd = -1;
+	}
+
+#endif
 }
 #endif // MAVLINK_UDP
 
@@ -2193,8 +2336,30 @@ Mavlink::task_main(int argc, char *argv[])
 	}
 
 	pthread_mutex_init(&_message_buffer_mutex, nullptr);
-	pthread_mutex_init(&_send_mutex, nullptr);
+	px4_mutex_init(&_send_mutex, 0);
 	pthread_mutex_init(&_radio_status_mutex, nullptr);
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+	pthread_mutex_init(&_secure_link_mutex, nullptr);
+	_secure_serial = get_protocol() == Protocol::SERIAL && !_is_usb_uart;
+
+	if (!arm_secure_link(hrt_absolute_time())) {
+		PX4_ERR("no link keys; UDP MAVLink stays closed");
+
+		/* The only way the public half leaves, printed when it is wanted. */
+		uint8_t pub[NOISE_DHLEN];
+
+		if (secure_link_public_key(pub)) {
+			char hex[NOISE_DHLEN * 2 + 1];
+
+			for (unsigned i = 0; i < NOISE_DHLEN; i++) {
+				snprintf(&hex[i * 2], 3, "%02x", pub[i]);
+			}
+
+			PX4_INFO("enrol this static key: %s", hex);
+		}
+	}
+
+#endif
 
 	/* if we are passing on mavlink messages, we need to prepare a buffer for this instance */
 	if (get_forwarding_on()) {
@@ -2312,6 +2477,43 @@ Mavlink::task_main(int argc, char *argv[])
 
 			mavlink_poll_error_counter++;
 		}
+
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+
+		/* Ahead of should_transmit(), because a handshake is what makes
+		 * transmitting possible rather than a consequence of it.
+		 */
+		if ((get_protocol() == Protocol::UDP && _src_addr_initialized) || _secure_serial) {
+			const hrt_abstime now = hrt_absolute_time();
+
+			/* Enrolment happens while this is running, so the keys are
+			 * worth another look rather than only read once at startup.
+			 */
+			if (!_secure_link_ready && now > _secure_link_arm_us) {
+				_secure_link_arm_us = now + 5_s;
+				arm_secure_link(now);
+			}
+
+			if (_secure_link_ready) {
+				uint8_t frame[SECURE_LINK_FRAME_MAX];
+				lock_secure_link();
+				int frame_len = secure_link_poll(&_secure_link, now, frame, sizeof(frame));
+				unlock_secure_link();
+
+				if (frame_len > 0) {
+					secure_link_transmit(frame, frame_len);
+
+				} else if (frame_len < 0 && frame_len != _secure_link_last_err) {
+					/* Silence here means a link that can never connect and
+					 * never says why.
+					 */
+					_secure_link_last_err = frame_len;
+					PX4_ERR("secure link cannot start a handshake: %d", frame_len);
+				}
+			}
+		}
+
+#endif
 
 		if (!should_transmit()) {
 			check_requested_subscriptions();
@@ -2646,7 +2848,7 @@ Mavlink::task_main(int argc, char *argv[])
 		_mavlink_ulog = nullptr;
 	}
 
-	pthread_mutex_destroy(&_send_mutex);
+	px4_sem_destroy(&_send_mutex);
 	pthread_mutex_destroy(&_radio_status_mutex);
 	pthread_mutex_destroy(&_message_buffer_mutex);
 
@@ -2872,7 +3074,7 @@ Mavlink::start(int argc, char *argv[])
 	px4_task_spawn_cmd("mavlink_main",
 			   SCHED_DEFAULT,
 			   SCHED_PRIORITY_DEFAULT,
-			   PX4_STACK_ADJUSTED(2896) + MAVLINK_NET_ADDED_STACK,
+			   PX4_STACK_ADJUSTED(2896) + MAVLINK_NET_ADDED_STACK + MAVLINK_SECURE_ADDED_STACK,
 			   (px4_main_t)&Mavlink::start_helper,
 			   (char *const *)argv);
 
@@ -2980,6 +3182,10 @@ Mavlink::display_status()
 		printf("\tMulticast enabled: %s\n",
 		       multicast_enabled() ? "YES" : "NO");
 
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+		print_secure_link_status();
+#endif
+
 		if (get_client_source_initialized()) {
 			printf("\tpartner IP: %s\n", inet_ntoa(get_client_source_address().sin_addr));
 		}
@@ -2989,6 +3195,13 @@ Mavlink::display_status()
 
 	case Protocol::SERIAL:
 		printf("serial (%s @%i)\n", _device_name, _baudrate);
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+
+		if (_secure_serial) {
+			print_secure_link_status();
+		}
+
+#endif
 		break;
 	}
 

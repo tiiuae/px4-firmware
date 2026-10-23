@@ -3167,6 +3167,43 @@ MavlinkReceiver::handle_message_attitude_target(mavlink_message_t *msg)
 	}
 }
 
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+ssize_t
+MavlinkReceiver::open_secure_serial(const uint8_t *in, ssize_t len)
+{
+	uint8_t frame[SECURE_LINK_FRAME_MAX];
+	size_t out = 0;
+
+	for (ssize_t i = 0; i < len; i++) {
+		const int n = cobs_rx_push(&_cobs_rx, in[i], frame, sizeof(frame));
+
+		if (n <= 0) {
+			continue;
+		}
+
+		int plain_len = -1;
+
+		if (_mavlink->secure_link_ready()) {
+			_mavlink->lock_secure_link();
+			plain_len = secure_link_open(_mavlink->get_secure_link(), hrt_absolute_time(), frame, n,
+						     _secure_plain + out, sizeof(_secure_plain) - out);
+			_mavlink->unlock_secure_link();
+		}
+
+		_mavlink->note_secure_link_open(plain_len);
+
+		if (plain_len > 0) {
+			out += plain_len;
+
+		} else {
+			_mavlink->count_rxbytes(n);
+		}
+	}
+
+	return (ssize_t)out;
+}
+#endif
+
 void
 MavlinkReceiver::run()
 {
@@ -3184,8 +3221,15 @@ MavlinkReceiver::run()
 	/* 1500 is the Wifi MTU, so we make sure to fit a full packet */
 	uint8_t buf[1600 * 5];
 #elif defined(CONFIG_NET)
-	/* 1500 is the Wifi MTU, so we make sure to fit a full packet */
+	/* 1500 is the Wifi MTU, so we make sure to fit a full packet, and a
+	 * handshake datagram is larger than a MAVLink one once the secure link
+	 * carries a KEM field.
+	 */
+#if defined(CONFIG_LIB_SECURE_MAVLINK) && SECURE_LINK_FRAME_MAX > 1000
+	uint8_t buf[SECURE_LINK_FRAME_MAX];
+#else
 	uint8_t buf[1000];
+#endif
 #else
 	/* the serial port buffers internally as well, we just need to fit a small chunk */
 	uint8_t buf[64];
@@ -3226,15 +3270,33 @@ MavlinkReceiver::run()
 		}
 
 		int ret = poll(&fds[0], 1, timeout);
+		const uint8_t *data = buf;
 
 		if (ret > 0) {
 			if (_mavlink->get_protocol() == Protocol::SERIAL) {
+				size_t cap = sizeof(buf);
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+
+				if (_mavlink->secure_serial() && cap > SECURE_SERIAL_READ) {
+					cap = SECURE_SERIAL_READ;
+				}
+
+#endif
 				/* non-blocking read. read may return negative values */
-				nread = ::read(fds[0].fd, buf, sizeof(buf));
+				nread = ::read(fds[0].fd, buf, cap);
 
 				if (nread == -1 && errno == ENOTCONN) { // Not connected (can happen for USB)
 					usleep(100000);
 				}
+
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+
+				if (nread > 0 && _mavlink->secure_serial()) {
+					nread = open_secure_serial(buf, nread);
+					data = _secure_plain;
+				}
+
+#endif
 			}
 
 #if defined(MAVLINK_UDP)
@@ -3243,6 +3305,44 @@ MavlinkReceiver::run()
 				if (fds[0].revents & POLLIN) {
 					nread = recvfrom(_mavlink->get_socket_fd(), buf, sizeof(buf), 0, (struct sockaddr *)&srcaddr, &addrlen);
 				}
+
+#if defined(CONFIG_LIB_SECURE_MAVLINK)
+
+				if (nread > 0) {
+					/* Fail closed here too: unkeyed means the parser sees
+					 * nothing, rather than commands from anyone who can
+					 * reach the port.
+					 */
+					static_assert(sizeof(_secure_plain) >= SECURE_LINK_MTU, "UDP plaintext fits the serial buffer");
+					int plain_len = -1;
+
+					if (_mavlink->secure_link_ready()) {
+						_mavlink->lock_secure_link();
+						plain_len = secure_link_open(_mavlink->get_secure_link(), hrt_absolute_time(),
+									     buf, nread, _secure_plain, SECURE_LINK_MTU);
+						_mavlink->unlock_secure_link();
+					}
+
+					_mavlink->note_secure_link_open(plain_len);
+
+					/* 0 was a consumed handshake, negative was refused.
+					 * Neither is MAVLink.
+					 */
+					if (plain_len > 0) {
+						data = _secure_plain;
+						nread = plain_len;
+
+					} else {
+						/* The bytes arrived, whatever they turned out to be,
+						 * and a receive counter that says otherwise hides a
+						 * station that is answering.
+						 */
+						_mavlink->count_rxbytes(nread);
+						nread = 0;
+					}
+				}
+
+#endif // CONFIG_LIB_SECURE_MAVLINK
 
 				struct sockaddr_in &srcaddr_last = _mavlink->get_client_source_address();
 
@@ -3274,8 +3374,7 @@ MavlinkReceiver::run()
 
 				/* if read failed, this loop won't execute */
 				for (ssize_t i = 0; i < nread; i++) {
-					if (mavlink_parse_char(_mavlink->get_channel(), buf[i], &msg, &_status)) {
-
+					if (mavlink_parse_char(_mavlink->get_channel(), data[i], &msg, &_status)) {
 						/* check if we received version 2 and request a switch. */
 						if (!(_mavlink->get_status()->flags & MAVLINK_STATUS_FLAG_IN_MAVLINK1)) {
 							/* this will only switch to proto version 2 if allowed in settings */
