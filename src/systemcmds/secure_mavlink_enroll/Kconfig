@@ -1,0 +1,18 @@
+menuconfig SYSTEMCMDS_SECURE_MAVLINK_ENROLL
+	bool "secure_mavlink_enroll"
+	default n
+	depends on LIB_SECURE_MAVLINK
+	---help---
+		Enrol this aircraft for secure MAVLink: read the link
+		public key out, and write the ground station key and the identity
+		payload back in. The ground end is ztcs-mavlink-provision.
+
+menuconfig USER_SECURE_MAVLINK_ENROLL
+	bool "secure_mavlink_enroll running as userspace module"
+	default y
+	depends on BOARD_PROTECTED && SYSTEMCMDS_SECURE_MAVLINK_ENROLL
+	---help---
+		Put secure_mavlink_enroll in userspace memory. It reaches the
+		keystore through the crypto ioctls, like MAVLink, and in the
+		kernel it would carry a second copy of the Noise core beside the
+		kernel layer's own.

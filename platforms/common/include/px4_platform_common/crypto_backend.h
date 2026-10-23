@@ -218,6 +218,38 @@ bool crypto_get_nonce(crypto_session_handle_t handle,
 
 
 /*
+ * Read the public half of a key in the keystore. Public material only; the
+ * private half is never returned by this or anything else.
+ * handle: session handle, returned by open
+ * key_index: index to the key
+ * pubkey: buffer for the public key
+ * pubkey_size: in: buffer size, out: bytes written
+ */
+
+bool crypto_get_public_key(crypto_session_handle_t handle,
+			   uint8_t key_index,
+			   uint8_t *pubkey,
+			   size_t *pubkey_size);
+
+/*
+ * Diffie-Hellman with a key the caller never sees. The private key stays
+ * wherever the backend keeps it; only the shared secret comes back.
+ * handle: session handle, returned by open
+ * key_index: index to the private key
+ * peer: the peer's public key
+ * peer_size: length of the peer's public key
+ * secret: buffer for the shared secret
+ * secret_size: in: buffer size, out: bytes written
+ */
+
+bool crypto_key_agreement(crypto_session_handle_t handle,
+			  uint8_t key_index,
+			  const uint8_t *peer,
+			  size_t peer_size,
+			  uint8_t *secret,
+			  size_t *secret_size);
+
+/*
  * Perform signing using an open session to crypto
  * handle: session handle, returned by open
  * key_index: index to the key used for signing
@@ -408,6 +440,49 @@ typedef struct cryptoiocsetkey {
 	uint8_t key_idx;
 	bool ret;
 } cryptoiocsetkey_t;
+
+#define CRYPTOIOCKEYAGREEMENT _CRYPTOIOC(14)
+typedef struct cryptoiockeyagreement {
+	crypto_session_handle_t *handle;
+	uint8_t key_index;
+	const uint8_t *peer;
+	size_t peer_size;
+	uint8_t *secret;
+	size_t *secret_size;
+	size_t ret;
+} cryptoiockeyagreement_t;
+
+#define CRYPTOIOCGETPUBLICKEY _CRYPTOIOC(15)
+typedef struct cryptoiocgetpublickey {
+	crypto_session_handle_t *handle;
+	uint8_t key_index;
+	uint8_t *pubkey;
+	size_t *pubkey_size;
+	size_t ret;
+} cryptoiocgetpublickey_t;
+
+#define CRYPTOIOCNOISESTART _CRYPTOIOC(16)
+typedef struct cryptoiocnoisestart {
+	uint8_t link_index;
+	const uint8_t *remote_static;
+	const uint8_t *identity;
+	size_t identity_size;
+	uint8_t *message;
+	size_t *message_size;
+	int handle;
+} cryptoiocnoisestart_t;
+
+#define CRYPTOIOCNOISEFINISH _CRYPTOIOC(17)
+typedef struct cryptoiocnoisefinish {
+	int handle;
+	const uint8_t *message;
+	size_t message_size;
+	uint8_t *send_index;
+	uint8_t *recv_index;
+	int ret;
+} cryptoiocnoisefinish_t;
+
+#define CRYPTOIOCNOISEABORT _CRYPTOIOC(18)
 
 #if defined(__cplusplus)
 } // extern "C"

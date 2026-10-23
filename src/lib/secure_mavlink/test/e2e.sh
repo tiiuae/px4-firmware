@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# Drives this library's state machine against the real secure-mavlink ground station
+# over a real socket, with credentials minted for the run. Host only: it
+# exercises secure_link.c itself, so what ships is what was tested.
+#
+# Needs libsodium, and a secure-mavlink checkout for the gateway and CLI.
+# SECURE_MAVLINK_DIR (or ZTCS_DIR) overrides the default sibling checkout.
+set -euo pipefail
+
+SL=$(cd "$(dirname "$0")/.." && pwd)
+GS=${SECURE_MAVLINK_DIR:-${ZTCS_DIR:-$(git -C "$SL" rev-parse --show-toplevel)/../secure-mavlink}}
+WORK=$(mktemp -d)
+GCS_PID=""
+GW_PID=""
+TTY_PID=""
+SERIAL_PID=""
+
+cleanup() {
+  if [ -n "$SERIAL_PID" ]; then kill "$SERIAL_PID" 2>/dev/null || true; fi
+  if [ -n "$TTY_PID" ]; then kill "$TTY_PID" 2>/dev/null || true; fi
+  if [ -n "$GW_PID" ]; then kill "$GW_PID" 2>/dev/null || true; fi
+  if [ -n "$GCS_PID" ]; then kill "$GCS_PID" 2>/dev/null || true; fi
+  rm -rf "$WORK"
+}
+trap cleanup EXIT
+
+await() {
+  local file=$1 pattern=$2
+  for _ in $(seq 100); do
+    if grep -qE "$pattern" "$file" 2>/dev/null; then return 0; fi
+    sleep 0.1
+  done
+  echo "timed out waiting for /$pattern/ in $file" >&2
+  cat "$file" >&2
+  return 1
+}
+
+[ -d "$GS" ] || { echo "set SECURE_MAVLINK_DIR to a secure-mavlink checkout" >&2; exit 1; }
+
+# The silence timeout is compressed so the dropout phase takes seconds
+# rather than half a minute. The mechanism is what is under test; the unit
+# tests pin the boundary value itself.
+SILENCE_US=1500000
+read -r -a SODIUM <<< "$(pkg-config --cflags --libs libsodium)"
+
+gcc -O2 -Wall -Wextra -std=gnu99 -I"$SL" \
+  -DSECURE_LINK_SILENCE_US=${SILENCE_US}ULL -o "$WORK/aircraft" \
+  "$SL/secure_link.c" "$SL/handshake_local.c" "$SL/cobs.c" "$SL/noise/sm-noise-c/noise_ik.c" "$SL/noise/sm-noise-c/chacha20_ietf.c" \
+  "$SL/noise/sm-noise-c/backend_sodium.c" \
+  "$SL/test/secure_link_e2e.c" "${SODIUM[@]}"
+
+cd "$GS"
+cargo build -q -p ztcs-cli --features operator
+cargo build -q -p ztcs-mavlink-gateway
+CLI="$GS/target/debug/ztcs"
+GW="$GS/target/debug/ztcs-mavlink-gateway"
+PROV="$GS/target/debug/ztcs-mavlink-provision"
+SERIAL="$GS/target/debug/ztcs-mavlink-serial"
+
+"$CLI" keygen --out-seed "$WORK/operator.seed" --out-pubkey "$WORK/operator.pub" >/dev/null 2>&1
+
+mkdir -p "$WORK/attest"
+
+# The station key has to exist before provisioning can pin its public half.
+STATION=$("$GW" --static-key "$WORK/station.key" --operator-key "$WORK/operator.pub" \
+  --attest-dir "$WORK/attest" --print-public-key 2>/dev/null)
+
+# Real enrolment over the aircraft's link key, so the credentials under test
+# are the ones provisioning would issue.
+KEYS=$(cargo run -q -p ztcs-mavlink-gateway --example aircraft_keys)
+AIR_PRIV=$(awk '/^static_private/{print $2}' <<<"$KEYS")
+ENROLL=$("$PROV" --link-public "$(awk '/^static_public/{print $2}' <<<"$KEYS")" \
+  --mavlink-sysid 1 \
+  --identity-key "$WORK/aircraft.id" --station-key "$WORK/station.key" \
+  --device-serial px4-e2e 2>/dev/null)
+PEER=$(awk '/^peer_id/{print $2}' <<<"$ENROLL")
+IDENTITY=$(awk '/^identity /{print $2}' <<<"$ENROLL")
+"$CLI" mint-attestation --seed "$WORK/operator.seed" --peer-id "$PEER" \
+  --device-serial px4-e2e --protocol-family mavlink --mavlink-sysid 1 \
+  --out "$WORK/attest/$PEER.attest" >/dev/null 2>&1
+
+python3 - > "$WORK/gcs.log" 2>&1 <<'PY' &
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.bind(("127.0.0.1", 0))
+print("port", s.getsockname()[1], flush=True)
+s.settimeout(60)
+for i in (1, 2, 3, 4):
+    data, addr = s.recvfrom(2048)
+    # The source port is this aircraft's bridge. It must not move across a
+    # rekey, or the GCS sees a second vehicle.
+    print("uplink", data[6:-2].decode(), "from", addr[1], flush=True)
+    s.sendto(b"COMMAND_ACK", addr)
+PY
+GCS_PID=$!
+await "$WORK/gcs.log" '^port [0-9]+'
+GCS_PORT=$(awk '/^port/{print $2}' "$WORK/gcs.log")
+
+"$GW" --listen 127.0.0.1:0 --gcs "127.0.0.1:$GCS_PORT" \
+  --static-key "$WORK/station.key" --operator-key "$WORK/operator.pub" \
+  --idle-timeout-secs 60 \
+  --attest-dir "$WORK/attest" > "$WORK/gw.log" 2>&1 &
+GW_PID=$!
+await "$WORK/gw.log" 'secure link gateway up'
+GW_PORT=$(grep -oE 'listen=127\.0\.0\.1:[0-9]+' "$WORK/gw.log" | head -1 | cut -d: -f2)
+
+# Two rounds, with a dropout between them. The station's idle timeout is set
+# above the aircraft's silence timeout on purpose: reap first and the bridge
+# is released mid-dropout, so the reconnect looks like a new vehicle. That
+# ordering is the contract between the two ends.
+"$WORK/aircraft" 127.0.0.1 "$GW_PORT" "$AIR_PRIV" "$STATION" "$IDENTITY" \
+  "HEARTBEAT" 2 | tee "$WORK/air.log"
+
+for round in 1 2; do
+  grep -q "^uplink HEARTBEAT-$round " "$WORK/gcs.log" \
+    || { echo "round $round never reached the GCS" >&2; exit 1; }
+done
+[ "$(grep -c '^downlink COMMAND_ACK$' "$WORK/air.log")" -eq 2 ] \
+  || { echo "the aircraft did not hear both replies" >&2; exit 1; }
+
+grep -q '^rekeyed after the dropout$' "$WORK/air.log" \
+  || { echo "the aircraft did not rekey across the dropout" >&2; exit 1; }
+
+PORTS=$(awk '/^uplink/{print $4}' "$WORK/gcs.log" | sort -u | wc -l)
+[ "$PORTS" -eq 1 ] \
+  || { echo "the bridge port moved across the rekey ($PORTS seen)" >&2; exit 1; }
+
+echo "e2e ok: two rounds across a dropout, rekeyed, one bridge port"
+
+socat pty,raw,echo=0,link="$WORK/air.tty" pty,raw,echo=0,link="$WORK/radio.tty" &
+TTY_PID=$!
+for _ in $(seq 50); do [ -e "$WORK/radio.tty" ] && break; sleep 0.1; done
+
+"$SERIAL" --device "$WORK/radio.tty" --baud 57600 --gateway "127.0.0.1:$GW_PORT" \
+  > "$WORK/serial.log" 2>&1 &
+SERIAL_PID=$!
+await "$WORK/serial.log" 'serial radio bridged to the gateway'
+
+"$WORK/aircraft" "$WORK/air.tty" 0 "$AIR_PRIV" "$STATION" "$IDENTITY" \
+  "RADIO" 2 | tee "$WORK/radio.log"
+
+for round in 1 2; do
+  grep -q "^uplink RADIO-$round " "$WORK/gcs.log" \
+    || { echo "radio round $round never reached the GCS" >&2; exit 1; }
+done
+[ "$(grep -c '^downlink COMMAND_ACK$' "$WORK/radio.log")" -eq 2 ] \
+  || { echo "the aircraft did not hear both replies over the radio" >&2; exit 1; }
+grep -q '^rekeyed after the dropout$' "$WORK/radio.log" \
+  || { echo "the aircraft did not rekey across the dropout over the radio" >&2; exit 1; }
+
+echo "e2e ok: the same over a serial radio, COBS-framed through ztcs-mavlink-serial"
