@@ -1,0 +1,8 @@
+menuconfig MODULES_PRODTEST
+	bool "prodtest"
+	default n
+	---help---
+		Enable support for prodtest. Provides the platform dependencies that
+		are normally pulled in by the full set of flight modules, so that a
+		minimal production test image (sensor drivers + listener) links, and
+		a 'prodtest' command to summarize the published sensor topics.
