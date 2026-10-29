@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# Minimal production test startup script.
+#
+# Only starts the board sensor drivers (rc.board_sensors). The resulting uORB
+# topics can be inspected with the 'listener' command, e.g.:
+#   listener sensor_accel
+#   listener sensor_gyro
+#   listener sensor_mag
+#   listener sensor_baro
+#
+#------------------------------------------------------------------------------
+
+set +e
+set R /
+
+if [ -f ${R}etc/init.d/rc.board_sensors ]
+then
+	. ${R}etc/init.d/rc.board_sensors
+fi
+
+unset R
