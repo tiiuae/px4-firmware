@@ -2,7 +2,8 @@
 #
 # Minimal production test startup script.
 #
-# Only starts the board sensor drivers (rc.board_sensors). The resulting uORB
+# Loads parameters from EEPROM, then starts the board sensor drivers
+# (rc.board_sensors). The resulting uORB
 # topics can be inspected with the 'listener' command, e.g.:
 #   listener sensor_accel
 #   listener sensor_gyro
@@ -13,6 +14,19 @@
 
 set +e
 set R /
+
+# Follow the NXP93 startup path: query the manifest for parameter storage,
+# then select it for saves and restore values before starting drivers.
+if mft query -q -k MTD -s MTD_PARAMETERS -v /fs/mtd_params
+then
+	param select /fs/mtd_params
+	if ! param import
+	then
+		echo "ERROR [prodtest] EEPROM parameter import failed"
+	fi
+else
+	echo "ERROR [prodtest] EEPROM parameter storage unavailable"
+fi
 
 if [ -f ${R}etc/init.d/rc.board_sensors ]
 then
