@@ -33,4 +33,14 @@ then
 	. ${R}etc/init.d/rc.board_sensors
 fi
 
+# MAVLink's mission manager requires dataman even in this minimal image.
+# Use RAM storage so USB shell access does not depend on an SD card.
+dataman start -r
+
+# The USB monitor waits quietly for CDC-ACM readiness and starts MAVLink.
+cdcacm_autostart start
+
+# Allow MAVLink communication once production-test startup is complete.
+mavlink boot_complete
+
 unset R
