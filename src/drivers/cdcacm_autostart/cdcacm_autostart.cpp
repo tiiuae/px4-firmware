@@ -157,7 +157,7 @@ void CdcAcmAutostart::run_state_machine()
 #endif
 
 	// Do not reconfigure USB while flying
-	actuator_armed_s report;
+	actuator_armed_s report{};
 	_actuator_armed_sub.copy(&report);
 
 	if (report.armed) {
