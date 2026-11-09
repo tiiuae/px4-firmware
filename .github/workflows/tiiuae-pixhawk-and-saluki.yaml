@@ -150,7 +150,7 @@ jobs:
       - fc_matrix
     steps:
       - name: Checkout px4-firmware
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           path: px4-firmware
           submodules: true
@@ -357,6 +357,8 @@ jobs:
 
   upload-minimal-ota-container:
     name: upload minimal ota container to docker registry
+    # disabled as ota is not functional at the moment
+    if: false
     runs-on: ubuntu-latest
     env:
       COMBINED_OUTPUT_JSON: ${{ github.workspace }}/repackage/combine.json
@@ -366,7 +368,7 @@ jobs:
       - fc_matrix
     steps:
       - name: Checkout px4-firmware
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           path: px4-firmware
           submodules: true
