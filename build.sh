@@ -28,6 +28,7 @@ usage() {
   echo "     saluki-ft_default"
   echo "     salukini_default"
   echo "     saluki-pro_default"
+  echo "   The _default suffix may be omitted."
   echo
   exit 1
 }
@@ -57,6 +58,10 @@ fi
 
 dest_dir="${1:-}"
 target="${2:-}"
+
+if [[ "$target" == saluki* && "$target" != *_* ]]; then
+  target="${target}_default"
+fi
 
 if [ -z "$dest_dir" ]; then
   usage
