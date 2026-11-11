@@ -8,7 +8,8 @@ on: [pull_request]
 jobs:
   main:
     name: Validate testfile
-    runs-on: ubuntu-latest
+    # ubuntu 24.04 has needed astyle version 3.1
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
