@@ -535,6 +535,7 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 
 	// Actuators
 #if defined(CONFIG_UAVCAN_OUTPUTS_CONTROLLER)
+
 	if (uavcan_enable > 2) {
 
 		ret = _esc_controller.init();
