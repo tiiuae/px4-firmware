@@ -37,6 +37,18 @@ fi
 # Use RAM storage so USB shell access does not depend on an SD card.
 dataman start -r
 
+# Match Salukini's default Ethernet addressing and MAVLink peer/ports.
+# Parameters have been imported above, so netconfig uses the stored MAV IDs.
+if netconfig init
+then
+	if ! mavlink start -c 192.168.202.254 -o 14540 -u 14541 -r 1000000 -x
+	then
+		echo "ERROR [prodtest] Ethernet MAVLink startup failed"
+	fi
+else
+	echo "ERROR [prodtest] Ethernet IP configuration failed"
+fi
+
 # The USB monitor waits quietly for CDC-ACM readiness and starts MAVLink.
 cdcacm_autostart start
 
