@@ -154,7 +154,7 @@ jobs:
 
       - name: Upload Coverage Information to Codecov
         if: contains(matrix.config.build_type, 'Coverage')
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: mavsdk
