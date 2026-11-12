@@ -71,7 +71,7 @@ jobs:
       timestamp: ${{ steps.set-timestamp.outputs.timestamp }}
       branchname: ${{ steps.set-branch.outputs.branchname }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache Python pip
         uses: actions/cache@v4
@@ -127,7 +127,7 @@ jobs:
       image: ${{ matrix.container }}
     steps:
       - uses: runs-on/action@v2
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

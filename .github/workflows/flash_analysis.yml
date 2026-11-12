@@ -36,7 +36,7 @@ jobs:
       px4_fmu-v6x-bloaty-output: ${{ steps.gen-output.outputs.px4_fmu-v6x-bloaty-output }}
       px4_fmu-v6x-bloaty-summary-map: ${{ steps.gen-output.outputs.px4_fmu-v6x-bloaty-summary-map }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           submodules: recursive
