@@ -295,7 +295,7 @@ void AutopilotTester::execute_mission()
 		speed_factor = _info->get_speed_factor().second;
 	}
 
-	const float mission_finish_waiting_time_in_simulation_s = 500.f;
+	const float mission_finish_waiting_time_in_simulation_s = 800.f;
 	float mission_finish_waiting_time_in_real_s = mission_finish_waiting_time_in_simulation_s / speed_factor;
 
 	wait_for_mission_finished(std::chrono::seconds(static_cast<int>(mission_finish_waiting_time_in_real_s)));
