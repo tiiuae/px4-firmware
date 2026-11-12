@@ -51,7 +51,7 @@ jobs:
       meta_labels: ${{ steps.meta.outputs.labels }}
     steps:
       - uses: runs-on/action@v2
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.build_ref || github.ref }}
           fetch-tags: true
@@ -96,7 +96,7 @@ jobs:
     runs-on: [runs-on,"runner=4cpu-linux-${{ matrix.runner }}","image=ubuntu24-full-${{ matrix.runner }}","run-id=${{ github.run_id }}",extras=s3-cache,spot=false]
     steps:
       - uses: runs-on/action@v2
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.build_ref || github.ref }}
           fetch-tags: true
@@ -153,7 +153,7 @@ jobs:
       (startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_to_registry == 'true'))
     steps:
       - uses: runs-on/action@v2
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.build_ref || github.ref }}
           fetch-tags: true
