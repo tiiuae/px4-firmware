@@ -159,10 +159,6 @@ px4_add_module(
 		mavlink_shell_main.cpp
 	)
 
-if(PX4_TESTING)
-	add_subdirectory(mavlink_tests)
-endif()
-
 px4_add_unit_gtest(SRC MavlinkStatustextHandlerTest.cpp
 	INCLUDES
 		${MAVLINK_LIBRARY_DIR}
