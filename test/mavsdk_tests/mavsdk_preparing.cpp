@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 	std::string connection_url{};
 	std::string command{};
 	int param_value{};
-	mavsdk::Mavsdk mavsdk{};
+	mavsdk::Mavsdk mavsdk{Mavsdk::Configuration{ComponentType::GroundStation}};
 
 	for (int i = 0; i < argc; ++i) {
 		const std::string argv_string(argv[i]);
