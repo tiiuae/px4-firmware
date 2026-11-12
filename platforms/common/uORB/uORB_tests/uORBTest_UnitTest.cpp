@@ -615,8 +615,6 @@ int uORBTest::UnitTest::test_multi2()
 		}
 	}
 
-	px4_task_join(pubsub_task);
-
 	for (int i = 0; i < num_instances; ++i) {
 		orb_unsubscribe(orb_data_fd[i]);
 	}
@@ -1180,8 +1178,6 @@ int uORBTest::UnitTest::test_queue_poll_notify()
 		}
 	}
 
-	px4_task_join(pubsub_task);
-
 	if (_num_messages_sent.load() != next_expected_val) {
 		return test_fail("number of sent and received messages mismatch (sent: %i, received: %i)",
 				 _num_messages_sent.load(), next_expected_val);
@@ -1237,7 +1233,6 @@ int uORBTest::UnitTest::latency_test(bool print)
 		return test_fail("failed launching task");
 	}
 
-	px4_task_join(pubsub_task);
 	orb_unadvertise(pfd0);
 
 	return pubsubtest_res.load();
