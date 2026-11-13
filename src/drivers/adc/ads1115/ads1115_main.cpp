@@ -82,6 +82,11 @@ void ADS1115::RunImpl()
 	const int ready = isSampleReady();
 
 	if (ready == 1) {
+		if (_channel_cycle_mask == 0) {
+			// Preserve the cycle start time across retries so retained samples keep their age.
+			_adc_report.timestamp = hrt_absolute_time();
+		}
+
 		// I2C transaction success and status register reported conversion as finished
 		if (_ready_counter == 0) { PX4_INFO("ADS1115: reported ready"); }
 
