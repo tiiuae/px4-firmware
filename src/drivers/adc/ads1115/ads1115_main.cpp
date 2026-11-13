@@ -79,6 +79,8 @@ void ADS1115::RunImpl()
 
 	perf_begin(_cycle_perf);
 
+	_adc_report.timestamp = hrt_absolute_time();
+
 	const int ready = isSampleReady();
 
 	if (ready == 1) {
