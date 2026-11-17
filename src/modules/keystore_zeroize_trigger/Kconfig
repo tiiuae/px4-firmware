@@ -1,0 +1,5 @@
+menuconfig MODULES_KEYSTORE_ZEROIZE_TRIGGER
+	bool "keystore_zeroize_trigger"
+	default n
+	---help---
+		PROOF OF CONCEPT: erase the NOR keystore and reboot when a GPIO input is held
