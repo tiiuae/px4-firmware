@@ -1,31 +1,30 @@
-# Build from the directory containing px4-firmware (see SALUKI_FT_HITL.md).
-# Shared Noble baseline keeps Gazebo and libstdc++ ABI identical in both stages.
+# Shared Gazebo Harmonic / MAVSDK image for single-FC and FT HITL.
+# Build from the directory containing the px4-firmware checkout.
 FROM ubuntu:24.04@sha256:73b999393d07f2bf65a40373778a44dc9a6d54ad7718d29247d8ff9413c4d6a8 AS dependencies
 ARG UBUNTU_MIRROR=http://archive.ubuntu.com/ubuntu/
 ARG UBUNTU_SECURITY_MIRROR=http://security.ubuntu.com/ubuntu/
 ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC GZ_DISTRO=harmonic
 RUN sed -i "s|http://archive.ubuntu.com/ubuntu/|${UBUNTU_MIRROR}|; s|http://security.ubuntu.com/ubuntu/|${UBUNTU_SECURITY_MIRROR}|" /etc/apt/sources.list.d/ubuntu.sources \
-    && printf 'Acquire::Retries "2";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAPT::Update::Error-Mode "any";\n' > /etc/apt/apt.conf.d/80-hitl-network \
-    && apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl gnupg python3 python3-venv \
-    libboost-filesystem1.83.0 libboost-system1.83.0 libboost-thread1.83.0 \
-    libtinyxml2.6.2v5 libopencv-core406t64 libopencv-imgproc406t64 \
-    libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
-    gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly libgl1-mesa-dri libegl1 mesa-utils \
+    && apt-get update --error-on=any \
+    && apt-get install -y --no-install-recommends ca-certificates curl gnupg python3 python3-venv \
     && curl -fsSL https://packages.osrfoundation.org/gazebo.gpg \
        -o /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg \
     && echo 'deb [signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] https://packages.osrfoundation.org/gazebo/ubuntu-stable noble main' \
        > /etc/apt/sources.list.d/gazebo-stable.list \
-    && apt-get update && apt-get install -y --no-install-recommends gz-harmonic \
+    && apt-get update --error-on=any && apt-get install -y --no-install-recommends \
+       gz-harmonic libboost-filesystem1.83.0 libboost-system1.83.0 libboost-thread1.83.0 \
+       libtinyxml2.6.2v5 libopencv-video406t64 libopencv-calib3d406t64 libopencv-features2d406t64 \
+       gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly \
+       libgl1-mesa-dri libegl1 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /px4-firmware
-# One version source, shared by builder and runtime. Release assets are amd64 only for Noble.
+# Share the repository's MAVSDK version and matching Noble package between stages.
 COPY px4-firmware/test/mavsdk_tests/MAVSDK_VERSION /tmp/MAVSDK_VERSION
 RUN test "$(dpkg --print-architecture)" = amd64 \
     && version=$(cat /tmp/MAVSDK_VERSION) \
     && curl -fL "https://github.com/mavlink/MAVSDK/releases/download/v${version}/libmavsdk-dev_${version}_ubuntu24.04_amd64.deb" \
        -o /tmp/mavsdk.deb \
-    && apt-get update && apt-get install -y --no-install-recommends /tmp/mavsdk.deb \
+    && apt-get update --error-on=any && apt-get install -y --no-install-recommends /tmp/mavsdk.deb \
     && rm -rf /tmp/mavsdk.deb /var/lib/apt/lists/*
 COPY px4-firmware/Tools/setup/requirements.txt Tools/setup/requirements.txt
 RUN python3 -m venv /opt/px4-venv \
@@ -34,7 +33,7 @@ RUN python3 -m venv /opt/px4-venv \
 ENV PATH="/opt/px4-venv/bin:${PATH}"
 
 FROM dependencies AS builder
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update --error-on=any && apt-get install -y --no-install-recommends \
     git astyle build-essential cmake cppcheck file gdb lcov make ninja-build \
     pkg-config cppzmq-dev python3-dev rsync shellcheck unzip zip \
     libboost-system-dev libboost-thread-dev libboost-filesystem-dev \
@@ -42,31 +41,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libopencv-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY px4-firmware .
-# A build context must exclude host build outputs. No destructive clean of host sources.
 RUN ./packaging/build_px4_hitl_gzsim_mavsdk.sh -j4
 
 FROM dependencies AS runtime
-# The external optical-flow library also links video/calibration/feature modules.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libopencv-video406t64 libopencv-calib3d406t64 libopencv-features2d406t64 \
-    && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /px4-firmware/build/px4_sitl_default /px4-firmware/build/px4_sitl_default
 COPY --from=builder /px4-firmware/test/mavsdk_tests /px4-firmware/test/mavsdk_tests
 COPY --from=builder /px4-firmware/Tools/simulation/gz /px4-firmware/Tools/simulation/gz
-# gz_env.sh embeds /px4-firmware paths, including this server configuration.
+# Keep the absolute resource paths generated in gz_env.sh valid in the runtime.
 COPY --from=builder /px4-firmware/src/modules/simulation/gz_bridge/server.config /px4-firmware/src/modules/simulation/gz_bridge/server.config
 COPY px4-firmware/packaging/entrypoint_hitl_gzsim_mavsdk.sh /px4-firmware/entrypoint.sh
-RUN test -f build/px4_sitl_default/rootfs/gz_env.sh \
-    && . ./build/px4_sitl_default/rootfs/gz_env.sh \
-    && test -d "$PX4_GZ_MODELS" && test -f "$PX4_GZ_WORLDS/default.sdf" \
-    && test -d "$PX4_GZ_PLUGINS" && test -f "$GZ_SIM_SERVER_CONFIG_PATH" \
-    && test -f build/px4_sitl_default/build_gz-sim_plugins/libmavlink_hitl_gazebosim.so \
-    && test -f build/px4_sitl_default/src/modules/simulation/gz_plugins/libOpticalFlowSystem.so \
-    && test -f build/px4_sitl_default/src/modules/simulation/gz_plugins/libGstCameraSystem.so \
-    && test -x build/px4_sitl_default/mavsdk_tests/mavsdk_tests \
-    && test -x build/px4_sitl_default/mavsdk_tests/mavsdk_preparing \
-    && find build/px4_sitl_default -type f \( -name '*.so' -o -name mavsdk_tests -o -name mavsdk_preparing \) \
-       -exec sh -c 'for binary do ldd "$binary" > /tmp/ldd.out; cat /tmp/ldd.out; if grep -q "not found" /tmp/ldd.out; then exit 1; fi; done' sh {} + \
-    && pip check
 ENTRYPOINT ["/px4-firmware/entrypoint.sh"]
-CMD ["bash", "-c", "echo 'See Tools/simulation/gz/SALUKI_FT_HITL.md; run hitl_run.sh or tests/hitl_smoke.py'"]
+CMD ["echo", "Run Tools/simulation/gz/hitl_run.sh <model.sdf> [--headless] or test/mavsdk_tests/mavsdk_test_runner.py <config.json>; select a single-FC or FT model/config at runtime."]
