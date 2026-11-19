@@ -6,6 +6,10 @@ import subprocess
 import shutil
 import threading
 import errno
+import importlib.util
+from functools import lru_cache
+from pathlib import Path
+import sys
 from typing import Any, Dict, List, TextIO, Optional
 from .logger_helper import colorize, color
 
@@ -18,6 +22,18 @@ PX4_GAZEBO_WORLDS = PX4_SITL_GAZEBO_PATH + "/worlds"
 PX4_GZ_SIM_MODELS = PX4_SITL_GZ_SIM_PATH + "/models"
 PX4_GZ_SIM_WORLDS = PX4_SITL_GZ_SIM_PATH + "/worlds"
 PX4_GZ_SIM_PLUGIN = "build_gz-sim_plugins"
+
+# Load the repository helper directly; never evaluate shell-generated environment text.
+HITL_SESSION_PATH = Path(__file__).resolve().parents[3] / PX4_SITL_GZ_SIM_PATH / "hitl_session.py"
+@lru_cache(maxsize=1)
+def get_gz_session():
+    # Classic Gazebo callers do not require the Harmonic submodule to be initialized.
+    spec = importlib.util.spec_from_file_location("hitl_session", HITL_SESSION_PATH)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
 
 class Runner:
     def __init__(self,
@@ -40,6 +56,7 @@ class Runner:
         self.log_dir = log_dir
         self.log_filename = ""
         self.stop_thread: Any[threading.Event] = None
+        self.own_process_group = False
 
     def set_log_filename(self, log_filename: str) -> None:
         self.log_filename = log_filename
@@ -69,7 +86,8 @@ class Runner:
             env=self.env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            universal_newlines=True
+            universal_newlines=True,
+            start_new_session=self.own_process_group
         )
 
         self.stop_thread = threading.Event()
@@ -84,7 +102,7 @@ class Runner:
         while True:
             line = self.process.stdout.readline()
             if not line and \
-                    (self.stop_thread.is_set() or self.poll is not None):
+                    (self.stop_thread.is_set() or self.poll() is not None):
                 break
             if not line or line == "\n":
                 continue
@@ -127,6 +145,9 @@ class Runner:
             return 0
 
         returncode = self.process.poll()
+        if self.own_process_group:
+            get_gz_session().terminate(self.process)
+            returncode = self.process.returncode
         if returncode is None:
 
             if self.verbose:
@@ -142,7 +163,7 @@ class Runner:
                 if self.verbose:
                     print("Killing {}".format(self.name))
                 self.process.kill()
-                returncode = self.process.poll()
+                returncode = self.process.wait()
 
         if self.verbose:
             print("{} exited with {}".format(
@@ -151,6 +172,7 @@ class Runner:
         self.stop_thread.set()
         self.thread.join()
         self.log_fd.close()
+        self.stop_thread = None
 
         return self.process.returncode
 
@@ -162,10 +184,17 @@ class Runner:
             os.path.join(workspace_dir, PX4_GZ_SIM_MODELS)
         self.env["PX4_GZ_WORLDS"] = \
             os.path.join(workspace_dir, PX4_GZ_SIM_WORLDS)
-        self.env["GZ_SIM_RESOURCE_PATH"] =  \
-            self.env["PX4_GZ_WORLDS"] + ":" + self.env["PX4_GZ_MODELS"]
-        self.env["GZ_SIM_SYSTEM_PLUGIN_PATH"] =  \
-            os.path.join(workspace_dir, build_dir, PX4_GZ_SIM_PLUGIN)
+        self.env["PX4_GZ_PLUGINS"] = os.path.join(
+            workspace_dir, build_dir, "src/modules/simulation/gz_plugins")
+        self.env["PX4_GZ_SERVER_CONFIG"] = os.path.join(
+            workspace_dir, "src/modules/simulation/gz_bridge/server.config")
+        for key, paths in {
+                "GZ_SIM_RESOURCE_PATH": [self.env["PX4_GZ_MODELS"], self.env["PX4_GZ_WORLDS"]],
+                "GZ_SIM_SYSTEM_PLUGIN_PATH": [os.path.join(workspace_dir, build_dir, PX4_GZ_SIM_PLUGIN),
+                                              self.env["PX4_GZ_PLUGINS"]]}.items():
+            self.env[key] = ":".join(dict.fromkeys(
+                [p for p in self.env.get(key, "").split(":") if p] + paths))
+        self.env["GZ_SIM_SERVER_CONFIG_PATH"] = self.env["PX4_GZ_SERVER_CONFIG"]
 
 
 class Px4Runner(Runner):
@@ -388,11 +417,12 @@ class GzHarmonicServer(Runner):
                  case: str,
                  speed_factor: float,
                  verbose: bool,
-                 build_dir: str):
+                 build_dir: str,
+                 gui: bool = False):
         super().__init__(log_dir, model, case, verbose)
         self.name = "gz-sim server"
         self.cwd = workspace_dir
-        self. update_gz_sim_enviement(workspace_dir, build_dir)
+        self.update_gz_sim_enviement(workspace_dir, build_dir)
 
         word_path = os.path.join(workspace_dir,
                                       PX4_GZ_SIM_WORLDS, 'default.sdf')
@@ -402,6 +432,22 @@ class GzHarmonicServer(Runner):
 
         self.cmd = "gz"
         self.args = ["sim", "--verbose=1", "-r", "-s", word_path]
+        if not gui:
+            self.args.append("--headless-rendering")
+        self.own_process_group = True
+
+    def start(self):
+        get_gz_session().assert_unused(self.env)
+        print("GZ_PARTITION=" + self.env["GZ_PARTITION"])
+        super().start()
+
+    def has_started_ok(self):
+        try:
+            get_gz_session().wait_ready(self.process, self.env)
+            return True
+        except (RuntimeError, OSError, subprocess.SubprocessError) as error:
+            print(error)
+            return False
 
 class GzHarmonicModelSpawnRunner(Runner):
     def __init__(self,
@@ -424,14 +470,17 @@ class GzHarmonicModelSpawnRunner(Runner):
         if not os.path.isfile(model_path):
             raise Exception("Model not found:", model_path)
 
-        self.cmd = "gz"
-        self.args = ["service",
-                     "-s", '/world/default/create',
-                    '--reqtype', 'gz.msgs.EntityFactory',
-                    '--reptype', 'gz.msgs.Boolean',
-                    '--timeout', '1000',
-                    '--req', 'sdf_filename: "{}", name: "{}" pose: {{position: {{x: 1.01, y: 0.98, z: 0.83}}}}'.format(
-                    model_path, f'{self.model}')]
+        self.cmd = sys.executable
+        self.args = [str(HITL_SESSION_PATH), "create", "--model", model_path,
+                     "--name", self.model]
+        self.own_process_group = True
+
+    def has_started_ok(self):
+        try:
+            return self.process.wait(timeout=12) == 0
+        except subprocess.TimeoutExpired:
+            print("Gazebo model creation timed out")
+            return False
 
 
 class GzHarmonicClientRunner(Runner):
@@ -440,10 +489,13 @@ class GzHarmonicClientRunner(Runner):
                  log_dir: str,
                  model: str,
                  case: str,
-                 verbose: bool):
+                 verbose: bool,
+                 build_dir: str = "build/px4_sitl_default"):
         super().__init__(log_dir, model, case, verbose)
         self.name = "gz-sim client"
+        self.own_process_group = True
         self.cwd = workspace_dir
+        self.update_gz_sim_enviement(workspace_dir, build_dir)
         self.cmd = "gz"
         self.args = ["sim", "-g", "--verbose"]
 

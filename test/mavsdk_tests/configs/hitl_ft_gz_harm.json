@@ -1,0 +1,15 @@
+{
+    "mode": "hitl",
+    "simulator": "gz_sim",
+    "mavlink_connection": "udp://:14540",
+    "tests": [
+        {
+            "model": "ssrc_holybro_x500",
+            "vehicle": "ssrc_holybro_x500",
+            "model_file": "model_ft_hitl",
+            "sys_autostart": 1401,
+            "test_filter": "[multicopter],[offboard],[offboard_attitude]",
+            "timeout_min": 10
+        }
+    ]
+}

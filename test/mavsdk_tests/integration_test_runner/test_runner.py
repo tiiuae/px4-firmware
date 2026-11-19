@@ -494,7 +494,8 @@ class Tester:
                 case,
                 self.get_max_speed_factor(test),
                 self.verbose,
-                self.build_dir)
+                self.build_dir,
+                gui=self.gui)
             self.active_runners.append(gzserver_runner)
 
             if self.config['mode'] == 'hitl':
@@ -515,7 +516,8 @@ class Tester:
                     log_dir,
                     test['model'],
                     case,
-                    self.verbose)
+                    self.verbose,
+                    self.build_dir)
                 self.active_runners.append(gzclient_runner)
 
         # We must start the PX4 instance at the end, as starting
@@ -550,6 +552,12 @@ class Tester:
             self.build_dir
         ))
 
+        if self.config['simulator'] == 'gz_sim':
+            session_env = os.environ.copy()
+            partition = ph.get_gz_session().select_partition(session_env)
+            for session_runner in self.active_runners:
+                session_runner.env['GZ_PARTITION'] = partition
+
         if self.config['mode'] == 'hitl':
             self.reboot_px4()
             print("Reboot was finished")
@@ -577,8 +585,15 @@ class Tester:
             sys.exit(1)
 
     def try_to_run_several_times(self, runner: ph.Runner) -> bool:
-        for _ in range(3):
-            runner.start()
+        # Never retry a Harmonic create request: a lost reply may already have spawned it.
+        attempts = 1 if isinstance(runner, (ph.GzHarmonicServer,
+                                            ph.GzHarmonicModelSpawnRunner)) else 3
+        for _ in range(attempts):
+            try:
+                runner.start()
+            except (RuntimeError, OSError, subprocess.SubprocessError) as error:
+                print(error)
+                return False
 
             if runner.has_started_ok():
                 return True
