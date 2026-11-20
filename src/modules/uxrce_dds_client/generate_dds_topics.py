@@ -44,7 +44,7 @@ import yaml
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--camel-case-topic-names", dest='camelcase', action='store_true',
-                    help="Use CamelCase topic names instead of snake_case")
+                    help="Use CamelCase for the final topic name component, preserving the topic path")
 parser.add_argument("-y", "--dds-topics-file", dest='yaml_file', type=str,
                     help="Setup topics file path, by default using 'dds_topics.yaml'")
 
@@ -81,16 +81,10 @@ if not os.path.exists(folder_name):
 with open(args.yaml_file, 'r') as file:
     msg_map = yaml.safe_load(file)
 
-# Get DDS namespace from environment, default to empty string
-namespace = os.getenv('PX4_UXRCE_DDS_NS', '')
-
 merged_em_globals = {}
 all_type_includes = []
 
 def process_message_type(msg_type, camelcase):
-    # Add namespace to topic
-    msg_type['topic'] = f"/{namespace}{msg_type['topic']}" if namespace else msg_type['topic']
-
     # eg TrajectoryWaypoint from px4_msgs::msg::TrajectoryWaypoint
     simple_base_type = msg_type['type'].split('::')[-1]
 
@@ -102,15 +96,18 @@ def process_message_type(msg_type, camelcase):
     # dds_type: eg px4_msgs::msg::dds_::VehicleStatus_
     msg_type['dds_type'] = msg_type['type'].replace("::msg::", "::msg::dds_::") + "_"
     # topic_simple: eg vehicle_status
-    msg_type['topic_simple'] = msg_type['topic'].split('/')[-1]
+    topic_prefix, separator, simple_topic_name = msg_type['topic'].rpartition('/')
+    msg_type['topic_simple'] = simple_topic_name
     if camelcase:
-        simple_topic_name = msg_type['topic_simple']
         topic_name_camel_case = ''.join(part.title() for part in simple_topic_name.split('_'))
-        msg_type['topic_name'] = topic_name_camel_case
+        msg_type['topic_name'] = topic_prefix + separator + topic_name_camel_case
     else:
-        msg_type['topic_name'] = msg_type['topic_simple']
+        msg_type['topic_name'] = msg_type['topic']
 
-merged_em_globals['namespace'] = namespace
+    # Keep Zenoh's build-time namespace separate from DDS runtime naming.
+    namespace = os.getenv('PX4_UXRCE_DDS_NS', '')
+    if namespace:
+        msg_type['topic'] = f"/{namespace}{msg_type['topic']}"
 
 pubs_not_empty = msg_map['publications'] is not None
 if pubs_not_empty:
