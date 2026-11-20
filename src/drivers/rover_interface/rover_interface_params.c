@@ -61,7 +61,11 @@ PARAM_DEFINE_INT32(RI_CAN_BITRATE, 500000);
 /**
  * Rover interface manual control speed scale.
  *
- * @unit %m/s
+ * Maximum wheel speed used to scale throttle and steering in Manual mode only.
+ * Acro, Stabilized, Position and autonomous modes use RO_MAX_THR_SPEED instead.
+ * Limited to RO_MAX_THR_SPEED.
+ *
+ * @unit m/s
  * @min 1.0
  * @max 3.0
  * @group Rover Interface

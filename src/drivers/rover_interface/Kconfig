@@ -3,3 +3,19 @@ menuconfig DRIVERS_ROVER_INTERFACE
         default n
         ---help---
                 Enable support for rover_interface
+                Send AgileX CAN motion commands from rover throttle and steering setpoints.
+                Apply RO_ACCEL_LIM and RO_DECEL_LIM to throttle commands before
+                steering-priority wheel saturation. Safety stops bypass these limits.
+                Stop on disarm or if either setpoint exceeds the configured timeout, including
+                when the rover controller stops publishing. Both setpoints must be
+                published again after arming or releasing the kill switch.
+
+config ROVER_INTERFACE_SETPOINT_TIMEOUT_MS
+        int "Rover interface setpoint timeout (ms)"
+        depends on DRIVERS_ROVER_INTERFACE
+        default 500
+        range 1 2147483647
+        ---help---
+                Stop CAN motion if either rover throttle or steering setpoint is
+                older than this timeout. Choose a value comfortably above the
+                50 ms setpoint subscription interval.
