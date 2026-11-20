@@ -13,4 +13,5 @@ px4_add_module(
 		RoverInterface.hpp
 	DEPENDS
 		scout_sdk
+		rover_control
 )

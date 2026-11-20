@@ -1,4 +1,6 @@
 #include "RoverInterface.hpp"
+#include <lib/rover_control/RoverControl.hpp>
+#include <mathlib/mathlib.h>
 #include <px4_platform_common/log.h>
 
 RoverInterface *RoverInterface::_instance;
@@ -6,12 +8,11 @@ RoverInterface *RoverInterface::_instance;
 // CAN interface | default is can0
 const char *const RoverInterface::CAN_IFACE = "can0";
 
-RoverInterface::RoverInterface(uint8_t rover_type, uint32_t bitrate, float vehicle_speed_max)
+RoverInterface::RoverInterface(uint8_t rover_type, uint32_t bitrate)
 	: ModuleParams(nullptr),
 	  ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::rover_interface),
 	  _rover_type(rover_type),
 	  _bitrate(bitrate),
-	  _vehicle_speed_max(vehicle_speed_max),
 	  _battery(1, nullptr, RoverStatusPublishIntervalMs, battery_status_s::SOURCE_EXTERNAL)
 {
 	pthread_mutex_init(&_node_mutex, nullptr);
@@ -44,14 +45,14 @@ RoverInterface::~RoverInterface()
 }
 
 
-int RoverInterface::start(uint8_t rover_type, uint32_t bitrate, float vehicle_speed_max)
+int RoverInterface::start(uint8_t rover_type, uint32_t bitrate)
 {
 	if (_instance != nullptr) {
 		PX4_ERR("Already started");
 		return -1;
 	}
 
-	_instance = new RoverInterface(rover_type, bitrate, vehicle_speed_max);
+	_instance = new RoverInterface(rover_type, bitrate);
 
 	if (_instance == nullptr) {
 		PX4_ERR("Failed to allocate RoverInterface object");
@@ -153,6 +154,7 @@ void RoverInterface::Init()
 	// Allow reception of system status feedback message only
 	_scout->AllowOnlySystemStatusFeedback();
 
+	parameters_update(true);
 	_initialized = true;
 }
 
@@ -167,6 +169,17 @@ void RoverInterface::parameters_update(bool force)
 
 		// update parameters from storage
 		updateParams();
+
+		_control_parameters_valid = PX4_ISFINITE(_param_ro_max_thr_speed.get())
+					    && _param_ro_max_thr_speed.get() > FLT_EPSILON
+					    && PX4_ISFINITE(_param_rd_wheel_track.get())
+					    && _param_rd_wheel_track.get() > FLT_EPSILON
+					    && PX4_ISFINITE(_param_ro_accel_limit.get())
+					    && PX4_ISFINITE(_param_ro_decel_limit.get());
+
+		if (!_control_parameters_valid) {
+			PX4_ERR("Set positive finite RO_MAX_THR_SPEED, RD_WHEEL_TRACK and finite RO_ACCEL_LIM, RO_DECEL_LIM");
+		}
 	}
 }
 
@@ -178,7 +191,10 @@ void RoverInterface::Run()
 	if (_instance != nullptr && _task_should_exit.load()) {
 		ScheduleClear();
 
-		if (_initialized) { _initialized = false; }
+		if (_initialized) {
+			StopMotion();
+			_initialized = false;
+		}
 
 		// Clean up
 		if (_scout != nullptr) {
@@ -217,11 +233,11 @@ void RoverInterface::Run()
 	// Check for action request (kill switch)
 	ActionRequestUpdate();
 
-	// Check for actuator controls command to rover
-	if (!_kill_switch && _armed) { VehicleTorqueAndThrustUpdate(); }
+	// Only the Manual navigation mode uses the manual speed scale.
+	VehicleStatusUpdate();
 
-	// Check for vehicle control mode
-	VehicleControlModeUpdate();
+	// Check for motion commands to rover
+	if (!_kill_switch && _armed) { RoverSetpointUpdate(); }
 
 	// Check for receive msgs from the rover
 	_scout->CheckUpdateFromRover();
@@ -237,35 +253,125 @@ void RoverInterface::Run()
 }
 
 
-void RoverInterface::VehicleTorqueAndThrustUpdate()
+void RoverInterface::RoverSetpointUpdate()
 {
+	const hrt_abstime timestamp_prev = _last_control_update;
+	_last_control_update = hrt_absolute_time();
+	const float dt = math::constrain(_last_control_update - timestamp_prev, 1_ms, 10_ms) * 1e-6f;
+
 	bool do_update = false;
 
-	// Check torque setppoint update
-	if (_vehicle_torque_setpoint_sub.updated()) {
-		vehicle_torque_setpoint_s vehicle_torque_setpoint_msg;
+	if (_rover_steering_setpoint_sub.updated()) {
+		rover_steering_setpoint_s rover_steering_setpoint_msg;
 
-		if (_vehicle_torque_setpoint_sub.copy(&vehicle_torque_setpoint_msg)) {
-			_yaw_control = vehicle_torque_setpoint_msg.xyz[2];
+		if (_rover_steering_setpoint_sub.copy(&rover_steering_setpoint_msg)) {
+			_yaw_control = rover_steering_setpoint_msg.normalized_steering_setpoint;
+			_steering_setpoint_timestamp = rover_steering_setpoint_msg.timestamp;
 			do_update = true;
 		}
 	}
 
-	// Check thrust setpoint update
-	if (_vehicle_thrust_setpoint_sub.updated()) {
-		vehicle_thrust_setpoint_s vehicle_thrust_setpoint_msg;
+	if (_rover_throttle_setpoint_sub.updated()) {
+		rover_throttle_setpoint_s rover_throttle_setpoint_msg;
 
-		if (_vehicle_thrust_setpoint_sub.copy(&vehicle_thrust_setpoint_msg)) {
-			_throttle_control = vehicle_thrust_setpoint_msg.xyz[0];
+		if (_rover_throttle_setpoint_sub.copy(&rover_throttle_setpoint_msg)) {
+			_throttle_control = rover_throttle_setpoint_msg.throttle_body_x;
+			_throttle_setpoint_timestamp = rover_throttle_setpoint_msg.timestamp;
 			do_update = true;
 		}
 	}
 
-	if (do_update) {
-		auto throttle = (_is_manual_mode ? _param_man_speed_scale.get() : _vehicle_speed_max) * _throttle_control;
-		auto steering = _yaw_control;
-		_scout->SetMotionCommand(throttle, steering);
+	// Check both publishers even when no new setpoint arrives, including controller stops.
+	if (_throttle_setpoint_timestamp <= _motion_enabled_time ||
+	    _steering_setpoint_timestamp <= _motion_enabled_time ||
+	    hrt_elapsed_time(&_throttle_setpoint_timestamp) > SetpointTimeout ||
+	    hrt_elapsed_time(&_steering_setpoint_timestamp) > SetpointTimeout) {
+		if (_setpoints_fresh) {
+			PX4_WARN("Rover setpoints stale, stopping");
+		}
+
+		_setpoints_fresh = false;
+		StopMotion();
+		return;
 	}
+
+	_setpoints_fresh = true;
+
+	if (!_control_parameters_valid) {
+		StopMotion();
+		return;
+	}
+
+	if (!PX4_ISFINITE(_throttle_control) || !PX4_ISFINITE(_yaw_control)) {
+		if (do_update) {
+			PX4_WARN("Invalid rover throttle or steering setpoint");
+		}
+
+		StopMotion();
+		return;
+	}
+
+	if (_is_manual_mode && (!PX4_ISFINITE(_param_man_speed_scale.get())
+				|| _param_man_speed_scale.get() <= FLT_EPSILON)) {
+		if (do_update) {
+			PX4_WARN("Set positive finite RI_MAN_SPD_SC");
+		}
+
+		StopMotion();
+		return;
+	}
+
+	const float speed_scale = _is_manual_mode
+				  ? math::min(_param_man_speed_scale.get(), _param_ro_max_thr_speed.get())
+				  : _param_ro_max_thr_speed.get();
+	// Start from the last CAN speed so scale changes and wheel saturation cannot wind up the ramp.
+	SlewRate<float> throttle_setpoint{_last_throttle_speed / speed_scale};
+	const float adjusted_throttle = RoverControl::throttleControl(throttle_setpoint,
+					math::constrain(_throttle_control, -1.f, 1.f), throttle_setpoint.getState(),
+					_param_ro_accel_limit.get(), _param_ro_decel_limit.get(), speed_scale, dt);
+	const float steering = math::constrain(_yaw_control, -1.f, 1.f);
+	// Match DifferentialActControl: preserve steering and reduce throttle at wheel saturation.
+	const float throttle_limit = 1.f - fabsf(steering);
+	const float throttle = speed_scale * math::constrain(adjusted_throttle, -throttle_limit, throttle_limit);
+	// Steering is half the normalized right-minus-left wheel speed, not an angular velocity.
+	const float yaw_rate = 2.f * speed_scale * steering / _param_rd_wheel_track.get();
+
+	if (!SendMotionCommand(throttle, yaw_rate)) {
+		StopMotion();
+		return;
+	}
+
+	_last_throttle_speed = throttle;
+}
+
+
+bool RoverInterface::SendMotionCommand(float linear_velocity, float yaw_rate)
+{
+	if (!_scout->GetCANConnected()) {
+		PX4_ERR("Cannot send rover motion command: CAN disconnected");
+		return false;
+	}
+
+	// The SDK encodes millimetres/milliradians as int16_t and negates yaw.
+	const float linear_command = linear_velocity * 1000.f;
+	const float angular_command = -yaw_rate * 1000.f;
+
+	if (!PX4_ISFINITE(linear_command) || linear_command < INT16_MIN || linear_command > INT16_MAX
+	    || !PX4_ISFINITE(angular_command) || angular_command < INT16_MIN || angular_command > INT16_MAX) {
+		PX4_ERR("Non-finite or out-of-range rover motion command");
+		return false;
+	}
+
+	_scout->SetMotionCommand(linear_velocity, yaw_rate);
+	return true;
+}
+
+
+void RoverInterface::StopMotion()
+{
+	SendMotionCommand(0.f, 0.f);
+	_last_throttle_speed = 0.f;
+	_last_control_update = hrt_absolute_time();
 }
 
 
@@ -278,9 +384,12 @@ void RoverInterface::ActuatorArmedUpdate()
 			// Arm or disarm the rover
 			if (!_armed && actuator_armed_msg.armed) {
 				_scout->SetLightCommand(LightMode::CONST_ON, 0);
+				_motion_enabled_time = hrt_absolute_time();
+				_setpoints_fresh = false;
 				_armed = true;
 
 			} else if (_armed && !actuator_armed_msg.armed) {
+				StopMotion();
 				_scout->SetLightCommand(LightMode::BREATH, 0);
 				_armed = false;
 			}
@@ -299,10 +408,15 @@ void RoverInterface::ActionRequestUpdate()
 			switch (action_request_msg.action) {
 			case action_request_s::ACTION_KILL:
 				_kill_switch = true;
-				_scout->SetMotionCommand(0.0, 0.0);
+				StopMotion();
 				break;
 
 			case action_request_s::ACTION_UNKILL:
+				if (_kill_switch) {
+					_motion_enabled_time = hrt_absolute_time();
+					_setpoints_fresh = false;
+				}
+
 				_kill_switch = false;
 				break;
 			}
@@ -311,13 +425,13 @@ void RoverInterface::ActionRequestUpdate()
 }
 
 
-void RoverInterface::VehicleControlModeUpdate()
+void RoverInterface::VehicleStatusUpdate()
 {
-	if (_vehicle_control_mode_sub.updated()) {
-		vehicle_control_mode_s vehicle_control_mode_msg;
+	if (_vehicle_status_sub.updated()) {
+		vehicle_status_s vehicle_status_msg;
 
-		if (_vehicle_control_mode_sub.copy(&vehicle_control_mode_msg)) {
-			_is_manual_mode = vehicle_control_mode_msg.flag_control_manual_enabled;
+		if (_vehicle_status_sub.copy(&vehicle_status_msg)) {
+			_is_manual_mode = vehicle_status_msg.nav_state == vehicle_status_s::NAVIGATION_STATE_MANUAL;
 		}
 	}
 }
@@ -408,8 +522,8 @@ void RoverInterface::print_status()
 
 	// Subscription info
 	PX4_INFO("Subscribed to topics: %s, %s, %s",
-		 _vehicle_thrust_setpoint_sub.get_topic()->o_name,
-		 _vehicle_torque_setpoint_sub.get_topic()->o_name,
+		 _rover_throttle_setpoint_sub.get_topic()->o_name,
+		 _rover_steering_setpoint_sub.get_topic()->o_name,
 		 _actuator_armed_sub.get_topic()->o_name);
 
 	// Publication info
@@ -452,17 +566,10 @@ extern "C" __EXPORT int rover_interface_main(int argc, char *argv[])
 		int32_t can_bitrate = 0;
 		param_get(param_find("RI_CAN_BITRATE"), &can_bitrate);
 
-		// Vehicle speed max | depending on rover type
-		float vehicle_speed_max = 0.0f;
-		param_get(param_find("GND_SPEED_MAX"), &vehicle_speed_max);
-
 		// Start
 		PX4_INFO("Start Rover Interface to rover type %" PRId32 " at CAN iface %s with bitrate %" PRId32 " bit/s",
 			 rover_type, RoverInterface::CAN_IFACE, can_bitrate);
-		return RoverInterface::start(static_cast<uint8_t>(rover_type),
-					     can_bitrate,
-					     vehicle_speed_max
-					    );
+		return RoverInterface::start(static_cast<uint8_t>(rover_type), can_bitrate);
 	}
 
 	/* commands below assume that the app has been already started */
