@@ -14,8 +14,8 @@
 #include <uORB/Publication.hpp>
 #include <uORB/topics/parameter_update.h>
 
-#include <uORB/topics/vehicle_thrust_setpoint.h>
-#include <uORB/topics/vehicle_torque_setpoint.h>
+#include <uORB/topics/rover_throttle_setpoint.h>
+#include <uORB/topics/rover_steering_setpoint.h>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/action_request.h>
 #include <uORB/topics/rover_status.h>
@@ -28,7 +28,7 @@ using namespace time_literals;
 class RoverInterface : public ModuleParams, public px4::ScheduledWorkItem
 {
 	/*
-	 * Base interval, has to be compliant with the rate of the actuator_controls
+	 * Base interval, has to be compliant with the rate of the rover setpoint
 	 * topic subscription and CAN bus update rate
 	 */
 	static constexpr uint64_t ScheduleIntervalMs{10_ms};
@@ -42,10 +42,10 @@ class RoverInterface : public ModuleParams, public px4::ScheduledWorkItem
 public:
 	static const char *const CAN_IFACE;
 
-	RoverInterface(uint8_t rover_type, uint32_t bitrate, float vehicle_speed_max);
+	RoverInterface(uint8_t rover_type, uint32_t bitrate);
 	~RoverInterface() override;
 
-	static int start(uint8_t rover_type, uint32_t bitrate, float vehicle_speed_max);
+	static int start(uint8_t rover_type, uint32_t bitrate);
 
 	void print_status();
 
@@ -55,7 +55,7 @@ private:
 	void Init();
 	void Run() override;
 
-	void VehicleTorqueAndThrustUpdate();
+	void RoverSetpointUpdate();
 	void ActuatorArmedUpdate();
 	void ActionRequestUpdate();
 	void VehicleControlModeUpdate();
@@ -74,6 +74,8 @@ private:
 
 	bool _is_manual_mode{false};
 
+	bool _control_parameters_valid{false};
+
 	static RoverInterface *_instance;
 
 	pthread_mutex_t _node_mutex;
@@ -82,11 +84,9 @@ private:
 
 	uint32_t _bitrate;
 
-	float _vehicle_speed_max;
+	float _throttle_control{0.f};
 
-	float _throttle_control;
-
-	float _yaw_control;
+	float _yaw_control{0.f};
 
 	scoutsdk::ProtocolVersion _protocol_version{scoutsdk::ProtocolVersion::AGX_V2};
 
@@ -96,8 +96,8 @@ private:
 
 	// Subscription
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
-	uORB::SubscriptionInterval _vehicle_thrust_setpoint_sub{ORB_ID(vehicle_thrust_setpoint), ControlSubIntervalMs};
-	uORB::SubscriptionInterval _vehicle_torque_setpoint_sub{ORB_ID(vehicle_torque_setpoint), ControlSubIntervalMs};
+	uORB::SubscriptionInterval _rover_throttle_setpoint_sub{ORB_ID(rover_throttle_setpoint), ControlSubIntervalMs};
+	uORB::SubscriptionInterval _rover_steering_setpoint_sub{ORB_ID(rover_steering_setpoint), ControlSubIntervalMs};
 	uORB::Subscription _actuator_armed_sub{ORB_ID(actuator_armed)};
 	uORB::Subscription _action_request_sub{ORB_ID(action_request)};
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
@@ -116,6 +116,8 @@ private:
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::RI_MAN_SPD_SC>) _param_man_speed_scale,
+		(ParamFloat<px4::params::RO_MAX_THR_SPEED>) _param_ro_max_thr_speed,
+		(ParamFloat<px4::params::RD_WHEEL_TRACK>) _param_rd_wheel_track,
 		(ParamInt<px4::params::RI_PUB_BATT>) _param_publish_battery_status
 	)
 
