@@ -70,14 +70,14 @@ jobs:
           - saluki-pro_default
         include:
           - product: saluki-v2_flat
-            include_in_packaging: false
+            exclude_from_packaging: true
           - product: saluki-nxp93_flat
-            include_in_packaging: false
+            exclude_from_packaging: true
     uses: ./.github/workflows/tiiuae-pixhawk-and-saluki-builder.yaml
     with:
       product: ${{ matrix.product }}
       keys: ${{ matrix.keys }}
-      include_in_packaging: ${{ matrix.include_in_packaging == null || matrix.include_in_packaging == true }}
+      exclude_from_packaging: ${{ matrix.exclude_from_packaging == true }}
       # old workflow had condition to run only if PR is done to current repo (or triggered with other event)
       enabled: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     secrets: inherit
