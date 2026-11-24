@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"px4-bench": {
+			"type": "stdio",
+			"command": "bash",
+			"args": ["${workspaceFolder}/Tools/px4-bench/run.sh"]
+		}
+	}
+}

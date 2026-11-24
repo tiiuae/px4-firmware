@@ -41,8 +41,10 @@ else
 
         signing_args=${SIGNING_ARGS:-$default_signing_args}
 
-        # Remove old build output
-        rm -Rf build/${arg}
+        # Remove old build output, unless an incremental build was requested
+        if [ "${PX4_INCREMENTAL:-0}" != "1" ]; then
+            rm -Rf build/${arg}
+        fi
         # Build
         SIGNING_ARGS=${signing_args} make -j$((`nproc`+1)) ${arg}
 

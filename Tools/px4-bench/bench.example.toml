@@ -1,0 +1,47 @@
+# px4-bench configuration. Copy to bench.toml (git-ignored) and adjust for your bench.
+# Override the file location with PX4_BENCH_CONFIG=/path/to/bench.toml.
+
+[console]
+# UART debug console (NSH). Prefer stable /dev/serial/by-id/... names (see the list_serial_ports tool).
+# Env override: PX4_BENCH_CONSOLE_PORT
+port = "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_XXXXXXXX-if00-port0"
+baud = 115200
+# Open the console automatically on first use.
+autoopen = true
+# Regex for the shell prompt (CONFIG_NSH_PROMPT_STRING). Saluki boards use "saluki> ", upstream "nsh> ".
+prompt = '(?:saluki|nsh)> '
+
+[mavlink]
+# MAVLink shell over the board's USB CDC port. Empty = auto-detect by USB description regex.
+# Env override: PX4_BENCH_MAVLINK_PORT
+port = ""
+port_match = "Saluki|PX4"
+baud = 57600
+
+[uploader]
+# Saluki px_uploader.py from the saluki_bootloader_v2 repository (NOT Tools/px_uploader.py of this repo).
+# Env override: SALUKI_UPLOADER
+path = "~/code/saluki_bootloader_v2/tools/px_uploader.py"
+timeout = 240
+# Max time to wait for the shell prompt after flash/reboot.
+boot_timeout = 60
+
+[build]
+docker_image = "tii_px4_build"
+timeout = 3600
+
+[toolchain]
+# Use cross tools from the host PATH when available; otherwise they run inside the build container.
+use_host = true
+# [toolchain.prefix]
+# "risc-v" = "riscv-none-elf-"
+# "arm64" = "aarch64-none-elf-"
+# "arm" = "arm-none-eabi-"
+
+[safety]
+# Additional regexes for shell commands that require confirm=true.
+extra_confirm_patterns = []
+
+[logs]
+# Console captures, build/flash logs, fetched files and extracted artifacts.
+dir = "~/.cache/px4-bench"
