@@ -24,8 +24,8 @@ param set EKF2_EV_CTRL 0
 # Offboard failsafe, set to land immediately even when RC is available
 param set COM_OBL_RC_ACT 4
 
-# GND_L1_DIST
-param set GND_L1_DIST 1
+# NAV_ACC_RAD
+param set NAV_ACC_RAD 1
 
 # Default Flight Modes and Kill Switch
 param set COM_FLTMODE1 0
