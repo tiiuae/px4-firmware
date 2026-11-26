@@ -37,7 +37,7 @@ jobs:
           - {model: "standard_vtol", latitude:  "47.397742", longitude:    "8.545594", altitude: "488", build_type: "Coverage" } # Zurich
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

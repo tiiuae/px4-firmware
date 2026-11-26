@@ -47,7 +47,7 @@ jobs:
           apt update && apt install git -y
           git config --global --add safe.directory $(realpath .)
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Deps, Build, and Make Quick Check
         run: |

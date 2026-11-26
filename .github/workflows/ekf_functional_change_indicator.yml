@@ -20,7 +20,7 @@ jobs:
       image: px4io/px4-dev:v1.16.0-rc1-258-g0369abd556
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

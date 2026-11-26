@@ -38,7 +38,7 @@ jobs:
       - uses: runs-on/action@v1
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - id: set-branch
         run: echo "branchname=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
