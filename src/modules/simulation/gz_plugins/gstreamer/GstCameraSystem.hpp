@@ -102,6 +102,7 @@ private:
 
 	// Topic info
 	std::string _cameraTopic;
+	std::string _cameraName;
 	int _width {};
 	int _height {};
 	double _rate = 30.0;
