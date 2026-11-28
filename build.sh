@@ -28,6 +28,7 @@ usage() {
   echo "     saluki-ft_default"
   echo "     salukini_default"
   echo "     saluki-pro_default"
+  echo "     imxrt1180-evk_default"
   echo
   exit 1
 }
@@ -131,7 +132,7 @@ case $target in
     json_output+="\"px4_build_time\":\"${px4_build_time}\"}"
     ;;
   # handle all normal ssrc targets
-  saluki*)
+  saluki*|imxrt1180-evk*)
     build_target="ssrc_${target}"
     if [[ ${SIGNING_KEY} = "hsm" ]]; then
       $hsm_build_cmd_fw ${build_target}

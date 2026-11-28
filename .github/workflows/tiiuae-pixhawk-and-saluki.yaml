@@ -68,6 +68,7 @@ jobs:
           - saluki-ft_default
           - salukini_default
           - saluki-pro_default
+          - imxrt1180-evk_default
         include:
           - product: saluki-v2_flat
             exclude_from_packaging: true
@@ -167,7 +168,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: bin
-          pattern: saluki*
+          pattern: '{saluki*,imxrt1180-evk*}'
           merge-multiple: true
       - name: Firmware flasher - Container metadata
         id: containermeta # referenced from later step

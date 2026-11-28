@@ -20,9 +20,14 @@ else
 
         # for our own HW, use HW specific signing keys. For pixhawks, and icicle board,
         # use the PX4 default test key.
-        if [[ $NAME = saluki* ]]
+        if [[ $NAME = saluki* ]] || [[ $NAME = imxrt1180-evk* ]]
         then
-            if [[ "$NAME" == "saluki-nxp93" || "$NAME" == "saluki-micro" || "$NAME" == "saluki-ft" || "$NAME" == "salukini" || "$NAME" == "saluki-pro" ]]; then
+            if [[ "$NAME" == "saluki-nxp93" ||
+                  "$NAME" == "saluki-micro" ||
+                  "$NAME" == "saluki-ft" ||
+                  "$NAME" == "salukini" ||
+                  "$NAME" == "saluki-pro" ||
+                  "$NAME" == "imxrt1180-evk" ]]; then
                 default_signing_args=Tools/saluki-sec-scripts/test_keys/$NAME/secp384r1_test_key1.pem
             else
                 default_signing_args=Tools/saluki-sec-scripts/test_keys/$NAME/ed25519_test_key.pem
